@@ -215,17 +215,17 @@ Key functions:
 
 For the full pipeline (Blender export, pitfalls, architecture), see [docs/skeletal-animation.md](docs/skeletal-animation.md).
 
-## Made with Bloom
+## Built with the original Bloom Engine
 
-**[Bloom Jump](https://apps.apple.com/us/app/bloom-jump/id6761447092)** — our first shipped game and a proof point for the engine. A free retro pixel platformer with five hand-crafted levels, 60 FPS, and an original chiptune soundtrack, built entirely with Bloom from one TypeScript codebase running natively on every target.
+**[Bloom Jump](https://apps.apple.com/us/app/bloom-jump/id6761447092)** was released under the original Bloom Engine name before this fork continued as BornEngine. It remains a historical Bloom-branded release, not a BornEngine-branded game. It's a free retro pixel platformer with five hand-crafted levels, 60 FPS, and an original chiptune soundtrack, built from one TypeScript codebase.
 
 - [App Store](https://apps.apple.com/us/app/bloom-jump/id6761447092) — iOS, macOS, tvOS, and visionOS
 - [App Store (watchOS)](https://apps.apple.com/us/app/bloom-jump-watch/id6779528549) — Apple Watch
 - [Google Play](https://play.google.com/store/apps/details?id=com.bloom.jump) — Android
 
-## Links
+## BornEngine links
 
-- [bloomengine.dev](https://bloomengine.dev)
-- [Docs](https://bloomengine.dev/docs)
-- [Showcase](https://bloomengine.dev/showcase)
-- [Brand Guidelines](https://github.com/Bloom-Engine/brand)
+- [Source repository](https://github.com/RuanFernandes/BornEngine)
+- [npm package](https://www.npmjs.com/package/@bornengine/engine)
+- [Documentation](docs/)
+- [BornEngine CLI](https://github.com/RuanFernandes/bornengine-cli)
