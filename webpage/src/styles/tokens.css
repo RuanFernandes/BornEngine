@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --ink-950: #0a0d10;
   --ink-900: #11161c;
   --ink-800: #1a222b;
@@ -27,6 +28,33 @@
   --duration-base: 220ms;
   --duration-slow: 480ms;
   --ease-out: cubic-bezier(0.22, 0.8, 0.32, 1);
+
+  --docs-canvas: var(--paper-50);
+  --docs-text: var(--ink-950);
+  --docs-muted: var(--slate-700);
+  --docs-subtle: var(--slate-500);
+  --docs-border: var(--line-light);
+  --docs-elevated: var(--paper-100);
+  --docs-active: var(--ink-950);
+  --docs-inline-code: var(--paper-100);
+  --docs-code-surface: var(--ink-900);
+  --docs-code-text: var(--paper-50);
+  --docs-link: var(--blue-500);
+}
+
+.theme-ink {
+  color-scheme: dark;
+  --docs-canvas: var(--ink-950);
+  --docs-text: var(--paper-50);
+  --docs-muted: #b9c2c8;
+  --docs-subtle: #8e9aa4;
+  --docs-border: var(--line-dark);
+  --docs-elevated: var(--ink-900);
+  --docs-active: var(--paper-50);
+  --docs-inline-code: var(--ink-800);
+  --docs-code-surface: #0d1217;
+  --docs-code-text: var(--paper-50);
+  --docs-link: #7bb2ff;
 }
 
 @media (prefers-color-scheme: dark) {

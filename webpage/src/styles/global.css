@@ -2,8 +2,8 @@
 
 :root {
   font-family: var(--font-sans);
-  color: var(--ink-950);
-  background: var(--paper-50);
+  color: var(--docs-text);
+  background: var(--docs-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -21,17 +21,18 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  background: var(--paper-50);
+  color: var(--docs-text);
+  background: var(--docs-canvas);
 }
 
 .theme-paper {
-  color: var(--ink-950);
-  background: var(--paper-50);
+  color: var(--docs-text);
+  background: var(--docs-canvas);
 }
 
 .theme-ink {
-  color: var(--paper-50);
-  background: var(--ink-950);
+  color: var(--docs-text);
+  background: var(--docs-canvas);
 }
 
 .site-header {
@@ -333,9 +334,9 @@ a {
 .search-dialog {
   width: min(100% - 2rem, 680px);
   padding: 0;
-  border: 1px solid var(--line-light);
-  color: var(--ink-950);
-  background: var(--paper-50);
+  border: 1px solid var(--docs-border);
+  color: var(--docs-text);
+  background: var(--docs-canvas);
   box-shadow: 0 22px 70px rgb(10 13 16 / 25%);
 }
 
@@ -364,8 +365,8 @@ a {
 
 .search-dialog__close {
   padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line-light);
-  color: var(--slate-700);
+  border: 1px solid var(--docs-border);
+  color: var(--docs-muted);
   background: transparent;
   font-family: var(--font-mono);
   font-size: 0.65rem;
@@ -374,7 +375,7 @@ a {
 
 .search-dialog__fallback {
   margin: 0.8rem 0 0;
-  color: var(--slate-500);
+  color: var(--docs-subtle);
   font-size: 0.78rem;
 }
 
@@ -452,6 +453,11 @@ pre {
     border: 1px solid var(--line-light);
     background: var(--paper-50);
     box-shadow: 0 12px 26px rgb(10 13 16 / 8%);
+  }
+
+  .theme-ink .site-header__nav {
+    border-color: var(--docs-border);
+    background: var(--docs-canvas);
   }
 
   .theme-ink .site-header__menu {
