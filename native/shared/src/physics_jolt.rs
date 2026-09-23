@@ -1345,8 +1345,8 @@ impl JoltPhysics {
 // Usage (in a platform crate, e.g. native/macos/src/lib.rs):
 //
 //     #[inline]
-//     fn bloom_jolt_ffi_physics() -> &'static mut bloom_shared::physics_jolt::JoltPhysics {
-//         &mut engine().jolt
+//     fn bloom_jolt_ffi_physics() -> impl std::ops::DerefMut<Target = bloom_shared::physics_jolt::JoltPhysics> {
+//         engine_jolt_guard()
 //     }
 //     bloom_shared::define_physics_ffi!();
 //

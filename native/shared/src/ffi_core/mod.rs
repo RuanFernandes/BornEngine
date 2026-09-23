@@ -30,9 +30,10 @@
 //! The platform crate must define, before invoking the macro:
 //!
 //! ```ignore
-//! /// Engine-state accessor. FFI is single-threaded (Perry calls in on
-//! /// the run-loop thread); see the audio module for the one exception.
-//! fn engine() -> &'static mut bloom_shared::engine::EngineState { ... }
+//! /// Engine-state accessor. It must provide exclusive mutable access to the
+//! /// state for the duration of each FFI operation. A platform can return a
+//! /// direct mutable reference or a synchronization guard.
+//! fn engine() -> impl std::ops::DerefMut<Target = bloom_shared::engine::EngineState> { ... }
 //!
 //! /// Asset-path resolver: identity on desktop; prepends the app asset
 //! /// dir on Android/iOS/tvOS where relative paths don't resolve.
@@ -98,7 +99,23 @@ macro_rules! define_core_ffi {
 mod macro_expansion_compile_check {
     #![allow(dead_code, unused_variables)]
 
-    fn engine() -> &'static mut crate::engine::EngineState {
+    struct EngineGuard(&'static mut crate::engine::EngineState);
+
+    impl std::ops::Deref for EngineGuard {
+        type Target = crate::engine::EngineState;
+
+        fn deref(&self) -> &Self::Target {
+            self.0
+        }
+    }
+
+    impl std::ops::DerefMut for EngineGuard {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            self.0
+        }
+    }
+
+    fn engine() -> EngineGuard {
         unreachable!("compile-coverage mock — never called")
     }
 

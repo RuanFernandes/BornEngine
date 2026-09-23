@@ -212,7 +212,7 @@ macro_rules! __bloom_ffi_scene {
         #[no_mangle]
         pub extern "C" fn bloom_scene_attach_model_lod(node_handle: f64, model_handle: f64, mesh_index: f64, lod_index: f64, max_coverage: f64) {
             $crate::ffi::guard("bloom_scene_attach_model_lod", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let mi = mesh_index as usize;
                 let model_data = match eng.models.models.get(model_handle) {
                     Some(md) => md,
@@ -289,7 +289,7 @@ macro_rules! __bloom_ffi_scene {
         #[no_mangle]
         pub extern "C" fn bloom_scene_pick_all(screen_x: f64, screen_y: f64, max_results: f64) -> f64 {
             $crate::ffi::guard("bloom_scene_pick_all", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let inv_vp = eng.renderer.inverse_vp_matrix();
                 let cam_pos = eng.renderer.camera_pos();
                 let w = eng.renderer.width() as f32;
@@ -420,7 +420,7 @@ macro_rules! __bloom_ffi_scene {
             max_x: f64, max_y: f64, max_z: f64,
         ) {
             $crate::ffi::guard("bloom_scene_subtract_box", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if let Some(node) = eng.scene.nodes.get(handle) {
                     let current = $crate::geometry::GeometryData {
                         vertices: node.vertices.clone(),
@@ -441,7 +441,7 @@ macro_rules! __bloom_ffi_scene {
         #[no_mangle]
         pub extern "C" fn bloom_scene_attach_model(node_handle: f64, model_handle: f64, mesh_index: f64) {
             $crate::ffi::guard("bloom_scene_attach_model", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let mi = mesh_index as usize;
 
                 let model_data = match eng.models.models.get(model_handle) {

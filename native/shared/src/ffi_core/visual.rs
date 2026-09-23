@@ -70,7 +70,7 @@ macro_rules! __bloom_ffi_visual {
         #[no_mangle]
         pub extern "C" fn bloom_set_texture_filter(handle: f64, mode: f64) {
             $crate::ffi::guard("bloom_set_texture_filter", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if let Some(tex) = eng.textures.get(handle) {
                     let bind_group_idx = tex.bind_group_idx;
                     eng.renderer.set_texture_filter(bind_group_idx, mode > 0.5);
@@ -197,7 +197,7 @@ macro_rules! __bloom_ffi_visual {
         #[no_mangle]
         pub extern "C" fn bloom_set_fog(r: f64, g: f64, b: f64, density: f64, height_ref: f64, height_falloff: f64) {
             $crate::ffi::guard("bloom_set_fog", move || {
-                let r_ = engine();
+                let mut r_ = engine();
                 r_.renderer.set_fog_color(r as f32, g as f32, b as f32);
                 r_.renderer.set_fog_density(density as f32);
                 r_.renderer.set_fog_height_falloff(height_ref as f32, height_falloff as f32);
@@ -248,7 +248,7 @@ macro_rules! __bloom_ffi_visual {
         #[no_mangle]
         pub extern "C" fn bloom_set_sun_shafts(strength: f64, decay: f64, r: f64, g: f64, b: f64) {
             $crate::ffi::guard("bloom_set_sun_shafts", move || {
-                let eng = engine();
+                let mut eng = engine();
                 eng.renderer.set_sun_shaft_strength(strength as f32);
                 eng.renderer.set_sun_shaft_decay(decay as f32);
                 eng.renderer.set_sun_shaft_color(r as f32, g as f32, b as f32);
@@ -306,7 +306,7 @@ macro_rules! __bloom_ffi_visual {
         #[no_mangle]
         pub extern "C" fn bloom_set_auto_resolution(target_hz: f64, enabled: f64) {
             $crate::ffi::guard("bloom_set_auto_resolution", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if enabled != 0.0 {
                     let current = eng.renderer.render_scale();
                     eng.drs.enable(target_hz as f32, current);
@@ -659,7 +659,7 @@ macro_rules! __bloom_ffi_visual {
         #[no_mangle]
         pub extern "C" fn bloom_enable_postfx() {
             $crate::ffi::guard("bloom_enable_postfx", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let w = eng.renderer.width();
                 let h = eng.renderer.height();
                 let fmt = eng.renderer.surface_format();

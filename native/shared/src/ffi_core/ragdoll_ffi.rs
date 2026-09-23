@@ -48,10 +48,16 @@ macro_rules! __bloom_ffi_ragdoll {
             scale: f64, px: f64, py: f64, pz: f64, rot_y: f64,
         ) -> f64 {
             $crate::ffi::guard("bloom_ragdoll_activate", move || {
-                let eng = engine();
+                let mut eng = engine();
+                let $crate::engine::EngineState {
+                    models,
+                    jolt,
+                    ragdolls,
+                    ..
+                } = &mut *eng;
 
                 let (builds, layer) = {
-                    let Some(a) = eng.models.get_animation(anim) else { return 0.0 };
+                    let Some(a) = models.get_animation(anim) else { return 0.0 };
                     // 12 bodies is the sweet spot for these skeletons: spine +
                     // limbs. Past that you start buying fingers, which cost
                     // solver time and buy jitter.
@@ -72,11 +78,11 @@ macro_rules! __bloom_ffi_ragdoll {
                 // --- bodies
                 let mut bodies: Vec<f64> = Vec::with_capacity(builds.len());
                 for b in builds.iter() {
-                    let shape = eng.jolt.create_capsule_shape(b.half_height, b.radius);
+                    let shape = jolt.create_capsule_shape(b.half_height, b.radius);
                     if shape == 0.0 { bodies.push(0.0); continue; }
                     // Quaternion from the capsule's world basis.
                     let q = $crate::ragdoll::quat_from_mat(&b.world);
-                    let body = eng.jolt.create_body(
+                    let body = jolt.create_body(
                         world, shape,
                         2,                                  // DYNAMIC
                         b.world[3][0], b.world[3][1], b.world[3][2],
@@ -119,7 +125,7 @@ macro_rules! __bloom_ffi_ragdoll {
                     let pa = bodies.get(b.parent_bone).copied().unwrap_or(0.0);
                     let pb = bodies.get(i).copied().unwrap_or(0.0);
                     if pa == 0.0 || pb == 0.0 { continue; }
-                    let c = eng.jolt.constraint_six_dof_locked_translation(
+                    let c = jolt.constraint_six_dof_locked_translation(
                         pa, pb,
                         b.anchor[0], b.anchor[1], b.anchor[2],
                         b.anchor[0], b.anchor[1], b.anchor[2],
@@ -129,8 +135,8 @@ macro_rules! __bloom_ffi_ragdoll {
                     if c != 0.0 { constraints.push(c); }
                 }
 
-                let Some(a) = eng.models.get_animation(anim) else { return 0.0 };
-                let Some(r) = eng.ragdolls.get_mut(rag as u32) else { return 0.0 };
+                let Some(a) = models.get_animation(anim) else { return 0.0 };
+                let Some(r) = ragdolls.get_mut(rag as u32) else { return 0.0 };
                 r.attach(&builds, &bodies, constraints, a,
                          scale as f32, [px as f32, py as f32, pz as f32], rot_y as f32);
                 1.0
@@ -146,8 +152,9 @@ macro_rules! __bloom_ffi_ragdoll {
         #[no_mangle]
         pub extern "C" fn bloom_ragdoll_push(rag: f64, dx: f64, dy: f64, dz: f64, impulse: f64) {
             $crate::ffi::guard("bloom_ragdoll_push", move || {
-                let eng = engine();
-                let Some(r) = eng.ragdolls.get(rag as u32) else { return };
+                let mut eng = engine();
+                let $crate::engine::EngineState { ragdolls, jolt, .. } = &mut *eng;
+                let Some(r) = ragdolls.get(rag as u32) else { return };
                 if !r.active { return }
                 let bodies = r.bodies();
                 if bodies.is_empty() { return }
@@ -155,7 +162,7 @@ macro_rules! __bloom_ffi_ragdoll {
                 // 4-bone one take off at the same speed.
                 let per = (impulse as f32) / (bodies.len() as f32);
                 for b in bodies {
-                    eng.jolt.body_add_impulse(
+                    jolt.body_add_impulse(
                         b, dx as f32 * per, dy as f32 * per, dz as f32 * per);
                 }
         })
@@ -172,10 +179,17 @@ macro_rules! __bloom_ffi_ragdoll {
         #[no_mangle]
         pub extern "C" fn bloom_ragdoll_update(rag: f64, anim: f64, dt: f64) -> f64 {
             $crate::ffi::guard("bloom_ragdoll_update", move || {
-                let eng = engine();
+                let mut eng = engine();
+                let $crate::engine::EngineState {
+                    ragdolls,
+                    jolt,
+                    models,
+                    renderer,
+                    ..
+                } = &mut *eng;
 
                 let (bodies, scale, pos, rot) = {
-                    let Some(r) = eng.ragdolls.get(rag as u32) else { return 0.0 };
+                    let Some(r) = ragdolls.get(rag as u32) else { return 0.0 };
                     if !r.active { return 0.0 }
                     let (s, p, ry) = r.upload_params();
                     (r.bodies(), s, p, ry)
@@ -183,30 +197,30 @@ macro_rules! __bloom_ffi_ragdoll {
 
                 let mut world: Vec<[[f32; 4]; 4]> = Vec::with_capacity(bodies.len());
                 for b in bodies.iter() {
-                    match eng.jolt.body_transform(*b) {
+                    match jolt.body_transform(*b) {
                         Some((p, q)) => world.push($crate::ragdoll::from_pos_quat(p, q)),
                         None => world.push([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,1.0]]),
                     }
                 }
 
                 {
-                    let Some(r) = eng.ragdolls.get_mut(rag as u32) else { return 0.0 };
+                    let Some(r) = ragdolls.get_mut(rag as u32) else { return 0.0 };
                     r.age += dt as f32;
                 }
-                let age = eng.ragdolls.get(rag as u32).map(|r| r.age).unwrap_or(0.0);
+                let age = ragdolls.get(rag as u32).map(|r| r.age).unwrap_or(0.0);
 
                 // Split borrow: apply() needs &mut ModelAnimation and &Ragdoll.
                 let ragdoll_ptr: *const $crate::ragdoll::Ragdoll =
-                    match eng.ragdolls.get(rag as u32) { Some(r) => r, None => return 0.0 };
-                if let Some(a) = eng.models.get_animation_mut(anim) {
+                    match ragdolls.get(rag as u32) { Some(r) => r, None => return 0.0 };
+                if let Some(a) = models.get_animation_mut(anim) {
                     unsafe { (*ragdoll_ptr).apply(a, &world) };
                 }
 
-                if let Some(a) = eng.models.get_animation(anim) {
+                if let Some(a) = models.get_animation(anim) {
                     if !a.joint_matrices.is_empty() {
                         let (s, c) = (rot.sin(), rot.cos());
                         // PT-7: anim handle = prev-palette pairing key.
-                        eng.renderer.set_joint_matrices_scaled(
+                        renderer.set_joint_matrices_scaled(
                             anim.to_bits(), &a.joint_matrices, scale, pos, s, c);
                     }
                 }
@@ -224,16 +238,17 @@ macro_rules! __bloom_ffi_ragdoll {
         #[no_mangle]
         pub extern "C" fn bloom_ragdoll_release(rag: f64) {
             $crate::ffi::guard("bloom_ragdoll_release", move || {
-                let eng = engine();
+                let mut eng = engine();
+                let $crate::engine::EngineState { ragdolls, jolt, .. } = &mut *eng;
                 let (bodies, cons) = {
-                    let Some(r) = eng.ragdolls.get(rag as u32) else { return };
+                    let Some(r) = ragdolls.get(rag as u32) else { return };
                     (r.bodies(), r.constraint_handles().to_vec())
                 };
                 // Constraints first: destroying a body out from under a live
                 // constraint is how you get a use-after-free in the solver.
-                for c in cons { eng.jolt.constraint_destroy(c); }
-                for b in bodies { eng.jolt.destroy_body(b); }
-                if let Some(r) = eng.ragdolls.get_mut(rag as u32) {
+                for c in cons { jolt.constraint_destroy(c); }
+                for b in bodies { jolt.destroy_body(b); }
+                if let Some(r) = ragdolls.get_mut(rag as u32) {
                     *r = $crate::ragdoll::Ragdoll::new();
                 }
         })

@@ -16,7 +16,7 @@ macro_rules! __bloom_ffi_assets {
             $crate::ffi::guard("bloom_take_screenshot", move || {
                 let path = $crate::string_header::str_from_header(path_ptr).to_string();
                 eprintln!("bloom: screenshot requested -> '{}'", path);
-                let eng = engine();
+                let mut eng = engine();
                 eng.renderer.screenshot_requested = true;
                 eng.renderer.pending_screenshot_path = Some(path);
         })
@@ -67,7 +67,7 @@ macro_rules! __bloom_ffi_assets {
                 let path: &str = &bloom_resolve_asset_path(path);
                 match std::fs::read(path) {
                     Ok(data) => {
-                        let eng = engine();
+                        let mut eng = engine();
                         let $crate::engine::EngineState { ref mut textures, ref mut renderer, .. } = *eng;
                         textures.load_texture(renderer, &data)
                     }
@@ -80,7 +80,7 @@ macro_rules! __bloom_ffi_assets {
         #[no_mangle]
         pub extern "C" fn bloom_unload_texture(handle: f64) {
             $crate::ffi::guard("bloom_unload_texture", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let $crate::engine::EngineState { ref mut textures, ref mut renderer, .. } = *eng;
                 textures.unload_texture(handle, renderer);
         })
@@ -153,7 +153,7 @@ macro_rules! __bloom_ffi_assets {
         #[no_mangle]
         pub extern "C" fn bloom_load_texture_from_image(handle: f64) -> f64 {
             $crate::ffi::guard("bloom_load_texture_from_image", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let $crate::engine::EngineState { ref mut textures, ref mut renderer, .. } = *eng;
                 textures.load_texture_from_image(handle, renderer)
         })
@@ -295,7 +295,7 @@ macro_rules! __bloom_ffi_assets {
             $crate::ffi::guard("bloom_load_render_texture", move || {
                 let w = width as u32;
                 let h = height as u32;
-                let eng = engine();
+                let mut eng = engine();
                 let rt_handle = eng.textures.load_render_texture(w, h);
 
                 // Create the GPU texture via the renderer's public method.
@@ -354,7 +354,7 @@ macro_rules! __bloom_ffi_assets {
                     Some(s) => s,
                     None => return 0.0,
                 };
-                let eng = engine();
+                let mut eng = engine();
                 let bind_group_idx = eng.renderer.register_texture(staged.width, staged.height, &staged.data);
                 eng.textures.textures.alloc($crate::textures::TextureData {
                     bind_group_idx, width: staged.width, height: staged.height,
