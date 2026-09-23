@@ -27,7 +27,7 @@ interface Props {
   title: string;
   description: string;
   canonicalPath: string;
-  theme?: 'ink' | 'paper';
+  theme?: 'ink' | 'paper' | 'system';
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
   section?: string;
   headings?: Heading[];
@@ -42,7 +42,7 @@ const {
   title,
   description,
   canonicalPath,
-  theme = 'paper',
+  theme = 'system',
   jsonLd,
   section,
   headings = [],

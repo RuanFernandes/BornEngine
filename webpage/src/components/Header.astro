@@ -1,7 +1,14 @@
 ---
 import Brand from './Brand.astro';
 import SearchDialog from './SearchDialog.astro';
+import ThemeToggle from './ThemeToggle.astro';
 import { repoUrl, withBase } from '../data/site';
+
+interface Props {
+  showThemeToggle?: boolean;
+}
+
+const { showThemeToggle = false } = Astro.props;
 ---
 
 <header class="site-header">
@@ -14,6 +21,7 @@ import { repoUrl, withBase } from '../data/site';
     <div class="site-header__utilities">
       <SearchDialog />
       <nav class="site-header__nav" id="site-navigation" aria-label="Primary navigation" data-site-menu>
+        {showThemeToggle && <ThemeToggle />}
         <a href={withBase('/')}>Home</a>
         <a href={withBase('/docs/')}>Docs</a>
         <a href={withBase('/docs/cli/')}>CLI</a>

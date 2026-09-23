@@ -1,5 +1,6 @@
 target/
 dist/
+webpage/.astro/
 node_modules/
 *.dylib
 *.so

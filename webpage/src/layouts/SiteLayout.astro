@@ -8,7 +8,7 @@ interface Props {
   title: string;
   description: string;
   canonicalPath: string;
-  theme?: 'ink' | 'paper';
+  theme?: 'ink' | 'paper' | 'system';
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
@@ -48,14 +48,33 @@ const structuredData = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []
     <title>{title} · {siteName}</title>
     {structuredData.map((item) => <script type="application/ld+json" set:html={JSON.stringify(item)} />)}
   </head>
-  <body class:list={[`theme-${theme}`]}>
+  <body data-theme-mode={theme} class:list={[`theme-${theme === 'system' ? 'paper' : theme}`]}>
+    <script is:inline>
+      const body = document.body;
+      if (body.dataset.themeMode === 'system') {
+        try {
+          const stored = localStorage.getItem('bornengine-theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const resolved = stored === 'ink' || stored === 'paper'
+            ? stored
+            : prefersDark
+              ? 'ink'
+              : 'paper';
+          body.classList.remove('theme-paper', 'theme-ink');
+          body.classList.add(`theme-${resolved}`);
+        } catch {
+          body.classList.add('theme-paper');
+        }
+      }
+    </script>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <Header />
+    <Header showThemeToggle={theme === 'system'} />
     <main id="main-content">
       <slot />
     </main>
     <Footer />
     <script>
+      import '../scripts/theme.ts';
       import '../scripts/copy-code.ts';
       import '../scripts/docs-navigation.ts';
       import '../scripts/monaco-code.mjs';
