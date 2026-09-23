@@ -825,7 +825,15 @@ pub extern "C" fn bloom_begin_drawing() {
         // cursor only changes when we actually call XDefineCursor.
         x11_impl::apply_cursor_shape(engine().input.cursor_shape);
     }
-    engine().begin_frame();
+    let (delta_time, callbacks) = {
+        let mut eng = engine();
+        eng.begin_frame_without_callbacks();
+        eng.begin_frame_callbacks()
+    };
+    for callback in callbacks {
+        callback(delta_time);
+    }
+    engine().finish_frame_callbacks();
 }
 
 #[no_mangle]
