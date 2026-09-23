@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist --output-subdir _pagefind",
     "check": "astro check && node scripts/validate-content.mjs",
-    "test": "node --test tests",
+    "test": "node --test tests/*.test.mjs",
     "validate:dist": "node scripts/validate-links.mjs",
     "preview": "astro preview"
   },
