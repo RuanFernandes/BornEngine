@@ -17,6 +17,14 @@
   color: var(--paper-50);
 }
 
+.theme-ink .site-header__search {
+  color: #b9c2c8;
+}
+
+.theme-ink .site-header__search:hover {
+  color: var(--paper-50);
+}
+
 .theme-ink .site-header__menu {
   color: var(--paper-50);
   border-color: var(--line-dark);

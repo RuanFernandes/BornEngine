@@ -26,7 +26,7 @@ const structuredData = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []
 ---
 
 <!doctype html>
-<html lang="en" data-theme={theme}>
+<html lang="en" data-theme={theme} data-base-path={withBase('/')}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -34,6 +34,7 @@ const structuredData = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
+    <link rel="stylesheet" href={withBase('/_pagefind/pagefind-ui.css')} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={siteName} />
     <meta property="og:title" content={title} />
@@ -54,5 +55,10 @@ const structuredData = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []
       <slot />
     </main>
     <Footer />
+    <script>
+      import '../scripts/copy-code.ts';
+      import '../scripts/docs-navigation.ts';
+      import '../scripts/search.ts';
+    </script>
   </body>
 </html>

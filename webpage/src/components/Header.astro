@@ -1,5 +1,6 @@
 ---
 import Brand from './Brand.astro';
+import SearchDialog from './SearchDialog.astro';
 import { repoUrl, withBase } from '../data/site';
 ---
 
@@ -10,12 +11,15 @@ import { repoUrl, withBase } from '../data/site';
       <span class="visually-hidden">Open navigation</span>
       <span aria-hidden="true">Menu</span>
     </button>
-    <nav class="site-header__nav" id="site-navigation" aria-label="Primary navigation" data-site-menu>
-      <a href={withBase('/')}>Home</a>
-      <a href={withBase('/docs/')}>Docs</a>
-      <a href={withBase('/docs/cli/')}>CLI</a>
-      <a href={repoUrl} rel="noreferrer">GitHub</a>
-      <a class="site-header__cta" href={withBase('/docs/getting-started/')}>Get started <span aria-hidden="true">↗</span></a>
-    </nav>
+    <div class="site-header__utilities">
+      <SearchDialog />
+      <nav class="site-header__nav" id="site-navigation" aria-label="Primary navigation" data-site-menu>
+        <a href={withBase('/')}>Home</a>
+        <a href={withBase('/docs/')}>Docs</a>
+        <a href={withBase('/docs/cli/')}>CLI</a>
+        <a href={repoUrl} rel="noreferrer">GitHub</a>
+        <a class="site-header__cta" href={withBase('/docs/getting-started/')}>Get started <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
   </div>
 </header>

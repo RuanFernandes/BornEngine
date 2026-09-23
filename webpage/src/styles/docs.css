@@ -17,6 +17,14 @@
   color: var(--ink-950);
 }
 
+.theme-paper .site-header__search {
+  color: var(--slate-700);
+}
+
+.theme-paper .site-header__search:hover {
+  color: var(--ink-950);
+}
+
 .site-header {
   position: relative;
   z-index: 20;
@@ -552,6 +560,7 @@
 
   .site-header__menu {
     display: inline-flex;
+    margin-left: auto;
     padding: 0.55rem 0.7rem;
     border: 1px solid var(--line-light);
     color: var(--ink-950);
@@ -573,6 +582,10 @@
     border: 1px solid var(--line-light);
     background: var(--paper-50);
     box-shadow: 0 12px 26px rgb(10 13 16 / 8%);
+  }
+
+  .site-header__utilities {
+    gap: 0.75rem;
   }
 
   .site-header__nav.is-open {
