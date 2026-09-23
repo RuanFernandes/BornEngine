@@ -1,5 +1,9 @@
 # BornEngine
 
+<p align="center">
+  <img src="webpage/public/brand/bornengine-mark.png" alt="BornEngine mark" width="96">
+</p>
+
 **Native games from TypeScript.**
 
 Write TypeScript. Ship native games — and now the web too.
@@ -228,4 +232,5 @@ For the full pipeline (Blender export, pitfalls, architecture), see [docs/skelet
 - [Source repository](https://github.com/RuanFernandes/BornEngine)
 - [npm package](https://www.npmjs.com/package/@bornengine/engine)
 - [Documentation](docs/)
+- [Website and guides](webpage/)
 - [BornEngine CLI](https://github.com/RuanFernandes/bornengine-cli)
