@@ -11,7 +11,7 @@ crate-type = ["staticlib"]
 # Everything defaults ON so existing games are unaffected. Pure-2D games
 # opt out per-project via Perry's `[native-library."<pkg>"]` feature
 # forwarding in perry.toml (perry >= 0.5.1126), e.g.:
-#   [native-library."@bloomengine/engine"]
+#   [native-library."@bornengine/engine"]
 #   default-features = false
 # which drops Jolt, glTF/DDS model loading, and the non-PNG image codecs
 # from the game binary.

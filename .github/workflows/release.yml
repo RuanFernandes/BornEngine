@@ -2,14 +2,14 @@ name: Release
 
 # Fires on a version tag push (e.g. `v0.3.2`). Gates on the Tests workflow
 # passing for the exact same commit, then creates/updates the GitHub Release
-# and publishes the package to npm as @bloomengine/engine.
+# and publishes the package to npm as @bornengine/engine.
 #
 # The /release Claude Code skill in .claude/skills/release/ drives this end
 # to end: it bumps the version in package.json, commits, tags, pushes, and
 # waits for this workflow to go green.
 #
-# Authentication: npm trusted publishing. Both packages — @bloomengine/engine
-# (job: publish-npm) and @bloomengine/jolt-prebuilt (job: publish-jolt-prebuilt)
+# Authentication: npm trusted publishing. Both packages — @bornengine/engine
+# (job: publish-npm) and @bornengine/jolt-prebuilt (job: publish-jolt-prebuilt)
 # — must be configured on npmjs.com with this workflow as a trusted publisher.
 # `id-token: write` on each publish job is enough — `npm publish` exchanges
 # the GitHub OIDC token for a short-lived publish credential, no NPM_TOKEN
@@ -21,9 +21,9 @@ name: Release
 #   build-jolt-prebuilt  — matrix: build libJolt + libbloom_jolt for every
 #                          (os, arch) variant on its native runner
 #   publish-jolt-prebuilt — assemble the artifacts into npm/jolt-prebuilt/lib/
-#                          and publish @bloomengine/jolt-prebuilt
-#   publish-npm          — publish @bloomengine/engine, which depends on the
-#                          jolt-prebuilt version just published
+#                          and publish @bornengine/jolt-prebuilt
+#   publish-npm          — publish @bornengine/engine after publishing the
+#                          BornEngine-scoped Jolt package
 
 on:
   push:
@@ -303,7 +303,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Assemble all per-target artifacts into npm/jolt-prebuilt/lib/<target>/ and
-  # publish @bloomengine/jolt-prebuilt via OIDC trusted publishing. Idempotent:
+  # publish @bornengine/jolt-prebuilt via OIDC trusted publishing. Idempotent:
   # the "already published" check short-circuits re-runs (workflow_dispatch on
   # an old tag won't republish the same version, won't fail either).
   # ---------------------------------------------------------------------------
@@ -356,12 +356,13 @@ jobs:
         run: npm publish --provenance --access public
 
   # ---------------------------------------------------------------------------
-  # Publish the package to npm as @bloomengine/engine. Runs after the GitHub
+  # Publish the package to npm as @bornengine/engine. Runs after the GitHub
   # Release so a failure here doesn't leave a dangling release-but-no-package
-  # state. Also waits on publish-jolt-prebuilt — the engine declares
-  # @bloomengine/jolt-prebuilt as a dependency, so the prebuilt package must
-  # be on the registry first or `npm publish` of the engine will fail
-  # resolution. Skips cleanly if the version is already on the registry,
+  # state. Also waits on publish-jolt-prebuilt so the BornEngine-scoped
+  # prebuilt package is available for the package's future direct dependency.
+  # This engine version temporarily aliases the existing Bloom-scoped package
+  # until the new Jolt package has been published. Skips cleanly if this
+  # engine version is already on the registry,
   # which keeps re-runs idempotent (workflow_dispatch on an existing tag
   # won't double-publish or fail).
   #

@@ -1,26 +1,26 @@
-# Bloom Engine
+# BornEngine
 
 **Native games from TypeScript.**
 
 Write TypeScript. Ship native games — and now the web too.
-Bloom compiles your game to Metal, DirectX 12, Vulkan, OpenGL, and WebGPU — one codebase for every platform.
+BornEngine compiles your game to Metal, DirectX 12, Vulkan, OpenGL, and WebGPU — one codebase for every platform.
 
-> **Inspired by [raylib](https://github.com/raysan5/raylib).** Bloom models its public
-> API on raylib's — in our view one of the best API designs in gamedev. Bloom is an
-> independent implementation, not a port — [how Bloom relates to raylib »](#how-bloom-relates-to-raylib)
+> **Inspired by [raylib](https://github.com/raysan5/raylib).** BornEngine models its public
+> API on raylib's — in our view one of the best API designs in gamedev. BornEngine is an
+> independent implementation, not a port — [how BornEngine relates to raylib »](#how-bornengine-relates-to-raylib)
 
 ## Install
 
 ```bash
-npm install @bloomengine/engine
+npm install @bornengine/engine
 ```
 
 Or with your preferred package manager:
 
 ```bash
-bun add @bloomengine/engine
-pnpm add @bloomengine/engine
-yarn add @bloomengine/engine
+bun add @bornengine/engine
+pnpm add @bornengine/engine
+yarn add @bornengine/engine
 ```
 
 The npm package ships the TypeScript API alongside the engine's Rust sources and the bundled [JoltPhysics](https://github.com/jrouwe/JoltPhysics) C++ shim, so a single `install` is enough — there's no separate native download step.
@@ -35,14 +35,14 @@ You'll also need:
 
 ```typescript
 import { initWindow, windowShouldClose, beginDrawing,
-         endDrawing, clearBackground, drawText, Colors } from "@bloomengine/engine";
+         endDrawing, clearBackground, drawText, Colors } from "@bornengine/engine";
 
 initWindow(800, 450, "My Game");
 
 while (!windowShouldClose()) {
   beginDrawing();
   clearBackground(Colors.SNOW);
-  drawText("Hello, Bloom!", 190, 200, 20, Colors.DARKGRAY);
+drawText("Hello, BornEngine!", 190, 200, 20, Colors.DARKGRAY);
   endDrawing();
 }
 ```
@@ -52,13 +52,13 @@ while (!windowShouldClose()) {
 Use `runGame()` for code that works on both native and web:
 
 ```typescript
-import { initWindow, runGame, clearBackground, drawText, Colors } from "@bloomengine/engine";
+import { initWindow, runGame, clearBackground, drawText, Colors } from "@bornengine/engine";
 
 initWindow(800, 450, "My Game");
 
 runGame((dt) => {
   clearBackground(Colors.SNOW);
-  drawText("Hello, Bloom!", 190, 200, 20, Colors.DARKGRAY);
+drawText("Hello, BornEngine!", 190, 200, 20, Colors.DARKGRAY);
 });
 ```
 
@@ -77,17 +77,17 @@ cd dist/web && python3 -m http.server 8080
 - **Unified 2D/3D** — Shapes, textures, text, 3D models, and audio in one engine.
 - **Zero magic** — Explicit game loops, no hidden framework overhead.
 
-## How Bloom relates to raylib
+## How BornEngine relates to raylib
 
-Bloom's public API is heavily inspired by [raylib](https://github.com/raysan5/raylib).
+BornEngine's public API is heavily inspired by [raylib](https://github.com/raysan5/raylib).
 raylib's API is, in our opinion, one of the best in the gamedev space — a flat library
 of plain functions, no classes, small enough to learn from a cheatsheet — so we model
 ours on it. You'll recognize the shape immediately: `initWindow`, `beginDrawing`,
 `clearBackground`, `drawText`, and modules named core / shapes / textures / text /
 audio / models.
 
-That's where the relationship ends. **Bloom's implementation is entirely independent —
-it does not link against, embed, or call raylib.** Bloom compiles TypeScript directly to
+That's where the relationship ends. **BornEngine's implementation is entirely independent —
+it does not link against, embed, or call raylib.** BornEngine compiles TypeScript directly to
 native code via Perry, our LLVM-based AOT compiler, and renders through wgpu (Metal,
 DirectX 12, Vulkan, OpenGL, WebGPU). It is not a port or a binding — just an engine that
 admires raylib's API design. Thanks to
@@ -98,18 +98,18 @@ setting the bar. ([full design rationale](docs/design-api.md))
 
 | Module | Import | Description |
 |--------|--------|-------------|
-| **Core** | `@bloomengine/engine/core` | Window, game loop, input, timing |
-| **Shapes** | `@bloomengine/engine/shapes` | 2D drawing + collision detection |
-| **Textures** | `@bloomengine/engine/textures` | Image loading, sprite batching |
-| **Text** | `@bloomengine/engine/text` | TTF/OTF font loading and rendering |
-| **Audio** | `@bloomengine/engine/audio` | Sound effects + music streaming |
-| **Models** | `@bloomengine/engine/models` | 3D model loading (glTF, OBJ), skeletal animation |
-| **Math** | `@bloomengine/engine/math` | Vectors, matrices, quaternions, easing |
-| **Scene** | `@bloomengine/engine/scene` | Retained scene graph, frame callbacks, lighting |
-| **Physics** | `@bloomengine/engine/physics` | Jolt-backed rigid + soft bodies, character, vehicles ([docs](docs/physics.md)) |
-| **VFX** | `@bloomengine/engine/vfx` | GPU particle systems + decals |
-| **World** | `@bloomengine/engine/world` | `.world.json` loading, validation, instantiation ([docs](docs/world-format.md)) |
-| **Mobile** | `@bloomengine/engine/mobile` | Virtual joystick/buttons, touch-input helpers |
+| **Core** | `@bornengine/engine/core` | Window, game loop, input, timing |
+| **Shapes** | `@bornengine/engine/shapes` | 2D drawing + collision detection |
+| **Textures** | `@bornengine/engine/textures` | Image loading, sprite batching |
+| **Text** | `@bornengine/engine/text` | TTF/OTF font loading and rendering |
+| **Audio** | `@bornengine/engine/audio` | Sound effects + music streaming |
+| **Models** | `@bornengine/engine/models` | 3D model loading (glTF, OBJ), skeletal animation |
+| **Math** | `@bornengine/engine/math` | Vectors, matrices, quaternions, easing |
+| **Scene** | `@bornengine/engine/scene` | Retained scene graph, frame callbacks, lighting |
+| **Physics** | `@bornengine/engine/physics` | Jolt-backed rigid + soft bodies, character, vehicles ([docs](docs/physics.md)) |
+| **VFX** | `@bornengine/engine/vfx` | GPU particle systems + decals |
+| **World** | `@bornengine/engine/world` | `.world.json` loading, validation, instantiation ([docs](docs/world-format.md)) |
+| **Mobile** | `@bornengine/engine/mobile` | Virtual joystick/buttons, touch-input helpers |
 
 ## Platforms
 
@@ -187,11 +187,11 @@ Fullscreen is supported on macOS (native AppKit fullscreen), Windows (borderless
 
 ## Skeletal Animation
 
-Bloom supports GPU-accelerated skeletal animation via glTF/GLB models. The pipeline uses 4-bone linear blend skinning with a 128-joint uniform buffer, running entirely on the GPU.
+BornEngine supports GPU-accelerated skeletal animation via glTF/GLB models. The pipeline uses 4-bone linear blend skinning with a 128-joint uniform buffer, running entirely on the GPU.
 
 ```typescript
 import { loadModel, loadModelAnimation, updateModelAnimation, drawModel,
-         getTime, Colors } from "@bloomengine/engine";
+         getTime, Colors } from "@bornengine/engine";
 
 const character = loadModel("assets/models/character.glb");
 const anim = loadModelAnimation("assets/models/character.glb");

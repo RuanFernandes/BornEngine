@@ -1,10 +1,10 @@
-# @bloomengine/jolt-prebuilt
+# @bornengine/jolt-prebuilt
 
-Prebuilt JoltPhysics + bloom_jolt static libraries for every (os, arch) Bloom Engine targets.
+Prebuilt JoltPhysics + bloom_jolt static libraries for every (os, arch) BornEngine targets.
 
 ## Why this exists
 
-`@bloomengine/engine` consumes JoltPhysics for its rigid/soft body physics. Compiling Jolt from C++ via cmake on a consumer's first build takes 5–15 minutes cold. This package ships the libraries prebuilt so consumers skip that step entirely.
+`@bornengine/engine` consumes JoltPhysics for its rigid/soft body physics. Compiling Jolt from C++ via cmake on a consumer's first build takes 5–15 minutes cold. This package ships the libraries prebuilt so consumers skip that step entirely.
 
 ## Layout
 
@@ -31,12 +31,12 @@ lib/
 
 Each variant directory contains `libJolt.a` (or `Jolt.lib` on Windows) and `libbloom_jolt.a`.
 
-## How `@bloomengine/engine` finds it
+## How `@bornengine/engine` finds it
 
-The engine's `native/shared/build.rs` walks up from `CARGO_MANIFEST_DIR` looking for `node_modules/@bloomengine/jolt-prebuilt/lib/<os>-<arch>/`. If found, it links the prebuilt archives and skips cmake entirely. If not found (or the env var `BLOOM_JOLT_FROM_SOURCE=1` is set), it falls back to building Jolt from the C++ source bundled in `@bloomengine/engine` — the existing dev workflow.
+The engine's `native/shared/build.rs` walks up from `CARGO_MANIFEST_DIR` looking for `node_modules/@bornengine/jolt-prebuilt/lib/<os>-<arch>/`, then the legacy `@bloomengine/jolt-prebuilt` path. The `@bornengine/engine` package currently aliases the existing published Jolt package into the new scope until the BornEngine-scoped package is published. If no prebuilt is found (or `BLOOM_JOLT_FROM_SOURCE=1` is set), it falls back to building Jolt from the C++ source bundled in `@bornengine/engine`.
 
 ## Build / publish
 
 Built by `.github/workflows/release.yml` on each tag push — a matrix job per platform produces the libraries on the appropriate native runner (`macos-14` for Apple targets, `ubuntu-22.04` for Linux/Android, `windows-latest` for Windows) and uploads them as artifacts. A final assembly job collects every artifact into this package's `lib/` tree and publishes via OIDC trusted publishing.
 
-The published version always matches the corresponding `@bloomengine/engine` version they were built against.
+The published version always matches the corresponding `@bornengine/engine` version they were built against.

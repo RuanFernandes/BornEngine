@@ -45,16 +45,14 @@ fn build_jolt() {
     println!("cargo:rerun-if-env-changed=BLOOM_JOLT_PREBUILT_DIR");
     println!("cargo:rerun-if-env-changed=BLOOM_JOLT_FROM_SOURCE");
 
-    // Prebuilt fast path — if `@bloomengine/jolt-prebuilt` is available
+    // Prebuilt fast path — if `@bornengine/jolt-prebuilt` is available
     // (via env var or a node_modules sibling), link its archives and
     // skip the multi-minute cmake build of JoltPhysics entirely. The
     // env var BLOOM_JOLT_FROM_SOURCE=1 forces the cmake fallback even
     // when prebuilts are present, useful for hacking on the C++ shim.
     let from_source = std::env::var_os("BLOOM_JOLT_FROM_SOURCE").is_some();
     if !from_source {
-        if let Some(prebuilt_dir) =
-            find_prebuilt_dir(&manifest_dir, &target_os, &target_arch)
-        {
+        if let Some(prebuilt_dir) = find_prebuilt_dir(&manifest_dir, &target_os, &target_arch) {
             link_prebuilt(&prebuilt_dir, &target_os);
             emit_cxx_runtime_link(&target_os);
             return;
@@ -68,9 +66,18 @@ fn build_jolt() {
         );
     }
 
-    println!("cargo:rerun-if-changed={}", shim_dir.join("CMakeLists.txt").display());
-    println!("cargo:rerun-if-changed={}", shim_dir.join("include/bloom_jolt.h").display());
-    println!("cargo:rerun-if-changed={}", shim_dir.join("src/bloom_jolt.cpp").display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        shim_dir.join("CMakeLists.txt").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        shim_dir.join("include/bloom_jolt.h").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        shim_dir.join("src/bloom_jolt.cpp").display()
+    );
 
     // Build into a stable, short path next to the shim itself rather than the
     // per-build OUT_DIR. Two reasons:
@@ -114,14 +121,17 @@ fn build_jolt() {
         let _ = cfg.build();
     }
 
-    println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
+    println!(
+        "cargo:rustc-link-search=native={}",
+        dst.join("lib").display()
+    );
     println!("cargo:rustc-link-lib=static=bloom_jolt");
     println!("cargo:rustc-link-lib=static=Jolt");
 
     emit_cxx_runtime_link(&target_os);
 }
 
-/// Locate the `@bloomengine/jolt-prebuilt` package's lib dir for the
+/// Locate a BornEngine or legacy Bloom Engine Jolt prebuilt package's lib dir for the
 /// active build target. Returns `Some(dir)` only when both expected
 /// archives are present — a half-shipped package falls through to the
 /// cmake build instead of producing a confusing linker error.
@@ -131,11 +141,10 @@ fn build_jolt() {
 ///      containing per-target subdirs (`<dir>/<os>-<arch>/lib*.a`).
 ///      Used for local spike testing and for CI matrix jobs that
 ///      stage archives outside `node_modules`.
-///   2. Walk up from `CARGO_MANIFEST_DIR` looking for any
-///      `node_modules/@bloomengine/jolt-prebuilt/lib/<os>-<arch>/`.
-///      Matches what npm's resolver does when `@bloomengine/engine`
-///      depends on `@bloomengine/jolt-prebuilt` — the consumer's
-///      install creates this directory next to the engine package.
+///   2. Walk up from `CARGO_MANIFEST_DIR` looking for either
+///      `node_modules/@bornengine/jolt-prebuilt/lib/<os>-<arch>/` or
+///      its legacy `@bloomengine/jolt-prebuilt` equivalent. The BornEngine
+///      scope is preferred, while existing Bloom Engine installs keep working.
 #[cfg(feature = "jolt")]
 fn find_prebuilt_dir(
     manifest_dir: &std::path::Path,
@@ -169,11 +178,13 @@ fn find_prebuilt_dir(
             std::env::var_os("BLOOM_JOLT_PREBUILT_DIR")
                 .map(|v| std::path::PathBuf::from(v).join(&target_token)),
         )
-        .chain(walk_up_for_node_modules(manifest_dir).map(|nm| {
-            nm.join("@bloomengine")
-                .join("jolt-prebuilt")
-                .join("lib")
-                .join(&target_token)
+        .chain(walk_up_for_node_modules(manifest_dir).flat_map(|nm| {
+            ["@bornengine", "@bloomengine"].map(|scope| {
+                nm.join(scope)
+                    .join("jolt-prebuilt")
+                    .join("lib")
+                    .join(&target_token)
+            })
         }));
 
     let (lib_prefix, lib_ext) = if target_os == "windows" {
@@ -229,7 +240,8 @@ fn link_prebuilt(dir: &std::path::Path, target_os: &str) {
     );
     println!(
         "cargo:rerun-if-changed={}",
-        dir.join(format!("{}Jolt.{}", lib_prefix, lib_ext)).display()
+        dir.join(format!("{}Jolt.{}", lib_prefix, lib_ext))
+            .display()
     );
 
     println!("cargo:rustc-link-search=native={}", dir.display());

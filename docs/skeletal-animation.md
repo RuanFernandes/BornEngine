@@ -1,6 +1,6 @@
-# Skeletal Animation in Bloom Engine
+# Skeletal Animation in BornEngine
 
-Bloom Engine supports GPU-accelerated skeletal animation via glTF/GLB models with embedded skin and animation data. This document covers the full pipeline from Blender export to runtime rendering.
+BornEngine supports GPU-accelerated skeletal animation via glTF/GLB models with embedded skin and animation data. This document covers the full pipeline from Blender export to runtime rendering.
 
 ## Table of Contents
 
@@ -137,7 +137,7 @@ Joint matrices are written to the GPU in `end_frame()` via `flush_joint_matrices
 ### Loading
 
 ```typescript
-import { loadModel, loadModelAnimation, drawModel, updateModelAnimation } from "@bloomengine/engine";
+import { loadModel, loadModelAnimation, drawModel, updateModelAnimation } from "@bornengine/engine";
 
 // Load the mesh (vertices with skin data: JOINTS_0 + WEIGHTS_0)
 const model = loadModel("assets/models/character.glb");
@@ -209,7 +209,7 @@ drawModel(model, { x: playerX, y: playerY, z: playerZ }, 1.0, WHITE);
 ```typescript
 import { initWindow, windowShouldClose, beginDrawing, endDrawing,
          clearBackground, loadModel, loadModelAnimation,
-         updateModelAnimation, drawModel, getTime, Colors } from "@bloomengine/engine";
+         updateModelAnimation, drawModel, getTime, Colors } from "@bornengine/engine";
 
 initWindow(800, 600, "Animation Demo");
 
@@ -379,7 +379,7 @@ See `scripts/export_mixamo_glb.py` for full documentation.
 ### Scale Conventions
 
 - **Mixamo FBX**: Characters are in centimeters (1 unit = 1cm). Blender's FBX importer converts to meters, adding a 0.01 armature scale.
-- **Bloom Engine**: Expects meter-scale models. Use `scale: 1.0` for properly exported models.
+- **BornEngine**: Expects meter-scale models. Use `scale: 1.0` for properly exported models.
 - **Inverse Bind Matrices**: May contain 100x scale from Blender's cm-to-m conversion. The engine detects this and compensates (see `skin_vertex_scale` in `load_gltf_with_textures`).
 
 ---

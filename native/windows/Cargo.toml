@@ -18,7 +18,7 @@ crate-type = ["staticlib"]
 # `bloom_jolt` in `libs`, which perry turns into `/LIBPATH:` + `*.lib` on the
 # link line (perry >= 0.5.1126 manifest libDirs support). Pure-2D Windows
 # games opt out via Perry feature forwarding in perry.toml:
-#   [native-library."@bloomengine/engine"]
+#   [native-library."@bornengine/engine"]
 #   default-features = false
 default = ["jolt", "models3d", "image-extras"]
 jolt = ["bloom-shared/jolt"]
