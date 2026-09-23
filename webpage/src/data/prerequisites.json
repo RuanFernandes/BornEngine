@@ -1,0 +1,131 @@
+{
+  "matrix": [
+    {
+      "goal": "Read the docs or inspect examples",
+      "required": ["A browser", "Git if you clone the repository"]
+    },
+    {
+      "goal": "Install the BornEngine CLI",
+      "required": ["Rust and Cargo through rustup"]
+    },
+    {
+      "goal": "Create and build a native game",
+      "required": ["BornEngine CLI", "Perry", "Rust and Cargo", "One package manager: pnpm, npm, or Yarn", "Native linker/backend dependencies for the host"]
+    },
+    {
+      "goal": "Build for Web/WASM",
+      "required": ["Native-game setup", "wasm-pack", "wasm-opt is optional for size optimization"]
+    },
+    {
+      "goal": "Build for Apple platforms",
+      "required": ["A macOS host", "Xcode", "The Perry target setup for the selected platform"]
+    },
+    {
+      "goal": "Build for Android",
+      "required": ["Perry Android target setup", "Android Studio", "Android SDK/NDK for the selected target"]
+    }
+  ],
+  "entries": [
+    {
+      "id": "rust",
+      "title": "Rust and Cargo",
+      "scope": "CLI and native",
+      "docsUrl": "https://rustup.rs/",
+      "docsLabel": "rustup installation",
+      "verify": "rustc --version && cargo --version",
+      "install": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh",
+      "notes": "The Rust installation guide is also available at https://www.rust-lang.org/tools/install."
+    },
+    {
+      "id": "node",
+      "title": "Node.js",
+      "scope": "Project package installation",
+      "docsUrl": "https://nodejs.org/en/download",
+      "docsLabel": "Node.js downloads",
+      "verify": "node --version",
+      "notes": "Use the current Node.js LTS line for game-project package installation."
+    },
+    {
+      "id": "npm",
+      "title": "npm",
+      "scope": "Project package installation",
+      "docsUrl": "https://docs.npmjs.com/downloading-and-installing-node-js-and-npm",
+      "docsLabel": "npm installation guide",
+      "verify": "npm --version"
+    },
+    {
+      "id": "pnpm",
+      "title": "pnpm",
+      "scope": "Project package manager",
+      "docsUrl": "https://pnpm.io/installation",
+      "docsLabel": "pnpm installation",
+      "verify": "pnpm --version",
+      "install": "npm install --global pnpm"
+    },
+    {
+      "id": "yarn",
+      "title": "Yarn",
+      "scope": "Project package manager",
+      "docsUrl": "https://yarnpkg.com/getting-started/install",
+      "docsLabel": "Yarn installation",
+      "verify": "yarn --version",
+      "install": "corepack enable"
+    },
+    {
+      "id": "perry",
+      "title": "Perry",
+      "scope": "Native, Apple, Android, and Web targets",
+      "docsUrl": "https://docs.perryts.com/getting-started/installation.html",
+      "docsLabel": "Perry installation guide",
+      "verify": "perry --version",
+      "install": "npm install -g @perryts/perry",
+      "notes": "Keep the perry executable on PATH so the BornEngine CLI can invoke it."
+    },
+    {
+      "id": "wasm-pack",
+      "title": "wasm-pack",
+      "scope": "Web/WASM",
+      "docsUrl": "https://rustwasm.github.io/wasm-pack/installer/",
+      "docsLabel": "wasm-pack installation",
+      "verify": "wasm-pack --version",
+      "install": "cargo install wasm-pack"
+    },
+    {
+      "id": "xcode",
+      "title": "Xcode",
+      "scope": "Apple platforms",
+      "docsUrl": "https://developer.apple.com/xcode/",
+      "docsLabel": "Apple Xcode",
+      "verify": "xcodebuild -version",
+      "notes": "Xcode provides the Apple SDKs and simulators required by the selected target."
+    },
+    {
+      "id": "android-studio",
+      "title": "Android Studio",
+      "scope": "Android",
+      "docsUrl": "https://developer.android.com/studio/install",
+      "docsLabel": "Android Studio installation",
+      "verify": "adb --version",
+      "notes": "Install the Android SDK and NDK components required by the selected Perry target."
+    },
+    {
+      "id": "windows-toolchain",
+      "title": "Windows C++ Build Tools",
+      "scope": "Windows native",
+      "docsUrl": "https://visualstudio.microsoft.com/visual-cpp-build-tools/",
+      "docsLabel": "Microsoft C++ Build Tools",
+      "verify": "where cl",
+      "notes": "Use the Developer Command Prompt when checking cl.exe. Perry's setup may also require LLVM components."
+    },
+    {
+      "id": "linux-backend",
+      "title": "Linux backend packages",
+      "scope": "Linux native",
+      "docsUrl": "https://www.rust-lang.org/tools/install",
+      "docsLabel": "Rust installation guide",
+      "verify": "pkg-config --exists x11 xi alsa",
+      "install": "sudo apt install pkg-config libx11-dev libxi-dev libasound2-dev",
+      "notes": "This is the minimum Debian/Ubuntu backend set documented by BornEngine; other distributions may use different package names."
+    }
+  ]
+}
