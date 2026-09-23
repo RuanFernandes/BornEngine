@@ -1,0 +1,36 @@
+:root {
+  --ink-950: #0a0d10;
+  --ink-900: #11161c;
+  --ink-800: #1a222b;
+  --paper-50: #f6f3ec;
+  --paper-100: #ece8de;
+  --slate-500: #6f7a84;
+  --slate-700: #3f4a54;
+  --line-dark: #303943;
+  --line-light: #d4d8d7;
+  --acid-400: #b8f23d;
+  --blue-500: #4b8dff;
+  --coral-400: #ff755e;
+
+  --font-sans: "Inter", "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Inter", "Avenir Next", sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  --content-wide: 1180px;
+  --content-reading: 740px;
+  --docs-sidebar: 260px;
+  --docs-toc: 220px;
+  --header-height: 76px;
+
+  --focus-ring: 0 0 0 3px var(--ink-950), 0 0 0 5px var(--acid-400);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 480ms;
+  --ease-out: cubic-bezier(0.22, 0.8, 0.32, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
