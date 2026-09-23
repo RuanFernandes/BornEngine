@@ -1,0 +1,39 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { withBase } from '../../data/site';
+
+const sections = [
+  { title: 'Getting Started', description: 'Install the toolchain, create a project, and understand the generated files.', href: '/docs/getting-started/' },
+  { title: 'CLI', description: 'Use the BornEngine project, build, diagnostics, engine, and configuration commands.', href: '/docs/cli/' },
+  { title: 'API', description: 'Find the function-first TypeScript modules for drawing, input, world, physics, and more.', href: '/docs/api/' },
+  { title: 'Platforms', description: 'Choose a native, Apple, mobile, or Web/WASM target with honest constraints.', href: '/docs/platforms/' },
+  { title: 'Guides', description: 'Follow focused paths for physics, assets, skeletal animation, and world files.', href: '/docs/guides/physics/' },
+  { title: 'Troubleshooting', description: 'Start from the first failing check and narrow the toolchain problem.', href: '/docs/troubleshooting/' },
+];
+---
+
+<DocsLayout
+  title="Documentation"
+  description="Install BornEngine, learn the CLI, explore the TypeScript API, and choose a target."
+  canonicalPath="/docs/"
+  section="BornEngine docs"
+  breadcrumbs={[{ title: 'Docs' }]}
+>
+  <p class="docs-intro">BornEngine is a native TypeScript game engine with a small public API, a Rust-backed runtime, and a Web/WASM path when the browser is the right target.</p>
+  <div class="docs-landing-grid">
+    {sections.map((section, index) => (
+      <a class="docs-landing-card" href={withBase(section.href)}>
+        <span>{String(index + 1).padStart(2, '0')}</span>
+        <h2>{section.title}</h2>
+        <p>{section.description}</p>
+        <strong aria-hidden="true">→</strong>
+      </a>
+    ))}
+  </div>
+  <h2>Choose your first route</h2>
+  <ul>
+    <li>New to the engine? Start with <a href={withBase('/docs/getting-started/installation/')}>installation</a>, then run the <a href={withBase('/docs/getting-started/quickstart/')}>quickstart</a>.</li>
+    <li>Already have a project? Jump to the <a href={withBase('/docs/cli/')}>CLI reference</a> or <a href={withBase('/docs/api/')}>API map</a>.</li>
+    <li>Shipping to the browser? Read the <a href={withBase('/docs/platforms/web-wasm/')}>Web/WASM target guide</a> before changing your game loop.</li>
+  </ul>
+</DocsLayout>

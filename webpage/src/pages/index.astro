@@ -1,0 +1,113 @@
+---
+import CodeBlock from '../components/CodeBlock.astro';
+import PlatformRail from '../components/PlatformRail.astro';
+import RuntimeDiagram from '../components/RuntimeDiagram.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { cliRepoUrl, repoUrl, withBase } from '../data/site';
+import '../styles/homepage.css';
+
+const heroCode = `import { initWindow, runGame, clearBackground, drawText, Colors } from '@bornengine/engine';
+
+initWindow(800, 450, 'My Game');
+
+runGame(() => {
+  clearBackground(Colors.SNOW);
+  drawText('Hello, BornEngine!', 190, 200, 20, Colors.DARKGRAY);
+});`;
+
+const homeJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareSourceCode',
+  name: 'BornEngine',
+  description: 'A native TypeScript game engine with Web/WASM support.',
+  codeRepository: repoUrl,
+  programmingLanguage: 'TypeScript',
+  url: 'https://ruanfernandes.github.io/BornEngine/',
+};
+---
+
+<SiteLayout
+  title="Native games from TypeScript"
+  description="BornEngine is a function-first TypeScript game engine that compiles to native platforms and Web/WASM."
+  canonicalPath="/"
+  theme="ink"
+  jsonLd={homeJsonLd}
+>
+  <div class="homepage">
+    <section class="home-hero">
+      <div class="home-shell home-hero__grid">
+        <div class="home-hero__copy" data-reveal>
+          <p class="eyebrow eyebrow--acid">BornEngine / engine surface</p>
+          <h1>Native games from <em>TypeScript.</em></h1>
+          <p class="home-hero__lede">A function-first game engine for developers who want a small, readable API and a direct path from game code to real platforms.</p>
+          <div class="home-hero__actions">
+            <a class="button button--acid" href={withBase('/docs/getting-started/')}>Start building <span aria-hidden="true">↗</span></a>
+            <a class="text-link text-link--light" href={withBase('/docs/cli/')}>Read the CLI reference <span aria-hidden="true">→</span></a>
+          </div>
+          <p class="home-hero__meta"><span class="status-dot" aria-hidden="true"></span> TypeScript API · Perry AOT · wgpu renderer</p>
+        </div>
+        <RuntimeDiagram />
+      </div>
+      <div class="home-hero__rule" aria-hidden="true"></div>
+    </section>
+
+    <div class="home-shell">
+      <PlatformRail />
+
+      <section class="home-story home-story--split" aria-labelledby="story-heading">
+        <div class="section-index">01 / The short path</div>
+        <div>
+          <h2 id="story-heading">From an empty folder to a running game, without a framework maze.</h2>
+          <p>BornEngine keeps the public surface flat: plain data, free functions, explicit loops. Perry compiles the TypeScript side, the engine owns the native renderer, and your project keeps its own dependency and lockfile.</p>
+          <a class="text-link text-link--acid" href={withBase('/docs/concepts/api-shape/')}>Why functions, not classes <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="home-story__terminal">
+          <div class="terminal-bar"><span></span><span></span><span></span><code>~/projects</code></div>
+          <pre><code><span class="terminal-muted">$</span> bornengine create
+<span class="terminal-muted">$</span> cd MyGame
+<span class="terminal-muted">$</span> bornengine run main.ts
+<span class="terminal-acid">→ building native target</span>
+<span class="terminal-acid">→ running MyGame</span></code></pre>
+        </div>
+      </section>
+
+      <section class="home-api" aria-labelledby="api-heading">
+        <div class="section-index">02 / The API</div>
+        <div class="home-api__grid">
+          <div>
+            <p class="eyebrow eyebrow--acid">One code shape, many targets</p>
+            <h2 id="api-heading">Learn the loop. Keep the rest close to the metal.</h2>
+            <p>The API is deliberately small enough to scan. Use the same calls for a native prototype or a browser build, then reach into modules only when your game needs more.</p>
+            <a class="text-link text-link--acid" href={withBase('/docs/api/')}>Browse the API <span aria-hidden="true">→</span></a>
+          </div>
+          <CodeBlock code={heroCode} language="typescript" filename="main.ts" />
+        </div>
+      </section>
+
+      <section class="capabilities" aria-labelledby="capabilities-heading">
+        <div class="section-index">03 / Capability bands</div>
+        <div class="capabilities__heading">
+          <p class="eyebrow eyebrow--acid">A compact core, not a black box</p>
+          <h2 id="capabilities-heading">Build the part of the game you are thinking about.</h2>
+        </div>
+        <div class="capabilities__list">
+          <a href={withBase('/docs/api/shapes/')}><span>01</span><strong>Draw and compose</strong><small>Shapes, textures, text, models</small><b aria-hidden="true">↗</b></a>
+          <a href={withBase('/docs/api/scene/')}><span>02</span><strong>Keep a world</strong><small>Scene graph, lights, materials, picking</small><b aria-hidden="true">↗</b></a>
+          <a href={withBase('/docs/api/physics/')}><span>03</span><strong>Simulate it</strong><small>Rigid bodies, characters, soft bodies, vehicles</small><b aria-hidden="true">↗</b></a>
+          <a href={withBase('/docs/platforms/web-wasm/')}><span>04</span><strong>Take it somewhere</strong><small>Native targets and Web/WASM</small><b aria-hidden="true">↗</b></a>
+        </div>
+      </section>
+
+      <section class="home-outro" aria-labelledby="outro-heading">
+        <p class="eyebrow eyebrow--acid">The next frame is yours</p>
+        <h2 id="outro-heading">Start with the project. Stay for the engine.</h2>
+        <div class="home-outro__actions">
+          <a class="button button--acid" href={withBase('/docs/getting-started/')}>Get started <span aria-hidden="true">↗</span></a>
+          <a class="button button--ghost" href={withBase('/docs/cli/')}>CLI reference</a>
+          <a class="button button--ghost" href={repoUrl} rel="noreferrer">GitHub</a>
+        </div>
+        <p class="home-outro__line">The companion CLI lives at <a href={cliRepoUrl} rel="noreferrer">github.com/RuanFernandes/bornengine-cli</a>.</p>
+      </section>
+    </div>
+  </div>
+</SiteLayout>

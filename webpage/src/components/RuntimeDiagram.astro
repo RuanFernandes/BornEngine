@@ -1,0 +1,32 @@
+<figure class="runtime-diagram">
+  <svg viewBox="0 0 760 280" role="img" aria-labelledby="runtime-title runtime-description">
+    <title id="runtime-title">BornEngine runtime pipeline</title>
+    <desc id="runtime-description">TypeScript API flows through the BornEngine runtime and wgpu renderer to native and web targets.</desc>
+    <defs>
+      <marker id="runtime-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+      <linearGradient id="runtime-line" x1="0" x2="1">
+        <stop offset="0" stop-color="#B8F23D" />
+        <stop offset="1" stop-color="#4B8DFF" />
+      </linearGradient>
+    </defs>
+    <path class="runtime-diagram__line" d="M 132 112 H 244 M 326 112 H 438 M 520 112 H 650" marker-end="url(#runtime-arrow)" />
+    <path class="runtime-diagram__line runtime-diagram__line--branch" d="M 650 112 V 66 H 694 M 650 112 V 158 H 694" marker-end="url(#runtime-arrow)" />
+    <circle class="runtime-diagram__node" cx="94" cy="112" r="38" />
+    <circle class="runtime-diagram__node" cx="286" cy="112" r="38" />
+    <circle class="runtime-diagram__node" cx="478" cy="112" r="38" />
+    <circle class="runtime-diagram__node runtime-diagram__node--target" cx="694" cy="66" r="22" />
+    <circle class="runtime-diagram__node runtime-diagram__node--target" cx="694" cy="158" r="22" />
+    <circle class="runtime-diagram__playhead" cx="165" cy="112" r="6" />
+    <text x="94" y="181" text-anchor="middle">TypeScript</text>
+    <text x="286" y="181" text-anchor="middle">BornEngine</text>
+    <text x="478" y="181" text-anchor="middle">wgpu</text>
+    <text x="694" y="58" text-anchor="middle" class="runtime-diagram__target-label">native</text>
+    <text x="694" y="150" text-anchor="middle" class="runtime-diagram__target-label">web</text>
+    <text x="94" y="104" text-anchor="middle" class="runtime-diagram__mark">TS</text>
+    <text x="286" y="104" text-anchor="middle" class="runtime-diagram__mark">BE</text>
+    <text x="478" y="104" text-anchor="middle" class="runtime-diagram__mark">W</text>
+  </svg>
+  <figcaption>One typed API, a native pipeline, and a browser target when you need it.</figcaption>
+</figure>

@@ -1,0 +1,10 @@
+---
+const platforms = ['macOS', 'Windows', 'Linux', 'iOS', 'tvOS', 'watchOS', 'Android', 'Web / WASM'];
+---
+
+<section class="platform-rail" aria-labelledby="platform-heading">
+  <div class="section-kicker" id="platform-heading">Targets in the same codebase</div>
+  <ul>
+    {platforms.map((platform, index) => <li><span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>{platform}</li>)}
+  </ul>
+</section>

@@ -1,0 +1,37 @@
+---
+import commands from '../data/cli-commands.json';
+import { withBase } from '../data/site';
+
+interface Props {
+  group: string;
+}
+
+const { group } = Astro.props;
+const groupCommands = commands.filter((command) => command.group === group);
+---
+
+<section class="command-reference" aria-labelledby={`${group}-commands`}>
+  <h2 id={`${group}-commands`}>Command reference</h2>
+  {groupCommands.map((command) => (
+    <article class="command-reference__item" id={command.id.replace('/', '-')}>
+      <header>
+        <h3>{command.title}</h3>
+        <p>{command.summary}</p>
+      </header>
+      <pre><code>{command.synopsis}</code></pre>
+      <div class="command-reference__columns">
+        <div>
+          <h4>Options</h4>
+          <ul>{command.options.map((option) => <li><code>{option}</code></li>)}</ul>
+        </div>
+        <div>
+          <h4>Behavior</h4>
+          <p>{command.behavior}</p>
+        </div>
+      </div>
+      <h4>Examples</h4>
+      {command.examples.map((example) => <pre><code>{example}</code></pre>)}
+      <p class="command-reference__related">Related: {command.related.map((href) => <a href={withBase(href)}>{href.replace('/docs/', '').replaceAll('/', ' / ')}</a>)}</p>
+    </article>
+  ))}
+</section>

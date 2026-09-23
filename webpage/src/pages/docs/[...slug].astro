@@ -1,0 +1,75 @@
+---
+import { getCollection, render } from 'astro:content';
+import CommandReference from '../../components/CommandReference.astro';
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { defaultSiteUrl, repoUrl, withBase } from '../../data/site';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+  return entries.map((entry) => ({
+    params: { slug: entry.id.replace(/\.mdx?$/, '').replace(/\/index$/, '') },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const routeSlug = entry.id.replace(/\.mdx?$/, '').replace(/\/index$/, '');
+const canonicalPath = `/docs/${routeSlug}/`;
+const origin = Astro.site ?? new URL(defaultSiteUrl);
+const titleCase = (value: string) => value.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+const rootSection = routeSlug.split('/')[0];
+const breadcrumbs = [
+  { title: 'Docs', href: '/docs/' },
+  ...(rootSection !== routeSlug ? [{ title: titleCase(rootSection), href: `/docs/${rootSection}/` }] : []),
+  { title: entry.data.title },
+];
+const commandGroup = routeSlug === 'cli/project'
+  ? 'project'
+  : routeSlug === 'cli/build'
+    ? 'build'
+    : routeSlug === 'cli/diagnostics'
+      ? 'diagnostics'
+      : routeSlug === 'cli/engine'
+        ? 'engine'
+        : routeSlug === 'cli/configuration'
+          ? 'configuration'
+          : undefined;
+const breadcrumbItems = breadcrumbs.map((item, index) => ({
+  '@type': 'ListItem',
+  position: index + 1,
+  name: item.title,
+  ...(item.href ? { item: new URL(withBase(item.href), origin).href } : {}),
+}));
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbItems,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: entry.data.title,
+    description: entry.data.description,
+    url: new URL(withBase(canonicalPath), origin).href,
+    isPartOf: { '@type': 'TechArticle', name: 'BornEngine documentation', url: new URL(withBase('/docs/'), origin).href },
+    publisher: { '@type': 'SoftwareSourceCode', name: 'BornEngine', url: repoUrl },
+  },
+];
+const editPath = `${repoUrl}/blob/main/webpage/src/content/docs/${entry.id}`;
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  canonicalPath={canonicalPath}
+  section={entry.data.section}
+  headings={headings}
+  breadcrumbs={breadcrumbs}
+  editPath={editPath}
+  jsonLd={jsonLd}
+>
+  <Content />
+  {commandGroup && <CommandReference group={commandGroup} />}
+</DocsLayout>
