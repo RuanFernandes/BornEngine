@@ -169,6 +169,55 @@ The CLI group pages cover these exact commands and preserve their relationships 
 
 Each command has a data entry in `src/data/cli-commands.ts` containing the canonical synopsis, flags, examples, behavior notes, and related routes. Tests compare the command inventory against the expected source-derived list so a page cannot silently omit a command.
 
+### Getting Started prerequisites
+
+The Getting Started section begins with a visible “What you need” matrix instead of burying setup requirements in a quick-start paragraph. It distinguishes requirements by the task the reader wants to perform:
+
+| Goal | Required setup |
+| --- | --- |
+| Read the docs or inspect examples | Nothing beyond a browser and Git if the repository is being cloned. |
+| Install the BornEngine CLI | Rust and Cargo through `rustup`; the CLI itself does not require Node.js. |
+| Create and build a native game | The CLI, Perry, Rust/Cargo, one package manager (`pnpm`, `npm`, or `yarn`), and the native linker/backend dependencies for the host. |
+| Build for Web/WASM | The native-game setup plus `wasm-pack`; `wasm-opt` is an optional size optimization step documented by the Web guide. |
+| Build for Apple platforms | A macOS host with Xcode for iOS, tvOS, watchOS, or visionOS targets, plus any Perry target setup described by the relevant platform guide. |
+| Build for Android | Perry's Android target setup plus Android Studio and the Android SDK/NDK required by the selected target. |
+
+The first installation page includes copyable verification commands:
+
+```sh
+rustc --version
+cargo --version
+perry --version
+bornengine --version
+node --version
+npm --version
+bornengine doctor
+```
+
+The page explains that `node`/`npm` are checked because game projects install the engine package even though the CLI binary itself is Rust-based. Users who choose pnpm or Yarn run that manager's version command instead of installing all three package managers.
+
+The page includes an installation table with official third-party documentation links and the exact command used by BornEngine where the repository already defines one:
+
+- Rust and Cargo: [rustup installation](https://rustup.rs/) and the [Rust installation guide](https://www.rust-lang.org/tools/install).
+- Node.js and npm: [Node.js downloads](https://nodejs.org/en/download) and [npm's installation guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). The page recommends the current Node.js LTS line.
+- pnpm: [pnpm installation](https://pnpm.io/installation). The CLI documentation also shows `npm install --global pnpm` for users following the default setup.
+- Yarn: [Yarn installation](https://yarnpkg.com/getting-started/install), including the `corepack enable` path used by the CLI troubleshooting guidance.
+- Perry: the [Perry installation guide](https://docs.perryts.com/getting-started/installation.html), with the documented npm path `npm install -g @perryts/perry` and a note to keep `perry` on `PATH`.
+- Web/WASM: the repository's [Web/WASM guide](../../web-target.md) plus the [wasm-pack installation/quickstart documentation](https://rustwasm.github.io/wasm-pack/installer/). The page shows `cargo install wasm-pack` because that is the command currently documented by BornEngine.
+- Apple toolchains: [Apple Xcode](https://developer.apple.com/xcode/) for simulator/device SDKs; the page links the iOS/watchOS/tvOS BornEngine guides before asking the reader to install additional credentials or profiles.
+- Android toolchains: [Android Studio installation](https://developer.android.com/studio/install), followed by the selected Perry/BornEngine Android target guide.
+- Windows native toolchains: the [Perry installation guide](https://docs.perryts.com/getting-started/installation.html) for LLVM/Perry setup, with the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) page as the alternative documented by Perry.
+
+Linux setup is shown directly for Debian/Ubuntu because the CLI already documents the required headers:
+
+```sh
+sudo apt install pkg-config libx11-dev libxi-dev libasound2-dev
+```
+
+The page labels this as the minimum BornEngine Linux backend set and links to the troubleshooting page for additional distribution-specific packages rather than pretending one apt command covers every Linux distribution. Each platform subsection states whether the dependency is required for the host build, cross-compilation, or only a specific target.
+
+The page ends with a short “If setup fails” path: run `bornengine doctor`, copy the first failing check, read the platform-specific troubleshooting note, and only then inspect Perry's target list with `perry compile --help`. This gives beginners a deterministic next step instead of a long undifferentiated dependency list.
+
 ## Information architecture and page design
 
 ### Homepage
@@ -301,7 +350,7 @@ The site package has a lockfile and exposes these checks:
 - `npm run build` creates production output and runs the post-build Pagefind step.
 - `npm run validate:dist` verifies required output routes, metadata, canonical URLs, sitemap/robots assets, internal links, and the 404 page.
 
-The validation script fails on missing required CLI commands, duplicate routes, empty titles/descriptions, missing `h1` elements, unresolved local links, placeholder copy, or a build output that omits required SEO files. It ignores external links so CI does not fail because a third-party service is temporarily unavailable.
+The validation script fails on missing required CLI commands, duplicate routes, empty titles/descriptions, missing `h1` elements, missing Getting Started prerequisite sections, missing official installation links, unresolved local links, placeholder copy, or a build output that omits required SEO files. It ignores external links during CI so a third-party service being temporarily unavailable does not make the content contract fail; a separate documented link audit can be run when editing dependency URLs.
 
 The final verification pass also checks the generated site with a local static server, tests keyboard paths for search/menu/copy controls, checks a narrow viewport, and confirms the pre-existing engine change in `native/shared/src/ffi.rs` was not modified by site work.
 
