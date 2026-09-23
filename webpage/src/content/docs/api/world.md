@@ -24,4 +24,4 @@ runGame((dt) => {
 
 The current schema version is 2. `loadWorld` reads, parses, migrates, and validates. `instantiateWorld` expands prefabs, spawns terrain, entities, water, and river ribbons, and rejects prefab cycles. The environment must be applied every frame because the renderer clears its lighting block in `begin_frame`.
 
-World data is intentionally JSON-friendly. Store game-specific strings in `entity.userData` or `world.metadata`; unknown fields are reported and may be dropped by the schema-explicit saver. Read the [world format guide](../guides/world-format/) before designing an editor-facing level format.
+World data is intentionally JSON-friendly. Store game-specific strings in `entity.userData` or `world.metadata`; unknown fields are reported and may be dropped by the schema-explicit saver. Read the [world format guide](../../guides/world-format/) before designing an editor-facing level format.

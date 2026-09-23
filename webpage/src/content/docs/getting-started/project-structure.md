@@ -26,7 +26,7 @@ The exact generated files can vary with the selected package manager and Perry v
 
 ## Assets
 
-Keep runtime assets under the project directory so the platform build can package them. Native and mobile targets resolve files from their application bundle; Web/WASM copies the `assets/` directory into the served output. See [assets as a concept](../concepts/assets/) and the [Web/WASM guide](../platforms/web-wasm/) for path behavior.
+Keep runtime assets under the project directory so the platform build can package them. Native and mobile targets resolve files from their application bundle; Web/WASM copies the `assets/` directory into the served output. See [assets as a concept](../../concepts/assets/) and the [Web/WASM guide](../../platforms/web-wasm/) for path behavior.
 
 ## Local engine development
 

@@ -19,4 +19,4 @@ The module exposes `loadTexture`, `drawTexture`, `drawTextureRec`, `drawTextureP
 
 `FILTER_LINEAR` and `FILTER_NEAREST` control sampling. `loadRenderTexture`, `beginTextureMode`, and `endTextureMode` provide an off-screen render target for a minimap, post-process input, or a UI composition pass.
 
-Prefer stable asset paths under `assets/`; platform packaging and bundle resolution are covered in the [assets guide](../concepts/assets/).
+Prefer stable asset paths under `assets/`; platform packaging and bundle resolution are covered in the [assets guide](../../concepts/assets/).

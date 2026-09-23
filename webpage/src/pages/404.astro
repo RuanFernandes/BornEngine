@@ -1,0 +1,62 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { withBase } from '../data/site';
+---
+
+<SiteLayout
+  title="Page not found"
+  description="The BornEngine page you requested could not be found. Return to the homepage or browse the documentation."
+  canonicalPath="/"
+  theme="ink"
+>
+  <section class="not-found" aria-labelledby="not-found-title">
+    <div class="not-found__frame">
+      <p class="eyebrow eyebrow--acid">BornEngine / 404</p>
+      <h1 id="not-found-title">This frame is empty.</h1>
+      <p>The route you followed does not exist in the current build. The engine is still here.</p>
+      <div class="not-found__actions">
+        <a class="button button--acid" href={withBase('/')}>Back home <span aria-hidden="true">↗</span></a>
+        <a class="button button--ghost" href={withBase('/docs/')}>Browse docs</a>
+      </div>
+    </div>
+  </section>
+</SiteLayout>
+
+<style>
+  .not-found {
+    min-height: calc(100vh - var(--header-height));
+    padding: clamp(5rem, 14vw, 10rem) 1.25rem;
+    background: var(--ink-950);
+    color: var(--paper-50);
+  }
+
+  .not-found__frame {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 5rem);
+    border: 1px solid var(--line-dark);
+    background: linear-gradient(135deg, rgba(184, 242, 61, 0.08), transparent 55%), var(--ink-900);
+  }
+
+  .not-found h1 {
+    max-width: 10ch;
+    margin: 1rem 0;
+    font-family: var(--font-display);
+    font-size: clamp(3.5rem, 10vw, 7rem);
+    line-height: 0.95;
+    letter-spacing: -0.07em;
+  }
+
+  .not-found p:not(.eyebrow) {
+    max-width: 42rem;
+    color: var(--paper-100);
+    font-size: 1.1rem;
+  }
+
+  .not-found__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+</style>

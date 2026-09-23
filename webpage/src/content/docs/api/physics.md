@@ -25,4 +25,4 @@ Shapes are reusable geometry; bodies hold motion state and reference a shape. Th
 
 The API includes box, sphere, capsule, cylinder, convex hull, mesh, heightfield, scaled, offset-COM, and compound shapes; dynamic, kinematic, and static bodies; forces and impulses; raycasts and overlaps; fixed, point, hinge, slider, and distance constraints; and polled contact events.
 
-Higher-level helpers include `createCharacter`/`updateCharacter`, soft bodies, and four-wheel vehicles. Physics is backed by Jolt on native and JoltPhysics.js on Web/WASM. The [physics guide](../guides/physics/) covers stepping and the larger systems.
+Higher-level helpers include `createCharacter`/`updateCharacter`, soft bodies, and four-wheel vehicles. Physics is backed by Jolt on native and JoltPhysics.js on Web/WASM. The [physics guide](../../guides/physics/) covers stepping and the larger systems.

@@ -24,4 +24,4 @@ Read the [iOS target notes](https://github.com/RuanFernandes/BornEngine/blob/mai
 
 watchOS uses a draw-command bridge to SwiftUI Canvas and SceneKit rather than the desktop wgpu/Jolt stack. Compile with `--features watchos-swift-app` and use the Perry [watchOS platform guide](https://docs.perryts.com/) for the nightly/build-std setup. The watch target is constrained by screen size, RAM, and the absence of wgpu/Jolt.
 
-The [mobile guide](mobile/) covers touch and device input differences shared across Apple targets.
+The [mobile guide](../mobile/) covers touch and device input differences shared across Apple targets.

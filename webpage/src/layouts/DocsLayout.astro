@@ -3,6 +3,7 @@ import Breadcrumbs from '../components/Breadcrumbs.astro';
 import DocsSidebar from '../components/DocsSidebar.astro';
 import PrevNext from '../components/PrevNext.astro';
 import TableOfContents from '../components/TableOfContents.astro';
+import { defaultSiteUrl, withBase } from '../data/site';
 import SiteLayout from './SiteLayout.astro';
 import '../styles/docs.css';
 
@@ -51,9 +52,25 @@ const {
   next,
   related = [],
 } = Astro.props;
+const origin = Astro.site ?? new URL(defaultSiteUrl);
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: breadcrumbs.map((item, index) => {
+    const itemPath = item.href ?? (index === breadcrumbs.length - 1 ? canonicalPath : undefined);
+    return {
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.title,
+      ...(itemPath ? { item: new URL(withBase(itemPath), origin).href } : {}),
+    };
+  }),
+};
+const suppliedJsonLd = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
+const layoutJsonLd = [breadcrumbJsonLd, ...suppliedJsonLd.filter((item) => item['@type'] !== 'BreadcrumbList')];
 ---
 
-<SiteLayout title={title} description={description} canonicalPath={canonicalPath} theme={theme} jsonLd={jsonLd}>
+<SiteLayout title={title} description={description} canonicalPath={canonicalPath} theme={theme} jsonLd={layoutJsonLd}>
   <div class="docs-layout" data-docs-layout>
     <div class="docs-layout__mobile-toolbar">
       <button type="button" data-docs-menu-toggle aria-expanded="false" aria-controls="docs-sidebar">Browse docs</button>

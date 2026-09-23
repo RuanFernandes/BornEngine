@@ -19,6 +19,6 @@ The module covers model loading, `drawModel`, transforms, bounds, primitive mesh
 
 ## Skeletal animation
 
-`loadModelAnimation`, `instantiateAnimation`, `animPlay`, `animSetLayer`, `animUpdate`, `animFinished`, and `drawModel` form the preferred mixer path. The legacy raw-time `updateModelAnimation` function remains supported. See the [skeletal animation guide](../guides/skeletal-animation/) for GLB export and GPU skinning details.
+`loadModelAnimation`, `instantiateAnimation`, `animPlay`, `animSetLayer`, `animUpdate`, `animFinished`, and `drawModel` form the preferred mixer path. The legacy raw-time `updateModelAnimation` function remains supported. See the [skeletal animation guide](../../guides/skeletal-animation/) for GLB export and GPU skinning details.
 
 Model resources use explicit handles and should be unloaded when no longer owned by a scene.

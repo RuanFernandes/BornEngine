@@ -15,4 +15,4 @@ The immediate drawing surface includes `drawLine`, `drawRect`, `drawRectRec`, `d
 
 Collision helpers operate on plain `Vec2` and `Rect` data: `checkCollisionRecs`, `checkCollisionCircles`, `checkCollisionCircleRec`, `checkCollisionPointRec`, `checkCollisionPointCircle`, and `getCollisionRec`.
 
-Use shapes for immediate UI, prototypes, and simple 2D games. For persistent 3D objects, use the [scene graph](scene/) or [models](models/) modules instead.
+Use shapes for immediate UI, prototypes, and simple 2D games. For persistent 3D objects, use the [scene graph](../scene/) or [models](../models/) modules instead.

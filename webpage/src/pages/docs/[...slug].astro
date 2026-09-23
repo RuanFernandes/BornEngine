@@ -35,28 +35,15 @@ const commandGroup = routeSlug === 'cli/project'
         : routeSlug === 'cli/configuration'
           ? 'configuration'
           : undefined;
-const breadcrumbItems = breadcrumbs.map((item, index) => ({
-  '@type': 'ListItem',
-  position: index + 1,
-  name: item.title,
-  ...(item.href ? { item: new URL(withBase(item.href), origin).href } : {}),
-}));
-const jsonLd = [
-  {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: breadcrumbItems,
-  },
-  {
-    '@context': 'https://schema.org',
-    '@type': 'TechArticle',
-    headline: entry.data.title,
-    description: entry.data.description,
-    url: new URL(withBase(canonicalPath), origin).href,
-    isPartOf: { '@type': 'TechArticle', name: 'BornEngine documentation', url: new URL(withBase('/docs/'), origin).href },
-    publisher: { '@type': 'SoftwareSourceCode', name: 'BornEngine', url: repoUrl },
-  },
-];
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: entry.data.title,
+  description: entry.data.description,
+  url: new URL(withBase(canonicalPath), origin).href,
+  isPartOf: { '@type': 'TechArticle', name: 'BornEngine documentation', url: new URL(withBase('/docs/'), origin).href },
+  publisher: { '@type': 'SoftwareSourceCode', name: 'BornEngine', url: repoUrl },
+};
 const editPath = `${repoUrl}/blob/main/webpage/src/content/docs/${entry.id}`;
 ---
 

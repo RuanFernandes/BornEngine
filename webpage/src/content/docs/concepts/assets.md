@@ -26,4 +26,4 @@ Native Apple targets resolve read paths against the application bundle rather th
 
 Load long-lived resources during a loading phase, reuse their handles, and unload them when the owning scene ends. The async and staging helpers in the texture, model, and audio modules are useful when a project needs to prepare several assets without blocking one large step.
 
-For authored levels, prefer the versioned [world format](../guides/world-format/) so the editor and runtime can share data without inventing a second serialization shape.
+For authored levels, prefer the versioned [world format](../../guides/world-format/) so the editor and runtime can share data without inventing a second serialization shape.

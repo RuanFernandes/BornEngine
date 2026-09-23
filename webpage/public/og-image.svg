@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">BornEngine — Native games from TypeScript.</title>
+  <desc id="desc">BornEngine is a function-first TypeScript game engine for native platforms and Web/WASM.</desc>
+  <rect width="1200" height="630" fill="#0a0d10"/>
+  <path d="M72 72h1056v486H72z" fill="none" stroke="#303943" stroke-width="2"/>
+  <path d="M72 166h1056" stroke="#303943" stroke-width="2"/>
+  <path d="M940 72v486" stroke="#303943" stroke-width="2"/>
+  <path d="M150 126h78" stroke="#b8f23d" stroke-width="8" stroke-linecap="round"/>
+  <path d="M246 126h34" stroke="#4b8dff" stroke-width="8" stroke-linecap="round"/>
+  <text x="150" y="280" fill="#f6f3ec" font-family="Inter, Avenir Next, Segoe UI, sans-serif" font-size="76" font-weight="700" letter-spacing="-3">BornEngine</text>
+  <text x="150" y="366" fill="#b8f23d" font-family="IBM Plex Mono, SFMono-Regular, Consolas, monospace" font-size="30" letter-spacing="1">NATIVE GAMES FROM TYPESCRIPT.</text>
+  <text x="150" y="468" fill="#b2bbc2" font-family="Inter, Avenir Next, Segoe UI, sans-serif" font-size="28">A small API. A direct pipeline. Real targets.</text>
+  <g transform="translate(1000 250)">
+    <rect width="82" height="132" fill="none" stroke="#f6f3ec" stroke-width="6"/>
+    <path d="M25 25v82" stroke="#b8f23d" stroke-width="12" stroke-linecap="round"/>
+    <path d="M54 25v82" stroke="#4b8dff" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

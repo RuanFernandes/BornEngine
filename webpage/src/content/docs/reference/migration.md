@@ -31,4 +31,4 @@ drawModelRotated(model, position, 1, 90, Colors.WHITE);
 
 `physics.step()` uses a fixed timestep with an accumulator and returns interpolation alpha. `stepVariable()` preserves exact-delta stepping for code that owns its own accumulator. Stale handles now fail registry lookups rather than aliasing a slot reused by another resource.
 
-When migrating a project, update examples and helpers together; the [physics API](../api/physics/) and [scene API](../api/scene/) show the current surface.
+When migrating a project, update examples and helpers together; the [physics API](../../api/physics/) and [scene API](../../api/scene/) show the current surface.

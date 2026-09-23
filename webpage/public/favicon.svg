@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">BornEngine</title>
+  <desc id="desc">A geometric frame with an acid-green playhead.</desc>
+  <rect width="64" height="64" rx="14" fill="#0a0d10"/>
+  <path d="M17 15h30v34H17z" fill="none" stroke="#f6f3ec" stroke-width="4"/>
+  <path d="M26 22v20" stroke="#b8f23d" stroke-width="6" stroke-linecap="round"/>
+  <path d="M36 22v20" stroke="#4b8dff" stroke-width="3" stroke-linecap="round"/>
+</svg>
