@@ -232,5 +232,5 @@ For the full pipeline (Blender export, pitfalls, architecture), see [docs/skelet
 - [Source repository](https://github.com/RuanFernandes/BornEngine)
 - [npm package](https://www.npmjs.com/package/@bornengine/engine)
 - [Documentation](docs/)
-- [Website and guides](webpage/)
+- [Website and guides](https://ruanfernandes.github.io/BornEngine/)
 - [BornEngine CLI](https://github.com/RuanFernandes/bornengine-cli)
