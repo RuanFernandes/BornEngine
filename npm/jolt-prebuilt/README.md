@@ -33,7 +33,7 @@ Each variant directory contains `libJolt.a` (or `Jolt.lib` on Windows) and `libb
 
 ## How `@bornengine/engine` finds it
 
-The engine's `native/shared/build.rs` walks up from `CARGO_MANIFEST_DIR` looking for `node_modules/@bornengine/jolt-prebuilt/lib/<os>-<arch>/`, then the legacy `@bloomengine/jolt-prebuilt` path. The `@bornengine/engine` package currently aliases the existing published Jolt package into the new scope until the BornEngine-scoped package is published. If no prebuilt is found (or `BLOOM_JOLT_FROM_SOURCE=1` is set), it falls back to building Jolt from the C++ source bundled in `@bornengine/engine`.
+The engine's `native/shared/build.rs` walks up from `CARGO_MANIFEST_DIR` looking for `node_modules/@bornengine/jolt-prebuilt/lib/<os>-<arch>/`, then the legacy `@bloomengine/jolt-prebuilt` path for existing Bloom Engine installs. This npm package contains the compiled static libraries; the JoltPhysics source itself is maintained separately as a Git submodule in the BornEngine repository. If no prebuilt is found (or `BLOOM_JOLT_FROM_SOURCE=1` is set), a source build requires that submodule to be present in a BornEngine checkout.
 
 ## Build / publish
 

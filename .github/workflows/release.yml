@@ -359,16 +359,11 @@ jobs:
   # Publish the package to npm as @bornengine/engine. Runs after the GitHub
   # Release so a failure here doesn't leave a dangling release-but-no-package
   # state. Also waits on publish-jolt-prebuilt so the BornEngine-scoped
-  # prebuilt package is available for the package's future direct dependency.
-  # This engine version temporarily aliases the existing Bloom-scoped package
-  # until the new Jolt package has been published. Skips cleanly if this
-  # engine version is already on the registry,
+  # prebuilt package is available for the engine's direct dependency. Skips
+  # cleanly if this engine version is already on the registry,
   # which keeps re-runs idempotent (workflow_dispatch on an existing tag
   # won't double-publish or fail).
   #
-  # We check out submodules recursively because scripts/prepack.sh refuses
-  # to ship a tarball without the JoltPhysics sources materialised — the
-  # package vendors them rather than relying on a postinstall git clone.
   # ---------------------------------------------------------------------------
   publish-npm:
     needs: [github-release, publish-jolt-prebuilt]
@@ -378,8 +373,6 @@ jobs:
       id-token: write   # required for npm provenance attestations
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - uses: actions/setup-node@v5
         with:
