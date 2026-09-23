@@ -54,13 +54,13 @@
 }
 
 .home-hero h1 {
-  max-width: 7ch;
+  max-width: 8.5ch;
   margin: 1.35rem 0 1.6rem;
   font-family: var(--font-display);
-  font-size: clamp(4rem, 8.3vw, 8.8rem);
+  font-size: clamp(3.8rem, 6.5vw, 7.1rem);
   font-weight: 600;
-  letter-spacing: -0.09em;
-  line-height: 0.87;
+  letter-spacing: -0.075em;
+  line-height: 0.96;
 }
 
 .home-hero h1 em {
@@ -409,11 +409,31 @@
 }
 
 .code-block pre {
+  min-height: clamp(19rem, 28vw, 23rem);
   padding: 1.35rem;
   margin: 0;
   color: #d8e0e1;
   font-size: clamp(0.72rem, 1vw, 0.86rem);
   line-height: 1.65;
+}
+
+.code-block__monaco {
+  display: none;
+  height: clamp(19rem, 28vw, 23rem);
+  overflow: hidden;
+}
+
+.code-block.is-monaco-ready > pre {
+  display: none;
+}
+
+.code-block.is-monaco-ready .code-block__monaco {
+  display: block;
+}
+
+.code-block__monaco .monaco-editor,
+.code-block__monaco .monaco-editor .overflow-guard {
+  border-radius: 0;
 }
 
 .capabilities__heading {
@@ -682,7 +702,9 @@
 
 @media (max-width: 650px) {
   .home-hero h1 {
-    font-size: clamp(3.6rem, 18vw, 6rem);
+    max-width: 9ch;
+    font-size: clamp(3.4rem, 16vw, 5.6rem);
+    line-height: 0.98;
   }
 
   .platform-rail {

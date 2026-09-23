@@ -16,6 +16,7 @@
     "@astrojs/mdx": "^8.0.2",
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.4",
+    "monaco-editor": "^0.56.0",
     "pagefind": "^1.5.2"
   },
   "devDependencies": {

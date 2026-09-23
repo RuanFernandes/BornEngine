@@ -146,6 +146,15 @@ body {
   background: var(--acid-400);
 }
 
+.theme-ink .site-header__nav .site-header__cta,
+.theme-ink .site-header__nav .site-header__cta:hover,
+.theme-ink .site-header__nav .site-header__cta:focus-visible,
+.theme-paper .site-header__nav .site-header__cta,
+.theme-paper .site-header__nav .site-header__cta:hover,
+.theme-paper .site-header__nav .site-header__cta:focus-visible {
+  color: var(--ink-950);
+}
+
 .site-header__menu {
   display: none;
 }
