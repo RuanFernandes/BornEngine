@@ -39,4 +39,8 @@ The engine's `native/shared/build.rs` walks up from `CARGO_MANIFEST_DIR` looking
 
 Built by `.github/workflows/release.yml` on each tag push — a matrix job per platform produces the libraries on the appropriate native runner (`macos-14` for Apple targets, `ubuntu-22.04` for Linux/Android, `windows-latest` for Windows) and uploads them as artifacts. A final assembly job collects every artifact into this package's `lib/` tree and publishes via OIDC trusted publishing.
 
-The published version always matches the corresponding `@bornengine/engine` version they were built against.
+Each engine release pins a compatible `@bornengine/jolt-prebuilt` version in `package.json`. The prebuilt package is versioned independently, so its version may differ from the engine's version.
+
+## Licenses
+
+The BornEngine shim and its upstream Bloom Engine copyright notice are covered by the MIT license in `LICENSE`. JoltPhysics is also distributed under MIT; see `JOLT-LICENSE` for its original copyright and license notice.

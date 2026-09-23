@@ -9,6 +9,12 @@ BornEngine compiles your game to Metal, DirectX 12, Vulkan, OpenGL, and WebGPU �
 > API on raylib's — in our view one of the best API designs in gamedev. BornEngine is an
 > independent implementation, not a port — [how BornEngine relates to raylib »](#how-bornengine-relates-to-raylib)
 
+> **Fork notice:** BornEngine is an independently maintained fork of the original
+> [Bloom Engine](https://github.com/Bloom-Engine/engine). Bloom Engine remains the
+> upstream project; this repository continues under the BornEngine name and is not
+> affiliated with or endorsed by Bloom Engine's maintainers. The upstream MIT license
+> and copyright notice are preserved in [LICENSE](LICENSE).
+
 ## Install
 
 ```bash
@@ -23,7 +29,7 @@ pnpm add @bornengine/engine
 yarn add @bornengine/engine
 ```
 
-The npm package ships the TypeScript API alongside the engine's Rust sources and the bundled [JoltPhysics](https://github.com/jrouwe/JoltPhysics) C++ shim, so a single `install` is enough — there's no separate native download step.
+The npm package ships the TypeScript API and the engine's Rust sources. Platform-specific Jolt static libraries come from the separate `@bornengine/jolt-prebuilt` dependency; building Jolt from source requires the `native/third_party/JoltPhysics` Git submodule. Normal builds use the prebuilt package, so there's no separate native download step.
 
 You'll also need:
 

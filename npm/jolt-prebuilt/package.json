@@ -13,7 +13,9 @@
     "url": "https://github.com/RuanFernandes/BornEngine/issues"
   },
   "files": [
-    "lib/"
+    "lib/",
+    "LICENSE",
+    "JOLT-LICENSE"
   ],
   "publishConfig": {
     "access": "public"
