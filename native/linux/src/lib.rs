@@ -8,6 +8,9 @@ use std::ops::{Deref, DerefMut};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 static ENGINE: OnceLock<Mutex<EngineState>> = OnceLock::new();
+// X11 and joystick state below are confined to Perry's main run-loop thread.
+// EngineState uses a Mutex because FFI callbacks can re-enter the engine;
+// these platform handles are not accessed from worker threads.
 static mut GAMEPAD_FD: RawFd = -1;
 
 fn engine() -> MutexGuard<'static, EngineState> {
