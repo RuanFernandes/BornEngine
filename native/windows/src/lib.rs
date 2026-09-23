@@ -640,6 +640,11 @@ unsafe fn init_engine_for_hwnd(
             let mut handle = raw_window_handle::Win32WindowHandle::new(
                 std::num::NonZeroIsize::new(hwnd.0 as isize).unwrap()
             );
+            handle.hinstance = std::num::NonZeroIsize::new(
+                windows::Win32::System::LibraryLoader::GetModuleHandleW(None)
+                    .unwrap()
+                    .0 as isize,
+            );
             let raw = raw_window_handle::RawWindowHandle::Win32(handle);
             instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
                 raw_display_handle: Some(raw_window_handle::RawDisplayHandle::Windows(
@@ -862,7 +867,12 @@ pub extern "C" fn bloom_attach_native(handle: i64, width: f64, height: f64) -> f
             return 0.0;
         };
         let target = {
-            let h = raw_window_handle::Win32WindowHandle::new(hwnd_nz);
+            let mut h = raw_window_handle::Win32WindowHandle::new(hwnd_nz);
+            h.hinstance = std::num::NonZeroIsize::new(unsafe {
+                windows::Win32::System::LibraryLoader::GetModuleHandleW(None)
+                    .unwrap()
+                    .0 as isize
+            });
             wgpu::SurfaceTargetUnsafe::RawHandle {
                 raw_display_handle: Some(raw_window_handle::RawDisplayHandle::Windows(
                     raw_window_handle::WindowsDisplayHandle::new(),

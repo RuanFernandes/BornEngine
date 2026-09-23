@@ -53,6 +53,9 @@ fn build_jolt() {
     let from_source = std::env::var_os("BLOOM_JOLT_FROM_SOURCE").is_some();
     if !from_source {
         if let Some(prebuilt_dir) = find_prebuilt_dir(&manifest_dir, &target_os, &target_arch) {
+            if target_os == "windows" {
+                stage_windows_prebuilt_for_perry(&prebuilt_dir, &shim_dir, &target_arch);
+            }
             link_prebuilt(&prebuilt_dir, &target_os);
             emit_cxx_runtime_link(&target_os);
             return;
@@ -171,7 +174,12 @@ fn find_prebuilt_dir(
     } else {
         ""
     };
-    let target_token = format!("{}-{}{}", target_os, arch_token, sim_suffix);
+    let os_token = if target_os == "windows" {
+        "win32"
+    } else {
+        target_os
+    };
+    let target_token = format!("{}-{}{}", os_token, arch_token, sim_suffix);
 
     let candidates = std::iter::empty::<std::path::PathBuf>()
         .chain(
@@ -222,6 +230,38 @@ fn walk_up_for_node_modules(
         }
         None
     })
+}
+
+#[cfg(feature = "jolt")]
+fn stage_windows_prebuilt_for_perry(
+    prebuilt_dir: &std::path::Path,
+    shim_dir: &std::path::Path,
+    target_arch: &str,
+) {
+    let lib_dir = shim_dir
+        .join("build")
+        .join(format!("windows-{target_arch}"))
+        .join("lib");
+    std::fs::create_dir_all(&lib_dir)
+        .unwrap_or_else(|error| panic!("could not create {}: {error}", lib_dir.display()));
+    for name in ["bloom_jolt.lib", "Jolt.lib"] {
+        let source = prebuilt_dir.join(name);
+        let destination = lib_dir.join(name);
+        let same_file = source
+            .canonicalize()
+            .ok()
+            .zip(destination.canonicalize().ok())
+            .is_some_and(|(source, destination)| source == destination);
+        if !same_file {
+            std::fs::copy(&source, &destination).unwrap_or_else(|error| {
+                panic!(
+                    "could not stage {} to {}: {error}",
+                    source.display(),
+                    destination.display()
+                )
+            });
+        }
+    }
 }
 
 #[cfg(feature = "jolt")]
