@@ -79,7 +79,7 @@ macro_rules! __bloom_ffi_game_loop {
         #[no_mangle]
         pub extern "C" fn bloom_create_instance_buffer_scratch(instance_count: f64) -> f64 {
             $crate::ffi::guard("bloom_create_instance_buffer_scratch", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let count = instance_count as u32;
                 let need = (count as usize) * 9;
                 if count == 0 || eng.models.scratch_f32.len() < need { return 0.0; }

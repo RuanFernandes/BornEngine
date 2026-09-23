@@ -1,16 +1,24 @@
 use bloom_shared::engine::EngineState;
 use bloom_shared::renderer::Renderer;
-use bloom_shared::string_header::{str_from_header, alloc_perry_string};
-use bloom_shared::audio::{parse_wav, parse_ogg, parse_mp3};
+use bloom_shared::string_header::{alloc_perry_string, str_from_header};
 
-use std::sync::OnceLock;
 use std::os::unix::io::RawFd;
+#[cfg(feature = "jolt")]
+use std::ops::{Deref, DerefMut};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
-static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
+static ENGINE: OnceLock<Mutex<EngineState>> = OnceLock::new();
+// X11 and joystick state below are confined to Perry's main run-loop thread.
+// EngineState uses a Mutex because FFI callbacks can re-enter the engine;
+// these platform handles are not accessed from worker threads.
 static mut GAMEPAD_FD: RawFd = -1;
 
-fn engine() -> &'static mut EngineState {
-    unsafe { ENGINE.get_mut().expect("Engine not initialized") }
+fn engine() -> MutexGuard<'static, EngineState> {
+    ENGINE
+        .get()
+        .expect("Engine not initialized")
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 /// Asset-path hook for define_core_ffi! — identity on desktop, where game
 /// asset paths are valid relative to the working directory.
@@ -21,7 +29,6 @@ fn bloom_resolve_asset_path(path: &str) -> std::borrow::Cow<'_, str> {
 // The full shared (non-physics) FFI surface. See bloom_shared::ffi_core
 // docs for the contract; tools/validate-ffi.js checks parity in CI.
 bloom_shared::define_core_ffi!();
-
 
 /// Map X11 keysym to Bloom key code.
 fn map_keycode(keysym: u32) -> usize {
@@ -76,15 +83,20 @@ mod x11_impl {
     static mut DISPLAY: *mut x11::xlib::Display = std::ptr::null_mut();
     static mut X11_WINDOW: x11::xlib::Window = 0;
     static mut IS_FULLSCREEN: bool = false;
-    static mut HEADLESS: bool = false;
     static mut NO_FULLSCREEN: bool = false;
     static mut CURSOR_HIDDEN: bool = false;
     static mut HIDDEN_CURSOR: x11::xlib::Cursor = 0;
     /// Cached XC_* shape cursors keyed by `cursor_shape` value 0..=6.
     /// Lazily created by `apply_cursor_shape`; reused across frames so
     /// we don't leak a Cursor handle every poll.
-    static mut SHAPE_CURSORS: [x11::xlib::Cursor; 8] = [0; 8];
-    static mut LAST_APPLIED_SHAPE: u32 = 0xFFFF_FFFF;
+    struct CursorCache {
+        cursors: [x11::xlib::Cursor; 8],
+        last_applied_shape: u32,
+    }
+    static CURSOR_CACHE: Mutex<CursorCache> = Mutex::new(CursorCache {
+        cursors: [0; 8],
+        last_applied_shape: 0xFFFF_FFFF,
+    });
     /// When `cursor_disabled` (relative-mode) is on we keep warping the
     /// pointer back to window center each frame; remembering the last warp
     /// target lets motion handlers compute a reliable raw delta and ignore
@@ -159,7 +171,6 @@ mod x11_impl {
     /// BLOOM_HEADLESS path for batch / CI rendering harnesses.
     pub fn create_window(width: f64, height: f64, title: &str, headless: bool) -> (u32, u32) {
         unsafe {
-            HEADLESS = headless;
             DISPLAY = x11::xlib::XOpenDisplay(std::ptr::null());
             if DISPLAY.is_null() {
                 panic!("Failed to open X11 display");
@@ -214,7 +225,6 @@ mod x11_impl {
     }
 
     pub fn set_no_fullscreen(no_fs: bool) { unsafe { NO_FULLSCREEN = no_fs; } }
-    pub fn is_headless() -> bool { unsafe { HEADLESS } }
 
     /// Read the current display's DPI scale factor. Computed from
     /// physical screen dimensions (pixels / mm). Snapped to the
@@ -362,10 +372,6 @@ mod x11_impl {
         }
     }
 
-    pub fn is_relative_mode() -> bool { unsafe { RELATIVE_MODE } }
-    pub fn warp_center_x() -> i32 { unsafe { WARP_CENTER_X } }
-    pub fn warp_center_y() -> i32 { unsafe { WARP_CENTER_Y } }
-
     /// Apply the requested cursor shape (the same 0..=6 enum macOS uses
     /// in NSCursor calls). XCreateFontCursor uses cursor-font glyph
     /// constants from <X11/cursorfont.h>; we cache one Cursor per shape
@@ -373,7 +379,10 @@ mod x11_impl {
     pub fn apply_cursor_shape(shape: u32) {
         unsafe {
             if DISPLAY.is_null() || X11_WINDOW == 0 || CURSOR_HIDDEN { return; }
-            if shape == LAST_APPLIED_SHAPE { return; }
+            let mut cache = CURSOR_CACHE
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if shape == cache.last_applied_shape { return; }
             // X11 cursor-font glyph indices (from cursorfont.h).
             // 0 = default arrow → XC_left_ptr (68)
             // 1 = pointing hand → XC_hand2     (60)
@@ -391,14 +400,14 @@ mod x11_impl {
                 6 => 34,
                 _ => 68,
             };
-            let idx = (shape as usize).min(SHAPE_CURSORS.len() - 1);
-            if SHAPE_CURSORS[idx] == 0 {
-                SHAPE_CURSORS[idx] = x11::xlib::XCreateFontCursor(DISPLAY, glyph);
+            let idx = (shape as usize).min(cache.cursors.len() - 1);
+            if cache.cursors[idx] == 0 {
+                cache.cursors[idx] = x11::xlib::XCreateFontCursor(DISPLAY, glyph);
             }
-            if SHAPE_CURSORS[idx] != 0 {
-                x11::xlib::XDefineCursor(DISPLAY, X11_WINDOW, SHAPE_CURSORS[idx]);
+            if cache.cursors[idx] != 0 {
+                x11::xlib::XDefineCursor(DISPLAY, X11_WINDOW, cache.cursors[idx]);
                 x11::xlib::XFlush(DISPLAY);
-                LAST_APPLIED_SHAPE = shape;
+                cache.last_applied_shape = shape;
             }
         }
     }
@@ -498,7 +507,7 @@ mod x11_impl {
                         let phys_w = configure.width as u32;
                         let phys_h = configure.height as u32;
                         if phys_w > 0 && phys_h > 0 {
-                            let eng = engine();
+                            let mut eng = engine();
                             if phys_w != eng.renderer.physical_width()
                                 || phys_h != eng.renderer.physical_height()
                             {
@@ -693,7 +702,7 @@ pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u
         surface.configure(&device, &surface_config);
 
         let renderer = Renderer::new(device, queue, surface, surface_config, width as u32, height as u32);
-        unsafe { let _ = ENGINE.set(EngineState::new(renderer)); }
+        let _ = ENGINE.set(Mutex::new(EngineState::new(renderer)));
 
         if fullscreen != 0.0 {
             x11_impl::set_fullscreen(true);
@@ -731,7 +740,10 @@ pub extern "C" fn bloom_attach_native(handle: i64, width: f64, height: f64) -> f
 /// BloomViews on layout changes). `phys_*` physical px, `log_*` logical.
 #[no_mangle]
 pub extern "C" fn bloom_resize(phys_w: f64, phys_h: f64, log_w: f64, log_h: f64) {
-    if let Some(eng) = unsafe { ENGINE.get_mut() } {
+    if let Some(lock) = ENGINE.get() {
+        let mut eng = lock
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         eng.renderer.resize(phys_w as u32, phys_h as u32, log_w as u32, log_h as u32);
     }
 }
@@ -816,7 +828,15 @@ pub extern "C" fn bloom_begin_drawing() {
         // cursor only changes when we actually call XDefineCursor.
         x11_impl::apply_cursor_shape(engine().input.cursor_shape);
     }
-    engine().begin_frame();
+    let (delta_time, callbacks) = {
+        let mut eng = engine();
+        eng.begin_frame_without_callbacks();
+        eng.begin_frame_callbacks()
+    };
+    for callback in callbacks {
+        callback(delta_time);
+    }
+    engine().finish_frame_callbacks();
 }
 
 #[no_mangle]
@@ -1121,28 +1141,34 @@ fn bloom_register_geisterhand_screenshot() {
 /// texture with screenshot capture, producing the same visual output as
 /// the real frame.
 extern "C" fn bloom_screenshot_capture(out_len: *mut usize) -> *mut u8 {
-    let eng = engine();
+    let mut eng = engine();
+    let time = eng.get_time() as f32;
+    let delta_time = eng.delta_time as f32;
+    let bloom_shared::engine::EngineState {
+        renderer,
+        scene,
+        profiler,
+        ..
+    } = &mut *eng;
 
-    eng.renderer.screenshot_requested = true;
-    eng.scene.prepare(
-        &eng.renderer.device,
-        &eng.renderer.queue,
-        &eng.renderer.vp_matrix(),
-        &eng.renderer.prev_vp_matrix,
-        eng.renderer.uniform_3d_layout(),
+    renderer.screenshot_requested = true;
+    scene.prepare(
+        &renderer.device,
+        &renderer.queue,
+        &renderer.vp_matrix(),
+        &renderer.prev_vp_matrix,
+        renderer.uniform_3d_layout(),
         // Screenshot capture renders everything the camera might see —
         // never occlusion-cull a one-shot capture.
         None,
     );
-    eng.scene.prepare_materials(&eng.renderer);
+    scene.prepare_materials(renderer);
     {
-        let t = eng.get_time() as f32;
-        let dt = eng.delta_time as f32;
-        eng.renderer.material_system_begin_frame(t, dt);
+        renderer.material_system_begin_frame(time, delta_time);
     }
-    eng.renderer.end_frame_with_scene(&mut eng.scene, &mut eng.profiler);
+    renderer.end_frame_with_scene(scene, profiler);
 
-    match eng.renderer.screenshot_data.take() {
+    match renderer.screenshot_data.take() {
         Some((width, height, rgba)) => {
             match encode_png(width, height, &rgba) {
                 Some(png_data) => {
@@ -1275,9 +1301,30 @@ fn adler32(data: &[u8]) -> u32 {
 // ============================================================
 
 #[cfg(feature = "jolt")]
+struct JoltEngineGuard {
+    engine: MutexGuard<'static, EngineState>,
+}
+
+#[cfg(feature = "jolt")]
+impl Deref for JoltEngineGuard {
+    type Target = bloom_shared::physics_jolt::JoltPhysics;
+
+    fn deref(&self) -> &Self::Target {
+        &self.engine.jolt
+    }
+}
+
+#[cfg(feature = "jolt")]
+impl DerefMut for JoltEngineGuard {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.engine.jolt
+    }
+}
+
+#[cfg(feature = "jolt")]
 #[inline]
-fn bloom_jolt_ffi_physics() -> &'static mut bloom_shared::physics_jolt::JoltPhysics {
-    &mut engine().jolt
+fn bloom_jolt_ffi_physics() -> JoltEngineGuard {
+    JoltEngineGuard { engine: engine() }
 }
 
 #[cfg(feature = "jolt")]

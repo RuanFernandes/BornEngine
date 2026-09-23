@@ -23,10 +23,12 @@ macro_rules! __bloom_ffi_vfx {
         pub extern "C" fn bloom_particles_create(capacity: f64) -> f64 {
             $crate::ffi::guard("bloom_particles_create", move || {
                 let cap = (capacity as usize).clamp(1, 100_000);
-                let eng = engine();
-                let ib = eng.renderer.material_system.create_dynamic_instance_buffer(
-                    &eng.renderer.device, cap as u32);
-                eng.particles.create(cap, ib) as f64
+                let mut eng = engine();
+                let $crate::engine::EngineState { renderer, particles, .. } = &mut *eng;
+                let device = &renderer.device;
+                let ib = renderer.material_system.create_dynamic_instance_buffer(
+                    device, cap as u32);
+                particles.create(cap, ib) as f64
         })
         }
 
@@ -38,12 +40,13 @@ macro_rules! __bloom_ffi_vfx {
         #[no_mangle]
         pub extern "C" fn bloom_particles_configure(sys: f64) {
             $crate::ffi::guard("bloom_particles_configure", move || {
-                let eng = engine();
+                let mut eng = engine();
                 #[cfg(feature = "models3d")]
                 {
-                    let params: Vec<f32> = eng.models.scratch_f32.clone();
-                    eng.models.mesh_scratch_reset();
-                    if let Some(s) = eng.particles.get_mut(sys as u32) {
+                    let $crate::engine::EngineState { models, particles, .. } = &mut *eng;
+                    let params: Vec<f32> = models.scratch_f32.clone();
+                    models.mesh_scratch_reset();
+                    if let Some(s) = particles.get_mut(sys as u32) {
                         s.configure_from_slice(&params);
                     }
                 }
@@ -74,8 +77,9 @@ macro_rules! __bloom_ffi_vfx {
         #[no_mangle]
         pub extern "C" fn bloom_particles_update(sys: f64, dt: f64) -> f64 {
             $crate::ffi::guard("bloom_particles_update", move || {
-                let eng = engine();
-                let (live, ib) = match eng.particles.get_mut(sys as u32) {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles, renderer, .. } = &mut *eng;
+                let (live, ib) = match particles.get_mut(sys as u32) {
                     Some(s) => (s.update(dt as f32), s.instance_buffer),
                     None => return 0.0,
                 };
@@ -83,12 +87,13 @@ macro_rules! __bloom_ffi_vfx {
                     // Re-borrow: the packed slice and the renderer are disjoint
                     // fields, but the borrow checker cannot see that through
                     // two method calls.
-                    let packed: Vec<f32> = match eng.particles.get_mut(sys as u32) {
+                    let packed: Vec<f32> = match particles.get_mut(sys as u32) {
                         Some(s) => s.packed()[..(live as usize) * 12].to_vec(),
                         None => return 0.0,
                     };
-                    eng.renderer.material_system.update_instance_buffer(
-                        &eng.renderer.queue, ib, &packed, live);
+                    let queue = &renderer.queue;
+                    renderer.material_system.update_instance_buffer(
+                        queue, ib, &packed, live);
                 }
                 live as f64
         })
@@ -128,10 +133,12 @@ macro_rules! __bloom_ffi_vfx {
         pub extern "C" fn bloom_decals_init(capacity: f64) -> f64 {
             $crate::ffi::guard("bloom_decals_init", move || {
                 let cap = (capacity as usize).clamp(1, 8192);
-                let eng = engine();
-                let ib = eng.renderer.material_system.create_dynamic_instance_buffer(
-                    &eng.renderer.device, cap as u32);
-                eng.decals.init(cap, ib);
+                let mut eng = engine();
+                let $crate::engine::EngineState { renderer, decals, .. } = &mut *eng;
+                let device = &renderer.device;
+                let ib = renderer.material_system.create_dynamic_instance_buffer(
+                    device, cap as u32);
+                decals.init(cap, ib);
                 ib as f64
         })
         }
@@ -173,13 +180,15 @@ macro_rules! __bloom_ffi_vfx {
         #[no_mangle]
         pub extern "C" fn bloom_decals_update(dt: f64) -> f64 {
             $crate::ffi::guard("bloom_decals_update", move || {
-                let eng = engine();
-                let live = eng.decals.update(dt as f32);
-                let ib = eng.decals.instance_buffer;
+                let mut eng = engine();
+                let $crate::engine::EngineState { decals, renderer, .. } = &mut *eng;
+                let live = decals.update(dt as f32);
+                let ib = decals.instance_buffer;
                 if live > 0 {
-                    let packed: Vec<f32> = eng.decals.packed()[..(live as usize) * 12].to_vec();
-                    eng.renderer.material_system.update_instance_buffer(
-                        &eng.renderer.queue, ib, &packed, live);
+                    let packed: Vec<f32> = decals.packed()[..(live as usize) * 12].to_vec();
+                    let queue = &renderer.queue;
+                    renderer.material_system.update_instance_buffer(
+                        queue, ib, &packed, live);
                 }
                 live as f64
         })

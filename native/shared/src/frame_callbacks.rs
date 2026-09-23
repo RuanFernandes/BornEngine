@@ -54,8 +54,7 @@ impl FrameCallbackSystem {
         }
     }
 
-    /// Run all active callbacks in priority order.
-    pub fn run_all(&mut self, delta_time: f64) {
+    fn ensure_sorted(&mut self) {
         if !self.sorted {
             // Sort by priority (stable sort preserves insertion order for equal priorities)
             let mut indices: Vec<usize> = (0..self.callbacks.len()).collect();
@@ -73,6 +72,22 @@ impl FrameCallbackSystem {
             }
             self.sorted = true;
         }
+    }
+
+    /// Snapshot active callbacks in priority order so the caller can release
+    /// any engine-state lock before invoking foreign callbacks.
+    pub fn callbacks_for_frame(&mut self) -> Vec<extern "C" fn(f64)> {
+        self.ensure_sorted();
+        self.callbacks
+            .iter()
+            .filter(|cb| cb.active)
+            .map(|cb| cb.callback)
+            .collect()
+    }
+
+    /// Run all active callbacks in priority order.
+    pub fn run_all(&mut self, delta_time: f64) {
+        self.ensure_sorted();
 
         for cb in &self.callbacks {
             if cb.active {
@@ -84,5 +99,24 @@ impl FrameCallbackSystem {
     /// Get number of registered callbacks.
     pub fn count(&self) -> usize {
         self.callbacks.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FrameCallbackSystem;
+
+    extern "C" fn callback(_: f64) {}
+
+    #[test]
+    fn callback_snapshot_is_independent_of_registry_changes() {
+        let mut callbacks = FrameCallbackSystem::new();
+        let id = callbacks.register(0, callback);
+
+        let batch = callbacks.callbacks_for_frame();
+        callbacks.unregister(id);
+
+        assert_eq!(batch.len(), 1);
+        assert_eq!(callbacks.count(), 0);
     }
 }

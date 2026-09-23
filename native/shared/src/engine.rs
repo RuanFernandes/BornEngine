@@ -128,6 +128,18 @@ impl EngineState {
     pub const MAX_DELTA_TIME: f64 = 0.25;
 
     pub fn begin_frame(&mut self) {
+        self.begin_frame_without_callbacks();
+
+        // Run frame callbacks after begin_frame (matching R3F's useFrame timing)
+        self.profiler.begin("frame_callbacks");
+        self.frame_callbacks.run_all(self.delta_time);
+        self.profiler.end("frame_callbacks");
+    }
+
+    /// Advance the engine to the callback boundary without invoking foreign
+    /// callbacks. Linux uses this split because its engine state is protected
+    /// by a mutex and callbacks may call back into the FFI.
+    pub fn begin_frame_without_callbacks(&mut self) {
         let now = Instant::now();
         self.delta_time = now
             .duration_since(self.last_frame_time)
@@ -152,10 +164,20 @@ impl EngineState {
         self.input.begin_frame();
         self.renderer.begin_frame();
         self.frame_count += 1;
+    }
 
-        // Run frame callbacks after begin_frame (matching R3F's useFrame timing)
+    /// Start profiling and snapshot the callbacks for the current frame. The
+    /// returned function pointers are owned by the caller, so the engine lock
+    /// can be released before they are invoked.
+    pub fn begin_frame_callbacks(&mut self) -> (f64, Vec<extern "C" fn(f64)>) {
         self.profiler.begin("frame_callbacks");
-        self.frame_callbacks.run_all(self.delta_time);
+        let delta_time = self.delta_time;
+        let callbacks = self.frame_callbacks.callbacks_for_frame();
+        (delta_time, callbacks)
+    }
+
+    /// Finish the profiling span opened by [`Self::begin_frame_callbacks`].
+    pub fn finish_frame_callbacks(&mut self) {
         self.profiler.end("frame_callbacks");
     }
 

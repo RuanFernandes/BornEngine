@@ -4622,7 +4622,7 @@ impl Renderer {
                 label: Some("pt_kernel_shader"),
                 source: wgpu::ShaderSource::Wgsl(pt_source.into()),
             });
-            let mut pt_layout_entries = vec![
+            let pt_layout_entries = vec![
                     wgpu::BindGroupLayoutEntry {
                         binding: 0, visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {

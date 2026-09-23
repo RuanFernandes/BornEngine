@@ -79,7 +79,7 @@ macro_rules! __bloom_ffi_draw {
         pub extern "C" fn bloom_draw_text(text_ptr: *const u8, x: f64, y: f64, size: f64, r: f64, g: f64, b: f64, a: f64) {
             $crate::ffi::guard("bloom_draw_text", move || {
                 let text = $crate::string_header::str_from_header(text_ptr);
-                let eng = engine();
+                let mut eng = engine();
                 // Need to split borrow: take text out temporarily
                 let mut text_renderer = std::mem::replace(&mut eng.text, $crate::text_renderer::TextRenderer::empty());
                 text_renderer.draw_text(&mut eng.renderer, text, x, y, size as u32, r, g, b, a);
@@ -101,7 +101,7 @@ macro_rules! __bloom_ffi_draw {
         pub extern "C" fn bloom_draw_text_ex(font_handle: f64, text_ptr: *const u8, x: f64, y: f64, size: f64, spacing: f64, r: f64, g: f64, b: f64, a: f64) {
             $crate::ffi::guard("bloom_draw_text_ex", move || {
                 let text = $crate::string_header::str_from_header(text_ptr);
-                let eng = engine();
+                let mut eng = engine();
                 let mut text_renderer = std::mem::replace(&mut eng.text, $crate::text_renderer::TextRenderer::empty());
                 text_renderer.draw_text_ex(&mut eng.renderer, font_handle as usize, text, x, y, size as u32, spacing as f32, r, g, b, a);
                 eng.text = text_renderer;
@@ -121,7 +121,7 @@ macro_rules! __bloom_ffi_draw {
         #[no_mangle]
         pub extern "C" fn bloom_draw_texture(handle: f64, x: f64, y: f64, tint_r: f64, tint_g: f64, tint_b: f64, tint_a: f64) {
             $crate::ffi::guard("bloom_draw_texture", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if let Some(tex) = eng.textures.get(handle) {
                     let bind_group_idx = tex.bind_group_idx;
                     eng.renderer.draw_texture(bind_group_idx, x, y, tint_r, tint_g, tint_b, tint_a);
@@ -138,7 +138,7 @@ macro_rules! __bloom_ffi_draw {
             tint_r: f64, tint_g: f64, tint_b: f64, tint_a: f64,
         ) {
             $crate::ffi::guard("bloom_draw_texture_rec", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if let Some(tex) = eng.textures.get(handle) {
                     let bind_group_idx = tex.bind_group_idx;
                     eng.renderer.draw_texture_rec(
@@ -161,7 +161,7 @@ macro_rules! __bloom_ffi_draw {
             tint_r: f64, tint_g: f64, tint_b: f64, tint_a: f64,
         ) {
             $crate::ffi::guard("bloom_draw_texture_pro", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if let Some(tex) = eng.textures.get(handle) {
                     let bind_group_idx = tex.bind_group_idx;
                     eng.renderer.draw_texture_pro(
@@ -289,7 +289,7 @@ macro_rules! __bloom_ffi_draw {
         #[no_mangle]
         pub extern "C" fn bloom_begin_texture_mode(handle: f64) {
             $crate::ffi::guard("bloom_begin_texture_mode", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let (w, h, bg_idx) = match eng.textures.render_textures.get(handle) {
                     Some(rt) => {
                         let tex_handle = rt.texture_handle;

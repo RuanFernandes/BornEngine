@@ -2,6 +2,9 @@ use crate::handles::HandleRegistry;
 use crate::renderer::Vertex3D;
 use std::sync::Arc;
 
+#[cfg(debug_assertions)]
+static DEBUG_PRINTED: std::sync::Once = std::sync::Once::new();
+
 pub struct MeshData {
     pub vertices: Vec<Vertex3D>,
     pub indices: Vec<u32>,
@@ -553,12 +556,13 @@ impl ModelManager {
 
             #[cfg(debug_assertions)]
             {
-                static mut DEBUG_PRINTED: bool = false;
-                unsafe {
-                    if !DEBUG_PRINTED && joint_count > 0 {
-                        DEBUG_PRINTED = true;
-                        eprintln!("[anim] joints={}, t={:.3}, anim_index={}", joint_count, time, anim_index);
-                    }
+                if joint_count > 0 {
+                    DEBUG_PRINTED.call_once(|| {
+                        eprintln!(
+                            "[anim] joints={}, t={:.3}, anim_index={}",
+                            joint_count, time, anim_index
+                        );
+                    });
                 }
             }
         }

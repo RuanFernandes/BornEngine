@@ -16,11 +16,11 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_load_model(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_model", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
-                match std::fs::read(path) {
+                let path = bloom_resolve_asset_path(path);
+                match std::fs::read(path.as_ref()) {
                     Ok(data) => {
-                        let eng = engine();
-                        let $crate::engine::EngineState { ref mut models, ref mut renderer, .. } = *eng;
+                        let mut eng = engine();
+                        let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
                         models.load_model_with_textures(&data, renderer)
                     }
                     Err(_) => 0.0,
@@ -39,12 +39,13 @@ macro_rules! __bloom_ffi_models {
         #[no_mangle]
         pub extern "C" fn bloom_draw_model(handle: f64, x: f64, y: f64, z: f64, scale: f64, r: f64, g: f64, b: f64, a: f64) {
             $crate::ffi::guard("bloom_draw_model", move || {
-                let eng = engine();
-                if let Some(model) = eng.models.get(handle) {
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
+                if let Some(model) = models.get(handle) {
                     let tint = [(r / 255.0) as f32, (g / 255.0) as f32, (b / 255.0) as f32, (a / 255.0) as f32];
                     let position = [x as f32, y as f32, z as f32];
                     let handle_bits = handle.to_bits();
-                    if eng.renderer.cache_model_if_static(handle_bits, &model.meshes) {
+                    if renderer.cache_model_if_static(handle_bits, &model.meshes) {
                         // Skinned models cache too now (bind-pose VB with raw
                         // joint indices, skinned in the scene VS) — routed to
                         // the skinned cached draw, which pops the staged pose
@@ -52,10 +53,10 @@ macro_rules! __bloom_ffi_models {
                         // across every primitive (per-primitive pops starved
                         // multi-primitive models onto joint offset 0 —
                         // another model's matrices).
-                        if eng.renderer.is_model_skinned(handle_bits) {
-                            eng.renderer.draw_model_cached_skinned(handle_bits, position, scale as f32, tint);
+                        if renderer.is_model_skinned(handle_bits) {
+                            renderer.draw_model_cached_skinned(handle_bits, position, scale as f32, tint);
                         } else {
-                            eng.renderer.draw_model_cached(handle_bits, position, scale as f32, tint);
+                            renderer.draw_model_cached(handle_bits, position, scale as f32, tint);
                         }
                     }
                 }
@@ -81,8 +82,9 @@ macro_rules! __bloom_ffi_models {
                 let r = ((bits >> 16) & 0xff) as f32 / 255.0;
                 let g = ((bits >>  8) & 0xff) as f32 / 255.0;
                 let b = ( bits        & 0xff) as f32 / 255.0;
-                let eng = engine();
-                if let Some(model) = eng.models.get(handle) {
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
+                if let Some(model) = models.get(handle) {
                     let position = [x as f32, y as f32, z as f32];
                     let scale = scale as f32;
                     let tint = [r, g, b, a];
@@ -95,13 +97,13 @@ macro_rules! __bloom_ffi_models {
                     // models take the skinned cached draw and IGNORE the
                     // rotation — their joint matrices bake orientation,
                     // exactly as the old immediate fallback behaved.
-                    if eng.renderer.cache_model_if_static(handle_bits, &model.meshes) {
-                        if eng.renderer.is_model_skinned(handle_bits) {
-                            eng.renderer.draw_model_cached_skinned(
+                    if renderer.cache_model_if_static(handle_bits, &model.meshes) {
+                        if renderer.is_model_skinned(handle_bits) {
+                            renderer.draw_model_cached_skinned(
                                 handle_bits, position, scale, tint,
                             );
                         } else {
-                            eng.renderer.draw_model_cached_rotated(
+                            renderer.draw_model_cached_rotated(
                                 handle_bits, position, scale, rot_y as f32, tint,
                             );
                         }
@@ -162,14 +164,15 @@ macro_rules! __bloom_ffi_models {
                         mat[col][row] = s[col * 4 + row] as f32;
                     }
                 }
-                let eng = engine();
-                if let Some(model) = eng.models.get(handle) {
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
+                if let Some(model) = models.get(handle) {
                     let handle_bits = handle.to_bits();
-                    if eng.renderer.cache_model_if_static(handle_bits, &model.meshes) {
-                        if eng.renderer.is_model_skinned(handle_bits) {
+                    if renderer.cache_model_if_static(handle_bits, &model.meshes) {
+                        if renderer.is_model_skinned(handle_bits) {
                             return;   // see the note above
                         }
-                        eng.renderer.draw_model_cached_transform(
+                        renderer.draw_model_cached_transform(
                             handle_bits, mat, [r, g, b, a],
                         );
                     }
@@ -195,7 +198,7 @@ macro_rules! __bloom_ffi_models {
         #[no_mangle]
         pub extern "C" fn bloom_unload_model(handle: f64) {
             $crate::ffi::guard("bloom_unload_model", move || {
-                let eng = engine();
+                let mut eng = engine();
                 // Evict cached GPU meshes (keyed by handle bits) before the
                 // handle dies — without this the buffers leak and a slot-
                 // reusing future model would render the stale geometry.
@@ -229,7 +232,7 @@ macro_rules! __bloom_ffi_models {
         #[no_mangle]
         pub extern "C" fn bloom_gen_mesh_heightmap(image_handle: f64, size_x: f64, size_y: f64, size_z: f64) -> f64 {
             $crate::ffi::guard("bloom_gen_mesh_heightmap", move || {
-                let eng = engine();
+                let mut eng = engine();
                 if let Some(img) = eng.textures.images.get(image_handle) {
                     let data = img.data.clone();
                     let w = img.width;
@@ -363,12 +366,13 @@ macro_rules! __bloom_ffi_models {
             instance_buffer: f64, instance_count: f64,
         ) {
             $crate::ffi::guard("bloom_submit_material_draw_instanced", move || {
-                let eng = engine();
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
                 let handle_bits = mesh_handle.to_bits();
-                if let Some(model) = eng.models.get(mesh_handle) {
-                    eng.renderer.cache_model_if_static(handle_bits, &model.meshes);
+                if let Some(model) = models.get(mesh_handle) {
+                    renderer.cache_model_if_static(handle_bits, &model.meshes);
                 }
-                eng.renderer.submit_material_draw_instanced(
+                renderer.submit_material_draw_instanced(
                     material as u32,
                     handle_bits,
                     mesh_idx as usize,
@@ -394,12 +398,13 @@ macro_rules! __bloom_ffi_models {
             r: f64, g: f64, b: f64, a: f64,
         ) {
             $crate::ffi::guard("bloom_draw_material", move || {
-                let eng = engine();
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
                 let handle_bits = mesh_handle.to_bits();
-                if let Some(model) = eng.models.get(mesh_handle) {
-                    eng.renderer.cache_model_if_static(handle_bits, &model.meshes);
+                if let Some(model) = models.get(mesh_handle) {
+                    renderer.cache_model_if_static(handle_bits, &model.meshes);
                 }
-                eng.renderer.submit_material_draw(
+                renderer.submit_material_draw(
                     material as u32,
                     handle_bits,
                     mesh_idx as usize,
@@ -421,8 +426,8 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_load_model_animation(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_model_animation", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
-                match std::fs::read(path) {
+                let path = bloom_resolve_asset_path(path);
+                match std::fs::read(path.as_ref()) {
                     Ok(data) => engine().models.load_model_animation(&data),
                     Err(_) => 0.0,
                 }
@@ -467,13 +472,14 @@ macro_rules! __bloom_ffi_models {
                 let rot_y_f = rot_y as f32;
                 let rot_sin = rot_y_f.sin();
                 let rot_cos = rot_y_f.cos();
-                let eng = engine();
-                eng.models.update_model_animation(handle, anim_index as usize, time as f32);
-                if let Some(anim) = eng.models.get_animation(handle) {
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
+                models.update_model_animation(handle, anim_index as usize, time as f32);
+                if let Some(anim) = models.get_animation(handle) {
                     if !anim.joint_matrices.is_empty() {
                         // PT-7: the anim handle keys the prev-palette
                         // pairing for skinned motion vectors.
-                        eng.renderer.set_joint_matrices_scaled(handle.to_bits(), &anim.joint_matrices, scale as f32, [px as f32, py as f32, pz as f32], rot_sin, rot_cos);
+                        renderer.set_joint_matrices_scaled(handle.to_bits(), &anim.joint_matrices, scale as f32, [px as f32, py as f32, pz as f32], rot_sin, rot_cos);
                     }
                 }
         })
@@ -779,12 +785,17 @@ macro_rules! __bloom_ffi_models {
             $crate::ffi::guard("bloom_gen_mesh_spline_ribbon_scratch", move || {
                 let n = point_count as usize;
                 let wn = width_count as usize;
-                let scratch = engine().models.scratch_floats();
-                if n < 2 || wn == 0 || scratch.len() < n * 3 + wn {
-                    return 0.0;
-                }
-                let points: Vec<f32> = scratch[..n * 3].to_vec();
-                let widths: Vec<f32> = scratch[n * 3..n * 3 + wn].to_vec();
+                let (points, widths) = {
+                    let eng = engine();
+                    let scratch = eng.models.scratch_floats();
+                    if n < 2 || wn == 0 || scratch.len() < n * 3 + wn {
+                        return 0.0;
+                    }
+                    (
+                        scratch[..n * 3].to_vec(),
+                        scratch[n * 3..n * 3 + wn].to_vec(),
+                    )
+                };
                 engine().models.gen_mesh_spline_ribbon(&points, &widths)
         })
         }
@@ -801,8 +812,8 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_stage_model(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_model", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
-                let data = match std::fs::read(path) {
+                let path = bloom_resolve_asset_path(path);
+                let data = match std::fs::read(path.as_ref()) {
                     Ok(d) => d,
                     Err(_) => return 0.0,
                 };
@@ -828,13 +839,14 @@ macro_rules! __bloom_ffi_models {
                     Some(s) => s,
                     None => return 0.0,
                 };
-                let eng = engine();
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
                 // Normal maps must go through the kind-aware registration
                 // (linear space + LEADR mips) or the committed model shades
                 // visibly flatter than the same GLB through loadModel.
                 let mut tex_map: Vec<u32> = Vec::with_capacity(staged.textures.len());
                 for tex in &staged.textures {
-                    tex_map.push(eng.renderer.register_texture_kind(
+                    tex_map.push(renderer.register_texture_kind(
                         tex.width, tex.height, &tex.data, tex.is_normal));
                 }
                 let mut model = staged.model;
@@ -860,7 +872,7 @@ macro_rules! __bloom_ffi_models {
                     remap(&mut mesh.emissive_texture_idx);
                     remap(&mut mesh.occlusion_texture_idx);
                 }
-                eng.models.models.alloc(model)
+                models.models.alloc(model)
         })
         }
         #[cfg(not(feature = "models3d"))]
@@ -885,7 +897,7 @@ macro_rules! __bloom_ffi_models {
                 // the desktop hosts. On iOS the CWD is not the app bundle, so
                 // every from-file material failed to canonicalize and the whole
                 // scene lost its shaders.
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path = bloom_resolve_asset_path(path);
                 let (profile, bucket, reads_scene) = match bucket_kind as u32 {
                     0 => (FragmentProfile::Opaque,      Bucket::Opaque,      false),
                     1 => (FragmentProfile::Translucent, Bucket::Transparent, false),
@@ -898,7 +910,7 @@ macro_rules! __bloom_ffi_models {
                     }
                 };
                 match engine().renderer.compile_material_from_file(
-                    std::path::Path::new(path), profile, bucket, reads_scene,
+                    std::path::Path::new(path.as_ref()), profile, bucket, reads_scene,
                 ) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] from_file failed: {e}"); 0.0 }
@@ -914,20 +926,21 @@ macro_rules! __bloom_ffi_models {
         #[no_mangle]
         pub extern "C" fn bloom_set_material_params_scratch(handle: f64, param_count: f64) {
             $crate::ffi::guard("bloom_set_material_params_scratch", move || {
-                let eng = engine();
+                let mut eng = engine();
                 let count = param_count as usize;
                 if count > 64 {
                     eprintln!("[material] set_material_params_scratch: param_count {} > 64 (256-byte UBO cap)", count);
                     return;
                 }
-                if eng.models.scratch_f32.len() < count { return; }
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
+                if models.scratch_f32.len() < count { return; }
                 let mut bytes = vec![0u8; count * 4];
                 for i in 0..count {
-                    bytes[i*4..i*4+4].copy_from_slice(&eng.models.scratch_f32[i].to_le_bytes());
+                    bytes[i*4..i*4+4].copy_from_slice(&models.scratch_f32[i].to_le_bytes());
                 }
-                eng.models.mesh_scratch_reset();
-                if let Err(e) = eng.renderer.material_system.set_user_params(
-                    &eng.renderer.device, &eng.renderer.queue,
+                models.mesh_scratch_reset();
+                if let Err(e) = renderer.material_system.set_user_params(
+                    &renderer.device, &renderer.queue,
                     handle as u32, &bytes,
                 ) {
                     eprintln!("[material] set_material_params_scratch failed: {}", e);
@@ -962,9 +975,10 @@ macro_rules! __bloom_ffi_models {
                         bytes[i*4..i*4+4].copy_from_slice(&f.to_le_bytes());
                     }
                 }
-                let eng = engine();
-                if let Err(e) = eng.renderer.material_system.set_user_params(
-                    &eng.renderer.device, &eng.renderer.queue,
+                let mut eng = engine();
+                let $crate::engine::EngineState { renderer, .. } = &mut *eng;
+                if let Err(e) = renderer.material_system.set_user_params(
+                    &renderer.device, &renderer.queue,
                     handle as u32, &bytes,
                 ) {
                     eprintln!("[material] set_material_params failed: {}", e);
@@ -1041,12 +1055,13 @@ macro_rules! __bloom_ffi_models {
                 let rot_y_f = rot_y as f32;
                 let rot_sin = rot_y_f.sin();
                 let rot_cos = rot_y_f.cos();
-                let eng = engine();
-                eng.models.advance_and_update(handle, dt as f32);
-                if let Some(anim) = eng.models.get_animation(handle) {
+                let mut eng = engine();
+                let $crate::engine::EngineState { models, renderer, .. } = &mut *eng;
+                models.advance_and_update(handle, dt as f32);
+                if let Some(anim) = models.get_animation(handle) {
                     if !anim.joint_matrices.is_empty() {
                         // PT-7: anim handle = prev-palette pairing key.
-                        eng.renderer.set_joint_matrices_scaled(
+                        renderer.set_joint_matrices_scaled(
                             handle.to_bits(), &anim.joint_matrices, scale as f32,
                             [px as f32, py as f32, pz as f32], rot_sin, rot_cos);
                     }

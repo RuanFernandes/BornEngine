@@ -64,6 +64,11 @@ pub struct InputState {
     mouse_down: [bool; MAX_MOUSE_BUTTONS],
     mouse_released: [bool; MAX_MOUSE_BUTTONS],
     prev_mouse_down: [bool; MAX_MOUSE_BUTTONS],
+    // Platform event loops can drain both halves of a click before the next
+    // frame begins. Keep the transitions independently so neither edge is
+    // lost when the final button state is released again.
+    pending_mouse_pressed: [bool; MAX_MOUSE_BUTTONS],
+    pending_mouse_released: [bool; MAX_MOUSE_BUTTONS],
 
     // Gamepad
     pub gamepad_available: bool,
@@ -127,6 +132,8 @@ impl InputState {
             mouse_down: [false; MAX_MOUSE_BUTTONS],
             mouse_released: [false; MAX_MOUSE_BUTTONS],
             prev_mouse_down: [false; MAX_MOUSE_BUTTONS],
+            pending_mouse_pressed: [false; MAX_MOUSE_BUTTONS],
+            pending_mouse_released: [false; MAX_MOUSE_BUTTONS],
             gamepad_available: false,
             gamepad_axes: [0.0; MAX_GAMEPAD_AXES],
             gamepad_buttons_down: [false; MAX_GAMEPAD_BUTTONS],
@@ -186,8 +193,12 @@ impl InputState {
             self.repeat_pending[i] = false;
         }
         for i in 0..MAX_MOUSE_BUTTONS {
-            self.mouse_pressed[i] = self.mouse_down[i] && !self.prev_mouse_down[i];
-            self.mouse_released[i] = !self.mouse_down[i] && self.prev_mouse_down[i];
+            self.mouse_pressed[i] =
+                self.pending_mouse_pressed[i] || (self.mouse_down[i] && !self.prev_mouse_down[i]);
+            self.mouse_released[i] =
+                self.pending_mouse_released[i] || (!self.mouse_down[i] && self.prev_mouse_down[i]);
+            self.pending_mouse_pressed[i] = false;
+            self.pending_mouse_released[i] = false;
         }
         for i in 0..MAX_GAMEPAD_BUTTONS {
             self.gamepad_buttons_pressed[i] = self.gamepad_buttons_down[i] && !self.prev_gamepad_buttons[i];
@@ -267,8 +278,22 @@ impl InputState {
         c
     }
 
-    pub fn set_mouse_button_down(&mut self, button: usize) { if button < MAX_MOUSE_BUTTONS { self.mouse_down[button] = true; } }
-    pub fn set_mouse_button_up(&mut self, button: usize) { if button < MAX_MOUSE_BUTTONS { self.mouse_down[button] = false; } }
+    pub fn set_mouse_button_down(&mut self, button: usize) {
+        if button < MAX_MOUSE_BUTTONS {
+            if !self.mouse_down[button] {
+                self.pending_mouse_pressed[button] = true;
+            }
+            self.mouse_down[button] = true;
+        }
+    }
+    pub fn set_mouse_button_up(&mut self, button: usize) {
+        if button < MAX_MOUSE_BUTTONS {
+            if self.mouse_down[button] {
+                self.pending_mouse_released[button] = true;
+            }
+            self.mouse_down[button] = false;
+        }
+    }
 
     pub fn is_mouse_button_pressed(&self, button: usize) -> bool { button < MAX_MOUSE_BUTTONS && self.mouse_pressed[button] }
     pub fn is_mouse_button_down(&self, button: usize) -> bool { button < MAX_MOUSE_BUTTONS && self.mouse_down[button] }
@@ -366,5 +391,58 @@ impl InputState {
             || self.mouse_pressed.iter().any(|&m| m)
             || self.gamepad_buttons_pressed.iter().any(|&g| g)
             || self.touch_count > 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::InputState;
+
+    #[test]
+    fn mouse_edges_are_published_for_one_frame() {
+        let mut input = InputState::new();
+
+        input.set_mouse_button_down(0);
+        input.begin_frame();
+        assert!(input.is_mouse_button_pressed(0));
+        assert!(input.is_mouse_button_down(0));
+        assert!(!input.is_mouse_button_released(0));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_mouse_button_pressed(0));
+        assert!(input.is_mouse_button_down(0));
+        assert!(!input.is_mouse_button_released(0));
+
+        input.set_mouse_button_up(0);
+        input.begin_frame();
+        assert!(!input.is_mouse_button_pressed(0));
+        assert!(!input.is_mouse_button_down(0));
+        assert!(input.is_mouse_button_released(0));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_mouse_button_pressed(0));
+        assert!(!input.is_mouse_button_down(0));
+        assert!(!input.is_mouse_button_released(0));
+    }
+
+    #[test]
+    fn fast_mouse_click_publishes_both_edges() {
+        let mut input = InputState::new();
+
+        input.set_mouse_button_down(0);
+        input.set_mouse_button_up(0);
+        input.begin_frame();
+
+        assert!(input.is_mouse_button_pressed(0));
+        assert!(!input.is_mouse_button_down(0));
+        assert!(input.is_mouse_button_released(0));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_mouse_button_pressed(0));
+        assert!(!input.is_mouse_button_down(0));
+        assert!(!input.is_mouse_button_released(0));
     }
 }
