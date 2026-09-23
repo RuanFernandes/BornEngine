@@ -1,0 +1,32 @@
+---
+import { navigation } from '../data/navigation';
+import { withBase } from '../data/site';
+
+interface Props {
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+const normalize = (value: string) => value.replace(/\/$/, '') || '/';
+---
+
+<nav class="docs-sidebar" aria-label="Documentation navigation">
+  <div class="docs-sidebar__mobile-label">Browse docs</div>
+  {navigation.map((group) => (
+    <section class="docs-sidebar__group">
+      <h2>{group.title}</h2>
+      <ul>
+        {group.children.map((item) => {
+          const active = normalize(currentPath) === normalize(withBase(item.href));
+          return (
+            <li>
+              <a class:list={{ 'is-active': active }} href={withBase(item.href)} aria-current={active ? 'page' : undefined}>
+                {item.title}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  ))}
+</nav>

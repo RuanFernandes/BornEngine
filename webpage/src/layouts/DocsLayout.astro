@@ -1,0 +1,94 @@
+---
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import DocsSidebar from '../components/DocsSidebar.astro';
+import PrevNext from '../components/PrevNext.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+import SiteLayout from './SiteLayout.astro';
+import '../styles/docs.css';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface LinkItem {
+  title: string;
+  href: string;
+}
+
+interface BreadcrumbItem {
+  title: string;
+  href?: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  theme?: 'ink' | 'paper';
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  section?: string;
+  headings?: Heading[];
+  breadcrumbs?: BreadcrumbItem[];
+  editPath?: string;
+  previous?: LinkItem;
+  next?: LinkItem;
+  related?: LinkItem[];
+}
+
+const {
+  title,
+  description,
+  canonicalPath,
+  theme = 'paper',
+  jsonLd,
+  section,
+  headings = [],
+  breadcrumbs = [{ title: 'Docs', href: '/docs/' }],
+  editPath,
+  previous,
+  next,
+  related = [],
+} = Astro.props;
+---
+
+<SiteLayout title={title} description={description} canonicalPath={canonicalPath} theme={theme} jsonLd={jsonLd}>
+  <div class="docs-layout">
+    <div class="docs-layout__mobile-toolbar">
+      <button type="button" data-docs-menu-toggle aria-expanded="false" aria-controls="docs-sidebar">Browse docs</button>
+    </div>
+    <div class="docs-layout__grid">
+      <aside class="docs-layout__sidebar" id="docs-sidebar" data-docs-sidebar>
+        <DocsSidebar currentPath={Astro.url.pathname} />
+      </aside>
+      <article class="docs-article">
+        <Breadcrumbs items={breadcrumbs} />
+        <header class="docs-article__header">
+          {section && <p class="eyebrow">{section}</p>}
+          <h1>{title}</h1>
+          <p class="docs-article__lede">{description}</p>
+        </header>
+        <div class="docs-article__body">
+          <slot />
+        </div>
+        {related.length > 0 && (
+          <section class="docs-related" aria-labelledby="related-heading">
+            <h2 id="related-heading">Related</h2>
+            <ul>
+              {related.map((item) => <li><a href={item.href}>{item.title} <span aria-hidden="true">↗</span></a></li>)}
+            </ul>
+          </section>
+        )}
+        <div class="docs-article__footer">
+          {editPath && <a class="edit-link" href={editPath} rel="noreferrer">Edit this page ↗</a>}
+          <PrevNext previous={previous} next={next} />
+        </div>
+      </article>
+      <aside class="docs-layout__toc">
+        <span class="visually-hidden">On this page</span>
+        <TableOfContents headings={headings} />
+      </aside>
+    </div>
+  </div>
+</SiteLayout>

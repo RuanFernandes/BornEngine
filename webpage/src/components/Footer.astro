@@ -1,0 +1,20 @@
+---
+import Brand from './Brand.astro';
+import { cliRepoUrl, repoUrl, withBase } from '../data/site';
+---
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div>
+      <Brand compact />
+      <p class="site-footer__note">A native TypeScript game engine for people who want to understand the whole pipeline.</p>
+    </div>
+    <nav class="site-footer__links" aria-label="Footer navigation">
+      <a href={withBase('/docs/')}>Documentation</a>
+      <a href={withBase('/docs/cli/')}>CLI reference</a>
+      <a href={repoUrl} rel="noreferrer">Engine GitHub</a>
+      <a href={cliRepoUrl} rel="noreferrer">CLI GitHub</a>
+    </nav>
+    <p class="site-footer__legal">Built for clear builds, readable code, and real targets.</p>
+  </div>
+</footer>

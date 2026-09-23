@@ -1,0 +1,15 @@
+---
+import { siteName, withBase } from '../data/site';
+
+interface Props {
+  href?: string;
+  compact?: boolean;
+}
+
+const { href = '/', compact = false } = Astro.props;
+---
+
+<a class:list={['brand', { 'brand--compact': compact }]} href={withBase(href)} aria-label={`${siteName} home`}>
+  <img src={withBase('/brand/bornengine-mark.png')} alt="BornEngine mark" width="34" height="34" />
+  <span class="brand__name">{siteName}</span>
+</a>

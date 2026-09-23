@@ -1,0 +1,25 @@
+---
+import { withBase } from '../data/site';
+
+interface Breadcrumb {
+  title: string;
+  href?: string;
+}
+
+interface Props {
+  items: Breadcrumb[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol>
+    {items.map((item, index) => (
+      <li>
+        {item.href && index < items.length - 1 ? <a href={withBase(item.href)}>{item.title}</a> : <span aria-current={index === items.length - 1 ? 'page' : undefined}>{item.title}</span>}
+        {index < items.length - 1 && <span class="breadcrumbs__separator" aria-hidden="true">/</span>}
+      </li>
+    ))}
+  </ol>
+</nav>
