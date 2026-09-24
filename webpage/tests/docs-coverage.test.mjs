@@ -44,3 +44,15 @@ test('asset and scene API pages contain their required sections and examples', a
     }
   }
 });
+
+test('gameplay systems API pages contain their required sections and examples', async () => {
+  const coverage = new Set(['physics', 'vfx', 'world', 'mobile']);
+  for (const item of apiCoverage.filter((entry) => coverage.has(entry.slug))) {
+    const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
+    const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];
+    assert.ok(fences.length >= 2, `${item.file} needs at least two TypeScript examples`);
+    for (const section of item.sections) {
+      assert.match(source, new RegExp(`^##\\s+${section.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\s*$`, 'm'));
+    }
+  }
+});
