@@ -1,7 +1,7 @@
 import { copyFeedback } from './interaction-state.mjs';
 
-function bindCopyButtons(): void {
-  document.querySelectorAll<HTMLButtonElement>('[data-copy-code]').forEach((button) => {
+function bindCopyButtons(root: ParentNode = document): void {
+  root.querySelectorAll<HTMLButtonElement>('[data-copy-code]').forEach((button) => {
     if (button.dataset.copyBound === 'true') return;
     button.dataset.copyBound = 'true';
     button.addEventListener('click', async () => {
@@ -30,7 +30,7 @@ function bindCopyButtons(): void {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bindCopyButtons, { once: true });
+  document.addEventListener('DOMContentLoaded', () => bindCopyButtons(), { once: true });
 } else {
   bindCopyButtons();
 }

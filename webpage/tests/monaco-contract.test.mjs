@@ -4,6 +4,7 @@ import {
   createMonacoEditorOptions,
   monacoLanguage,
   monacoTheme,
+  resolveMonacoBlockLanguage,
 } from '../src/scripts/monaco-code.mjs';
 
 test('normalizes supported code block languages for Monaco', () => {
@@ -17,6 +18,11 @@ test('normalizes supported code block languages for Monaco', () => {
 test('selects a Monaco theme from the page theme', () => {
   assert.equal(monacoTheme('ink'), 'vs-dark');
   assert.equal(monacoTheme('paper'), 'vs');
+});
+
+test('prefers the static fallback language when the block marker is plaintext', () => {
+  assert.equal(resolveMonacoBlockLanguage({ blockLanguage: 'plaintext', fallbackLanguage: 'ts' }), 'typescript');
+  assert.equal(resolveMonacoBlockLanguage({ blockLanguage: 'typescript', fallbackLanguage: 'ts' }), 'typescript');
 });
 
 test('creates a restrained read-only editor configuration', () => {

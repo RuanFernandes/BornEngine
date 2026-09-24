@@ -165,6 +165,14 @@
   line-height: 1.75;
 }
 
+.docs-article__body .code-block {
+  margin-block: 1.5rem;
+}
+
+.docs-article__body .code-block__monaco {
+  height: 22rem;
+}
+
 .docs-article__body > :first-child {
   margin-top: 0;
 }

@@ -10,8 +10,8 @@ const { code, language = 'text', filename } = Astro.props;
 
 <figure class="code-block" data-code-block data-monaco-code data-monaco-language={language}>
   <figcaption>
-    <span>{filename ?? language}</span>
-    <button type="button" data-copy-code data-code={code}>Copy</button>
+    <span class="code-block__language">{filename ?? language}</span>
+    <button type="button" data-copy-code>Copy</button>
     <span class="code-block__status" aria-live="polite"></span>
   </figcaption>
   <div

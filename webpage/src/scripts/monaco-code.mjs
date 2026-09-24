@@ -4,12 +4,15 @@ const LANGUAGE_ALIASES = Object.freeze({
   html: 'html',
   javascript: 'javascript',
   js: 'javascript',
+  jsx: 'javascript',
   json: 'json',
   plaintext: 'plaintext',
   rust: 'rust',
+  sh: 'shell',
   shell: 'shell',
   text: 'plaintext',
   ts: 'typescript',
+  tsx: 'typescript',
   typescript: 'typescript',
   wgsl: 'wgsl',
 });
@@ -21,6 +24,10 @@ export function monacoLanguage(language = 'text') {
 
 export function monacoTheme(theme = 'ink') {
   return theme === 'paper' ? 'vs' : 'vs-dark';
+}
+
+export function resolveMonacoBlockLanguage({ blockLanguage = 'text', fallbackLanguage = '' } = {}) {
+  return monacoLanguage(fallbackLanguage || blockLanguage);
 }
 
 export function createMonacoEditorOptions({ code, language = 'text', theme = 'ink' }) {
@@ -97,13 +104,17 @@ async function mountCodeBlock(block) {
   const target = block.querySelector('[data-monaco-editor]');
   const fallback = block.querySelector('[data-monaco-fallback]');
   const code = fallback?.querySelector('code')?.textContent ?? '';
+  const language = resolveMonacoBlockLanguage({
+    blockLanguage: block.dataset.monacoLanguage,
+    fallbackLanguage: fallback?.dataset.language,
+  });
+  block.dataset.monacoLanguage = language;
   if (!target || !code) return;
 
   block.dataset.monacoState = 'loading';
 
   try {
     const monaco = await loadMonaco();
-    const language = monacoLanguage(block.dataset.monacoLanguage);
     await loadLanguage(language);
     const theme = document.documentElement.dataset.theme ?? 'ink';
     const editor = monaco.editor.create(

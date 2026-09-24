@@ -47,6 +47,7 @@ function syncWithSystem(prefersDark: boolean): void {
   applyTheme(resolveTheme({ storedTheme: null, prefersDark, fallback: currentTheme() }));
 }
 
+document.documentElement.dataset.theme = currentTheme();
 updateButton(currentTheme());
 
 button?.addEventListener('click', () => {

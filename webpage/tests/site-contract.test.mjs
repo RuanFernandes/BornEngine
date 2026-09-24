@@ -33,6 +33,7 @@ test('shared layouts expose accessible metadata and navigation hooks', async () 
   assert.match(docsStyles, /\.theme-ink \.docs-article/);
   assert.match(docsStyles, /\.theme-ink \.docs-sidebar__group a/);
   assert.match(themeScript, /resolveTheme/);
+  assert.match(themeScript, /document\.documentElement\.dataset\.theme = currentTheme\(\)/);
   assert.match(globalStyles, /\.theme-toggle\s*\{/);
   assert.match(globalStyles, /min-width:\s*44px/);
   assert.match(globalStyles, /\.site-header\s*\{/);

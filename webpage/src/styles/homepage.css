@@ -370,44 +370,6 @@
   padding-left: 9rem;
 }
 
-.code-block {
-  margin: 0;
-  border: 1px solid var(--line-dark);
-  background: #0d1217;
-}
-
-.code-block figcaption {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.7rem 0.95rem;
-  border-bottom: 1px solid var(--line-dark);
-  color: #7c8992;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-}
-
-.code-block figcaption button {
-  margin-left: auto;
-  padding: 0.35rem 0.55rem;
-  border: 1px solid var(--line-dark);
-  color: #b9c2c8;
-  background: transparent;
-  font-size: 0.65rem;
-  cursor: pointer;
-}
-
-.code-block figcaption button:hover {
-  color: var(--acid-400);
-  border-color: var(--acid-400);
-}
-
-.code-block__status {
-  color: var(--acid-400);
-  text-transform: none;
-}
-
 .code-block pre {
   min-height: clamp(19rem, 28vw, 23rem);
   padding: 1.35rem;
@@ -417,23 +379,8 @@
   line-height: 1.65;
 }
 
-.code-block__monaco {
-  display: none;
+.home-api .code-block__monaco {
   height: clamp(19rem, 28vw, 23rem);
-  overflow: hidden;
-}
-
-.code-block.is-monaco-ready > pre {
-  display: none;
-}
-
-.code-block.is-monaco-ready .code-block__monaco {
-  display: block;
-}
-
-.code-block__monaco .monaco-editor,
-.code-block__monaco .monaco-editor .overflow-guard {
-  border-radius: 0;
 }
 
 .capabilities__heading {
