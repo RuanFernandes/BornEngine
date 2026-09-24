@@ -77,6 +77,16 @@ export const navigation: NavigationGroup[] = [
     ],
   },
   {
+    title: 'Recipes',
+    children: [
+      { title: '2D game', href: '/docs/guides/2d-game/' },
+      { title: '3D scene', href: '/docs/guides/3d-scene/' },
+      { title: 'Physics gameplay', href: '/docs/guides/physics-gameplay/' },
+      { title: 'Assets and worlds', href: '/docs/guides/assets-and-worlds/' },
+      { title: 'Audio and UI', href: '/docs/guides/audio-and-ui/' },
+    ],
+  },
+  {
     title: 'Troubleshooting',
     children: [{ title: 'Troubleshooting', href: '/docs/troubleshooting/' }],
   },
