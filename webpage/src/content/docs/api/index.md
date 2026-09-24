@@ -5,29 +5,73 @@ section: API
 order: 30
 ---
 
-The root import is the fastest way to prototype:
+BornEngine is a small, explicit TypeScript API. Functions operate on plain data and resource handles, so the code that creates a window, advances a frame, uploads an asset, or destroys a resource stays visible in your game.
+
+## Choose an import boundary
+
+Use the root package while prototyping or when a game touches several subsystems:
 
 ```ts
-import { initWindow, runGame, clearBackground, drawRect, Colors } from '@bornengine/engine';
+import { clearBackground, drawRect, initWindow, runGame, Colors } from '@bornengine/engine';
+
+initWindow(1280, 720, 'Field test');
+runGame(() => {
+  clearBackground(Colors.SKYBLUE);
+  drawRect(40, 40, 120, 80, Colors.WHITE);
+});
 ```
 
-Subpath imports are available when you want a narrow dependency boundary, such as `@bornengine/engine/physics` or `@bornengine/engine/world`. The API uses plain interfaces and numeric handles rather than classes, so ownership and frame order remain visible in TypeScript.
+Use a subpath when a package, editor tool, or game feature should make its dependency boundary obvious:
+
+```ts
+import { beginDrawing, endDrawing, windowShouldClose } from '@bornengine/engine/core';
+import { drawCircle } from '@bornengine/engine/shapes';
+import { loadTexture, unloadTexture } from '@bornengine/engine/textures';
+
+// Subpaths expose the same engine surface without importing unrelated modules.
+```
+
+All public examples in this reference use `@bornengine/engine`. Older repository experiments may use the historical `bloom` name; do not copy that import into a new project.
 
 ## Module map
 
-| Module | Import path | Focus |
+| Module | Import path | Use it for |
 | --- | --- | --- |
-| Core | `@bornengine/engine/core` | Window, loop, input, timing, platform |
-| Shapes | `@bornengine/engine/shapes` | 2D drawing and collisions |
-| Textures | `@bornengine/engine/textures` | Images, textures, render targets |
-| Text | `@bornengine/engine/text` | Fonts and text measurement |
-| Audio | `@bornengine/engine/audio` | Sounds, music, buses, spatial audio |
-| Models | `@bornengine/engine/models` | 3D models, materials, animation |
+| Core | `@bornengine/engine/core` | Windows, frame timing, input, cameras, files, profiling |
+| Shapes | `@bornengine/engine/shapes` | Immediate 2D primitives and collision helpers |
+| Textures | `@bornengine/engine/textures` | Images, sprites, filtering, render targets |
+| Text | `@bornengine/engine/text` | Fonts, text drawing, measurement |
+| Audio | `@bornengine/engine/audio` | Sounds, music, buses, spatial playback |
+| Models | `@bornengine/engine/models` | Models, materials, animation, instancing |
 | Math | `@bornengine/engine/math` | Vectors, matrices, quaternions, intersections |
-| Scene | `@bornengine/engine/scene` | Retained nodes, lights, picking |
-| Physics | `@bornengine/engine/physics` | Jolt-backed bodies, queries, constraints |
+| Scene | `@bornengine/engine/scene` | Retained nodes, geometry, lights, picking |
+| Physics | `@bornengine/engine/physics` | Worlds, bodies, queries, constraints |
 | VFX | `@bornengine/engine/vfx` | Particles and decals |
-| World | `@bornengine/engine/world` | Versioned world files and instantiation |
-| Mobile | `@bornengine/engine/mobile` | Virtual joysticks and touch buttons |
+| World | `@bornengine/engine/world` | Versioned world data and prefab instantiation |
+| Mobile | `@bornengine/engine/mobile` | Virtual joysticks, buttons, touch claims |
 
-Start with [core](core/) and the [game loop](../concepts/game-loop/) before reaching for a larger module.
+## How the API fits together
+
+The usual dependency direction is:
+
+1. Core owns the window and the frame boundary.
+2. Math provides values shared by scene, physics, models, and gameplay code.
+3. Assets are loaded through textures, text, audio, and models.
+4. Shapes or the scene graph submit visuals inside the active drawing mode.
+5. Physics and VFX update before rendering, then their handles are released during teardown.
+
+Resources are not garbage-collected engine objects. A `Texture`, `Font`, `Sound`, `Music`, `Model`, render texture, physics world, or scene node that owns native state must be unloaded or destroyed using its module's cleanup function. Keep asset paths relative to the project and place them under `assets/` so native and Web/WASM packaging resolve the same files.
+
+## Coordinate and color conventions
+
+- 2D positions use pixels in the current render surface; the origin is the top-left in the default 2D mode.
+- `Color` is `{ r, g, b, a }` with channels from `0` to `255`.
+- Angles passed to the 2D camera are degrees; math rotation helpers use radians because they call JavaScript trigonometry.
+- 3D values use right-handed `Vec3` data and explicit `Camera3D` records.
+- Handles are numbers wrapped in small interfaces. Do not pass a `Texture` where a raw image or render-texture handle is expected.
+
+## Where to go next
+
+- Start with [Core](core/) for the frame and input contract.
+- Read [Textures](textures/) and [Text](text/) before building a HUD.
+- Combine the modules in the [2D game recipe](../guides/2d-game/) or [3D scene recipe](../guides/3d-scene/).
