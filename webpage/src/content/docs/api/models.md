@@ -7,6 +7,8 @@ order: 36
 
 The models module covers immediate 3D drawing and the lower-level mesh/material boundary. Use it for prototypes and custom render passes; use the [scene graph](../scene/) when objects need persistent transforms, picking, or per-node ownership.
 
+The [3D scene recipe](../../guides/3d-scene/) composes this module with cameras, grids, scene nodes, and teardown.
+
 ## Loading
 
 `loadModel()` returns a `Model` handle with mesh and material counts. Supported asset loading includes native glTF/GLB assets and the engine's OBJ path. `getModelBounds()` reads the cached local-space bounds. Release a model when its owning scene or tool is torn down with `unloadModel()`.

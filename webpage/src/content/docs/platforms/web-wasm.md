@@ -33,3 +33,5 @@ Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. Game and engine
 ## Assets and support
 
 The served output contains project assets. Images support PNG, JPEG, BMP, and TGA; audio supports WAV and OGG; models use glTF/GLB; fonts use TTF/OTF. File helpers use `localStorage` on the web. Chrome 113+, Firefox 141+, and Edge 113+ have the documented WebGPU path; Safari uses its available WebGPU/WebGL support.
+
+The [2D game recipe](../../guides/2d-game/) uses the non-blocking `runGame()` loop and relative asset paths that work with this browser build.

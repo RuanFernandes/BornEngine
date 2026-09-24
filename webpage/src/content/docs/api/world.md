@@ -119,3 +119,5 @@ function saveEditedWorld(path: string) {
 World loading preserves unknown fields in memory but reports them because the schema-explicit saver drops fields it does not know. Put game-specific values in `metadata`, entity `userData`, or `tags`. When unloading a level, destroy the scene handles returned by instantiation, release the loaded model handles owned by the level cache, and clear any prefab registry entries that will not be reused.
 
 The [world format guide](../../guides/world-format/) covers authoring conventions, terrain heightmaps, water volumes, river splines, and migration strategy in more detail.
+
+For a runtime-owned model cache and level teardown, see the [assets and worlds recipe](../../guides/assets-and-worlds/).

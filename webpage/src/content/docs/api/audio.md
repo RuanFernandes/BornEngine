@@ -118,3 +118,5 @@ export function updateAudio() {
 Call `setListenerPosition(x, y, z, forwardX, forwardY, forwardZ)` from the same system that updates the active camera. The listener direction is a forward vector, not a target point. For larger loading screens, `loadSoundAsync()`/`loadMusicAsync()` commit one staged resource, while `stageSounds()` plus `commitSound()` lets you batch staging work before the render thread takes ownership.
 
 All volume, gain, send, and cutoff values are intended as normalized or engine-unit values described by their function. Keep audio paths under `assets/` so the CLI packages them for each target.
+
+The [audio and UI recipe](../../guides/audio-and-ui/) shows these handles in a complete input-driven HUD.

@@ -16,3 +16,5 @@ Install [Android Studio](https://developer.android.com/studio/install), the Andr
 iOS has real multitouch and also synthesizes touch 0 as mouse button 0. Multi-touch games should read the touch API directly instead of treating mouse button 0 as a fire action. Touch slots become sparse when fingers lift out of order, so scan active slots with `isTouchActive()` rather than iterating only up to `getTouchCount()`.
 
 The `@bornengine/engine/mobile` module provides virtual joysticks and buttons. See [mobile input](../../api/mobile/) for the API and [Apple targets](../apple/) for packaging details.
+
+The [2D game recipe](../../guides/2d-game/) gives you a small render/input loop to adapt to a mobile target; combine it with the [audio and UI recipe](../../guides/audio-and-ui/) for touch-friendly HUD feedback.

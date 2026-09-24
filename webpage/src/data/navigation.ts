@@ -74,11 +74,6 @@ export const navigation: NavigationGroup[] = [
       { title: 'Skeletal animation', href: '/docs/guides/skeletal-animation/' },
       { title: 'World format', href: '/docs/guides/world-format/' },
       { title: 'Assets', href: '/docs/guides/assets/' },
-    ],
-  },
-  {
-    title: 'Recipes',
-    children: [
       { title: '2D game', href: '/docs/guides/2d-game/' },
       { title: '3D scene', href: '/docs/guides/3d-scene/' },
       { title: 'Physics gameplay', href: '/docs/guides/physics-gameplay/' },

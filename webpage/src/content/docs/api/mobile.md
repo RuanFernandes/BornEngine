@@ -111,3 +111,5 @@ export function drawMobileInput() {
 Touch slots are sparse when fingers lift out of order. Treat `getTouchCount()` as a scan bound, not as proof that every index is a live contact; use `getTouchX()`, `getTouchY()`, and `isTouchActive()` from the core input API when implementing custom controls. The built-in controls skip empty `(0, 0)` slots, remember their claimed index, and release their state when that touch disappears.
 
 Keep input updates before gameplay and draw calls after the world. For device layouts, derive button positions from `getScreenWidth()`/`getScreenHeight()` instead of hard-coding one resolution. The [mobile platform guide](../../platforms/mobile/) covers packaging and target-specific input setup.
+
+The [audio and UI recipe](../../guides/audio-and-ui/) is a useful desktop baseline before adding these touch controls to the same HUD.
