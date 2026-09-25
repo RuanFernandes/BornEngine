@@ -50,6 +50,8 @@ Public examples in this reference import from `@bornengine/engine`, either from 
 | VFX | `@bornengine/engine/vfx` | Particles and decals |
 | World | `@bornengine/engine/world` | Versioned world data and prefab instantiation |
 | Mobile | `@bornengine/engine/mobile` | Virtual joysticks, buttons, touch claims |
+| UI | `@bornengine/engine/ui` | Player-facing menus, HUDs, settings, and widgets |
+| Debug UI | `@bornengine/engine/debug-ui` | Optional Dear ImGui developer overlays on desktop |
 
 ## How the API fits together
 
@@ -78,4 +80,5 @@ Resources are not garbage-collected engine objects. A `Texture`, `Font`, `Sound`
 - Start with [Core](core/) for the frame and input contract.
 - Read the [Game API](game/) to build class-based gameplay objects and scenes.
 - Read [Textures](textures/) and [Text](text/) before building a HUD.
+- Build menus and settings with the [UI API](ui/); add optional developer tools with its `debugUi` subpath.
 - Combine the modules in the [2D game recipe](../guides/2d-game/) or [3D scene recipe](../guides/3d-scene/).

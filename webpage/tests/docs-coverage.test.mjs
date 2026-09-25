@@ -4,10 +4,10 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 13);
+  assert.equal(apiCoverage.length, 14);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
     'game', 'core', 'shapes', 'textures', 'text', 'audio', 'models', 'math',
-    'scene', 'physics', 'vfx', 'world', 'mobile',
+    'scene', 'physics', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
     '2d-game', '3d-scene', 'physics-gameplay', 'assets-and-worlds', 'audio-and-ui',
@@ -46,7 +46,7 @@ test('asset and scene API pages contain their required sections and examples', a
 });
 
 test('gameplay systems API pages contain their required sections and examples', async () => {
-  const coverage = new Set(['game', 'physics', 'vfx', 'world', 'mobile']);
+  const coverage = new Set(['game', 'physics', 'vfx', 'world', 'mobile', 'ui']);
   for (const item of apiCoverage.filter((entry) => coverage.has(entry.slug))) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
     const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];
