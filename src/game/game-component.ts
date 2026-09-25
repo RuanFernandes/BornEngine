@@ -1,4 +1,5 @@
 import type { GameObject } from './game-object';
+import type { WorldHandle } from '../physics';
 
 export type GameComponentType<T extends GameComponent> =
   new (...args: any[]) => T;
@@ -35,6 +36,15 @@ export class GameComponent {
 
   onDestroy(): void {}
 
+  /** @internal Synchronizes adapter state after a scene phase. */
+  _syncRuntimeAfterPhase(): void {}
+
+  /** @internal Pushes adapter state before a caller-owned physics step. */
+  _syncPhysicsBeforeStep(_world: WorldHandle, _fixedDt: number): void {}
+
+  /** @internal Pulls adapter state after a caller-owned physics step. */
+  _syncPhysicsAfterStep(_world: WorldHandle): void {}
+
   /** @internal Assigns the single owning GameObject. */
   _setGameObject(owner: GameObject): boolean {
     if (this.owner !== null || this.destroyed) return false;
@@ -68,11 +78,6 @@ export class GameComponent {
     if (this.wasAwake) return false;
     this.wasAwake = true;
     return true;
-  }
-
-  /** @internal Reports whether this component has received onAwake. */
-  _hasAwoken(): boolean {
-    return this.wasAwake;
   }
 
   /** @internal Marks start once per component lifetime. */

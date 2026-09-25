@@ -1,4 +1,6 @@
-import { GameComponent, GameObject, GameScene } from '../../src/game';
+import { GameComponent } from '../../src/game/game-component';
+import { GameObject } from '../../src/game/game-object';
+import { GameScene } from '../../src/game/game-scene';
 
 function expect(value: boolean, label: string): void {
   if (!value) {

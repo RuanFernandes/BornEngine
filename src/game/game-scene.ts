@@ -1,5 +1,6 @@
 import { GameComponent } from './game-component';
 import { GameObject } from './game-object';
+import type { WorldHandle } from '../physics';
 
 function removeAt<T>(values: T[], index: number): void {
   for (let current = index; current + 1 < values.length; current++) {
@@ -38,6 +39,7 @@ export class GameScene {
     for (let index = 0; index < subtree.length; index++) {
       subtree[index]._setScene(null);
     }
+    this._syncSubtreeAdapters(object);
     return true;
   }
 
@@ -79,6 +81,7 @@ export class GameScene {
         }
       }
     }
+    this._syncRuntimeAdapters();
   }
 
   updateFixed(fixedDt: number): void {
@@ -107,6 +110,40 @@ export class GameScene {
         dynamicComponent.fixedUpdate(fixedDt);
       }
     }
+    this._syncRuntimeAdapters();
+  }
+
+  syncPhysicsBeforeStep(world: WorldHandle, fixedDt: number): void {
+    if (this.wasDestroyed) return;
+    const objects = this.sceneObjects.slice();
+    for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
+      const object = objects[objectIndex];
+      if (object.scene !== this || object.destroyed) continue;
+      const components = object._componentsSnapshot();
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        const component = components[componentIndex];
+        if (component.gameObject !== object || component.destroyed) continue;
+        const dynamicComponent: any = component;
+        dynamicComponent._syncPhysicsBeforeStep(world, fixedDt);
+      }
+    }
+  }
+
+  syncPhysicsAfterStep(world: WorldHandle): void {
+    if (this.wasDestroyed) return;
+    const objects = this.sceneObjects.slice();
+    for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
+      const object = objects[objectIndex];
+      if (object.scene !== this || object.destroyed) continue;
+      const components = object._componentsSnapshot();
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        const component = components[componentIndex];
+        if (component.gameObject !== object || component.destroyed) continue;
+        const dynamicComponent: any = component;
+        dynamicComponent._syncPhysicsAfterStep(world);
+      }
+    }
+    this._syncRuntimeAdapters();
   }
 
   destroy(): void {
@@ -149,6 +186,14 @@ export class GameScene {
     object._setScene(null);
   }
 
+  /** @internal Synchronizes renderer nodes in a detached hierarchy. */
+  _syncSubtreeAdapters(root: GameObject): void {
+    const subtree = this._collectSubtree(root);
+    for (let index = 0; index < subtree.length; index++) {
+      if (!subtree[index].destroyed) this._syncObjectAdapters(subtree[index]);
+    }
+  }
+
   private _awakenSubtree(object: GameObject): void {
     if (object.destroyed || object.scene !== this) return;
     if (object._markAwake()) {
@@ -186,6 +231,25 @@ export class GameScene {
     return this._isEligibleObject(object, generation) &&
       component.gameObject === object && !component.destroyed && component.enabled &&
       object.activeInHierarchy;
+  }
+
+  private _syncRuntimeAdapters(): void {
+    for (let index = 0; index < this.sceneObjects.length; index++) {
+      const object = this.sceneObjects[index];
+      if (!object.destroyed && object.scene === this) {
+        this._syncObjectAdapters(object);
+      }
+    }
+  }
+
+  private _syncObjectAdapters(object: GameObject): void {
+    const components = object._componentsSnapshot();
+    for (let index = 0; index < components.length; index++) {
+      const component = components[index];
+      if (component.gameObject !== object || component.destroyed) continue;
+      const dynamicComponent: any = component;
+      dynamicComponent._syncRuntimeAfterPhase();
+    }
   }
 
   private _collectSubtree(root: GameObject): GameObject[] {

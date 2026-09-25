@@ -206,6 +206,7 @@ export class GameObject {
     component._finishDestroy();
     const index = this.components.indexOf(component);
     if (index >= 0) removeAt(this.components, index);
+    if (this.ownerScene !== null) this.ownerScene._syncSubtreeAdapters(this);
     return true;
   }
 
@@ -241,11 +242,6 @@ export class GameObject {
   /** @internal Returns a stable child list for scene traversal. */
   _childrenSnapshot(): GameObject[] {
     return this.childObjects.slice();
-  }
-
-  /** @internal Mutable child storage is managed only by hierarchy methods. */
-  _childList(): GameObject[] {
-    return this.childObjects;
   }
 
   /** @internal Marks the current scene attachment generation. */
