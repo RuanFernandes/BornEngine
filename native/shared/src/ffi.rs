@@ -17,6 +17,9 @@
 //! Logging goes through [`log_error`], which writes to logcat on Android
 //! (stderr is discarded there) and stderr everywhere else.
 
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+use std::borrow::Cow;
+
 /// Default return value for an FFI function whose body panicked.
 pub trait FfiDefault {
     fn ffi_default() -> Self;
@@ -112,5 +115,55 @@ pub fn log_error(msg: &str) {
         return;
     }
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-    eprintln!("{msg}");
+    {
+        use std::io::IsTerminal;
+
+        let color_enabled = should_color_terminal_output(
+            std::io::stderr().is_terminal(),
+            std::env::var_os("NO_COLOR").is_some(),
+        );
+        eprintln!("{}", format_terminal_error(msg, color_enabled));
+    }
+}
+
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+fn should_color_terminal_output(stderr_is_terminal: bool, no_color_is_set: bool) -> bool {
+    stderr_is_terminal && !no_color_is_set
+}
+
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+fn format_terminal_error(msg: &str, color_enabled: bool) -> Cow<'_, str> {
+    if color_enabled {
+        Cow::Owned(format!("\x1b[31m{msg}\x1b[0m"))
+    } else {
+        Cow::Borrowed(msg)
+    }
+}
+
+#[cfg(all(test, not(target_os = "android"), not(target_arch = "wasm32")))]
+mod tests {
+    use super::{format_terminal_error, should_color_terminal_output};
+
+    #[test]
+    fn terminal_errors_are_red_and_reset_terminal_style() {
+        assert_eq!(
+            format_terminal_error("bloom: failure", true).as_ref(),
+            "\x1b[31mbloom: failure\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn errors_remain_plain_when_color_is_disabled() {
+        assert_eq!(
+            format_terminal_error("bloom: failure", false).as_ref(),
+            "bloom: failure"
+        );
+    }
+
+    #[test]
+    fn color_is_only_enabled_for_tty_without_no_color() {
+        assert!(should_color_terminal_output(true, false));
+        assert!(!should_color_terminal_output(false, false));
+        assert!(!should_color_terminal_output(true, true));
+    }
 }
