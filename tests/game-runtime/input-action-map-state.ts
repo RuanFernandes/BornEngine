@@ -56,11 +56,11 @@ expect(
   'opposite digital directions cancel',
 );
 const analogAxis = evaluateAxisBinding(
-  { gamepadAxis: { axis: 0, deadzone: 0.2 } },
-  { ...sparse, gamepadAxes: [0.6] },
+  { gamepadAxis: { axis: 5, deadzone: 0.2 } },
+  { ...sparse, gamepadAxes: [0.6], gamepadAxisIndices: [5] },
 );
 expect(Math.abs(analogAxis - 0.5) < 0.0001,
-  'deadzone rescales the remaining analog range',
+  'sparse gamepad axis snapshots remap the remaining analog range',
 );
 
 const edge = advanceActionState(false, true, true);

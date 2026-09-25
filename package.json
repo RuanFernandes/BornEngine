@@ -19,6 +19,7 @@
     "./world": "./src/world/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
+    "./input": "./src/input/index.ts",
     "./ui": "./src/ui/index.ts",
     "./debug-ui": "./src/debug-ui/index.ts"
   },

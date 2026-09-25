@@ -23,6 +23,8 @@ export interface ActionInputSnapshot {
   mouseButtons: number[];
   gamepadButtons: number[];
   gamepadAxes: number[];
+  /** Optional sparse axis indices aligned with `gamepadAxes`. */
+  gamepadAxisIndices?: number[];
   touches: Array<TouchSample | null>;
 }
 
@@ -82,8 +84,18 @@ export function evaluateAxisBinding(
 
   if (binding.gamepadAxis !== undefined) {
     const axis = binding.gamepadAxis.axis;
-    let analog = axis >= 0 && axis < snapshot.gamepadAxes.length
-      ? snapshot.gamepadAxes[axis]
+    let axisPosition = axis;
+    if (snapshot.gamepadAxisIndices !== undefined) {
+      axisPosition = -1;
+      for (let index = 0; index < snapshot.gamepadAxisIndices.length; index++) {
+        if (snapshot.gamepadAxisIndices[index] === axis) {
+          axisPosition = index;
+          break;
+        }
+      }
+    }
+    let analog = axisPosition >= 0 && axisPosition < snapshot.gamepadAxes.length
+      ? snapshot.gamepadAxes[axisPosition]
       : 0;
     if (analog !== analog) analog = 0;
     const deadzone = binding.gamepadAxis.deadzone === undefined

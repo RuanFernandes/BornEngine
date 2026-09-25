@@ -7,6 +7,7 @@ import {
   SceneNodeComponent,
 } from '@bornengine/engine/game';
 import { SoundManager } from '@bornengine/engine/audio';
+import { InputActionMap } from '@bornengine/engine/input';
 import type { ManagedSoundOptions as RootManagedSoundOptions } from '@bornengine/engine';
 import {
   SoundManager as RootSoundManager,
@@ -144,6 +145,27 @@ if (scenePlayer !== null && rendererComponent !== null) {
   scenePlayer.addComponent(configuredRenderer);
 }
 oopManager.changeTo(oopScene);
+
+const compatibilityInput = new InputActionMap();
+compatibilityInput.bindAction('jump', { kind: 'key', key: 32 });
+compatibilityInput.bindAction('confirm', [
+  { kind: 'key', key: 13 },
+  { kind: 'gamepad', button: 0 },
+]);
+compatibilityInput.bindAxis('move-x', {
+  negative: [{ kind: 'key', key: 65 }],
+  positive: [{ kind: 'key', key: 68 }],
+  gamepadAxis: { axis: 0, deadzone: 0.15 },
+});
+compatibilityInput.update();
+const compatibilityVector = compatibilityInput.readVector2('move-x', 'move-y');
+requireTrue(typeof compatibilityInput.isDown('jump') === 'boolean' &&
+  typeof compatibilityInput.wasPressed('jump') === 'boolean' &&
+  typeof compatibilityInput.wasReleased('jump') === 'boolean' &&
+  typeof compatibilityInput.readAxis('move-x') === 'number' &&
+  typeof compatibilityVector.x === 'number' && typeof compatibilityVector.y === 'number',
+  'InputActionMap public query surface');
+compatibilityInput.clear();
 
 const compatibilityAudio = new SoundManager();
 const managedSoundOptions: ManagedSoundOptions = {

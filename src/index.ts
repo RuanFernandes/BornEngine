@@ -129,6 +129,9 @@ export {
 
 export type { VirtualJoystick, VirtualButton } from './mobile/index';
 
+export { InputActionMap } from './input/index';
+export type { ActionAxisBinding, ActionButtonBinding } from './input/index';
+
 export {
   createSceneNode, destroySceneNode,
   setSceneNodeVisible, setSceneNodeCastShadow, setSceneNodeReceiveShadow,
