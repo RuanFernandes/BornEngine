@@ -75,9 +75,11 @@ drawText("Hello, BornEngine!", 190, 200, 20, Colors.DARKGRAY);
 Build for web:
 
 ```bash
-./native/web/build.sh main.ts
+./native/web/build.sh --dev main.ts
 cd dist/web && python3 -m http.server 8080
 ```
+
+Use `--release` (the default) for optimized builds.
 
 ## Features
 

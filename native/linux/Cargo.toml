@@ -14,6 +14,8 @@ jolt = ["bloom-shared/jolt"]
 # unaffected; pure-2D games opt out via Perry feature forwarding.
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]
+hot-reload = ["bloom-shared/hot-reload"]
+dev = ["hot-reload"]
 
 [dependencies]
 bloom-shared = { path = "../shared", default-features = false, features = ["mp3"] }
