@@ -22,6 +22,7 @@ BUILD_PROFILE="--release"
 PROFILE_SET=0
 OUTPUT_DIR=""
 GAME_FILE=""
+GAME_FILE_INPUT=""
 GAME_DIR=""
 
 usage() {
@@ -90,7 +91,8 @@ OUTPUT_DIR="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' 
 # source files or the assets directory that will be copied into the build.
 if [ -n "$GAME_FILE" ]; then
   if [ -f "$GAME_FILE" ]; then
-    GAME_FILE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$GAME_FILE")"
+    GAME_FILE_INPUT="$(python3 -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$GAME_FILE")"
+    GAME_FILE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$GAME_FILE_INPUT")"
     GAME_DIR="$(dirname "$GAME_FILE")"
   else
     echo "ERROR: game file not found: $GAME_FILE"
@@ -106,27 +108,43 @@ fi
 # directory. This permits common output folders such as <game>/dist/web while
 # rejecting destinations whose owned artifacts would erase game inputs.
 if [ -n "$GAME_FILE" ]; then
-  if ! python3 - "$OUTPUT_DIR" "$GAME_FILE" "$GAME_DIR/assets" <<'PY'
+  if ! python3 - "$OUTPUT_DIR" "$GAME_FILE_INPUT" "$GAME_FILE" "$GAME_DIR" <<'PY'
 import os
 import sys
 
-output_dir, game_file, game_assets = map(os.path.realpath, sys.argv[1:])
-cleaned_paths = (
+output_dir, game_file_input, game_file_target, game_dir = sys.argv[1:]
+output_dir = os.path.realpath(output_dir)
+game_file_input = os.path.abspath(game_file_input)
+game_file_target = os.path.realpath(game_file_target)
+game_assets_input = os.path.join(os.path.dirname(game_file_input), "assets")
+game_assets_target = os.path.join(os.path.realpath(game_dir), "assets")
+cleaned_paths = [
     os.path.join(output_dir, "pkg"),
     os.path.join(output_dir, "assets"),
     os.path.join(output_dir, "index.html"),
     os.path.join(output_dir, "bloom_glue.js"),
     os.path.join(output_dir, "jolt_bridge.js"),
-)
-source_paths = [game_file]
-if os.path.isdir(game_assets):
-    source_paths.append(game_assets)
+]
+source_paths = [game_file_input, game_file_target]
+for game_assets in (game_assets_input, game_assets_target):
+    if os.path.lexists(game_assets):
+        source_paths.extend((os.path.abspath(game_assets), os.path.realpath(game_assets)))
+
+cleanup_aliases = []
+for cleaned in cleaned_paths:
+    cleaned = os.path.abspath(cleaned)
+    cleanup_aliases.extend((cleaned, os.path.realpath(cleaned)))
 
 def overlaps(left, right):
-    common = os.path.commonpath((left, right))
-    return common == left or common == right
+    try:
+        common = os.path.commonpath((left, right))
+        if common == left or common == right:
+            return True
+        return os.path.lexists(left) and os.path.lexists(right) and os.path.samefile(left, right)
+    except (OSError, ValueError):
+        return False
 
-sys.exit(any(overlaps(cleaned, source) for cleaned in cleaned_paths for source in source_paths))
+sys.exit(any(overlaps(cleaned, source) for cleaned in cleanup_aliases for source in source_paths))
 PY
   then
     usage_error "--output overlaps with game source inputs"
