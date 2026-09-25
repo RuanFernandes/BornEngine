@@ -41,10 +41,12 @@
 
 - [ ] **Step 1: Add a failing cleanup-order fixture**
 
-Create `tests/game-runtime/scenes.ts` with these imports, local `expect(value, label)` helper, and test body:
+Create `tests/game-runtime/scenes.ts` with direct imports from the leaf modules, a local `expect(value, label)` helper, and the test body below. Keep the runtime fixture on leaf imports so Perry does not pull unrelated native FFI from the public barrel; the package export is checked in `perry-compat.ts` in Task 3.
 
 ~~~ts
-import { GameComponent, GameObject, Scene } from '../../src/game';
+import { GameComponent } from '../../src/game/game-component';
+import { GameObject } from '../../src/game/game-object';
+import { Scene } from '../../src/game/scene';
 
 function expect(value: boolean, label: string): void {
   if (!value) { console.error('FAIL: ' + label); process.exit(1); }
@@ -85,7 +87,7 @@ expect(destroyAlias.state === 'unloaded', 'destroy uses the same terminal cleanu
 
 Run: `perry run macos tests/game-runtime/scenes.ts`
 
-Expected: it fails to compile because `Scene` is not exported yet.
+Expected: it fails to compile because `src/game/scene.ts` does not exist yet.
 
 - [ ] **Step 3: Implement and export Scene**
 
