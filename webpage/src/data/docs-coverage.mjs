@@ -42,7 +42,7 @@ export const apiCoverage = [
     slug: 'audio',
     file: 'api/audio.md',
     href: '/docs/api/audio/',
-    sections: ['Device lifecycle', 'Sound', 'Music and spatial audio'],
+    sections: ['Device lifecycle', 'Sound', 'Sound manager', 'Music and spatial audio'],
   },
   {
     slug: 'models',

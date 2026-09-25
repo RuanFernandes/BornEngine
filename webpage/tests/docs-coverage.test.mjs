@@ -68,6 +68,19 @@ test('scene manager and OOP renderer sections include usable TypeScript examples
   }
 });
 
+test('Sound manager documentation covers ownership, cooldowns, and shared mixer scope', async () => {
+  const item = apiCoverage.find((entry) => entry.slug === 'audio');
+  const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
+  const sectionContent = source.split(/^##\s+/m).find((part) => part.startsWith('Sound manager\n'));
+
+  assert.ok(sectionContent, 'Sound manager heading is required');
+  assert.match(sectionContent, /^```(?:ts|typescript)(?:\s|$)/m, 'Sound manager needs a TypeScript example');
+  assert.match(sectionContent, /cooldownSeconds/);
+  assert.match(sectionContent, /\.own\(audio\)/);
+  assert.match(sectionContent, /setBusGain\(\)/);
+  assert.match(sectionContent, /unloadMusic\(name\)/);
+});
+
 test('composition recipes contain the complete learning path', async () => {
   for (const item of recipeCoverage) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');

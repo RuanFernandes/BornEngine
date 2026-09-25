@@ -89,6 +89,47 @@ voiceStop(voice);
 
 `playSound3D()` is the simpler fire-and-forget spatial call. Use `playSound3DEx()` when the emitter loops, moves, changes pitch, or needs per-source filtering.
 
+## Sound manager
+
+Use `SoundManager` when gameplay should refer to audio by names and release it as a group. Sound and music names use separate registries. Repeating a name with the same path returns its existing handle and keeps the first options; reusing that name for a different path returns `null`.
+
+```ts
+import { runGame } from '@bornengine/engine/core';
+import { BUS_SFX, BUS_UI, SoundManager } from '@bornengine/engine/audio';
+import { Scene, SceneManager } from '@bornengine/engine/game';
+
+const audio = new SoundManager();
+audio.loadSound('footstep', 'assets/audio/footstep.wav', {
+  bus: BUS_SFX,
+  cooldownSeconds: 0.12,
+  volumeRange: [0.9, 1.1],
+  pitchRange: [0.96, 1.04],
+});
+audio.loadSound('menu-confirm', 'assets/audio/menu-confirm.wav', { bus: BUS_UI });
+audio.loadMusic('level', 'assets/audio/level.ogg', { volume: 0.65 });
+audio.loadMusic('boss', 'assets/audio/boss.ogg', { volume: 0.8 });
+
+const level = new Scene({ name: 'Level' });
+level.own(audio);
+const scenes = new SceneManager();
+scenes.changeTo(level);
+audio.playMusic('level');
+
+runGame((dt) => {
+  scenes.update(dt); // Updates scene-owned audio, including while paused.
+  audio.playSound('footstep');
+});
+
+audio.playMusic('boss'); // Stops this manager's previous music track.
+audio.stopMusic(); // Stops every track registered by this manager.
+```
+
+`cooldownSeconds` is shared between `playSound(name)` and `play3D(name, position)`, and elapsed time advances through `update(dt)`. A scene-owned manager receives that update from `SceneManager`; do not call its `update()` a second time. For a manager that should outlive scenes, keep it outside the scene and call `audio.update(dt)` from your own game loop. Scene cleanup calls `dispose()`, which stops the manager's playback and unloads its registered assets. It never closes the global audio device.
+
+Volume and pitch ranges are per-play multipliers. For example, `volumeRange: [0.9, 1.1]` varies each supported voice around the registered base volume. On targets without controllable 2D voices, `playSound()` falls back to ordinary playback and ignores those variation ranges. `play3D()` returns the spatial voice id; retain it if you need per-voice control.
+
+The manager's `setMasterVolume()` and `setBusGain()` change shared mixer state, so they affect audio from every manager. `unloadSound(name)` and `unloadMusic(name)` stop and release only the named asset owned by that manager. If you use direct `loadSound()`/`loadMusic()` handles instead, the low-level `unloadSound(sound)` and `unloadMusic(music)` helpers release individual resources without a named registry.
+
 ## Music and spatial audio
 
 Music is a separate streamed handle. Start it with `playMusic()`, call `updateMusicStream()` once per frame while it is active, and use `isMusicPlaying()` to detect the end of a non-looping track. `setMusicVolume()` changes only that track.
