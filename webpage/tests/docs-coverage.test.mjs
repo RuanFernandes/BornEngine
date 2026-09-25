@@ -57,6 +57,17 @@ test('gameplay systems API pages contain their required sections and examples', 
   }
 });
 
+test('scene manager and OOP renderer sections include usable TypeScript examples', async () => {
+  const item = apiCoverage.find((entry) => entry.slug === 'game');
+  const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
+
+  for (const section of ['Scene manager', 'OOP renderer nodes']) {
+    const sectionContent = source.split(/^##\s+/m).find((part) => part.startsWith(`${section}\n`));
+    assert.ok(sectionContent, `${section} heading is required`);
+    assert.match(sectionContent, /^```(?:ts|typescript)(?:\s|$)/m, `${section} needs a TypeScript example`);
+  }
+});
+
 test('composition recipes contain the complete learning path', async () => {
   for (const item of recipeCoverage) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
