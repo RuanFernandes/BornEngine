@@ -31,18 +31,23 @@ expect(!map.isDown('jump') && !map.wasPressed('jump') && map.wasReleased('jump')
 map.update();
 expect(!map.wasReleased('jump'), 'the released edge clears on the next update');
 
-expect(map.bindAction('jump', { kind: 'key', key: secondJumpKey }),
-  'append a second binding to an action');
-injectKeyDown(jumpKey);
 injectKeyDown(secondJumpKey);
 map.update();
-expect(map.isDown('jump') && !map.wasPressed('jump'),
-  'rebinding adopts held input as a baseline');
-injectKeyUp(jumpKey);
+expect(!map.isDown('jump'), 'an unbound held key does not activate an action');
+expect(map.bindAction('jump', { kind: 'key', key: secondJumpKey }),
+  'append a second binding to an action');
+map.update();
+expect(map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
+  'rebinding adopts a key already held as the new baseline');
+injectKeyDown(jumpKey);
+map.update();
+expect(map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
+  'adding another held binding does not add an edge');
+injectKeyUp(secondJumpKey);
 map.update();
 expect(map.isDown('jump') && !map.wasReleased('jump'),
-  'releasing one overlapping binding does not release the action');
-injectKeyUp(secondJumpKey);
+  'releasing one of two held bindings does not release the action');
+injectKeyUp(jumpKey);
 map.update();
 expect(!map.isDown('jump') && map.wasReleased('jump'),
   'releasing the last overlapping binding releases the action');
