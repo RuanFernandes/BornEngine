@@ -23,6 +23,7 @@ PROFILE_SET=0
 OUTPUT_DIR=""
 GAME_FILE=""
 GAME_FILE_INPUT=""
+GAME_FILE_INPUT_CANONICAL=""
 GAME_DIR=""
 
 usage() {
@@ -92,6 +93,7 @@ OUTPUT_DIR="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' 
 if [ -n "$GAME_FILE" ]; then
   if [ -f "$GAME_FILE" ]; then
     GAME_FILE_INPUT="$(python3 -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$GAME_FILE")"
+    GAME_FILE_INPUT_CANONICAL="$(python3 -c 'import os, sys; path = os.path.abspath(sys.argv[1]); print(os.path.join(os.path.realpath(os.path.dirname(path)), os.path.basename(path)))' "$GAME_FILE_INPUT")"
     GAME_FILE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$GAME_FILE_INPUT")"
     GAME_DIR="$(dirname "$GAME_FILE")"
   else
@@ -108,16 +110,20 @@ fi
 # directory. This permits common output folders such as <game>/dist/web while
 # rejecting destinations whose owned artifacts would erase game inputs.
 if [ -n "$GAME_FILE" ]; then
-  if ! python3 - "$OUTPUT_DIR" "$GAME_FILE_INPUT" "$GAME_FILE" "$GAME_DIR" <<'PY'
+  if ! python3 - "$OUTPUT_DIR" "$GAME_FILE_INPUT" "$GAME_FILE_INPUT_CANONICAL" "$GAME_FILE" "$GAME_DIR" <<'PY'
 import os
 import sys
 
-output_dir, game_file_input, game_file_target, game_dir = sys.argv[1:]
+output_dir, game_file_input, game_file_input_canonical, game_file_target, game_dir = sys.argv[1:]
 output_dir = os.path.realpath(output_dir)
 game_file_input = os.path.abspath(game_file_input)
+game_file_input_canonical = os.path.abspath(game_file_input_canonical)
 game_file_target = os.path.realpath(game_file_target)
-game_assets_input = os.path.join(os.path.dirname(game_file_input), "assets")
 game_assets_target = os.path.join(os.path.realpath(game_dir), "assets")
+game_assets_inputs = (
+    os.path.join(os.path.dirname(game_file_input), "assets"),
+    os.path.join(os.path.dirname(game_file_input_canonical), "assets"),
+)
 cleaned_paths = [
     os.path.join(output_dir, "pkg"),
     os.path.join(output_dir, "assets"),
@@ -125,8 +131,8 @@ cleaned_paths = [
     os.path.join(output_dir, "bloom_glue.js"),
     os.path.join(output_dir, "jolt_bridge.js"),
 ]
-source_paths = [game_file_input, game_file_target]
-for game_assets in (game_assets_input, game_assets_target):
+source_paths = [game_file_input, game_file_input_canonical, game_file_target]
+for game_assets in (*game_assets_inputs, game_assets_target):
     if os.path.lexists(game_assets):
         source_paths.extend((os.path.abspath(game_assets), os.path.realpath(game_assets)))
 

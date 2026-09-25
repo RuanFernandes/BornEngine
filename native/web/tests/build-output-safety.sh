@@ -85,6 +85,28 @@ if [[ ! -L "$LINKED_OUTPUT/pkg/main.ts" ]]; then
   exit 1
 fi
 
+ALIASED_OUTPUT_PHYSICAL="$TEMP_DIR/physical-output"
+ALIASED_OUTPUT="$TEMP_DIR/output-alias"
+mkdir -p "$ALIASED_OUTPUT_PHYSICAL/pkg"
+ln -s "$ALIASED_OUTPUT_PHYSICAL" "$ALIASED_OUTPUT"
+ln -s "$LINKED_GAME_DIR/main.ts" "$ALIASED_OUTPUT_PHYSICAL/pkg/main.ts"
+
+set +e
+BUILD_OUTPUT="$(PATH="$STUB_BIN:$PATH" "$ENGINE_ROOT/native/web/build.sh" --dev "$ALIASED_OUTPUT/pkg/main.ts" --output "$ALIASED_OUTPUT" 2>&1)"
+BUILD_STATUS=$?
+set -e
+
+if ((BUILD_STATUS == 0)) || [[ "$BUILD_OUTPUT" != *"overlaps with game source"* ]]; then
+  echo "Expected build.sh to reject a symlinked game entry below an output-directory alias." >&2
+  printf '%s\n' "$BUILD_OUTPUT" >&2
+  exit 1
+fi
+
+if [[ ! -L "$ALIASED_OUTPUT_PHYSICAL/pkg/main.ts" ]]; then
+  echo "build.sh removed the symlink to the game's TypeScript entry through an output alias." >&2
+  exit 1
+fi
+
 ASSET_GAME_DIR="$TEMP_DIR/asset-game"
 SHARED_ASSETS="$TEMP_DIR/shared-assets"
 mkdir -p "$ASSET_GAME_DIR" "$SHARED_ASSETS"
