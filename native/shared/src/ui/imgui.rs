@@ -6,7 +6,7 @@ use std::time::Duration;
 use imgui::{Condition, FontConfig, FontId, FontSource, Key, MouseButton, Ui};
 
 use super::{
-    color_channel, UiBackend, UiCaptureState, UiCommand, UiInputSnapshot, UiKeyEvent, UiOpcode,
+    color_channel, UiBackend, UiCaptureState, UiCommand, UiInputEvent, UiInputSnapshot, UiOpcode,
     UiResponse,
 };
 
@@ -163,14 +163,18 @@ impl DearImGuiUi {
                     },
                 ]);
             }
-            for UiKeyEvent { key, pressed, .. } in &input.keys {
-                if let Some(key) = key_from_bloom(*key) {
-                    io.add_key_event(key, *pressed);
-                }
-            }
-            for text in &input.text {
-                for character in text.chars() {
-                    io.add_input_character(character);
+            for event in input.ordered_key_text_events() {
+                match event {
+                    UiInputEvent::Key(key_event) => {
+                        if let Some(key) = key_from_bloom(key_event.key) {
+                            io.add_key_event(key, key_event.pressed);
+                        }
+                    }
+                    UiInputEvent::Text(text) => {
+                        for character in text.chars() {
+                            io.add_input_character(character);
+                        }
+                    }
                 }
             }
         }

@@ -1,10 +1,6 @@
-// `static mut` is intentional throughout this FFI surface — Perry calls
-// us from a single OS thread (the UIKit main run-loop), so the engine
-// singleton + view/window scratch state never race. The 2024 lint
-// flagging `&UI_VIEW`-style accesses is a real concern in
-// multi-threaded code, but inapplicable here. Suppress at the crate
-// root to avoid a dozen noise lines in every build. Mirrors
-// native/macos/src/lib.rs.
+// The iOS FFI uses legacy `static mut` state. UIKit text callbacks run on the
+// main thread while the game loop runs separately, so text/key events cross to
+// the game thread through the synchronized queue in `text_input`.
 #![allow(static_mut_refs)]
 
 use bloom_shared::engine::EngineState;
@@ -20,6 +16,8 @@ use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, U
 
 use std::ffi::{c_void, CStr};
 use std::sync::OnceLock;
+
+mod text_input;
 
 static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
 static mut UI_WINDOW: Option<Retained<AnyObject>> = None;
@@ -155,16 +153,11 @@ unsafe extern "C" fn bloom_text_input_insert_text(
     let utf8: *const std::ffi::c_char = msg_send![text, UTF8String];
     if utf8.is_null() { return; }
     let text = CStr::from_ptr(utf8).to_string_lossy().into_owned();
-    if let Some(engine) = ENGINE.get_mut() {
-        engine.ui.inject_text(text);
-    }
+    text_input::enqueue(text_input::TextInputEvent::Insert(text));
 }
 
 unsafe extern "C" fn bloom_text_input_delete_backward(_this: *mut c_void, _sel: Sel) {
-    if let Some(engine) = ENGINE.get_mut() {
-        engine.input.inject_key_down(8);
-        engine.input.inject_key_up(8);
-    }
+    text_input::enqueue(text_input::TextInputEvent::DeleteBackward);
 }
 
 enum TouchPhase { Began, Moved, Ended }
@@ -933,6 +926,19 @@ fn poll_game_controllers() {
 pub extern "C" fn bloom_begin_drawing() {
     // No run loop pumping needed — UIApplicationMain handles the main run loop
     // on its own thread. The game runs on the game thread.
+
+    // UIKit text callbacks run on the main thread. Apply their queued events
+    // here so only the game thread mutates EngineState for text input.
+    for event in text_input::drain() {
+        let eng = engine();
+        match event {
+            text_input::TextInputEvent::Insert(text) => eng.input.push_ui_text(text),
+            text_input::TextInputEvent::DeleteBackward => {
+                eng.input.inject_key_down(8);
+                eng.input.inject_key_up(8);
+            }
+        }
+    }
 
     // Apply UI text-focus transitions before beginning the next input snapshot.
     match engine().ui.take_keyboard_request() {

@@ -13,6 +13,12 @@ pub struct UiKeyEvent {
     pub repeated: bool,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UiInputEvent {
+    Key(UiKeyEvent),
+    Text(String),
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UiModifiers {
     pub shift: bool,
@@ -37,10 +43,27 @@ pub struct UiInputSnapshot {
     pub pointer_buttons: Vec<UiPointerButtonEvent>,
     pub scroll_x: f64,
     pub scroll_y: f64,
+    /// Text and keyboard events in their original platform delivery order.
+    pub ordered_events: Vec<UiInputEvent>,
     pub keys: Vec<UiKeyEvent>,
     pub modifiers: UiModifiers,
     pub text: Vec<String>,
     pub touches: Vec<UiTouchEvent>,
+}
+
+impl UiInputSnapshot {
+    pub fn ordered_key_text_events(&self) -> Vec<UiInputEvent> {
+        if !self.ordered_events.is_empty() {
+            return self.ordered_events.clone();
+        }
+
+        self.keys
+            .iter()
+            .copied()
+            .map(UiInputEvent::Key)
+            .chain(self.text.iter().cloned().map(UiInputEvent::Text))
+            .collect()
+    }
 }
 
 #[derive(Default)]
@@ -58,7 +81,22 @@ impl UiInputBridge {
     }
 
     pub fn merge_snapshot(&mut self, mut snapshot: UiInputSnapshot) -> UiInputSnapshot {
-        snapshot.text.append(&mut self.pending_text);
+        if snapshot.ordered_events.is_empty() {
+            snapshot.ordered_events.extend(
+                snapshot
+                    .keys
+                    .iter()
+                    .copied()
+                    .map(UiInputEvent::Key)
+                    .chain(snapshot.text.iter().cloned().map(UiInputEvent::Text)),
+            );
+        }
+        for text in self.pending_text.drain(..) {
+            snapshot
+                .ordered_events
+                .push(UiInputEvent::Text(text.clone()));
+            snapshot.text.push(text);
+        }
         snapshot
     }
 
@@ -81,7 +119,7 @@ impl UiInputBridge {
 
 #[cfg(test)]
 mod tests {
-    use super::{UiInputBridge, UiInputSnapshot};
+    use super::{UiInputBridge, UiInputEvent, UiInputSnapshot, UiKeyEvent};
 
     #[test]
     fn ui_text_injection_preserves_a_complete_unicode_event() {
@@ -90,6 +128,37 @@ mod tests {
         let snapshot = bridge.merge_snapshot(UiInputSnapshot::default());
 
         assert_eq!(snapshot.text, ["東京"]);
+        assert_eq!(
+            snapshot.ordered_events,
+            [UiInputEvent::Text("東京".to_owned())]
+        );
+    }
+
+    #[test]
+    fn bridge_appends_injected_text_after_existing_key_events() {
+        let mut bridge = UiInputBridge::default();
+        bridge.inject_text("x".to_owned());
+
+        let snapshot = bridge.merge_snapshot(UiInputSnapshot {
+            keys: vec![UiKeyEvent {
+                key: 8,
+                pressed: true,
+                repeated: false,
+            }],
+            ..Default::default()
+        });
+
+        assert_eq!(
+            snapshot.ordered_events,
+            [
+                UiInputEvent::Key(UiKeyEvent {
+                    key: 8,
+                    pressed: true,
+                    repeated: false,
+                }),
+                UiInputEvent::Text("x".to_owned()),
+            ]
+        );
     }
 
     #[test]

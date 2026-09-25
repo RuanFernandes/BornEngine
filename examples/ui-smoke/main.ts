@@ -9,14 +9,14 @@ let applyCount = 0;
 
 initWindow(960, 640, "BornEngine UI smoke");
 runGame(() => {
-  clearBackground({ r: 0.04, g: 0.05, b: 0.08, a: 1 });
+  clearBackground({ r: 10, g: 13, b: 20, a: 255 });
 
   ui.beginWindow(100, "Settings", 24, 24, 360, 420);
   ui.label(106, "Audio and player controls");
   gain = ui.sliderFloat(101, "Gain", gain, 0, 1);
   musicEnabled = ui.checkbox(107, "Music enabled", musicEnabled);
   playerName = ui.textEditSingleline(103, "Player name", playerName);
-  ui.paintRect(105, 0, 0, 80, 20, { r: 0.2, g: 0.3, b: 0.4, a: 1 });
+  ui.paintRect(105, 0, 0, 80, 20, { r: 51, g: 77, b: 102, a: 255 });
   const applyPressed = ui.button(102, "Apply");
   ui.endWindow(100);
 

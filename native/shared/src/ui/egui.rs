@@ -6,7 +6,9 @@ use egui::{
     RawInput, Rect, Shape, Stroke, TouchDeviceId, TouchId, TouchPhase, Ui, Vec2,
 };
 
-use super::{color_channel, UiBackend, UiCommand, UiInputSnapshot, UiOpcode, UiResponse};
+use super::{
+    color_channel, UiBackend, UiCommand, UiInputEvent, UiInputSnapshot, UiOpcode, UiResponse,
+};
 
 #[derive(Default)]
 pub struct EguiUi {
@@ -132,24 +134,23 @@ impl EguiUi {
                 });
             }
         }
-        for key_event in input.keys {
-            if let Some(key) = key_from_bloom(key_event.key) {
-                events.push(Event::Key {
-                    key,
-                    physical_key: None,
-                    pressed: key_event.pressed,
-                    repeat: key_event.repeated,
-                    modifiers,
-                });
+        for event in input.ordered_key_text_events() {
+            match event {
+                UiInputEvent::Key(key_event) => {
+                    if let Some(key) = key_from_bloom(key_event.key) {
+                        events.push(Event::Key {
+                            key,
+                            physical_key: None,
+                            pressed: key_event.pressed,
+                            repeat: key_event.repeated,
+                            modifiers,
+                        });
+                    }
+                }
+                UiInputEvent::Text(text) if !text.is_empty() => events.push(Event::Text(text)),
+                UiInputEvent::Text(_) => {}
             }
         }
-        events.extend(
-            input
-                .text
-                .into_iter()
-                .filter(|text| !text.is_empty())
-                .map(Event::Text),
-        );
 
         let mut next_active_touches = HashSet::new();
         for touch in input.touches {
@@ -1064,7 +1065,8 @@ fn color_from_f64(r: f64, g: f64, b: f64, a: f64) -> Color32 {
 mod tests {
     use super::color_channel;
     use crate::ui::{
-        EguiUi, UiBackend, UiCommand, UiInputSnapshot, UiOpcode, UiPointerButtonEvent,
+        EguiUi, UiBackend, UiCommand, UiInputEvent, UiInputSnapshot, UiKeyEvent, UiOpcode,
+        UiPointerButtonEvent,
     };
 
     #[test]
@@ -1197,6 +1199,49 @@ mod tests {
         let output = ui.run_frame(&commands, input, [0.0, 0.0, 320.0, 240.0], 1.0 / 60.0);
         assert_eq!(output.response(12).text, "東京");
         assert!(output.text_edit_focused);
+    }
+
+    #[test]
+    fn text_edit_applies_mixed_text_and_backspace_events_in_order() {
+        let mut ui = EguiUi::default();
+        let edit = UiCommand::new(UiBackend::Egui, UiOpcode::TextEdit, 12, [0.0; 4], "");
+        let commands = window(edit);
+        ui.run_frame(
+            &commands,
+            UiInputSnapshot::default(),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0 / 60.0,
+        );
+        ui.run_frame(
+            &commands,
+            click_at([56.0, 62.0]),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0 / 60.0,
+        );
+
+        let output = ui.run_frame(
+            &commands,
+            UiInputSnapshot {
+                ordered_events: vec![
+                    UiInputEvent::Text("x".to_owned()),
+                    UiInputEvent::Key(UiKeyEvent {
+                        key: 8,
+                        pressed: true,
+                        repeated: false,
+                    }),
+                    UiInputEvent::Key(UiKeyEvent {
+                        key: 8,
+                        pressed: false,
+                        repeated: false,
+                    }),
+                ],
+                ..Default::default()
+            },
+            [0.0, 0.0, 320.0, 240.0],
+            1.0 / 60.0,
+        );
+
+        assert_eq!(output.response(12).text, "");
     }
 
     #[test]

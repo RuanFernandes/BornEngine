@@ -12,7 +12,8 @@ pub(crate) use imgui::with_dear_imgui;
 #[cfg(feature = "debug-ui")]
 pub use imgui::DearImGuiUi;
 pub use input::{
-    UiInputBridge, UiInputSnapshot, UiKeyEvent, UiModifiers, UiPointerButtonEvent, UiTouchEvent,
+    UiInputBridge, UiInputEvent, UiInputSnapshot, UiKeyEvent, UiModifiers, UiPointerButtonEvent,
+    UiTouchEvent,
 };
 pub use responses::UiResponse;
 
