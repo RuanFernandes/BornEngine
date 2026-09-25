@@ -40,7 +40,7 @@ The API includes windows and panels, horizontal and vertical layouts, spacing, s
 
 ## Layout, input, and responses
 
-The callback queues a fresh widget description each frame. Rust evaluates that description after the callback, then exposes the completed response during the next callback. This one-frame delay applies to button clicks, changed values, text edits, and input-capture state. Keep IDs stable and unique for widgets whose state you read back.
+The callback queues a fresh widget description each frame. Rust evaluates that description after the callback, then exposes the completed response during the next callback. This one-frame delay applies to button clicks, changed values, text edits, and input-capture state. Value widgets return a response value when the widget changed; otherwise they preserve the value passed by the game. Keep IDs stable and unique for widgets whose state you read back.
 
 Read the complete response when you need to distinguish an undrawn ID from a widget with a default value:
 

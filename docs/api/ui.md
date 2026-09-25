@@ -57,6 +57,6 @@ After building widgets, use `response(id)` to read `clicked`, `changed`, `hovere
 volume = ui.sliderFloat(101, "Volume", volume, 0, 1);
 ```
 
-The response is one completed UI frame behind the callback that queues the current widgets. `wantsPointerInput()` and `wantsKeyboardInput()` let game code choose when to pause its own pointer- or keyboard-driven controls while the UI is being used. UI input snapshots are collected separately from gameplay input reads.
+The response is one completed UI frame behind the callback that queues the current widgets. Value widgets return a response value when the widget changed; otherwise they preserve the value passed by the game. `wantsPointerInput()` and `wantsKeyboardInput()` let game code choose when to pause its own pointer- or keyboard-driven controls while the UI is being used. UI input snapshots are collected separately from gameplay input reads.
 
 Text edits use complete Unicode text events. The Web host forwards browser composition and paste input, and desktop builds read the normal keyboard input stream. The iOS host connects the native keyboard bridge. Android exposes native bridge entry points; the Perry Android host still needs to call them to show the soft keyboard and forward committed UTF-8 text.

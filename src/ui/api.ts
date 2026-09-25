@@ -34,24 +34,48 @@ function colorValues(color: Color): number[] {
   return [color.r, color.g, color.b, color.a];
 }
 
+function sendUiCommand(
+  backend: UiBackendId,
+  opcode: number,
+  id: UiId,
+  args: number[],
+  text: string,
+): void {
+  bloom_ui_command(
+    backend,
+    opcode,
+    id,
+    args[0] ?? 0,
+    args[1] ?? 0,
+    args[2] ?? 0,
+    args[3] ?? 0,
+    text as any,
+  );
+}
+
+function sendUiScratchCommand(
+  backend: UiBackendId,
+  opcode: number,
+  id: UiId,
+  values: number[],
+  text: string,
+): void {
+  bloom_ui_scratch_reset(backend);
+  for (const value of values) bloom_ui_scratch_push_f64(backend, value);
+  bloom_ui_scratch_command(backend, opcode, id, values.length, text as any);
+}
+
+function injectUiText(text: string): void {
+  bloom_ui_inject_text(text as any);
+}
+
 export function createUiApi(backend: UiBackendId): UiApi {
-  function command(opcode: number, id: UiId, args: number[] = [], text = ''): void {
-    bloom_ui_command(
-      backend,
-      opcode,
-      id,
-      args[0] ?? 0,
-      args[1] ?? 0,
-      args[2] ?? 0,
-      args[3] ?? 0,
-      text as any,
-    );
+  function command(opcode: number, id: UiId, args: number[] = [], text?: string): void {
+    sendUiCommand(backend, opcode, id, args, text ?? '');
   }
 
-  function scratchCommand(opcode: number, id: UiId, values: number[], text = ''): void {
-    bloom_ui_scratch_reset(backend);
-    for (const value of values) bloom_ui_scratch_push_f64(backend, value);
-    bloom_ui_scratch_command(backend, opcode, id, values.length, text as any);
+  function scratchCommand(opcode: number, id: UiId, values: number[], text?: string): void {
+    sendUiScratchCommand(backend, opcode, id, values, text ?? '');
   }
 
   function response(id: UiId): UiResponse {
@@ -97,7 +121,7 @@ export function createUiApi(backend: UiBackendId): UiApi {
     checkbox(id, label, checked) {
       command(UiOpcode.Checkbox, id, [checked ? 1 : 0], label);
       const result = response(id);
-      return result.present ? result.value > 0.5 : checked;
+      return result.present && result.changed ? result.value > 0.5 : checked;
     },
     radioButton(id, label, selected) {
       command(UiOpcode.RadioButton, id, [selected ? 1 : 0], label);
@@ -106,23 +130,23 @@ export function createUiApi(backend: UiBackendId): UiApi {
     sliderFloat(id, label, value, min, max) {
       command(UiOpcode.SliderFloat, id, [value, min, max], label);
       const result = response(id);
-      return result.present ? result.value : value;
+      return result.present && result.changed ? result.value : value;
     },
     sliderInt(id, label, value, min, max) {
       command(UiOpcode.SliderInt, id, [value, min, max], label);
       const result = response(id);
-      return result.present ? Math.round(result.value) : value;
+      return result.present && result.changed ? Math.round(result.value) : value;
     },
     dragFloat(id, prefix, value, speed = 0.1, min = Number.NaN, max = Number.NaN) {
       command(UiOpcode.DragFloat, id, [value, speed, min, max], prefix);
       const result = response(id);
-      return result.present ? result.value : value;
+      return result.present && result.changed ? result.value : value;
     },
     textEditSingleline(id, label, value) {
       command(UiOpcode.Label, 0, [], label);
       command(UiOpcode.TextEdit, id, [], value);
       const result = response(id);
-      return result.present ? result.text : value;
+      return result.present && result.changed ? result.text : value;
     },
     beginCombo(id, label, selectedText) {
       command(UiOpcode.Label, 0, [], label);
@@ -210,7 +234,7 @@ export function createUiApi(backend: UiBackendId): UiApi {
     isAvailable() { return bloom_ui_is_available(backend) > 0.5; },
     wantsPointerInput() { return bloom_ui_wants_input(backend, 0) > 0.5; },
     wantsKeyboardInput() { return bloom_ui_wants_input(backend, 1) > 0.5; },
-    injectText(text) { bloom_ui_inject_text(text as any); },
+    injectText(text) { injectUiText(text); },
   };
   return api;
 }
