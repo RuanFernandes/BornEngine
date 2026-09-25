@@ -61,10 +61,11 @@ identical in both cases.
 
 ### Native development features
 
-The native platform crates expose a `dev` feature that enables file-backed WGSL
-material hot reload through the shared `hot-reload` feature. It stays out of
-the defaults, so production builds do not acquire the `notify` dependency unless
-they explicitly request it.
+The renderer-backed Android, iOS, Linux, macOS, tvOS, visionOS, and Windows
+crates expose a `dev` feature that enables file-backed WGSL material hot reload
+through the shared `hot-reload` feature. The current watchOS crate does not
+expose this feature. It stays out of the defaults, so production builds do not
+acquire the `notify` dependency unless they explicitly request it.
 
 Enable it in a game's `perry.toml` while iterating on materials:
 

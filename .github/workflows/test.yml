@@ -305,6 +305,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check web build output safety
+        run: bash native/web/tests/build-output-safety.sh
+
       - name: Install Rust toolchain (wasm32)
         uses: dtolnay/rust-toolchain@stable
         with:

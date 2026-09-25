@@ -81,7 +81,7 @@ Material compilation is file-backed or source-backed. `compileMaterialFromFile()
 
 ### Hot reload during native development
 
-Enable the platform crate's `dev` feature in the game's `perry.toml` to reload file-backed WGSL materials while iterating. The feature is opt-in and does not affect Web/WASM builds. Leave it out of release configuration to avoid including the filesystem watcher in shipped native builds.
+Enable the renderer-backed platform crate's `dev` feature in the game's `perry.toml` to reload file-backed WGSL materials while iterating. This is available on Android, iOS, Linux, macOS, tvOS, visionOS, and Windows; the current watchOS crate does not expose it. The feature is opt-in and does not affect Web/WASM builds. Leave it out of release configuration to avoid including the filesystem watcher in shipped native builds.
 
 ```toml
 [native-library."@bornengine/engine"]

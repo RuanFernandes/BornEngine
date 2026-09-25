@@ -684,9 +684,11 @@ at runtime — water visibly turned red, no WGSL recompile.
 - [x] Failures during reload (parse error, validation) are logged
       and the previous pipeline keeps running — never crashes the
       game.
-- [x] Native platform crates expose `hot-reload` and a `dev` alias;
-      game builds can enable file watching while developing and omit
-      the feature from release builds to drop `notify`.
+- [x] Renderer-backed native crates for Android, iOS, Linux, macOS, tvOS,
+      visionOS, and Windows expose `hot-reload` and a `dev` alias; the
+      current watchOS crate does not expose this feature. Game builds can
+      enable file watching while developing and omit the feature from
+      release builds to drop `notify`.
 
 **Acceptance:** ✅ shooter water material now lives at
 `shooter/assets/materials/water.wgsl`, loaded via

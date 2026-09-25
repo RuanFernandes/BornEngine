@@ -217,9 +217,10 @@ allow-with-comment).
 the platform crates disabled dependency defaults and forwarded only `mp3`.
 Game builds therefore had no platform feature to turn shader reload on.
 
-**Change:** native platform crates now expose `hot-reload` and the convenient
-`dev` alias. Release builds omit the watcher unless they explicitly enable one
-of those features.
+**Change:** renderer-backed native crates for Android, iOS, Linux, macOS, tvOS,
+visionOS, and Windows expose `hot-reload` and the convenient `dev` alias. The
+current watchOS crate does not expose this feature. Release builds omit the
+watcher unless they explicitly enable one of those features.
 
 **Acceptance:** enabling `dev` forwards `bloom-shared/hot-reload`; builds that
 omit `dev` do not enable `notify` through the platform crate.

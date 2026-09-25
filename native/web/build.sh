@@ -22,6 +22,7 @@ BUILD_PROFILE="--release"
 PROFILE_SET=0
 OUTPUT_DIR=""
 GAME_FILE=""
+GAME_DIR=""
 
 usage() {
   cat <<'USAGE'
@@ -84,19 +85,51 @@ if [[ "$OUTPUT_DIR" != /* ]]; then
   OUTPUT_DIR="$PWD/$OUTPUT_DIR"
 fi
 OUTPUT_DIR="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$OUTPUT_DIR")"
+
+# Resolve game paths before validating output: cleanup must never remove game
+# source files or the assets directory that will be copied into the build.
+if [ -n "$GAME_FILE" ]; then
+  if [ -f "$GAME_FILE" ]; then
+    GAME_FILE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$GAME_FILE")"
+    GAME_DIR="$(dirname "$GAME_FILE")"
+  else
+    echo "ERROR: game file not found: $GAME_FILE"
+    exit 1
+  fi
+fi
+
 if [[ "$OUTPUT_DIR" == "/" || "$OUTPUT_DIR" == "$WEB_CRATE" || "$OUTPUT_DIR" == "$WEB_CRATE/"* || "$WEB_CRATE" == "$OUTPUT_DIR/"* ]]; then
   usage_error "--output must not overlap the native/web source tree"
 fi
 
-# Resolve the game file to an absolute path NOW, while still in the caller's
-# working directory — the build cd's into the web crate before compiling, so a
-# relative path like `examples/pong/main.ts` would otherwise no longer resolve.
+# Resolve game-output cleanup paths against the source file and its assets
+# directory. This permits common output folders such as <game>/dist/web while
+# rejecting destinations whose owned artifacts would erase game inputs.
 if [ -n "$GAME_FILE" ]; then
-  if [ -f "$GAME_FILE" ]; then
-    GAME_FILE="$(cd "$(dirname "$GAME_FILE")" && pwd)/$(basename "$GAME_FILE")"
-  else
-    echo "ERROR: game file not found: $GAME_FILE"
-    exit 1
+  if ! python3 - "$OUTPUT_DIR" "$GAME_FILE" "$GAME_DIR/assets" <<'PY'
+import os
+import sys
+
+output_dir, game_file, game_assets = map(os.path.realpath, sys.argv[1:])
+cleaned_paths = (
+    os.path.join(output_dir, "pkg"),
+    os.path.join(output_dir, "assets"),
+    os.path.join(output_dir, "index.html"),
+    os.path.join(output_dir, "bloom_glue.js"),
+    os.path.join(output_dir, "jolt_bridge.js"),
+)
+source_paths = [game_file]
+if os.path.isdir(game_assets):
+    source_paths.append(game_assets)
+
+def overlaps(left, right):
+    common = os.path.commonpath((left, right))
+    return common == left or common == right
+
+sys.exit(any(overlaps(cleaned, source) for cleaned in cleaned_paths for source in source_paths))
+PY
+  then
+    usage_error "--output overlaps with game source inputs"
   fi
 fi
 
@@ -175,7 +208,6 @@ fi
 
 # Copy game assets (if game directory has an assets/ folder)
 if [ -n "$GAME_FILE" ]; then
-  GAME_DIR="$(dirname "$(realpath "$GAME_FILE")")"
   if [ -d "$GAME_DIR/assets" ]; then
     cp -r "$GAME_DIR/assets" "$OUTPUT_DIR/assets"
     echo "  Copied assets/ directory"
