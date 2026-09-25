@@ -21,6 +21,12 @@ export const apiCoverage = [
     sections: ['Frame lifecycle', 'Input', 'Cameras and coordinates', 'Files and profiling'],
   },
   {
+    slug: 'input',
+    file: 'api/input.md',
+    href: '/docs/api/input/',
+    sections: ['Actions and bindings', 'Snapshots and edges', 'Axes and rebinding', 'Frame loop', 'Device behavior'],
+  },
+  {
     slug: 'shapes',
     file: 'api/shapes.md',
     href: '/docs/api/shapes/',

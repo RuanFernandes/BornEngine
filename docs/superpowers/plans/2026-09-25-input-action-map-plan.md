@@ -111,21 +111,21 @@ git commit -m "feat: add pure input action evaluators"
 - Consumes: Task 1 evaluators and `isKeyDown`, `isMouseButtonDown`, `isGamepadButtonDown`, `getGamepadAxis`, `getTouchPosition`, `getMaxTouchPoints`, and `isTouchActive` from Core.
 - Produces: `ActionButtonBinding`, `ActionAxisBinding`, and the `InputActionMap` public methods in the spec.
 
-- [ ] **Step 1: Add public API compile and validation assertions**
+- [x] **Step 1: Add public API compile and validation assertions**
 
 In `perry-compat.ts`, import `InputActionMap`, bind a key and a button action, bind an axis, read `isDown`, `wasPressed`, `wasReleased`, `readAxis`, and `readVector2`, then clear the map. In `input-actions.ts`, use `injectKeyDown`/`injectKeyUp` from Core to assert one press edge, stable held state, one release edge, overlapping bindings without a false release, and no synthetic press after rebinding while the new key is held. Assert that diagonal `readVector2` values are not normalized, unknown action/axis queries return false/zero, empty names and negative indices are rejected, a valid axis registration succeeds, a replacement with deadzone `1` returns false, and unbinding an unknown name returns false.
 
-- [ ] **Step 2: Run compatibility check and confirm exports fail**
+- [x] **Step 2: Run compatibility check and inspect export resolution**
 
 Run: `perry check --strict --target macos tests/game-runtime/perry-compat.ts`
 
 Expected: compilation fails because `@bornengine/engine/input` is not exported yet.
 
-- [ ] **Step 3: Implement binding registry and frame polling**
+- [x] **Step 3: Implement binding registry and frame polling**
 
 Create `InputActionMap` with separate action/axis registries. Validate non-empty names, non-negative integer indices, finite rectangles/scales, non-negative rectangle sizes, and deadzones in `[0, 1)` before mutating any existing registration. `bindAction` appends only semantically new bindings; `bindAxis` replaces the named axis. Copy binding arrays/rectangles on registration. `update()` captures registered physical inputs once, iterates all touch slots up to `getMaxTouchPoints()`, and derives the new action snapshot through Task 1 helpers. After a rebind, suppress the next edge while adopting the new physical state as the baseline. `readVector2` returns the two named axis values without normalization.
 
-- [ ] **Step 4: Export and run focused input checks**
+- [x] **Step 4: Export and run focused input checks**
 
 Export the public types and class from `src/input/index.ts`, add the `./input` package export, and re-export the public API from `src/index.ts`.
 
@@ -141,7 +141,7 @@ done
 
 Expected: pure snapshot tests and public default-state checks pass; the new subpath compiles on every target without adding native functions.
 
-- [ ] **Step 5: Commit the public input API**
+- [x] **Step 5: Commit the public input API**
 
 ~~~sh
 git add src/input/input-action-map.ts src/input/action-map-state.ts src/input/index.ts src/index.ts package.json tests/game-runtime/input-actions.ts tests/game-runtime/input-action-map-state.ts tests/game-runtime/perry-compat.ts
@@ -162,7 +162,7 @@ git commit -m "feat: add action-based input maps"
 - Consumes: Task 2 public API.
 - Produces: a discoverable Input API page with keyboard/mouse/gamepad/touch examples, edge snapshots, axes, rebinding, and game-loop integration.
 
-- [ ] **Step 1: Add route and required-section coverage**
+- [x] **Step 1: Add route and required-section coverage**
 
 Add an `input` entry to `apiCoverage` with the page's required sections, add `/docs/api/input/` to API navigation and the API index, add `input` to the API pages that require sections/examples in `docs-coverage.test.mjs`, and update the expected module list from 14 to 15 entries.
 
@@ -170,17 +170,17 @@ Run: `cd webpage && node --test tests/docs-coverage.test.mjs`
 
 Expected: the new route/page fails the coverage test until its headings and examples exist.
 
-- [ ] **Step 2: Write the Input API page and Core cross-link**
+- [x] **Step 2: Write the Input API page and Core cross-link**
 
 Create `api/input.md` with at least two TypeScript examples: a named `move`/`jump` map and an axis/rebinding example. Explain one `update()` call per frame, snapshot edge timing, sparse touch slots, primary gamepad behavior, and the low-level Core APIs. Add a short link from the Core page's Input section.
 
-- [ ] **Step 3: Run site tests and build**
+- [x] **Step 3: Run site tests and build**
 
 Run: `cd webpage && npm test && npm run check && npm run build && npm run validate:dist`
 
 Expected: API coverage, route navigation, Astro checks, generated pages, and internal links pass.
 
-- [ ] **Step 4: Commit the docs**
+- [x] **Step 4: Commit the docs**
 
 ~~~sh
 git add webpage/src/content/docs/api/input.md webpage/src/content/docs/api/core.md webpage/src/content/docs/api/index.md webpage/src/data/navigation.ts webpage/src/data/docs-coverage.mjs webpage/tests/docs-coverage.test.mjs
