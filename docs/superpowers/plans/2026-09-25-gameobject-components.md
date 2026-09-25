@@ -200,12 +200,6 @@ class Leaf extends Middle {
   }
 }
 
-type Constructor<T> = new (...args: any[]) => T;
-
-function make<T>(type: Constructor<T>, value: number): T {
-  return new type(value);
-}
-
 function identity<T>(value: T): T {
   return value;
 }
@@ -217,7 +211,7 @@ function requireTrue(value: boolean, label: string): void {
   }
 }
 
-const leaf = make(Leaf, 3);
+const leaf = new Leaf(3);
 const leafAgain: Leaf = identity(leaf);
 const values: Base[] = [leafAgain];
 const first: Base = values[0];
@@ -323,10 +317,10 @@ Expected: exit code 0 and the final line says Perry compatibility fixture passed
 Run:
 
 ~~~sh
-perry run web tests/game-runtime/perry-compat.ts
+perry compile --target web tests/game-runtime/perry-compat.ts
 ~~~
 
-Expected: the compiler produces and starts the Web/WASM target without a class, constructor, instanceof, or generic-codegen error.
+Expected: the compiler produces the Web/WASM output without a class, constructor, instanceof, or generic-codegen error. `perry run web` also compiles this fixture, but this local runner cannot launch its generated HTML; the spec requires a Web/WASM compile, while executable runtime assertions run on the native host.
 
 - [ ] **Step 6: Stop on an unsupported required feature**
 
