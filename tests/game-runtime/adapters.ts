@@ -66,6 +66,27 @@ expect(near(borrowedTransform[12], 3) && near(borrowedTransform[13], 4) &&
   'borrowed node is detached at the GameObject world transform');
 destroySceneNode(borrowedNode);
 
+const factoryBaseCount = getSceneNodeCount();
+const factoryComponent = SceneNodeComponent.create();
+expect(factoryComponent !== null, 'factory creates an owned renderer node');
+if (factoryComponent !== null) {
+  const configuredFactoryComponent = factoryComponent
+    .setVisible(true)
+    .setColor(255, 255, 255, 255)
+    .setPbr(0.5, 0.1)
+    .setTexture(0)
+    .attachModel({ handle: 0 } as any, 2);
+  expect(configuredFactoryComponent === factoryComponent,
+    'renderer instance methods return this for fluent setup');
+  const factoryObject = new GameObject();
+  const factoryScene = new GameScene();
+  factoryObject.addComponent(configuredFactoryComponent);
+  factoryScene.add(factoryObject);
+  factoryScene.destroy();
+}
+expect(getSceneNodeCount() === factoryBaseCount,
+  'factory-owned node is destroyed with its GameObject component');
+
 const hierarchyBaseCount = getSceneNodeCount();
 const parentNode = createSceneNode();
 const childNode = createSceneNode();

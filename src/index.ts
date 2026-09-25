@@ -176,6 +176,8 @@ export {
   GameObject,
   GameScene,
   RigidBodyComponent,
+  Scene,
+  SceneManager,
   SceneNodeComponent,
   Transform,
 } from './game/index';
@@ -187,7 +189,10 @@ export type {
   ParentOptions,
   RigidBodyComponentOptions,
   RigidBodyMotionType,
+  SceneOwnedResource,
   SceneNodeComponentOptions,
+  SceneOptions,
+  SceneState,
   TransformOptions,
 } from './game/index';
 

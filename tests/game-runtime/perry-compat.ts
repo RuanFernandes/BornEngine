@@ -1,4 +1,11 @@
-import { GameComponent, GameObject, GameScene } from '@bornengine/engine/game';
+import {
+  GameComponent,
+  GameObject,
+  GameScene,
+  Scene,
+  SceneManager,
+  SceneNodeComponent,
+} from '@bornengine/engine/game';
 
 class Base {
   readonly baseValue: number;
@@ -111,3 +118,18 @@ requireTrue(attachedHealth === publicHealth && foundHealth === publicHealth &&
   'public GameObject component API preserves concrete types');
 
 console.log('Perry compatibility fixture passed');
+
+class ScenePlayer extends GameObject {}
+const oopScene = new Scene({ name: 'compatibility-scene' });
+const oopManager = new SceneManager();
+const scenePlayer = oopScene.addNode(new ScenePlayer());
+const rendererComponent = SceneNodeComponent.create();
+if (scenePlayer !== null && rendererComponent !== null) {
+  const configuredRenderer: SceneNodeComponent = rendererComponent
+    .setVisible(true)
+    .setColor(255, 255, 255, 255)
+    .setPbr(0.5, 0.1)
+    .setTexture(0);
+  scenePlayer.addComponent(configuredRenderer);
+}
+oopManager.changeTo(oopScene);

@@ -172,14 +172,14 @@ In `perry-compat.ts`, import `Scene`, `SceneManager`, and `SceneNodeComponent` f
 Run:
 
 ~~~sh
-npm exec --yes --package=typescript@6.0.3 -- tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler tests/game-runtime/scene-node-api-types.ts
+npm exec --yes --package=typescript@6.0.3 -- tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --pretty false tests/game-runtime/scene-node-api-types.ts 2>&1 | awk '/error TS/ { found = 1 } index($0, "tests/game-runtime/scene-node-api-types.ts(") { failed = 1; print } END { if (!found) exit 2; if (!failed) print "No TypeScript diagnostics in API fixture"; exit failed }'
 perry check --strict --target macos tests/game-runtime/adapters.ts
 for target in macos windows linux ios tvos watchos android visionos web; do
   perry check --strict --target "$target" tests/game-runtime/perry-compat.ts || exit 1
 done
 ~~~
 
-Expected: TypeScript verifies the fluent return type and model argument, the adapter integration fixture passes Perry compatibility checks, and every target accepts the public APIs. Runtime execution of `adapters.ts` requires the platform FFI library and is not part of Perry's runtime-only runner.
+Expected: the TypeScript checker emits no diagnostics for the API fixture (the legacy source graph reports unrelated Perry-only type errors), the adapter integration fixture passes Perry compatibility checks, and every target accepts the public APIs. Runtime execution of `adapters.ts` requires the platform FFI library and is not part of Perry's runtime-only runner.
 
 - [ ] **Step 4: Commit this unit**
 
