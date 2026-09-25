@@ -11,11 +11,19 @@ Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) with the co
 
 ```sh
 cargo install wasm-pack
-./native/web/build.sh main.ts
+./native/web/build.sh --dev main.ts
 cd dist/web && python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080`. The script builds the web engine with wasm-pack, optionally runs `wasm-opt`, compiles the game with `perry --target wasm`, and assembles `dist/web/`.
+Open `http://localhost:8080`. The `--dev` profile skips `wasm-opt` to shorten iteration time. For a shipping build, use `./native/web/build.sh --release main.ts`; release is also the default when no profile is specified and runs `wasm-opt -Oz` once through `wasm-pack`.
+
+Choose another output directory with `--output`. Relative paths are resolved from the directory where you run the command:
+
+```sh
+./native/web/build.sh --dev --output build/web main.ts
+```
+
+The script compiles the game with `perry --target wasm` and assembles the engine package and game into the selected output directory.
 
 ## Game loop and browser APIs
 

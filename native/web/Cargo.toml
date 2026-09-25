@@ -15,6 +15,12 @@ jolt = ["bloom-shared/jolt"]
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]
 
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
+
 [dependencies]
 bloom-shared = { path = "../shared", default-features = false, features = ["web"] }
 wasm-bindgen = "0.2"

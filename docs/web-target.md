@@ -27,19 +27,22 @@ Both game logic and rendering run in WebAssembly. A thin JS glue layer (`native/
 
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/): `cargo install wasm-pack`
 - [Perry compiler](../../perry/perry): built from source
-- wasm-opt (optional): `cargo install wasm-opt`
 
 ### Quick Build
 
 ```bash
-./native/web/build.sh path/to/game/main.ts
+./native/web/build.sh --dev path/to/game/main.ts
 ```
 
 This runs:
-1. `wasm-pack build` to compile `native/web/` → `pkg/bloom_web_bg.wasm` + `pkg/bloom_web.js` bindings
-2. `wasm-opt -Oz` for binary size optimization (if installed)
-3. `perry main.ts --target wasm` to compile game TypeScript → WASM
-4. Assembles output directory at `dist/web/`
+1. `wasm-pack build --dev` to compile `native/web/` → `pkg/bloom_web_bg.wasm` + `pkg/bloom_web.js` bindings without running `wasm-opt`
+2. `perry main.ts --target wasm` to compile game TypeScript → WASM
+3. Assembles output directory at `dist/web/`
+
+For a shipping build, use `./native/web/build.sh --release path/to/game/main.ts`.
+Release runs `wasm-opt -Oz` once through `wasm-pack`; `--release` is also the
+default profile. Relative `--output DIR` paths are resolved from the directory
+where the command is run.
 
 ### Serve Locally
 

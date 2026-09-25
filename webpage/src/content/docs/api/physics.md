@@ -178,4 +178,8 @@ function updatePlayer(dt: number, moveX: number, moveZ: number) {
 
 Soft bodies use `createSoftBody()` with vertices, inverse masses (`0` pins a vertex), triangle indices, compliance, damping, gravity, and optional pressure. Read or edit vertices with `getSoftBodyVertex()` and `setSoftBodyVertex()`. Vehicles use `createVehicle()` with a chassis shape and four wheel mounts; call `setVehicleInput()` before each `step()` and read wheel transforms with `getWheelTransform()` for rendering. Destroy vehicles and characters before their shared shapes, then destroy constraints, rigid bodies, shapes, and finally the world.
 
+## Native build time
+
+The first native build compiles Jolt from C++ sources and can take about a minute; later local builds reuse the CMake output. BornEngine's CI also caches that output by platform, architecture, toolchain, Jolt revision, and shim sources so unchanged jobs can skip the expensive compile.
+
 For a complete body-to-render example, continue with the [physics gameplay recipe](../../guides/physics-gameplay/).

@@ -14,6 +14,8 @@ jolt = ["bloom-shared/jolt"]
 # unaffected; pure-2D games opt out via Perry feature forwarding.
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]
+hot-reload = ["bloom-shared/hot-reload"]
+dev = ["hot-reload"]
 
 # Match perry-runtime's panic strategy so the final perry-driven link
 # doesn't see two copies of rust_eh_personality (and friends) from two

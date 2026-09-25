@@ -23,6 +23,8 @@ models3d = ["bloom-shared/models3d"]
 # EN-014 — image codecs beyond PNG; also gates this crate's own HDR
 # env-map decode (bloom_set_env_clear_from_hdr).
 image-extras = ["bloom-shared/image-extras", "image/hdr"]
+hot-reload = ["bloom-shared/hot-reload"]
+dev = ["hot-reload"]
 
 # Match perry-runtime's panic strategy so the final perry-driven link
 # doesn't see two copies of rust_eh_personality (and friends) from two

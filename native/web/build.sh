@@ -2,7 +2,7 @@
 # Build Bloom Engine for Web
 #
 # Usage:
-#   ./native/web/build.sh [game.ts] [--output dist/]
+#   ./native/web/build.sh [--dev | --release] [game.ts] [--output dist/]
 #
 # Steps:
 #   1. Build bloom_web.wasm via wasm-pack
@@ -12,15 +12,76 @@
 # Prerequisites:
 #   - wasm-pack: cargo install wasm-pack
 #   - perry: ../../../perry/perry/target/release/perry (or in PATH)
-#   - wasm-opt (optional): for binary size optimization
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENGINE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WEB_CRATE="$SCRIPT_DIR"
-OUTPUT_DIR="${2:-$ENGINE_DIR/dist/web}"
-GAME_FILE="$1"
+BUILD_PROFILE="--release"
+PROFILE_SET=0
+OUTPUT_DIR=""
+GAME_FILE=""
+
+usage() {
+  cat <<'USAGE'
+Usage: ./native/web/build.sh [--dev | --release] [game.ts] [--output dist/]
+
+Profiles:
+  --dev       Faster iterative build; skips wasm-opt.
+  --release   Optimized build (default); runs wasm-opt once with -Oz.
+
+Options:
+  --output DIR  Write the assembled site to DIR (default: dist/web).
+  -h, --help    Show this help.
+USAGE
+}
+
+usage_error() {
+  echo "ERROR: $1" >&2
+  usage >&2
+  exit 2
+}
+
+while (($#)); do
+  case "$1" in
+    --dev|--release)
+      if ((PROFILE_SET)) && [[ "$BUILD_PROFILE" != "$1" ]]; then
+        usage_error "--dev and --release cannot be used together"
+      fi
+      BUILD_PROFILE="$1"
+      PROFILE_SET=1
+      shift
+      ;;
+    --output)
+      (($# >= 2)) || usage_error "--output requires a directory"
+      OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    --output=*)
+      OUTPUT_DIR="${1#*=}"
+      [[ -n "$OUTPUT_DIR" ]] || usage_error "--output requires a directory"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -* )
+      usage_error "unknown option: $1"
+      ;;
+    *)
+      [[ -z "$GAME_FILE" ]] || usage_error "only one game file may be provided"
+      GAME_FILE="$1"
+      shift
+      ;;
+  esac
+done
+
+OUTPUT_DIR="${OUTPUT_DIR:-$ENGINE_DIR/dist/web}"
+if [[ "$OUTPUT_DIR" != /* ]]; then
+  OUTPUT_DIR="$PWD/$OUTPUT_DIR"
+fi
 
 # Resolve the game file to an absolute path NOW, while still in the caller's
 # working directory — the build cd's into the web crate before compiling, so a
@@ -34,32 +95,28 @@ if [ -n "$GAME_FILE" ]; then
   fi
 fi
 
+PERRY_TMP=""
+cleanup() {
+  if [[ -n "$PERRY_TMP" ]]; then
+    rm -rf "$PERRY_TMP"
+  fi
+}
+trap cleanup EXIT
+
 echo "=== Bloom Web Build ==="
+echo "  Profile: $BUILD_PROFILE"
 echo ""
 
 # 1. Build Bloom WASM via wasm-pack
-echo "[1/4] Building bloom_web.wasm..."
+echo "[1/3] Building bloom_web.wasm..."
 cd "$WEB_CRATE"
-wasm-pack build --target web --out-dir pkg --no-typescript 2>&1 | tail -3
+wasm-pack build --target web --out-dir pkg --no-typescript "$BUILD_PROFILE" 2>&1 | tail -3
 echo "  Output: $WEB_CRATE/pkg/"
 
-# 2. Optimize WASM binary (if wasm-opt is available)
-if command -v wasm-opt &> /dev/null; then
-  echo "[2/4] Optimizing WASM with wasm-opt..."
-  WASM_FILE="$WEB_CRATE/pkg/bloom_web_bg.wasm"
-  ORIG_SIZE=$(wc -c < "$WASM_FILE")
-  wasm-opt -Oz "$WASM_FILE" -o "$WASM_FILE.opt"
-  mv "$WASM_FILE.opt" "$WASM_FILE"
-  OPT_SIZE=$(wc -c < "$WASM_FILE")
-  echo "  Optimized: $((ORIG_SIZE / 1024))KB → $((OPT_SIZE / 1024))KB"
-else
-  echo "[2/4] Skipping wasm-opt (not installed). Install with: cargo install wasm-opt"
-fi
-
-# 3. Compile game (if provided)
+# 2. Compile game (if provided)
 PERRY_HTML=""
 if [ -n "$GAME_FILE" ] && [ -f "$GAME_FILE" ]; then
-  echo "[3/4] Compiling game: $GAME_FILE"
+  echo "[2/3] Compiling game: $GAME_FILE"
 
   # Find perry compiler
   PERRY=""
@@ -78,14 +135,14 @@ if [ -n "$GAME_FILE" ] && [ -f "$GAME_FILE" ]; then
   # Use a temp dir (portable across GNU/BSD mktemp) so cleanup is a single rm.
   PERRY_TMP="$(mktemp -d)"
   PERRY_HTML="$PERRY_TMP/game.html"
-  $PERRY "$GAME_FILE" --target wasm -o "$PERRY_HTML"
+  "$PERRY" "$GAME_FILE" --target wasm -o "$PERRY_HTML"
   echo "  Game compiled to WASM ($PERRY_HTML)"
 else
-  echo "[3/4] No game file specified, skipping game compilation"
+  echo "[2/3] No game file specified, skipping game compilation"
 fi
 
-# 4. Assemble output directory
-echo "[4/4] Assembling output..."
+# 3. Assemble output directory
+echo "[3/3] Assembling output..."
 mkdir -p "$OUTPUT_DIR"
 
 # Copy Bloom WASM package
@@ -99,7 +156,6 @@ if [ -n "$PERRY_HTML" ]; then
   # Game build: splice the Bloom bootstrap into Perry's HTML and gate the game's
   # bootPerryWasm() call on engine readiness → dist/web/index.html.
   python3 "$WEB_CRATE/splice_game.py" "$PERRY_HTML" "$OUTPUT_DIR/index.html"
-  rm -rf "$PERRY_TMP"
   echo "  Spliced game + engine into index.html"
 else
   # No game: ship the engine-only standalone page.

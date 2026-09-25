@@ -77,7 +77,18 @@ Create and destroy generated meshes outside the frame loop. The array-to-mesh up
 
 ## Materials and animation
 
-Material compilation is file-backed or source-backed. `compileMaterialFromFile()` keeps a watched WGSL file hot-reloadable; `loadMaterial()` combines the shader path, bucket, and optional numeric parameters. Draw one primitive with `drawMeshWithMaterial()` or every primitive in a model with `drawModelWithMaterial()`.
+Material compilation is file-backed or source-backed. `compileMaterialFromFile()` can watch a WGSL file for changes during native development; `loadMaterial()` combines the shader path, bucket, and optional numeric parameters. Draw one primitive with `drawMeshWithMaterial()` or every primitive in a model with `drawModelWithMaterial()`.
+
+### Hot reload during native development
+
+Enable the platform crate's `dev` feature in the game's `perry.toml` to reload file-backed WGSL materials while iterating. The feature is opt-in and does not affect Web/WASM builds. Leave it out of release configuration to avoid including the filesystem watcher in shipped native builds.
+
+```toml
+[native-library."@bornengine/engine"]
+features = ["dev"]
+```
+
+This keeps the platform's normal default features. If the game already disables defaults, add `dev` alongside whichever engine features it needs.
 
 ```ts
 import {

@@ -44,6 +44,10 @@ identical in both cases.
 - **Native:** `native/shared/build.rs` invokes the `cmake` crate against
   `native/third_party/bloom_jolt/`. The first build compiles Jolt from source
   (~60 s); subsequent builds link against the cached `libJolt.a` + `libbloom_jolt.a`.
+- **CI:** native workflows cache the stable CMake output by OS, architecture,
+  CMake/C++ toolchain, Jolt submodule revision, and shim/build inputs. This lets
+  later runs reuse the expensive Jolt compile without restoring stale archives
+  after a source or toolchain change.
 - **WASM:** `build.rs` skips cmake when `CARGO_CFG_TARGET_ARCH == "wasm32"`. The web
   crate's `wasm-bindgen` import of `/jolt_bridge.js` is resolved at `wasm-pack`
   time; the bridge file gets bundled into `pkg/snippets/`. The JS glue
@@ -54,6 +58,26 @@ identical in both cases.
   `default = ["jolt", "models3d", "image-extras"]` so existing games are
   unaffected. Opt *out* with `default-features = false` if a build shouldn't
   pay the ~60 s Jolt first-build cost.
+
+### Native development features
+
+The native platform crates expose a `dev` feature that enables file-backed WGSL
+material hot reload through the shared `hot-reload` feature. It stays out of
+the defaults, so production builds do not acquire the `notify` dependency unless
+they explicitly request it.
+
+Enable it in a game's `perry.toml` while iterating on materials:
+
+```toml
+[native-library."@bornengine/engine"]
+features = ["dev"]
+```
+
+This keeps the normal `jolt`, `models3d`, and `image-extras` defaults. For a
+lean 2D game, add `default-features = false` and select only what the game uses;
+for example, `features = ["dev"]` keeps hot reload while leaving Jolt, model
+loading, and extra image codecs disabled. Remove `dev` from the release
+configuration to omit the watcher.
 
 ## Supported features
 

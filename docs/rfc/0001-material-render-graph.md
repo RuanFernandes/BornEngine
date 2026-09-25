@@ -684,11 +684,9 @@ at runtime — water visibly turned red, no WGSL recompile.
 - [x] Failures during reload (parse error, validation) are logged
       and the previous pipeline keeps running — never crashes the
       game.
-- [ ] Release build has no watcher thread. *Skipped* — the `notify`
-      worker is cheap (one OS-event-pump thread, idle most of the
-      time) and games may want hot reload in non-dev builds for
-      ad-hoc tuning. A `cfg(debug_assertions)` gate is a one-line
-      change if a future ship-mode demands it.
+- [x] Native platform crates expose `hot-reload` and a `dev` alias;
+      game builds can enable file watching while developing and omit
+      the feature from release builds to drop `notify`.
 
 **Acceptance:** ✅ shooter water material now lives at
 `shooter/assets/materials/water.wgsl`, loaded via

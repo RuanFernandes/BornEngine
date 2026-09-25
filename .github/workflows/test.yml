@@ -57,6 +57,32 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Fingerprint Jolt cache inputs
+        id: jolt-cache
+        shell: bash
+        run: |
+          jolt_revision="$(git ls-tree HEAD native/third_party/JoltPhysics | awk '{print $3}')"
+          cmake_version="$(cmake --version | head -n 1)"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            compiler_version="${VCToolsVersion:-}"
+            if [[ -z "$compiler_version" ]]; then
+              compiler_version="$(cl 2>&1 | head -n 1 || true)"
+            fi
+            compiler_version="${compiler_version:-unknown}-${WindowsSDKVersion:-unknown}"
+          else
+            compiler_version="$(c++ --version | head -n 1)"
+          fi
+          toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
+          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+
+      - name: Cache stable Jolt CMake build
+        uses: actions/cache@v4
+        with:
+          path: native/third_party/bloom_jolt/build
+          # Exact-match only: build.rs reuses existing archives without
+          # reconfiguring them, so a stale CMake output must never be restored.
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -133,6 +159,22 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Fingerprint Jolt cache inputs
+        id: jolt-cache
+        shell: bash
+        run: |
+          jolt_revision="$(git ls-tree HEAD native/third_party/JoltPhysics | awk '{print $3}')"
+          cmake_version="$(cmake --version | head -n 1)"
+          compiler_version="$(c++ --version | head -n 1)"
+          toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
+          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+
+      - name: Cache stable Jolt CMake build
+        uses: actions/cache@v4
+        with:
+          path: native/third_party/bloom_jolt/build
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -165,6 +207,22 @@ jobs:
             libasound2-dev libpulse-dev \
             pkg-config cmake build-essential
 
+      - name: Fingerprint Jolt cache inputs
+        id: jolt-cache
+        shell: bash
+        run: |
+          jolt_revision="$(git ls-tree HEAD native/third_party/JoltPhysics | awk '{print $3}')"
+          cmake_version="$(cmake --version | head -n 1)"
+          compiler_version="$(c++ --version | head -n 1)"
+          toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
+          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+
+      - name: Cache stable Jolt CMake build
+        uses: actions/cache@v4
+        with:
+          path: native/third_party/bloom_jolt/build
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -195,6 +253,26 @@ jobs:
         # this, jolt cmake fails the initial CXX compiler probe even though
         # MSVC is installed on the runner.
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Fingerprint Jolt cache inputs
+        id: jolt-cache
+        shell: bash
+        run: |
+          jolt_revision="$(git ls-tree HEAD native/third_party/JoltPhysics | awk '{print $3}')"
+          cmake_version="$(cmake --version | head -n 1)"
+          compiler_version="${VCToolsVersion:-}"
+          if [[ -z "$compiler_version" ]]; then
+            compiler_version="$(cl 2>&1 | head -n 1 || true)"
+          fi
+          compiler_version="${compiler_version:-unknown}-${WindowsSDKVersion:-unknown}"
+          toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
+          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+
+      - name: Cache stable Jolt CMake build
+        uses: actions/cache@v4
+        with:
+          path: native/third_party/bloom_jolt/build
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
 
       - name: Cache cargo
         uses: actions/cache@v4
