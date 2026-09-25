@@ -83,7 +83,7 @@ Use `--release` (the default) for optimized builds.
 
 ## Features
 
-- **Simple API** — Functions, not classes. The entire API fits on a cheatsheet. ([design rationale](docs/design-api.md))
+- **Two gameplay styles** — Use the flat function-and-handle API directly, or build with the optional class-based GameObject runtime. ([design rationale](docs/design-api.md), [game objects](docs/game-objects.md))
 - **True native** — Compiles to Metal, DirectX 12, Vulkan, OpenGL, and WebGPU via wgpu.
 - **Ship everywhere** — macOS, Windows, Linux, iOS, tvOS, Android, and Web from one codebase.
 - **Unified 2D/3D** — Shapes, textures, text, 3D models, and audio in one engine.
@@ -91,10 +91,11 @@ Use `--release` (the default) for optimized builds.
 
 ## How BornEngine relates to raylib
 
-BornEngine's public API is heavily inspired by [raylib](https://github.com/raysan5/raylib).
+BornEngine's low-level modules are heavily inspired by [raylib](https://github.com/raysan5/raylib).
 raylib's API is, in our opinion, one of the best in the gamedev space — a flat library
-of plain functions, no classes, small enough to learn from a cheatsheet — so we model
-ours on it. You'll recognize the shape immediately: `initWindow`, `beginDrawing`,
+of plain functions, small enough to learn from a cheatsheet — so those modules follow
+that shape. The optional game module adds class-based gameplay objects. You'll recognize
+the low-level API immediately: `initWindow`, `beginDrawing`,
 `clearBackground`, `drawText`, and modules named core / shapes / textures / text /
 audio / models.
 
@@ -111,6 +112,7 @@ setting the bar. ([full design rationale](docs/design-api.md))
 | Module | Import | Description |
 |--------|--------|-------------|
 | **Core** | `@bornengine/engine/core` | Window, game loop, input, timing |
+| **Game** | `@bornengine/engine/game` | GameObjects, components, transforms, scenes, and native-handle adapters ([docs](docs/game-objects.md)) |
 | **Shapes** | `@bornengine/engine/shapes` | 2D drawing + collision detection |
 | **Textures** | `@bornengine/engine/textures` | Image loading, sprite batching |
 | **Text** | `@bornengine/engine/text` | TTF/OTF font loading and rendering |
@@ -141,6 +143,7 @@ setting the bar. ([full design rationale](docs/design-api.md))
 ```
 src/                  TypeScript API
   core/               Window, input, game loop
+  game/               GameObjects, components, transforms, adapters
   shapes/             2D shapes + collision
   textures/           Image loading, sprites
   text/               Font rendering
@@ -162,9 +165,9 @@ examples/
   pong/               Complete working example (~170 lines)
 ```
 
-## Types
+## Core data types
 
-Plain interfaces, no classes:
+The native function modules use plain data interfaces and numeric resource handles:
 
 ```typescript
 interface Vec2 { x: number; y: number }

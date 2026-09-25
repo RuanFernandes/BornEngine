@@ -1,24 +1,26 @@
-# API Design — Functions, Not Classes
+# API Design — Flat Native API and Optional Game Runtime
 
-Bloom's public API is a flat collection of free functions operating on plain-data
-interfaces. There are no classes, no inheritance trees, no `this`-bound methods,
-and no lifecycle base types to extend. This document records *why*.
+BornEngine has a function-and-handle API for direct access to native engine
+systems. The optional `@bornengine/engine/game` module adds a class-based
+TypeScript runtime with `GameObject`, `GameComponent`, and `GameScene`, including
+user-defined subclasses. This document explains why both surfaces are useful.
 
-The short version: the industry's most-cited performance voices, the architectural
-trend in every major engine, and the practical constraints of our Perry FFI all
-point the same direction. Classes would be fighting three fights at once.
+The native boundary continues to use scalar values and numeric handles. Game
+objects, components, transforms, and user subclasses stay inside Perry-compiled
+TypeScript; adapters pass only existing handles and math values to native APIs.
 
-## The stated rationale (README)
+## The core API's rationale (README)
 
 > **Simple API** — Functions, not classes. The entire API fits on a cheatsheet.
 
-That one-liner captures the user-facing benefit. The rest of this document
-captures the engineering reasons behind it.
+That one-liner describes the low-level modules. The game module offers an
+additional object-oriented workflow for gameplay code.
 
-## Three industry camps, one conclusion
+## Why the native API stays flat
 
-Three distinct communities arrived at "fewer classes is better" from different
-starting points. The reasoning diverges; the conclusion doesn't.
+Three design perspectives help explain the benefits of a small, flat native API.
+They inform that layer's design while the gameplay runtime handles object
+identity, lifecycle, and user-defined behavior in TypeScript.
 
 ### 1. The performance / data-oriented camp
 
@@ -39,8 +41,8 @@ Jonathan Blow (Jai, Braid, The Witness) has made similar arguments across many
 talks: deep class hierarchies are a cost that gameplay code almost never
 recovers value from, and the industry has spent too long pretending otherwise.
 
-The shared thesis: **classes optimize for the wrong thing (type identity) at
-the cost of the right thing (memory access patterns).**
+These arguments are strongest for large, data-oriented simulations. The
+function-based native API keeps those data and resource operations explicit.
 
 ### 2. The ECS / composition-over-inheritance camp
 
@@ -60,42 +62,42 @@ its own class-based foundation:
 - **Bevy**, **Amethyst**, and most new Rust-based engines are **ECS from the
   ground up** — no OOP layer to escape in the first place.
 
-The shared thesis: **deep `Player → Character → Entity` trees become
-unmaintainable at scale, and components-as-data is the escape hatch.** ECS is
-the de-facto consensus architecture for any engine that needs to simulate many
-entities efficiently.
+These systems show the value of composition and ECS at scale. BornEngine's
+GameComponent model makes composition available alongside user-defined
+GameObject subclasses.
 
 ### 3. The simplicity / library-design camp
 
-Raylib (the library whose API shape Bloom most directly echoes) is a flat C99
+Raylib (the library whose API shape BornEngine most directly echoes) is a flat C99
 function API designed to be "learned just from a cheatsheet." Its design notes
 explicitly emphasize:
 
 - **Accessibility** — no OOP vocabulary needed to start.
-- **Portability** — plain C binds cleanly to 60+ other languages; a class API
-  does not.
+- **Portability** — plain C functions and data bind cleanly to 60+ other
+  languages; language-specific wrappers can sit on top.
 - **Opt-in abstraction** — a separate `raylib-cpp` wrapper exists for users who
   want OOP on top. The core stays functional.
 
-The shared thesis: **a flat function surface is the smallest possible learning
-target and the most portable foundation.**
+The flat functions remain a small learning target and a portable foundation.
+The optional game module builds on that foundation without changing its native
+function signatures.
 
-## How Bloom compares to Unreal and Unity
+## How BornEngine compares to Unreal and Unity
 
-| | **Unreal** (`UObject` / `AActor`) | **Unity** (`MonoBehaviour`) | **Bloom** |
+| | **Unreal** (`UObject` / `AActor`) | **Unity** (`MonoBehaviour`) | **BornEngine** |
 |---|---|---|---|
-| Base model | Deep `UObject` inheritance tree, `UCLASS` + `GENERATED_BODY()` macros | Inherit `MonoBehaviour`; engine reflects `Update`/`Start`/etc. per frame | Plain interfaces (`Vec2`, `Texture`, `Sound` as data handles) + free functions |
-| Typical complaints | Macro boilerplate, no multiple inheritance, composition encouraged but inheritance structurally required | Per-frame method-lookup overhead, inheritance breaks Unity messages, no native multithreading | — |
-| Escape hatch shipped | **Mass** (ECS) for large-scale simulation | **DOTS / ECS / Burst / Jobs** — a whole parallel stack | N/A — started where they're migrating to |
-| Language binding | C++ only | C# only | Compiles via Perry to every target; functions map 1:1 to `bloom_*` C ABI |
+| Base model | Deep `UObject` inheritance tree, `UCLASS` + `GENERATED_BODY()` macros | Inherit `MonoBehaviour`; engine reflects `Update`/`Start`/etc. per frame | Flat native functions and handles, plus an optional TypeScript GameObject/Component runtime |
+| Typical complaints | Macro boilerplate, no multiple inheritance, composition encouraged but inheritance structurally required | Per-frame method-lookup overhead, inheritance breaks Unity messages, no native multithreading | Flat calls stay lightweight; gameplay code can opt into objects and components |
+| Escape hatch shipped | **Mass** (ECS) for large-scale simulation | **DOTS / ECS / Burst / Jobs** — a whole parallel stack | The flat API and optional class-based game runtime serve different needs |
+| Language binding | C++ only | C# only | TypeScript compiles via Perry; only primitive values and handles cross the native ABI |
 
-The observation: both giants have spent years building ECS escape hatches *from
-their own class-based foundations.* Bloom skipping classes isn't a contrarian
-aesthetic call — it's where the industry has been migrating for a decade.
+The observation: both engines support multiple workflows, including ECS for
+large simulations. BornEngine keeps its native calls flat and lets gameplay code
+choose the TypeScript game runtime when scene objects and callbacks help.
 
-## The Bloom-specific reason: the Perry FFI boundary
+## The Perry FFI boundary
 
-Bloom compiles TypeScript through [Perry](../../perry/perry) (our AOT compiler)
+BornEngine compiles TypeScript through [Perry](../../perry/perry) (our AOT compiler)
 and hands data across an FFI boundary to platform-specific Rust crates. The
 boundary has a specific shape, documented in `CLAUDE.md` and `package.json`:
 
@@ -110,30 +112,32 @@ boundary has a specific shape, documented in `CLAUDE.md` and `package.json`:
   integers, indexing into per-subsystem registries on the Rust side (e.g.
   `physics_jolt.rs`'s handle registries).
 
-This shape is fundamentally hostile to a class API and fundamentally friendly
-to a function API:
+This boundary favors functions and plain data for calls into native code. It
+sets a boundary for class instances: they remain in TypeScript rather than
+crossing the ABI. The game runtime follows that rule while using ordinary
+classes and method dispatch on the TypeScript side:
 
 - **Free functions map 1:1 to C ABI entries.** A call like
   `drawText(text, x, y, size, color)` is exactly one FFI function with scalar
   arguments. There is no hidden receiver, no vtable, no `this`.
 - **Plain-data interfaces map 1:1 to FFI argument lists.** `Texture` is a
   handle plus width/height; it can be passed through the boundary by value or
-  reconstructed from a handle. A class with methods would require Perry to
-  model vtables across the FFI, which neither the native C ABI nor
-  `wasm_bindgen` does cleanly.
+  reconstructed from a handle. A class instance stays in TypeScript; its
+  adapter calls native functions with the numeric handle and primitive values.
 - **Handle-based identity is already how the engine is structured.** Every
   subsystem already stores its real state in a Rust-side registry keyed by an
   integer handle — that's the natural representation for a resource owned by
-  native code and referenced from TypeScript. Classes on the TS side would be
-  a thin vanity layer that still has to hand back to an integer handle at
-  every FFI call.
+  native code and referenced from TypeScript. The gameplay classes add
+  lifecycle, hierarchy, and composition in TypeScript; their adapters pass
+  those handles to native calls when they need to operate on a resource.
 
-In short: the FFI already forces the engine to be data-oriented on the Rust
-side. Making the TypeScript surface match that shape keeps the whole stack
-coherent. Wrapping it in classes would add a layer of abstraction that every
-single FFI call has to punch back through.
+The native Rust side remains data-oriented. On the TypeScript side, developers
+can call those functions directly or use GameObject, GameComponent, and
+GameScene. No user subclass or component instance crosses the FFI boundary.
 
 ## What this looks like in practice
+
+For direct access to native resources, the API remains function-based:
 
 ```typescript
 // Data:
@@ -150,29 +154,40 @@ playSound(snd);
 unloadTexture(tex);
 ```
 
-No `new Texture(...)`. No `hero.draw()`. No `class Enemy extends Entity`. Game
-state lives in plain objects; behavior lives in functions that read and mutate
-that state. This is the same shape you'd write in C, in Jai, in a Rust ECS, or
-in Raylib — and it's the shape Unity and Unreal users drop into whenever they
-hit the performance ceiling of the OOP layer.
+The optional game module provides an object-based workflow for gameplay code:
 
-## What we give up
+```typescript
+import { GameObject, GameScene } from '@bornengine/engine/game';
+
+class Player extends GameObject {
+  update(dt: number): void {
+    this.transform.position.x += dt;
+  }
+}
+
+const scene = new GameScene();
+scene.add(new Player({ name: 'Player' }));
+```
+
+Both workflows call the same native functions and use the existing numeric
+resource handles.
+
+## Tradeoffs of the flat native API
 
 This section is deliberately here to keep the doc honest.
 
-- **No polymorphism via method dispatch.** If you want different enemy types to
-  "update" differently, you dispatch on an enum/tag, not a virtual method.
-  This is a feature (all behavior is visible, inspectable, and data-driven)
-  but it is a tradeoff.
+- **No object lifecycle in the low-level modules.** Code using only core
+  functions owns its update order and dispatch. The optional game module adds
+  `onAwake`, `onStart`, `update`, `fixedUpdate`, and `onDestroy` callbacks.
 - **No RAII for engine resources.** Textures, sounds, and models must be
   explicitly unloaded. TypeScript has no destructors, and the FFI boundary
   would not respect them even if it did.
-- **No "smart" object APIs that discover methods via IDE autocomplete.** You
-  navigate by module (`bloom/textures`, `bloom/audio`) and function name.
-  The [cheatsheet](../README.md#modules) is the map.
+- **Direct resource operations remain module based.** You can use the native
+  functions in `audio`, `textures`, and other modules from any game object.
+  The [module list](../README.md#modules) is the map.
 
-We've judged these acceptable — and in several cases desirable — given the
-performance, portability, and simplicity benefits above.
+These tradeoffs keep the low-level API explicit and portable. The game module
+adds object lifecycle and composition for projects that benefit from them.
 
 ## References
 
