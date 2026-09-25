@@ -1,11 +1,21 @@
 import { Vec3, Quat } from '../core/types';
+import { mat4Multiply } from '../math';
 import { GameComponent, GameComponentType } from './game-component';
-import { Transform, TransformOptions } from './transform';
+import {
+  decomposeTransformMatrix,
+  invertTransformMatrix,
+  Transform,
+  TransformOptions,
+} from './transform';
 import type { GameScene } from './game-scene';
 
 export interface GameObjectOptions extends TransformOptions {
   name?: string;
   active?: boolean;
+}
+
+export interface ParentOptions {
+  preserveWorldTransform?: boolean;
 }
 
 let nextGameObjectId = 1;
@@ -16,6 +26,13 @@ function copyVec3(value: Vec3): Vec3 {
 
 function copyQuat(value: Quat): Quat {
   return { x: value.x, y: value.y, z: value.z, w: value.w };
+}
+
+function removeAt<T>(values: T[], index: number): void {
+  for (let current = index; current + 1 < values.length; current++) {
+    values[current] = values[current + 1];
+  }
+  values.pop();
 }
 
 export class GameObject {
@@ -77,6 +94,79 @@ export class GameObject {
 
   onDestroy(): void {}
 
+  addChild<T extends GameObject>(child: T, options: ParentOptions = {}): T | null {
+    if (this.destroyed || child.destroyed || child === this) return null;
+    if (child.parentObject === this) return child;
+
+    let ancestor: GameObject | null = this;
+    while (ancestor !== null) {
+      if (ancestor === child) return null;
+      ancestor = ancestor.parentObject;
+    }
+
+    const targetScene = this.ownerScene;
+    const childScene = child.ownerScene;
+    if (childScene !== null && childScene !== targetScene) return null;
+    if (targetScene === null && childScene !== null) return null;
+    if (targetScene !== null && childScene === null &&
+        !targetScene._canAttachSubtree(child)) return null;
+
+    let nextLocalPosition: Vec3 | null = null;
+    let nextLocalRotation: Quat | null = null;
+    let nextLocalScale: Vec3 | null = null;
+    if (options.preserveWorldTransform !== false) {
+      const childWorld = child.transform.worldMatrix;
+      const inverseParent = invertTransformMatrix(this.transform.worldMatrix);
+      if (inverseParent === null) return null;
+      const nextLocalMatrix = mat4Multiply(inverseParent, childWorld);
+      const localTRS = decomposeTransformMatrix(nextLocalMatrix);
+      if (localTRS === null) return null;
+      nextLocalPosition = localTRS.position;
+      nextLocalRotation = localTRS.rotation;
+      nextLocalScale = localTRS.scale;
+    }
+
+    const previousParent = child.parentObject;
+    if (!child._setParent(this)) return null;
+    if (previousParent !== null) {
+      const previousIndex = previousParent.childObjects.indexOf(child);
+      if (previousIndex >= 0) removeAt(previousParent.childObjects, previousIndex);
+    }
+    this.childObjects.push(child);
+    if (nextLocalPosition !== null && nextLocalRotation !== null &&
+        nextLocalScale !== null) {
+      child.transform._setLocalTRS(nextLocalPosition, nextLocalRotation, nextLocalScale);
+    }
+    if (targetScene !== null && childScene === null) {
+      targetScene._attachSubtree(child);
+    }
+    return child;
+  }
+
+  removeChild(child: GameObject, options: ParentOptions = {}): boolean {
+    if (this.destroyed || child.destroyed || child.parentObject !== this) return false;
+
+    let nextLocalPosition: Vec3 | null = null;
+    let nextLocalRotation: Quat | null = null;
+    let nextLocalScale: Vec3 | null = null;
+    if (options.preserveWorldTransform !== false) {
+      const worldTRS = decomposeTransformMatrix(child.transform.worldMatrix);
+      if (worldTRS === null) return false;
+      nextLocalPosition = worldTRS.position;
+      nextLocalRotation = worldTRS.rotation;
+      nextLocalScale = worldTRS.scale;
+    }
+
+    const index = this.childObjects.indexOf(child);
+    if (index < 0 || !child._setParent(null)) return false;
+    removeAt(this.childObjects, index);
+    if (nextLocalPosition !== null && nextLocalRotation !== null &&
+        nextLocalScale !== null) {
+      child.transform._setLocalTRS(nextLocalPosition, nextLocalRotation, nextLocalScale);
+    }
+    return true;
+  }
+
   addComponent<T extends GameComponent>(component: T): T | null {
     if (this.destroyed || component.destroyed || component.gameObject !== null) return null;
     if (!component._setGameObject(this)) return null;
@@ -109,7 +199,7 @@ export class GameObject {
     dynamicComponent.onDestroy();
     component._finishDestroy();
     const index = this.components.indexOf(component);
-    if (index >= 0) this.components.splice(index, 1);
+    if (index >= 0) removeAt(this.components, index);
     return true;
   }
 
