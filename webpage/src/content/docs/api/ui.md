@@ -81,4 +81,4 @@ Enable the Cargo `debug-ui` feature for Linux, macOS, or Windows and check `debu
 
 The egui `ui` backend is available on desktop, Android, iOS, tvOS, visionOS, and Web/WASM. It is unavailable on watchOS. Use `ui.isAvailable()` when a game runs across targets. Dear ImGui debug overlays are available only on Linux, macOS, and Windows when `debug-ui` is enabled.
 
-Text fields use Unicode text input. The Web host forwards browser composition and paste events; iOS connects its native keyboard bridge. Android provides bridge entry points, and its Perry host must call them to show the soft keyboard and forward committed UTF-8 text.
+Text fields use Unicode text input on desktop, including Windows keyboard input and non-BMP characters. The Web host forwards browser composition and paste events; iOS connects its native keyboard bridge. Android provides bridge entry points, and its Perry host must call them to show the soft keyboard and forward committed UTF-8 text.

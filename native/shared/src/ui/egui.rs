@@ -6,7 +6,7 @@ use egui::{
     RawInput, Rect, Shape, Stroke, TouchDeviceId, TouchId, TouchPhase, Ui, Vec2,
 };
 
-use super::{UiBackend, UiCommand, UiInputSnapshot, UiOpcode, UiResponse};
+use super::{color_channel, UiBackend, UiCommand, UiInputSnapshot, UiOpcode, UiResponse};
 
 #[derive(Default)]
 pub struct EguiUi {
@@ -1053,21 +1053,25 @@ fn ordered_range(a: f64, b: f64) -> std::ops::RangeInclusive<f64> {
     a.min(b)..=a.max(b)
 }
 fn color_from_f64(r: f64, g: f64, b: f64, a: f64) -> Color32 {
-    Color32::from_rgba_unmultiplied(channel(r), channel(g), channel(b), channel(a))
-}
-fn channel(value: f64) -> u8 {
-    (if value.is_finite() {
-        value.clamp(0.0, 1.0)
-    } else {
-        1.0
-    } * 255.0)
-        .round() as u8
+    Color32::from_rgba_unmultiplied(
+        color_channel(r),
+        color_channel(g),
+        color_channel(b),
+        color_channel(a),
+    )
 }
 #[cfg(test)]
 mod tests {
+    use super::color_channel;
     use crate::ui::{
         EguiUi, UiBackend, UiCommand, UiInputSnapshot, UiOpcode, UiPointerButtonEvent,
     };
+
+    #[test]
+    fn paint_color_channels_use_engine_byte_range() {
+        assert_eq!(color_channel(128.0), 128);
+        assert_eq!(color_channel(255.0), 255);
+    }
 
     fn window(widget: UiCommand) -> Vec<UiCommand> {
         vec![

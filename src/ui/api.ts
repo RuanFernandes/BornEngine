@@ -23,6 +23,13 @@ const EMPTY_RESPONSE: UiResponse = {
   text: '',
 };
 
+function textureRegistrationId(handle: number): UiId {
+  // Texture handles encode a generation above the low 32-bit slot index.
+  // The slot index is the bounded UI registration key; reusing a texture slot
+  // naturally replaces the stale generation in the native registration map.
+  return Math.trunc(handle % 0x1_0000_0000);
+}
+
 function colorValues(color: Color): number[] {
   return [color.r, color.g, color.b, color.a];
 }
@@ -142,7 +149,7 @@ export function createUiApi(backend: UiBackendId): UiApi {
     endTabItem(id = 0) { command(UiOpcode.EndTabItem, id); },
     progressBar(id, fraction, label = '') { command(UiOpcode.ProgressBar, id, [fraction], label); },
     registerTexture(texture) {
-      command(UiOpcode.RegisterTexture, texture.handle, [texture.handle]);
+      command(UiOpcode.RegisterTexture, textureRegistrationId(texture.handle), [texture.handle]);
       return texture.handle;
     },
     image(id, texture, width, height) {

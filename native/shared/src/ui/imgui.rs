@@ -6,7 +6,8 @@ use std::time::Duration;
 use imgui::{Condition, FontConfig, FontId, FontSource, Key, MouseButton, Ui};
 
 use super::{
-    UiBackend, UiCaptureState, UiCommand, UiInputSnapshot, UiKeyEvent, UiOpcode, UiResponse,
+    color_channel, UiBackend, UiCaptureState, UiCommand, UiInputSnapshot, UiKeyEvent, UiOpcode,
+    UiResponse,
 };
 
 const MAX_FONT_BYTES: usize = 1_048_576;
@@ -1009,15 +1010,8 @@ fn values_origin(ui: &Ui) -> Option<[f32; 2]> {
 }
 
 fn rgba(values: &[f64], start: usize) -> imgui::ImColor32 {
-    let component = |index: usize| {
-        values
-            .get(index)
-            .copied()
-            .and_then(finite_f32)
-            .unwrap_or(1.0)
-            .clamp(0.0, 1.0)
-    };
-    imgui::ImColor32::from_rgba_f32s(
+    let component = |index: usize| values.get(index).copied().map(color_channel).unwrap_or(255);
+    imgui::ImColor32::from_rgba(
         component(start),
         component(start + 1),
         component(start + 2),
@@ -1042,4 +1036,17 @@ fn finite_u32(value: f64) -> Option<u32> {
 fn finite_u64(value: f64) -> Option<u64> {
     (value.is_finite() && value >= 0.0 && value.fract() == 0.0 && value <= u64::MAX as f64)
         .then_some(value as u64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rgba;
+
+    #[test]
+    fn paint_color_channels_use_engine_byte_range() {
+        assert_eq!(
+            rgba(&[128.0, 64.0, 255.0, 200.0], 0).to_rgba(),
+            [128, 64, 255, 200]
+        );
+    }
 }

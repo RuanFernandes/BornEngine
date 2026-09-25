@@ -54,6 +54,14 @@ pub struct UiCaptureState {
 const MAX_QUEUED_COMMANDS: usize = 16_384;
 const MAX_SCRATCH_VALUES: usize = 1_048_576;
 
+fn color_channel(value: f64) -> u8 {
+    if value.is_finite() {
+        value.clamp(0.0, 255.0).round() as u8
+    } else {
+        255
+    }
+}
+
 #[derive(Default)]
 pub struct UiSystem {
     commands: Vec<UiCommand>,

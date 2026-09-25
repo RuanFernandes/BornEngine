@@ -5,6 +5,8 @@ use bloom_shared::audio::{parse_wav, parse_ogg, parse_mp3};
 
 use std::sync::OnceLock;
 
+mod windows_text;
+
 static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
 
 /// True when the engine renders into a host-provided child window (a Perry UI
@@ -193,6 +195,8 @@ mod crash_report {
 #[cfg(windows)]
 mod win32 {
     use super::*;
+    use super::windows_text::WindowsTextDecoder;
+    use std::cell::RefCell;
     use windows::Win32::UI::WindowsAndMessaging::*;
     use windows::Win32::UI::HiDpi::*;
     use windows::Win32::Foundation::*;
@@ -211,6 +215,33 @@ mod win32 {
     static mut IS_FULLSCREEN: bool = false;
     static mut WINDOWED_STYLE: u32 = 0;
     static mut WINDOWED_RECT: RECT = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+
+    thread_local! {
+        static TEXT_DECODER: RefCell<WindowsTextDecoder> = RefCell::new(WindowsTextDecoder::default());
+    }
+
+    fn queue_text_message(msg: u32, wparam: WPARAM) -> Option<LRESULT> {
+        if msg == WM_UNICHAR && wparam.0 as u32 == UNICODE_NOCHAR {
+            return Some(LRESULT(1));
+        }
+
+        let characters = match msg {
+            WM_CHAR => TEXT_DECODER.with(|decoder| {
+                decoder.borrow_mut().decode_char_unit(wparam.0 as u16)
+            }),
+            WM_UNICHAR => TEXT_DECODER.with(|decoder| {
+                decoder.borrow_mut().decode_unichar(wparam.0 as u32)
+            }),
+            _ => return None,
+        };
+
+        if let Some(engine) = unsafe { ENGINE.get_mut() } {
+            for character in characters {
+                engine.input.push_char(character as u32);
+            }
+        }
+        Some(LRESULT(0))
+    }
 
     pub fn set_fullscreen(fullscreen: bool) {
         unsafe {
@@ -257,6 +288,9 @@ mod win32 {
     }
 
     unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        if let Some(result) = queue_text_message(msg, wparam) {
+            return result;
+        }
         match msg {
             WM_CLOSE => {
                 // Diagnostic (title-freeze investigation): who closes us?
@@ -520,6 +554,11 @@ mod win32 {
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
+        if let Some(result) = queue_text_message(msg, wparam) {
+            if msg == WM_UNICHAR && wparam.0 as u32 == UNICODE_NOCHAR {
+                return result;
+            }
+        }
         match msg {
             0x0005 /* WM_SIZE */ => {
                 let phys_w = (lparam.0 & 0xFFFF) as u32;
