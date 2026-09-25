@@ -13,13 +13,28 @@ mkdir -p "$STUB_BIN" "$GAME_DIR/assets"
 cat > "$STUB_BIN/wasm-pack" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-mkdir -p pkg
-printf 'mock wasm' > pkg/bloom_web_bg.wasm
+if [[ "${ALLOW_WASM_PACK_STUB:-0}" != 1 ]]; then
+  echo "wasm-pack stub was invoked before output validation." >&2
+  exit 19
+fi
 STUB
 
 cat > "$STUB_BIN/perry" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
+GAME_FILE="${1:-}"
+if [[ ! -f "$GAME_FILE" ]]; then
+  echo "Perry input does not exist: $GAME_FILE" >&2
+  exit 19
+fi
+if [[ -n "${EXPECTED_PERRY_GAME_FILE:-}" && "$GAME_FILE" != "$EXPECTED_PERRY_GAME_FILE" ]]; then
+  echo "Unexpected Perry input: $GAME_FILE" >&2
+  exit 19
+fi
+if [[ "${EXPECT_ONLY_PERRY_INPUT:-0}" == 1 ]]; then
+  echo "Expected Perry input confirmed: $GAME_FILE"
+  exit 77
+fi
 OUTPUT=""
 while (($#)); do
   if [[ "$1" == "-o" ]]; then
@@ -127,6 +142,40 @@ fi
 
 if [[ ! -L "$ASSET_GAME_DIR/assets" || ! -f "$SHARED_ASSETS/source.txt" ]]; then
   echo "build.sh removed the game's assets symlink or its target file." >&2
+  exit 1
+fi
+
+ENGINE_ALIAS="$TEMP_DIR/bornengine-alias"
+ln -s "$ENGINE_ROOT" "$ENGINE_ALIAS"
+
+set +e
+BUILD_OUTPUT="$("$ENGINE_ALIAS/native/web/build.sh" --dev --output "$ENGINE_ROOT/native/web" 2>&1)"
+BUILD_STATUS=$?
+set -e
+
+if ((BUILD_STATUS == 0)) || [[ "$BUILD_OUTPUT" != *"must not overlap the native/web source tree"* ]]; then
+  echo "Expected build.sh to reject the native/web source tree through a repository symlink." >&2
+  printf '%s\n' "$BUILD_OUTPUT" >&2
+  exit 1
+fi
+
+OUTER_DIR="$TEMP_DIR/outer"
+OUTER_GAME_DIR="$OUTER_DIR/game"
+PATH_OUTPUT="$TEMP_DIR/path-normalized-output"
+mkdir -p "$OUTER_DIR/inner" "$OUTER_GAME_DIR" "$PATH_OUTPUT"
+printf 'export function run() {}\n' > "$OUTER_GAME_DIR/main.ts"
+ln -s "$OUTER_DIR/inner" "$TEMP_DIR/dir-link"
+RAW_GAME_PATH="$TEMP_DIR/dir-link/../game/main.ts"
+
+set +e
+BUILD_OUTPUT="$(EXPECTED_PERRY_GAME_FILE="$OUTER_GAME_DIR/main.ts" EXPECT_ONLY_PERRY_INPUT=1 ALLOW_WASM_PACK_STUB=1 PATH="$STUB_BIN:$PATH" \
+  "$ENGINE_ROOT/native/web/build.sh" --dev "$RAW_GAME_PATH" --output "$PATH_OUTPUT" 2>&1)"
+BUILD_STATUS=$?
+set -e
+
+if ((BUILD_STATUS != 77)) || [[ "$BUILD_OUTPUT" != *"Expected Perry input confirmed: $OUTER_GAME_DIR/main.ts"* ]]; then
+  echo "build.sh did not pass the resolved game path containing a symlinked parent and '..' to Perry." >&2
+  printf '%s\n' "$BUILD_OUTPUT" >&2
   exit 1
 fi
 
