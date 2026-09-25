@@ -25,12 +25,17 @@ models3d = ["dep:gltf", "dep:image_dds"]
 # beyond PNG" in the same sense as jpeg/bmp/tga (decode-only here; the
 # encoder lives in tools/bloom-cook).
 image-extras = ["image/jpeg", "image/bmp", "image/tga", "image/hdr", "dep:image_dds"]
+debug-ui = ["dep:imgui", "dep:imgui-wgpu"]
 
 [build-dependencies]
 cmake = "0.1"
 
 [dependencies]
 wgpu = "29"
+egui = "0.35"
+egui-wgpu = "0.35"
+imgui = { version = "0.12", optional = true, features = ["tables-api"] }
+imgui-wgpu = { version = "0.28", optional = true }
 raw-window-handle = "0.6"
 fontdue = "0.9"
 libc = "0.2"

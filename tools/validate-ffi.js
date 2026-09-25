@@ -21,6 +21,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const PLATFORMS = ['macos', 'linux', 'windows', 'android', 'ios', 'tvos', 'watchos'];
+const NATIVE_ONLY = process.argv.includes('--native-only');
 
 // Exported on purpose but not (yet) declared in the manifest — native-side
 // tooling/profiling surface. Adding one of these to the manifest is a
@@ -34,6 +35,8 @@ const NOT_IN_MANIFEST_ALLOWLIST = new Set([
   'bloom_android_on_touch',
   'bloom_android_set_asset_path',
   'bloom_android_set_native_window',
+  'bloom_android_take_keyboard_request',
+  'bloom_android_inject_text_utf8',
   // watchOS Swift-host glue (called from BloomWatchApp.swift):
   'bloom_watchos_postfx_state',
   'bloom_watchos_scene_drain_destroyed',
@@ -165,7 +168,7 @@ for (const platform of PLATFORMS) {
 // different (String / &[u8] / &[f32] / JsValue params — the _str/_bytes/
 // _floats designs) are skipped: only signatures that are pure f64 mirrors
 // are compared, which is precisely where drift is a bug.
-{
+if (!NATIVE_ONLY) {
   const webSrc = readDirRust(path.join(ROOT, 'native/web/src'));
   const names = new Set();
   // name -> {arity, allF64} for the Rust exports (the jolt bridge's JS

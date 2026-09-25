@@ -18,7 +18,7 @@ use objc2::{msg_send, sel};
 
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
 
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::sync::OnceLock;
 
 static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
@@ -138,6 +138,35 @@ unsafe extern "C" fn bloom_touches_cancelled(_this: *mut c_void, _sel: Sel, touc
     handle_touches(touches, TouchPhase::Ended);
 }
 
+unsafe extern "C" fn bloom_can_become_first_responder(_this: *const c_void, _sel: Sel) -> Bool {
+    Bool::YES
+}
+
+unsafe extern "C" fn bloom_text_input_has_text(_this: *const c_void, _sel: Sel) -> Bool {
+    Bool::YES
+}
+
+unsafe extern "C" fn bloom_text_input_insert_text(
+    _this: *mut c_void,
+    _sel: Sel,
+    text: *const AnyObject,
+) {
+    if text.is_null() { return; }
+    let utf8: *const std::ffi::c_char = msg_send![text, UTF8String];
+    if utf8.is_null() { return; }
+    let text = CStr::from_ptr(utf8).to_string_lossy().into_owned();
+    if let Some(engine) = ENGINE.get_mut() {
+        engine.ui.inject_text(text);
+    }
+}
+
+unsafe extern "C" fn bloom_text_input_delete_backward(_this: *mut c_void, _sel: Sel) {
+    if let Some(engine) = ENGINE.get_mut() {
+        engine.input.inject_key_down(8);
+        engine.input.inject_key_up(8);
+    }
+}
+
 enum TouchPhase { Began, Moved, Ended }
 
 unsafe fn handle_touches(touches: *const AnyObject, phase: TouchPhase) {
@@ -225,6 +254,21 @@ fn register_metal_view_class() {
         class_addMethod(cls, sel!(touchesMoved:withEvent:), bloom_touches_moved as *const c_void, touch_types);
         class_addMethod(cls, sel!(touchesEnded:withEvent:), bloom_touches_ended as *const c_void, touch_types);
         class_addMethod(cls, sel!(touchesCancelled:withEvent:), bloom_touches_cancelled as *const c_void, touch_types);
+
+        extern "C" { fn objc_getProtocol(name: *const u8) -> *const c_void; }
+        let keyboard_protocol = objc_getProtocol(b"UIKeyInput\0".as_ptr());
+        if !keyboard_protocol.is_null() {
+            class_addProtocol(cls, keyboard_protocol);
+            class_addMethod(
+                cls,
+                sel!(canBecomeFirstResponder),
+                bloom_can_become_first_responder as *const c_void,
+                b"B16@0:8\0".as_ptr(),
+            );
+            class_addMethod(cls, sel!(hasText), bloom_text_input_has_text as *const c_void, b"B16@0:8\0".as_ptr());
+            class_addMethod(cls, sel!(insertText:), bloom_text_input_insert_text as *const c_void, b"v24@0:8@16\0".as_ptr());
+            class_addMethod(cls, sel!(deleteBackward), bloom_text_input_delete_backward as *const c_void, b"v16@0:8\0".as_ptr());
+        }
 
         objc_registerClassPair(cls);
     }
@@ -890,6 +934,20 @@ pub extern "C" fn bloom_begin_drawing() {
     // No run loop pumping needed — UIApplicationMain handles the main run loop
     // on its own thread. The game runs on the game thread.
 
+    // Apply UI text-focus transitions before beginning the next input snapshot.
+    match engine().ui.take_keyboard_request() {
+        Some(show) => unsafe {
+            if let Some(view) = &UI_VIEW {
+                let view_ptr = Retained::as_ptr(view);
+                let selector = if show { sel!(becomeFirstResponder) } else { sel!(resignFirstResponder) };
+                let _: () = msg_send![view_ptr, performSelectorOnMainThread: selector
+                    withObject: std::ptr::null::<AnyObject>()
+                    waitUntilDone: Bool::NO];
+            }
+        },
+        None => {}
+    }
+
     // Poll a connected controller before either begin_frame path below.
     poll_game_controllers();
 
@@ -1264,4 +1322,3 @@ fn bloom_jolt_ffi_physics() -> &'static mut bloom_shared::physics_jolt::JoltPhys
 
 #[cfg(feature = "jolt")]
 bloom_shared::define_physics_ffi!();
-

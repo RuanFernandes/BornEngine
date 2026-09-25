@@ -75,6 +75,9 @@ impl Renderer {
         self.textures[i] = texture;
         self.texture_bind_groups[i] = bind_group;
         self.texture_sizes[i] = (width, height);
+        self.refresh_egui_texture_index(idx);
+        #[cfg(feature = "debug-ui")]
+        self.refresh_dear_imgui_texture_index(idx);
     }
 
     /// Register a texture with optional normal-map preprocessing.
@@ -328,6 +331,8 @@ impl Renderer {
         self.textures[i] = white;
         self.texture_bind_groups[i] = bind_group;
         self.texture_sizes[i] = (0, 0);
+        #[cfg(feature = "debug-ui")]
+        self.refresh_dear_imgui_texture_index(idx);
     }
 
     /// Drop a model's cached GPU meshes. Must be called when the model is

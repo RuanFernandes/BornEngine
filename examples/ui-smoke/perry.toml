@@ -1,0 +1,3 @@
+[native-library."@bornengine/engine"]
+default-features = false
+features = ["debug-ui", "models3d"]

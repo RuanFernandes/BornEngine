@@ -190,3 +190,9 @@ export type {
   SceneNodeComponentOptions,
   TransformOptions,
 } from './game/index';
+
+export { ui } from './ui/index';
+export type { UiApi, UiId, UiResponse, UiColor } from './ui/index';
+
+export { debugUi } from './debug-ui/index';
+export type { DebugUiApi } from './debug-ui/index';

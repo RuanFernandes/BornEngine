@@ -52,6 +52,8 @@ let manifestPaths = null;   // Set<string> when a manifest was loaded
 // browser only grants pointer lock inside a user gesture, and revokes it on
 // ESC without delivering the keydown. Both mismatches are reconciled here.
 let wantPointerLock = false;
+let uiTextInput = null;
+let uiTextInputFocused = false;
 
 /**
  * Idempotent engine bootstrap. Safe to call multiple times; only the first
@@ -203,6 +205,14 @@ function buildFfiImports() {
     bloom.bloom_measure_text_str(String(text), size);
   imports.bloom_measure_text_ex = (font, text, size, spacing) =>
     bloom.bloom_measure_text_ex_str(font, String(text), size, spacing);
+
+  // Route whole-string UI commands through wasm-bindgen string parameters.
+  imports.bloom_ui_command = (backend, opcode, id, a, b, c, d, text) =>
+    bloom.bloom_ui_command_str(backend, opcode, id, a, b, c, d, String(text));
+  imports.bloom_ui_scratch_command = (backend, opcode, id, count, text) =>
+    bloom.bloom_ui_scratch_command_str(backend, opcode, id, count, String(text));
+  imports.bloom_ui_inject_text = (text) =>
+    bloom.bloom_ui_inject_text_str(String(text));
 
   // --- Materials & post-FX: shader source strings route to _str variants ---
   const materialVariants = [
@@ -384,6 +394,7 @@ function startRafLoop() {
       document.getElementById('loading')?.remove();
     }
     flushInput();
+    syncUiKeyboardRequest();
     bloom.bloom_begin_drawing();
     if (gameCallback !== null && typeof globalThis.callWasmClosure === 'function') {
       const dt = bloom.bloom_get_delta_time();
@@ -520,6 +531,44 @@ function setupDomBridge() {
   const canvas = document.getElementById('bloom-canvas');
   if (!canvas) return;
 
+  // Browsers deliver text and IME composition through DOM editing events,
+  // not keyboard key codes. Keep a real focusable control so mobile browsers
+  // can show their soft keyboard, while visually leaving the game canvas
+  // unchanged.
+  uiTextInput = document.createElement('textarea');
+  uiTextInput.setAttribute('aria-label', 'Game text input');
+  uiTextInput.autocomplete = 'off';
+  uiTextInput.autocapitalize = 'off';
+  uiTextInput.spellcheck = false;
+  Object.assign(uiTextInput.style, {
+    position: 'fixed', left: '0', bottom: '0', width: '1px', height: '1px',
+    padding: '0', border: '0', opacity: '0', resize: 'none', overflow: 'hidden',
+    zIndex: '-1', caretColor: 'transparent',
+  });
+  document.body.appendChild(uiTextInput);
+  let composing = false;
+  uiTextInput.addEventListener('compositionstart', () => { composing = true; });
+  uiTextInput.addEventListener('compositionend', (e) => {
+    composing = false;
+    if (e.data) bloom.bloom_ui_inject_text(String(e.data));
+    uiTextInput.value = '';
+  });
+  uiTextInput.addEventListener('input', (e) => {
+    if (composing || e.isComposing || e.inputType === 'insertFromComposition') {
+      uiTextInput.value = '';
+      return;
+    }
+    if (e.inputType?.startsWith('insert') && e.data) {
+      bloom.bloom_ui_inject_text(String(e.data));
+    }
+    uiTextInput.value = '';
+  });
+  uiTextInput.addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text/plain') ?? '';
+    if (text) bloom.bloom_ui_inject_text(text);
+    e.preventDefault();
+  });
+
   // HiDPI: keep the canvas backing store + renderer surface in sync with the
   // CSS box and devicePixelRatio. Clamp dpr to 3 to bound GPU cost.
   function syncCanvasSize() {
@@ -570,10 +619,10 @@ function setupDomBridge() {
     const code = keyMap[e.code];
     if (code !== undefined) {
       inputQueue.push({ kind: 'key', k: 'k' + code, code, up: false });
-      if (e.code !== 'F12' && e.code !== 'F5') e.preventDefault();
+      if (!uiTextInputFocused && e.code !== 'F12' && e.code !== 'F5') e.preventDefault();
     }
     if (typeof bloom.bloom_inject_char === 'function'
-        && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        && !uiTextInputFocused && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       bloom.bloom_inject_char(e.key.codePointAt(0));
     }
   });
@@ -634,14 +683,21 @@ function setupDomBridge() {
   // Touch. Browser touch identifiers are arbitrary; map them onto stable
   // slots 0..N-1 the way the engine's sparse touch API expects. Release goes
   // through the deferred path so a same-frame tap stays visible.
-  const touchSlots = new Map(); // identifier → slot
-  function slotFor(id) {
-    let s = touchSlots.get(id);
-    if (s !== undefined) return s;
+  const touchSlots = new Map(); // browser identifier → stable engine slot
+  const touchCapacity = Math.max(0, Math.min(10,
+    (typeof bloom.bloom_get_max_touch_points === 'function'
+      ? bloom.bloom_get_max_touch_points() : 10) | 0));
+  function slotForStart(id) {
+    const existing = touchSlots.get(id);
+    if (existing !== undefined) return existing;
     const used = new Set(touchSlots.values());
-    for (s = 0; used.has(s); s++);
-    touchSlots.set(id, s);
-    return s;
+    for (let slot = 0; slot < touchCapacity; slot++) {
+      if (!used.has(slot)) {
+        touchSlots.set(id, slot);
+        return slot;
+      }
+    }
+    return undefined;
   }
   function touchXY(t) {
     const rect = canvas.getBoundingClientRect();
@@ -650,15 +706,19 @@ function setupDomBridge() {
   canvas.addEventListener('touchstart', (e) => {
     resumeAudio();
     for (const t of e.changedTouches) {
+      const slot = slotForStart(t.identifier);
+      if (slot === undefined) continue;
       const [x, y] = touchXY(t);
-      bloom.bloom_inject_touch(slotFor(t.identifier), x, y, 1);
+      bloom.bloom_inject_touch(slot, x, y, 1);
     }
     e.preventDefault();
   }, { passive: false });
   canvas.addEventListener('touchmove', (e) => {
     for (const t of e.changedTouches) {
+      const slot = touchSlots.get(t.identifier);
+      if (slot === undefined) continue;
       const [x, y] = touchXY(t);
-      bloom.bloom_inject_touch(slotFor(t.identifier), x, y, 1);
+      bloom.bloom_inject_touch(slot, x, y, 1);
     }
     e.preventDefault();
   }, { passive: false });
@@ -676,6 +736,19 @@ function setupDomBridge() {
   canvas.addEventListener('touchcancel', touchEnd, { passive: false });
 
   document.addEventListener('pointerdown', resumeAudio);
+}
+
+function syncUiKeyboardRequest() {
+  if (!uiTextInput || typeof bloom.bloom_ui_take_keyboard_request !== 'function') return;
+  const request = bloom.bloom_ui_take_keyboard_request(0);
+  if (request > 0.5 && !uiTextInputFocused) {
+    uiTextInputFocused = true;
+    uiTextInput.focus({ preventScroll: true });
+  } else if (request >= 0 && request <= 0.5 && uiTextInputFocused) {
+    uiTextInputFocused = false;
+    uiTextInput.blur();
+    uiTextInput.value = '';
+  }
 }
 
 // --- Auto-boot on import ---
