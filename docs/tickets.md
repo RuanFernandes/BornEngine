@@ -211,19 +211,19 @@ allow-with-comment).
 
 ---
 
-## EN-008 — Cargo feature for `notify` watcher 🟡
+## EN-008 — Cargo feature for `notify` watcher ✅ *(closed 2026-09-25)*
 
-**Why:** `notify` is unconditionally pulled into the build. The
-hot-reload watcher itself is gated by `BLOOM_NO_HOT_RELOAD=1` at
-runtime, but the dependency still bloats the binary in shipped
-builds. Phase 6 closes its sub-item via runtime gate; an additional
-compile-time `hot-reload` feature would make it truly opt-out.
+**Why:** although `bloom-shared` had a compile-time `hot-reload` feature,
+the platform crates disabled dependency defaults and forwarded only `mp3`.
+Game builds therefore had no platform feature to turn shader reload on.
 
-**Scope:** small — feature flag + cfg on the `MaterialHotReload`
-struct + the call site in `engine.rs`.
+**Change:** renderer-backed native crates for Android, iOS, Linux, macOS, tvOS,
+visionOS, and Windows expose `hot-reload` and the convenient `dev` alias. The
+current watchOS crate does not expose this feature. Release builds omit the
+watcher unless they explicitly enable one of those features.
 
-**Acceptance:** `cargo build --release --no-default-features` for
-the shooter ships a binary without `notify` linked.
+**Acceptance:** enabling `dev` forwards `bloom-shared/hot-reload`; builds that
+omit `dev` do not enable `notify` through the platform crate.
 
 ---
 
