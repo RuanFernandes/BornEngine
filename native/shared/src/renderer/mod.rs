@@ -9831,6 +9831,12 @@ impl Renderer {
 
     #[cfg(feature = "debug-ui")]
     pub(crate) fn init_dear_imgui(&mut self) {
+        // Headless renderers never submit the Dear ImGui surface pass. Avoid
+        // creating a process-global ImGui context for offscreen renderers,
+        // which can be constructed concurrently by tests or server tools.
+        if self.surface.is_none() {
+            return;
+        }
         crate::ui::with_dear_imgui(|ui| {
             self.dear_imgui_renderer = Some(imgui_wgpu::Renderer::new(
                 ui.context_mut(),
