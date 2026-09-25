@@ -84,6 +84,12 @@ export const apiCoverage = [
     href: '/docs/api/mobile/',
     sections: ['Joystick', 'Buttons', 'Touch claims'],
   },
+  {
+    slug: 'ui',
+    file: 'api/ui.md',
+    href: '/docs/api/ui/',
+    sections: ['Player UI', 'Layout, input, and responses', 'Custom drawing and assets', 'Developer overlay', 'Platform support'],
+  },
 ];
 
 const recipeSections = ['Setup', 'Game loop', 'Complete example', 'Next steps'];

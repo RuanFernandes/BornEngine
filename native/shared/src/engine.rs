@@ -22,6 +22,7 @@ pub struct EngineState {
     pub renderer: Renderer,
     pub text: TextRenderer,
     pub input: InputState,
+    pub ui: crate::ui::UiSystem,
     pub audio: AudioMixer,
     pub textures: TextureManager,
     #[cfg(feature = "models3d")]
@@ -84,10 +85,18 @@ impl EngineState {
         // BLAS_INPUT cost only when it can be used.
         let mut scene = SceneGraph::new();
         scene.hw_rt_enabled = renderer.hw_rt_enabled;
+        let ui = crate::ui::UiSystem::default();
+        #[cfg(feature = "debug-ui")]
+        let renderer = {
+            let mut renderer = renderer;
+            renderer.init_dear_imgui();
+            renderer
+        };
         Self {
             renderer,
             text: TextRenderer::new(),
             input: InputState::new(),
+            ui,
             audio: AudioMixer::new(),
             textures: TextureManager::new(),
             #[cfg(feature = "models3d")]
@@ -162,6 +171,8 @@ impl EngineState {
         }
 
         self.input.begin_frame();
+        self.ui.begin_frame();
+        self.ui.set_input_snapshot(self.input.ui_snapshot());
         self.renderer.begin_frame();
         self.frame_count += 1;
     }
@@ -182,6 +193,37 @@ impl EngineState {
     }
 
     pub fn end_frame(&mut self) {
+        let logical_width = self.renderer.width().max(1) as f32;
+        let logical_height = self.renderer.height().max(1) as f32;
+        let pixels_per_point = self.renderer.physical_width() as f32 / logical_width;
+        let ui_frame = self.ui.evaluate_egui(
+            [0.0, 0.0, logical_width, logical_height],
+            pixels_per_point,
+            self.delta_time,
+        );
+        let native_texture_indices = ui_frame
+            .registered_textures
+            .values()
+            .filter_map(|&handle| {
+                self.textures
+                    .get(handle as f64)
+                    .map(|texture| (handle, texture.bind_group_idx))
+            })
+            .collect();
+        self.renderer
+            .set_egui_frame(ui_frame, native_texture_indices);
+
+        let debug_native_texture_indices = self
+            .ui
+            .registered_texture_handles(crate::ui::UiBackend::DearImGui)
+            .into_iter()
+            .filter_map(|handle| {
+                self.textures
+                    .get(handle as f64)
+                    .map(|texture| (handle, texture.bind_group_idx))
+            })
+            .collect();
+
         if self.direct_2d_mode {
             // Fast path for pure-2D games: render direct to the swapchain,
             // skipping scene prep, shadow maps, HDR/tonemap, SSAO, bloom,
@@ -190,7 +232,11 @@ impl EngineState {
             // when the scene graph is empty; this path typically hits
             // 60 fps on the same device.
             self.profiler.begin("render_total");
-            self.renderer.end_frame();
+            self.renderer.end_frame_with_ui(
+                &mut self.ui,
+                self.delta_time,
+                debug_native_texture_indices,
+            );
             self.profiler.end("render_total");
         } else {
             self.profiler.begin("scene_prepare");
@@ -233,7 +279,13 @@ impl EngineState {
             self.renderer.material_system_begin_frame(t, dt);
 
             self.profiler.begin("render_total");
-            self.renderer.end_frame_with_scene(&mut self.scene, &mut self.profiler);
+            self.renderer.end_frame_with_scene_ui(
+                &mut self.scene,
+                &mut self.profiler,
+                &mut self.ui,
+                self.delta_time,
+                debug_native_texture_indices,
+            );
             self.profiler.end("render_total");
         }
 

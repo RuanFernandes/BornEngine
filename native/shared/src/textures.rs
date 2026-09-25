@@ -102,6 +102,8 @@ impl TextureManager {
 
     pub fn unload_texture(&mut self, handle: f64, renderer: &mut Renderer) {
         if let Some(tex) = self.textures.free(handle) {
+            renderer.unload_egui_texture(handle as u64);
+            renderer.unload_imgui_texture(handle as u64);
             renderer.unload_texture(tex.bind_group_idx);
         }
     }

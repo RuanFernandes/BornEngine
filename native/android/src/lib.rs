@@ -3,13 +3,17 @@ use bloom_shared::renderer::Renderer;
 use bloom_shared::string_header::{str_from_header, alloc_perry_string};
 use bloom_shared::audio::{parse_wav, parse_ogg, parse_mp3};
 
-use std::sync::OnceLock;
+use std::collections::VecDeque;
+use std::sync::{Mutex, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
 static mut NATIVE_WINDOW: *mut libc::c_void = std::ptr::null_mut();
 static AUDIO_RUNNING: AtomicBool = AtomicBool::new(false);
 static mut ASSET_BASE_PATH: Option<String> = None;
+static ANDROID_UI_KEYBOARD_REQUEST: std::sync::atomic::AtomicI32 =
+    std::sync::atomic::AtomicI32::new(-1);
+static ANDROID_UI_TEXT: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
 
 fn engine() -> &'static mut EngineState {
     unsafe { ENGINE.get_mut().expect("Engine not initialized") }
@@ -378,15 +382,47 @@ pub extern "C" fn bloom_android_on_touch(action: i32, x: f64, y: f64, pointer_in
     }
 }
 
+/// Poll from the Android UI host and translate the result to an
+/// InputMethodManager show/hide request on its UI thread. -1 means no change.
+#[no_mangle]
+pub extern "C" fn bloom_android_take_keyboard_request() -> i32 {
+    ANDROID_UI_KEYBOARD_REQUEST.swap(-1, Ordering::AcqRel)
+}
+
+/// Inject committed text from the host's InputConnection as UTF-8 bytes.
+#[no_mangle]
+pub extern "C" fn bloom_android_inject_text_utf8(bytes: *const u8, len: usize) {
+    if bytes.is_null() || len == 0 { return; }
+    let text = unsafe { std::slice::from_raw_parts(bytes, len) };
+    let text = String::from_utf8_lossy(text).into_owned();
+    let queue = ANDROID_UI_TEXT.get_or_init(|| Mutex::new(VecDeque::new()));
+    if let Ok(mut queue) = queue.lock() {
+        queue.push_back(text);
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn bloom_begin_drawing() {
-    engine().begin_frame();
+    let pending_text = ANDROID_UI_TEXT
+        .get_or_init(|| Mutex::new(VecDeque::new()))
+        .lock()
+        .map(|mut queue| queue.drain(..).collect::<Vec<_>>())
+        .unwrap_or_default();
+    let engine = engine();
+    for text in pending_text {
+        engine.ui.inject_text(text);
+    }
+    engine.begin_frame();
 }
 
 #[no_mangle]
 pub extern "C" fn bloom_end_drawing() {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        engine().end_frame();
+        let engine = engine();
+        engine.end_frame();
+        if let Some(show) = engine.ui.take_keyboard_request() {
+            ANDROID_UI_KEYBOARD_REQUEST.store(if show { 1 } else { 0 }, Ordering::Release);
+        }
     }));
     if let Err(e) = result {
         let msg = if let Some(s) = e.downcast_ref::<&str>() {

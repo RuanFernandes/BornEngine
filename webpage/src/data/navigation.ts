@@ -56,6 +56,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'VFX', href: '/docs/api/vfx/' },
       { title: 'World', href: '/docs/api/world/' },
       { title: 'Mobile', href: '/docs/api/mobile/' },
+      { title: 'UI', href: '/docs/api/ui/' },
     ],
   },
   {

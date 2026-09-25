@@ -17,6 +17,11 @@ pub struct InputState {
     keys_down: [bool; MAX_KEYS],
     keys_released: [bool; MAX_KEYS],
     prev_keys_down: [bool; MAX_KEYS],
+    // Preserve complete edge transitions for UI input when press/release both
+    // arrive before begin_frame computes the gameplay-facing key state.
+    pending_key_pressed: [bool; MAX_KEYS],
+    pending_key_released: [bool; MAX_KEYS],
+    pending_ui_events: Vec<crate::ui::UiInputEvent>,
 
     // Injected keys (bloom_inject_key_down/up) are staged here and applied at the
     // top of begin_frame, rather than written straight into keys_down.
@@ -55,6 +60,11 @@ pub struct InputState {
     char_queue: [u32; 32],
     char_queue_head: usize,
     char_queue_tail: usize,
+    /// Independent consumer queue for the UI input snapshot. Games and UI
+    /// widgets each receive text once without advancing the other's cursor.
+    ui_char_queue: [u32; 32],
+    ui_char_queue_head: usize,
+    ui_char_queue_tail: usize,
     /// Cursor shape requested by the editor. The platform event loop polls
     /// this and applies the appropriate native cursor.
     /// 0=default, 1=hand, 2=move, 3=text, 4=resize_h, 5=resize_v, 6=crosshair
@@ -111,6 +121,9 @@ impl InputState {
             keys_down: [false; MAX_KEYS],
             keys_released: [false; MAX_KEYS],
             prev_keys_down: [false; MAX_KEYS],
+            pending_key_pressed: [false; MAX_KEYS],
+            pending_key_released: [false; MAX_KEYS],
+            pending_ui_events: Vec::new(),
             pending_key_down: [false; MAX_KEYS],
             pending_key_up: [false; MAX_KEYS],
             mouse_x: 0.0,
@@ -126,6 +139,9 @@ impl InputState {
             char_queue: [0; 32],
             char_queue_head: 0,
             char_queue_tail: 0,
+            ui_char_queue: [0; 32],
+            ui_char_queue_head: 0,
+            ui_char_queue_tail: 0,
             cursor_shape: 0,
             cursor_disabled: false,
             mouse_pressed: [false; MAX_MOUSE_BUTTONS],
@@ -154,6 +170,15 @@ impl InputState {
     /// one-frame isKeyRepeated edge by the next begin_frame.
     pub fn queue_key_repeat(&mut self, key: usize) {
         if key < MAX_KEYS {
+            if !self.repeat_pending[key] {
+                self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
+                    crate::ui::UiKeyEvent {
+                        key: key as u32,
+                        pressed: true,
+                        repeated: true,
+                    },
+                ));
+            }
             self.repeat_pending[key] = true;
         }
     }
@@ -208,6 +233,8 @@ impl InputState {
 
     pub fn end_frame(&mut self) {
         self.prev_keys_down = self.keys_down;
+        // Pending UI key edges are consumed in ui_snapshot so late events can
+        // survive this frame boundary.
         self.prev_mouse_down = self.mouse_down;
         self.prev_gamepad_buttons = self.gamepad_buttons_down;
         self.prev_mouse_x = self.mouse_x;
@@ -228,16 +255,67 @@ impl InputState {
     // Keyboard
     /// Real key events, delivered from the platform's message pump. These run
     /// before begin_frame(), so writing keys_down directly is correct here.
-    pub fn set_key_down(&mut self, key: usize) { if key < MAX_KEYS { self.keys_down[key] = true; } }
-    pub fn set_key_up(&mut self, key: usize) { if key < MAX_KEYS { self.keys_down[key] = false; } }
+    pub fn set_key_down(&mut self, key: usize) {
+        if key < MAX_KEYS {
+            if !self.keys_down[key] {
+                self.pending_key_pressed[key] = true;
+                self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
+                    crate::ui::UiKeyEvent {
+                        key: key as u32,
+                        pressed: true,
+                        repeated: false,
+                    },
+                ));
+            }
+            self.keys_down[key] = true;
+        }
+    }
+    pub fn set_key_up(&mut self, key: usize) {
+        if key < MAX_KEYS {
+            if self.keys_down[key] {
+                self.pending_key_released[key] = true;
+                self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
+                    crate::ui::UiKeyEvent {
+                        key: key as u32,
+                        pressed: false,
+                        repeated: false,
+                    },
+                ));
+            }
+            self.keys_down[key] = false;
+        }
+    }
 
     /// Synthetic key events (bloom_inject_key_down/up), which callers raise from
-    /// inside the game loop. Staged, not written — see pending_key_down.
+    /// inside the game loop. Their UI edges are kept even if a down/up pair is
+    /// staged before the next frame.
     pub fn inject_key_down(&mut self, key: usize) {
-        if key < MAX_KEYS { self.pending_key_down[key] = true; self.pending_key_up[key] = false; }
+        if key < MAX_KEYS {
+            self.pending_key_down[key] = true;
+            self.pending_key_up[key] = false;
+            self.pending_key_pressed[key] = true;
+            self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
+                crate::ui::UiKeyEvent {
+                    key: key as u32,
+                    pressed: true,
+                    repeated: false,
+                },
+            ));
+        }
     }
     pub fn inject_key_up(&mut self, key: usize) {
-        if key < MAX_KEYS { self.pending_key_up[key] = true; self.pending_key_down[key] = false; }
+        if key < MAX_KEYS {
+            self.pending_key_up[key] = true;
+            self.pending_key_down[key] = false;
+            self.pending_key_released[key] = true;
+            self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
+                crate::ui::UiKeyEvent {
+                    key: key as u32,
+                    pressed: false,
+                    repeated: false,
+                },
+            ));
+        }
     }
 
     pub fn is_key_pressed(&self, key: usize) -> bool { key < MAX_KEYS && self.keys_pressed[key] }
@@ -256,15 +334,43 @@ impl InputState {
         self.mouse_wheel_y = 0.0;
         v
     }
-    /// Push a Unicode codepoint into the character input queue. Called by
-    /// platform event loops when a key-down event produces a printable char.
+    /// Push a Unicode codepoint into independent gameplay and UI text queues.
+    /// Platform event loops call this for committed text input.
     pub fn push_char(&mut self, c: u32) {
-        let next = (self.char_queue_head + 1) % self.char_queue.len();
-        if next != self.char_queue_tail {
-            self.char_queue[self.char_queue_head] = c;
-            self.char_queue_head = next;
+        push_char_to_queue(
+            &mut self.char_queue,
+            &mut self.char_queue_head,
+            self.char_queue_tail,
+            c,
+        );
+        push_char_to_queue(
+            &mut self.ui_char_queue,
+            &mut self.ui_char_queue_head,
+            self.ui_char_queue_tail,
+            c,
+        );
+        if let Some(character) = char::from_u32(c) {
+            self.pending_ui_events
+                .push(crate::ui::UiInputEvent::Text(character.to_string()));
         }
-        // If the queue is full, silently drop the character.
+    }
+
+    /// Push committed text directly to the UI without exposing it through the
+    /// gameplay character queue.
+    pub fn push_ui_text(&mut self, text: String) {
+        if text.is_empty() {
+            return;
+        }
+        self.pending_ui_events
+            .push(crate::ui::UiInputEvent::Text(text.clone()));
+        for character in text.chars() {
+            push_char_to_queue(
+                &mut self.ui_char_queue,
+                &mut self.ui_char_queue_head,
+                self.ui_char_queue_tail,
+                character as u32,
+            );
+        }
     }
 
     /// Pop the next queued character. Returns 0 when the queue is empty.
@@ -392,6 +498,90 @@ impl InputState {
             || self.gamepad_buttons_pressed.iter().any(|&g| g)
             || self.touch_count > 0
     }
+
+    /// Snapshot input for UI evaluation. Text is consumed from its dedicated UI
+    /// queue, leaving the game's character queue and other getters untouched.
+    pub fn ui_snapshot(&mut self) -> crate::ui::UiInputSnapshot {
+        use crate::ui::{
+            UiInputSnapshot, UiKeyEvent, UiModifiers, UiPointerButtonEvent, UiTouchEvent,
+        };
+
+        let pointer_buttons = (0..MAX_MOUSE_BUTTONS).flat_map(|button| {
+            let mut events = Vec::with_capacity(2);
+            if self.mouse_pressed[button] {
+                events.push(UiPointerButtonEvent { button: button as u8, pressed: true });
+            }
+            if self.mouse_released[button] {
+                events.push(UiPointerButtonEvent { button: button as u8, pressed: false });
+            }
+            events
+        }).collect();
+
+        let ordered_events = std::mem::take(&mut self.pending_ui_events);
+        let mut keys = Vec::new();
+        for key in 0..MAX_KEYS {
+            if self.keys_pressed[key] || self.pending_key_pressed[key] {
+                keys.push(UiKeyEvent { key: key as u32, pressed: true, repeated: false });
+            }
+            if self.keys_released[key] || self.pending_key_released[key] {
+                keys.push(UiKeyEvent { key: key as u32, pressed: false, repeated: false });
+            }
+            // Clear an edge only after this snapshot observes it. UI events
+            // arriving after this point belong to the next snapshot.
+            self.pending_key_pressed[key] = false;
+            self.pending_key_released[key] = false;
+            if self.keys_repeated[key] {
+                keys.push(UiKeyEvent { key: key as u32, pressed: true, repeated: true });
+            }
+        }
+
+        let mut text = Vec::new();
+        while self.ui_char_queue_tail != self.ui_char_queue_head {
+            let character = self.ui_char_queue[self.ui_char_queue_tail];
+            self.ui_char_queue_tail = (self.ui_char_queue_tail + 1) % self.ui_char_queue.len();
+            if let Some(ch) = char::from_u32(character) {
+                text.push(ch.to_string());
+            }
+        }
+
+        let touches = (0..MAX_TOUCH_POINTS).filter_map(|slot| {
+            let point = &self.touch_points[slot];
+            (point.active || self.touch_pending_release[slot]).then_some(UiTouchEvent {
+                slot,
+                x: point.x,
+                y: point.y,
+                active: point.active,
+                released: self.touch_pending_release[slot],
+            })
+        }).collect();
+
+        UiInputSnapshot {
+            pointer_position: Some([self.mouse_x, self.mouse_y]),
+            pointer_delta: [self.mouse_delta_x, self.mouse_delta_y],
+            pointer_buttons,
+            scroll_x: 0.0,
+            scroll_y: self.mouse_wheel_y,
+            ordered_events,
+            keys,
+            modifiers: UiModifiers {
+                shift: self.keys_down[280] || self.keys_down[281],
+                ctrl: self.keys_down[282] || self.keys_down[283],
+                alt: self.keys_down[284] || self.keys_down[285],
+                super_key: self.keys_down[286] || self.keys_down[287],
+            },
+            text,
+            touches,
+        }
+    }
+}
+
+fn push_char_to_queue(queue: &mut [u32; 32], head: &mut usize, tail: usize, character: u32) {
+    let next = (*head + 1) % queue.len();
+    if next != tail {
+        queue[*head] = character;
+        *head = next;
+    }
+    // If the queue is full, silently drop the character.
 }
 
 #[cfg(test)]
@@ -444,5 +634,120 @@ mod tests {
         assert!(!input.is_mouse_button_pressed(0));
         assert!(!input.is_mouse_button_down(0));
         assert!(!input.is_mouse_button_released(0));
+    }
+
+    #[test]
+    fn ui_snapshot_keeps_scroll_and_text_after_game_consumes_them() {
+        let mut input = InputState::new();
+        input.accumulate_mouse_wheel(1.0);
+        input.push_char('é' as u32);
+        input.begin_frame();
+
+        let snapshot = input.ui_snapshot();
+        assert_eq!(snapshot.scroll_y, 1.0);
+        assert_eq!(input.consume_mouse_wheel(), 1.0);
+        assert_eq!(snapshot.text, vec!["é"]);
+        assert_eq!(input.pop_char(), 'é' as u32);
+    }
+
+    #[test]
+    fn ui_snapshot_delivers_each_character_only_once() {
+        let mut input = InputState::new();
+        input.push_char('x' as u32);
+
+        assert_eq!(input.ui_snapshot().text, vec!["x"]);
+        assert!(input.ui_snapshot().text.is_empty());
+        assert_eq!(input.pop_char(), 'x' as u32);
+    }
+
+    #[test]
+    fn game_character_reads_do_not_consume_ui_text() {
+        let mut input = InputState::new();
+        input.push_char('y' as u32);
+
+        assert_eq!(input.pop_char(), 'y' as u32);
+        assert_eq!(input.ui_snapshot().text, vec!["y"]);
+    }
+
+    #[test]
+    fn ui_snapshot_keeps_touch_release_for_a_fast_tap() {
+        let mut input = InputState::new();
+        input.set_touch(0, 12.0, 34.0, true);
+        input.release_touch(0, 12.0, 34.0);
+        input.begin_frame();
+
+        let snapshot = input.ui_snapshot();
+        let touch = snapshot.touches.iter().find(|touch| touch.slot == 0).unwrap();
+        assert!(touch.active);
+        assert!(touch.released);
+    }
+
+    #[test]
+    fn ui_snapshot_keeps_fast_key_click_edges() {
+        let mut input = InputState::new();
+        input.set_key_down(65);
+        input.set_key_up(65);
+        input.begin_frame();
+
+        let snapshot = input.ui_snapshot();
+        assert!(snapshot.keys.iter().any(|event| event.key == 65 && event.pressed));
+        assert!(snapshot.keys.iter().any(|event| event.key == 65 && !event.pressed));
+        assert!(!input.is_key_pressed(65));
+        assert!(!input.is_key_released(65));
+    }
+
+    #[test]
+    fn ui_snapshot_keeps_injected_key_tap_edges() {
+        let mut input = InputState::new();
+        input.inject_key_down(8);
+        input.inject_key_up(8);
+        input.begin_frame();
+
+        let snapshot = input.ui_snapshot();
+        assert!(snapshot.keys.iter().any(|event| event.key == 8 && event.pressed));
+        assert!(snapshot.keys.iter().any(|event| event.key == 8 && !event.pressed));
+    }
+
+    #[test]
+    fn ui_snapshot_keeps_injected_key_tap_until_next_snapshot() {
+        let mut input = InputState::new();
+        input.begin_frame();
+        let _ = input.ui_snapshot();
+
+        input.inject_key_down(8);
+        input.inject_key_up(8);
+        input.end_frame();
+        input.begin_frame();
+
+        let snapshot = input.ui_snapshot();
+        assert!(snapshot.keys.iter().any(|event| event.key == 8 && event.pressed));
+        assert!(snapshot.keys.iter().any(|event| event.key == 8 && !event.pressed));
+    }
+
+    #[test]
+    fn ui_snapshot_preserves_text_and_key_event_order() {
+        let mut input = InputState::new();
+        input.push_ui_text("x".to_owned());
+        input.inject_key_down(8);
+        input.inject_key_up(8);
+        input.begin_frame();
+
+        assert_eq!(input.pop_char(), 0);
+        assert_eq!(
+            input.ui_snapshot().ordered_events,
+            [
+                crate::ui::UiInputEvent::Text("x".to_owned()),
+                crate::ui::UiInputEvent::Key(crate::ui::UiKeyEvent {
+                    key: 8,
+                    pressed: true,
+                    repeated: false,
+                }),
+                crate::ui::UiInputEvent::Key(crate::ui::UiKeyEvent {
+                    key: 8,
+                    pressed: false,
+                    repeated: false,
+                }),
+            ]
+        );
     }
 }

@@ -28,6 +28,7 @@ models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
+debug-ui = ["bloom-shared/debug-ui"]
 
 # Match perry-runtime's panic strategy so perry's final lld-link doesn't see
 # two copies of `rust_eh_personality` (and friends) from two independent Rust
