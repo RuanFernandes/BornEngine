@@ -1,5 +1,18 @@
 export const apiCoverage = [
   {
+    slug: 'game',
+    file: 'api/game.md',
+    href: '/docs/api/game/',
+    sections: [
+      'Game objects and components',
+      'Transforms and hierarchy',
+      'Scenes and lifecycle',
+      'Native adapters',
+      'Physics step',
+      'Serialized worlds',
+    ],
+  },
+  {
     slug: 'core',
     file: 'api/core.md',
     href: '/docs/api/core/',

@@ -169,3 +169,24 @@ export type {
   RigidBodyHandle, ColliderHandle, JointHandle,
   PhysicsRayHit, CollisionInfo,
 } from './physics/index';
+
+export {
+  AudioSourceComponent,
+  GameComponent,
+  GameObject,
+  GameScene,
+  RigidBodyComponent,
+  SceneNodeComponent,
+  Transform,
+} from './game/index';
+
+export type {
+  AudioSourceComponentOptions,
+  GameComponentType,
+  GameObjectOptions,
+  ParentOptions,
+  RigidBodyComponentOptions,
+  RigidBodyMotionType,
+  SceneNodeComponentOptions,
+  TransformOptions,
+} from './game/index';

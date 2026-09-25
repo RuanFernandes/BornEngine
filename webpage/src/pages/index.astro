@@ -28,7 +28,7 @@ const homeJsonLd = {
 
 <SiteLayout
   title="Native games from TypeScript"
-  description="BornEngine is a function-first TypeScript game engine that compiles to native platforms and Web/WASM."
+  description="BornEngine combines a direct TypeScript engine API with an optional class-based gameplay runtime for native platforms and Web/WASM."
   canonicalPath="/"
   theme="ink"
   jsonLd={homeJsonLd}
@@ -39,7 +39,7 @@ const homeJsonLd = {
         <div class="home-hero__copy" data-reveal>
           <p class="eyebrow eyebrow--acid">BornEngine / engine surface</p>
           <h1>Native games from <em>TypeScript.</em></h1>
-          <p class="home-hero__lede">A function-first game engine for developers who want a small, readable API and a direct path from game code to real platforms.</p>
+          <p class="home-hero__lede">A TypeScript game engine with a direct function-and-handle API and an optional class-based runtime for gameplay objects.</p>
           <div class="home-hero__actions">
             <a class="button button--acid" href={withBase('/docs/getting-started/')}>Start building <span aria-hidden="true">↗</span></a>
             <a class="text-link text-link--light" href={withBase('/docs/cli/')}>Read the CLI reference <span aria-hidden="true">→</span></a>
@@ -58,8 +58,8 @@ const homeJsonLd = {
         <div class="section-index">01 / The short path</div>
         <div>
           <h2 id="story-heading">From an empty folder to a running game, without a framework maze.</h2>
-          <p>BornEngine keeps the public surface flat: plain data, free functions, explicit loops. Perry compiles the TypeScript side, the engine owns the native renderer, and your project keeps its own dependency and lockfile.</p>
-          <a class="text-link text-link--acid" href={withBase('/docs/concepts/api-shape/')}>Why functions, not classes <span aria-hidden="true">→</span></a>
+          <p>The native-facing API uses plain data, free functions, and explicit resource handles. For gameplay, an optional GameObject runtime adds subclassable entities, components, transforms, and scenes. Perry compiles the TypeScript side, and the engine owns the native renderer.</p>
+          <a class="text-link text-link--acid" href={withBase('/docs/concepts/api-shape/')}>How the API fits your game <span aria-hidden="true">→</span></a>
         </div>
         <div class="home-story__terminal">
           <div class="terminal-bar"><span></span><span></span><span></span><code>~/projects</code></div>
@@ -77,8 +77,10 @@ const homeJsonLd = {
           <div>
             <p class="eyebrow eyebrow--acid">One code shape, many targets</p>
             <h2 id="api-heading">Learn the loop. Keep the rest close to the metal.</h2>
-            <p>The API is deliberately small enough to scan. Use the same calls for a native prototype or a browser build, then reach into modules only when your game needs more.</p>
+            <p>Use direct engine functions for explicit resource control, or build gameplay entities with GameObject subclasses and components. Both styles work with the same engine modules across native and browser targets.</p>
             <a class="text-link text-link--acid" href={withBase('/docs/api/')}>Browse the API <span aria-hidden="true">→</span></a>
+            {' '}
+            <a class="text-link text-link--acid" href={withBase('/docs/api/game/')}>Build with GameObjects <span aria-hidden="true">→</span></a>
           </div>
           <CodeBlock code={heroCode} language="typescript" filename="main.ts" />
         </div>

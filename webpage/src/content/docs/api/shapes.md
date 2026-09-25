@@ -2,7 +2,7 @@
 title: Shapes
 description: Draw 2D primitives and run the small collision helpers that pair with them.
 section: API / Shapes
-order: 32
+order: 33
 ---
 
 The shapes module is immediate-mode drawing plus pure TypeScript collision math. It is a good fit for prototypes, UI, debug overlays, and small 2D games.

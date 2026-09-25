@@ -2,7 +2,7 @@
 title: Math
 description: Use vectors, matrices, quaternions, easing, and intersection helpers with plain data.
 section: API / Math
-order: 37
+order: 38
 ---
 
 Math values are plain objects or number arrays. They can move between gameplay, scene, physics, and world serialization without wrapper classes.

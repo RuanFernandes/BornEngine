@@ -1,11 +1,11 @@
 ---
 title: API shape
-description: Learn why BornEngine uses free functions and plain-data interfaces instead of a class hierarchy.
+description: Learn how BornEngine combines a direct function API with an optional class-based gameplay runtime.
 section: Concepts
 order: 11
 ---
 
-BornEngine's public TypeScript API is a flat collection of functions operating on plain data. The design is inspired by raylib's approachable surface, but BornEngine is an independent implementation: Perry compiles TypeScript to native code and the engine renders through wgpu.
+BornEngine's native-facing modules use free functions, plain data, and explicit resource handles. This keeps the renderer and other engine boundaries easy to call from Perry-compiled TypeScript. The engine also provides an optional class-based runtime for gameplay objects; use either style, or combine them.
 
 ```ts
 import { loadTexture, drawTexture, unloadTexture, Colors } from '@bornengine/engine';
@@ -15,11 +15,30 @@ drawTexture(player, 100, 200, Colors.WHITE);
 unloadTexture(player);
 ```
 
-There is no `new Texture()` or `player.draw()` requirement. Resource values carry handles and dimensions; functions cross the Perry/native boundary directly. That keeps the API small, makes ownership explicit, and avoids a hidden receiver or lifecycle hierarchy.
+There is no `new Texture()` or `player.draw()` requirement in the native-facing API. Resource values carry handles and dimensions; functions cross the Perry/native boundary directly. That keeps resource ownership explicit and the native API small.
+
+For gameplay, import `GameObject`, `GameComponent`, and `GameScene` from `@bornengine/engine/game`. Extend `GameObject` for game-specific entities, then use components and scene lifecycle callbacks to organize behavior. The runtime stays in TypeScript and adapts existing renderer, physics, and audio handles.
+
+```ts
+import { GameObject, GameScene } from '@bornengine/engine/game';
+
+class Player extends GameObject {
+  constructor() {
+    super({ name: 'Player' });
+  }
+
+  update(dt: number): void {
+    this.transform.position.x += dt * 5;
+  }
+}
+
+const scene = new GameScene();
+scene.add(new Player());
+```
 
 ## Tradeoffs
 
-You unload engine resources explicitly. You also choose your own dispatch strategy for game entities instead of inheriting from a base class. The trade is deliberate: a small surface, portable FFI calls, and data that is easy to inspect.
+You still unload engine resources explicitly. The optional gameplay runtime supplies a base class, component model, transform hierarchy, and lifecycle callbacks where those features are useful. It does not replace direct functions for resource creation and rendering, or choose subclasses when loading a serialized world.
 
 ## Module map
 
@@ -30,5 +49,6 @@ The root package re-exports common functions. Subpath imports keep larger projec
 - `@bornengine/engine/models` — models, materials, lighting, and animation.
 - `@bornengine/engine/physics` — Jolt-backed bodies, shapes, queries, and constraints.
 - `@bornengine/engine/world` — versioned world files and instantiation.
+- `@bornengine/engine/game` — runtime gameplay objects, components, scenes, and native-handle adapters.
 
-The repository keeps the longer rationale in its API design notes; this page focuses on the decisions you feel in game code.
+See the [Game API guide](../../api/game/) for object lifecycle, component behavior, transforms, and physics synchronization.

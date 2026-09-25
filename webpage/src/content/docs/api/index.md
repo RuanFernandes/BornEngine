@@ -1,11 +1,11 @@
 ---
 title: TypeScript API
-description: Explore BornEngine's function-first modules for windows, drawing, assets, simulation, and platform input.
+description: Explore BornEngine's direct TypeScript modules and optional class-based GameObject runtime.
 section: API
 order: 30
 ---
 
-BornEngine is a small, explicit TypeScript API. Functions operate on plain data and resource handles, so the code that creates a window, advances a frame, uploads an asset, or destroys a resource stays visible in your game.
+BornEngine pairs a direct function-and-handle API with an optional class-based runtime for gameplay objects. Use the engine modules for explicit control of windows, drawing, assets, and simulation; use `GameObject`, components, transforms, and scenes when that model fits your game.
 
 ## Choose an import boundary
 
@@ -31,12 +31,13 @@ import { loadTexture, unloadTexture } from '@bornengine/engine/textures';
 // Subpaths expose the same engine surface without importing unrelated modules.
 ```
 
-All public examples in this reference use `@bornengine/engine`. Older repository experiments may use the historical `bloom` name; do not copy that import into a new project.
+Public examples in this reference import from `@bornengine/engine`, either from the package root or a module subpath. Older repository experiments may use the historical `bloom` name; do not copy that import into a new project.
 
 ## Module map
 
 | Module | Import path | Use it for |
 | --- | --- | --- |
+| Game | `@bornengine/engine/game` | Subclassable gameplay objects, components, transforms, scenes, and adapters |
 | Core | `@bornengine/engine/core` | Windows, frame timing, input, cameras, files, profiling |
 | Shapes | `@bornengine/engine/shapes` | Immediate 2D primitives and collision helpers |
 | Textures | `@bornengine/engine/textures` | Images, sprites, filtering, render targets |
@@ -60,6 +61,8 @@ The usual dependency direction is:
 4. Shapes or the scene graph submit visuals inside the active drawing mode.
 5. Physics and VFX update before rendering, then their handles are released during teardown.
 
+The Game module is an optional gameplay layer over those engine modules. Extend `GameObject` for entities such as players or NPCs, attach `GameComponent` subclasses for reusable behavior, and use adapters to connect existing renderer, physics, and audio resources. The native modules remain available directly, and the Game module does not replace the renderer scene graph or serialized `WorldData` format.
+
 Resources are not garbage-collected engine objects. A `Texture`, `Font`, `Sound`, `Music`, `Model`, render texture, physics world, or scene node that owns native state must be unloaded or destroyed using its module's cleanup function. Keep asset paths relative to the project and place them under `assets/` so native and Web/WASM packaging resolve the same files.
 
 ## Coordinate and color conventions
@@ -73,5 +76,6 @@ Resources are not garbage-collected engine objects. A `Texture`, `Font`, `Sound`
 ## Where to go next
 
 - Start with [Core](core/) for the frame and input contract.
+- Read the [Game API](game/) to build class-based gameplay objects and scenes.
 - Read [Textures](textures/) and [Text](text/) before building a HUD.
 - Combine the modules in the [2D game recipe](../guides/2d-game/) or [3D scene recipe](../guides/3d-scene/).

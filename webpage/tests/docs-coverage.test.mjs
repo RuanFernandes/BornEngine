@@ -4,9 +4,9 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 12);
+  assert.equal(apiCoverage.length, 13);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
-    'core', 'shapes', 'textures', 'text', 'audio', 'models', 'math',
+    'game', 'core', 'shapes', 'textures', 'text', 'audio', 'models', 'math',
     'scene', 'physics', 'vfx', 'world', 'mobile',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
@@ -46,7 +46,7 @@ test('asset and scene API pages contain their required sections and examples', a
 });
 
 test('gameplay systems API pages contain their required sections and examples', async () => {
-  const coverage = new Set(['physics', 'vfx', 'world', 'mobile']);
+  const coverage = new Set(['game', 'physics', 'vfx', 'world', 'mobile']);
   for (const item of apiCoverage.filter((entry) => coverage.has(entry.slug))) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
     const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];

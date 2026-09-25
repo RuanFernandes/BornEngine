@@ -2,7 +2,7 @@
 title: Text
 description: Load TTF or OTF fonts, render text, and measure layouts before drawing them.
 section: API / Text
-order: 34
+order: 35
 ---
 
 Text drawing accepts an RGBA `Color` and uses the current drawing mode. Measure before drawing when a label must be centered, truncated, or aligned to a panel.

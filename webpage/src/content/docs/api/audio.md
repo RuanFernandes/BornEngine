@@ -2,7 +2,7 @@
 title: Audio
 description: Load sounds and music, spatialize emitters, and shape the mix with buses and effects.
 section: API / Audio
-order: 35
+order: 36
 ---
 
 The audio module keeps device setup, short sound effects, streamed music, and spatial voices in one small API. Import it directly from `@bornengine/engine/audio`; `Sound` and `Music` values are lightweight handles that can live in your game state.

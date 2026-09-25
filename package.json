@@ -17,7 +17,8 @@
     "./scene": "./src/scene/index.ts",
     "./physics": "./src/physics/index.ts",
     "./world": "./src/world/index.ts",
-    "./vfx": "./src/vfx/index.ts"
+    "./vfx": "./src/vfx/index.ts",
+    "./game": "./src/game/index.ts"
   },
   "files": [
     "src/",
