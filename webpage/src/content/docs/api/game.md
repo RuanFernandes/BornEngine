@@ -53,7 +53,7 @@ An object may have multiple components of one type. `getComponent` returns the f
 
 `transform.position`, `rotation`, and `scale` describe local space. Use `worldPosition`, `worldRotation`, `worldScale`, `localMatrix`, or `worldMatrix` when you need world-space values. `setWorldPosition` and `setWorldRotation` convert through the parent transform.
 
-Parenting preserves the child's world transform by default. Pass `{ preserveWorldTransform: false }` to keep its local transform instead:
+Parenting preserves the child's world transform by default. Pass `{ preserveWorldTransform: false }` to keep its local transform instead. With world preservation enabled, `addChild` returns `null` and leaves the hierarchy unchanged if the parent transform is singular or the resulting local transform would require shear, which cannot be represented by position, rotation, and scale:
 
 ```ts
 const weapon = new GameObject({ name: 'Weapon', position: { x: 0.5, y: 0, z: 0 } });

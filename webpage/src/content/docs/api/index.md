@@ -31,7 +31,7 @@ import { loadTexture, unloadTexture } from '@bornengine/engine/textures';
 // Subpaths expose the same engine surface without importing unrelated modules.
 ```
 
-All public examples in this reference use `@bornengine/engine`. Older repository experiments may use the historical `bloom` name; do not copy that import into a new project.
+Public examples in this reference import from `@bornengine/engine`, either from the package root or a module subpath. Older repository experiments may use the historical `bloom` name; do not copy that import into a new project.
 
 ## Module map
 
