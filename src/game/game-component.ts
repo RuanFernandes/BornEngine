@@ -8,6 +8,7 @@ export class GameComponent {
   private owner: GameObject | null = null;
   private wasDestroyed = false;
   private isDestroying = false;
+  private destroyCallbackStarted = false;
   private wasAwake = false;
   private wasStarted = false;
 
@@ -48,6 +49,13 @@ export class GameComponent {
     return true;
   }
 
+  /** @internal Ensures the component destruction callback runs only once. */
+  _beginDestroyCallback(): boolean {
+    if (this.destroyCallbackStarted) return false;
+    this.destroyCallbackStarted = true;
+    return true;
+  }
+
   /** @internal Completes destruction after onDestroy returns. */
   _finishDestroy(): void {
     this.wasDestroyed = true;
@@ -60,6 +68,11 @@ export class GameComponent {
     if (this.wasAwake) return false;
     this.wasAwake = true;
     return true;
+  }
+
+  /** @internal Reports whether this component has received onAwake. */
+  _hasAwoken(): boolean {
+    return this.wasAwake;
   }
 
   /** @internal Marks start once per component lifetime. */

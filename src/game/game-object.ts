@@ -171,6 +171,10 @@ export class GameObject {
     if (this.destroyed || component.destroyed || component.gameObject !== null) return null;
     if (!component._setGameObject(this)) return null;
     this.components.push(component);
+    if (this.wasAwake && component._markAwake()) {
+      const dynamicComponent: any = component;
+      dynamicComponent.onAwake();
+    }
     return component;
   }
 
@@ -193,13 +197,22 @@ export class GameObject {
 
   removeComponent(component: GameComponent): boolean {
     if (component.gameObject !== this || !component._beginDestroy()) return false;
-    // Perry's statically-known cross-module calls can bypass subclass
-    // overrides. Keep this callback dynamic so user component classes dispatch.
-    const dynamicComponent: any = component;
-    dynamicComponent.onDestroy();
+    if (component._beginDestroyCallback()) {
+      // Perry's statically-known cross-module calls can bypass subclass
+      // overrides. Keep this callback dynamic so user component classes dispatch.
+      const dynamicComponent: any = component;
+      dynamicComponent.onDestroy();
+    }
     component._finishDestroy();
     const index = this.components.indexOf(component);
     if (index >= 0) removeAt(this.components, index);
+    return true;
+  }
+
+  destroy(): boolean {
+    if (!this._beginDestroy()) return false;
+    this._markDescendantsDestroying();
+    this._destroyMarkedSubtree();
     return true;
   }
 
@@ -270,5 +283,49 @@ export class GameObject {
   _finishDestroy(): void {
     this.wasDestroyed = true;
     this.isDestroying = false;
+  }
+
+  private _markDescendantsDestroying(): void {
+    const components = this.components.slice();
+    for (let index = 0; index < components.length; index++) {
+      components[index]._beginDestroy();
+    }
+    const children = this.childObjects.slice();
+    for (let index = 0; index < children.length; index++) {
+      if (children[index]._beginDestroy()) {
+        children[index]._markDescendantsDestroying();
+      }
+    }
+  }
+
+  private _destroyMarkedSubtree(): void {
+    const children = this.childObjects.slice();
+    for (let index = 0; index < children.length; index++) {
+      children[index]._destroyMarkedSubtree();
+    }
+
+    const dynamicObject: any = this;
+    dynamicObject.onDestroy();
+
+    const components = this.components.slice();
+    for (let index = components.length - 1; index >= 0; index--) {
+      const component = components[index];
+      if (component._beginDestroyCallback()) {
+        const dynamicComponent: any = component;
+        dynamicComponent.onDestroy();
+      }
+      component._finishDestroy();
+      const componentIndex = this.components.indexOf(component);
+      if (componentIndex >= 0) removeAt(this.components, componentIndex);
+    }
+
+    const previousParent = this.parentObject;
+    if (previousParent !== null) {
+      const childIndex = previousParent.childObjects.indexOf(this);
+      if (childIndex >= 0) removeAt(previousParent.childObjects, childIndex);
+    }
+    this._setParent(null);
+    if (this.ownerScene !== null) this.ownerScene._removeDestroyedObject(this);
+    this._finishDestroy();
   }
 }

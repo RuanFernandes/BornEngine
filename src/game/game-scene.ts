@@ -1,3 +1,4 @@
+import { GameComponent } from './game-component';
 import { GameObject } from './game-object';
 
 function removeAt<T>(values: T[], index: number): void {
@@ -10,13 +11,14 @@ function removeAt<T>(values: T[], index: number): void {
 export class GameScene {
   private sceneObjects: GameObject[] = [];
   private nextAttachmentGeneration = 1;
+  private wasDestroyed = false;
 
   get objects(): readonly GameObject[] {
     return this.sceneObjects.slice();
   }
 
   add<T extends GameObject>(object: T): T | null {
-    if (object.destroyed || object.scene !== null || object.parent !== null ||
+    if (this.wasDestroyed || object.destroyed || object.scene !== null || object.parent !== null ||
         !this._canAttachSubtree(object)) {
       return null;
     }
@@ -24,7 +26,7 @@ export class GameScene {
   }
 
   remove(object: GameObject): boolean {
-    if (object.scene !== this) return false;
+    if (this.wasDestroyed || object.destroyed || object.scene !== this) return false;
     if (object.parent !== null && !object.parent.removeChild(object)) return false;
 
     const subtree = this._collectSubtree(object);
@@ -39,6 +41,84 @@ export class GameScene {
     return true;
   }
 
+  update(dt: number): void {
+    if (this.wasDestroyed) return;
+    const objects = this.sceneObjects.slice();
+    const generations: number[] = [];
+    const componentSnapshots: GameComponent[][] = [];
+    for (let index = 0; index < objects.length; index++) {
+      generations.push(objects[index]._getAttachmentGeneration());
+      componentSnapshots.push(objects[index]._componentsSnapshot());
+    }
+
+    for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
+      const object = objects[objectIndex];
+      const generation = generations[objectIndex];
+      if (!this._isEligibleObject(object, generation)) continue;
+
+      if (object._markStarted()) {
+        const dynamicObject: any = object;
+        dynamicObject.onStart();
+      }
+      if (this._isEligibleObject(object, generation)) {
+        const dynamicObject: any = object;
+        dynamicObject.update(dt);
+      }
+
+      const components = componentSnapshots[objectIndex];
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        const component = components[componentIndex];
+        if (!this._isEligibleComponent(object, component, generation)) continue;
+        if (component._markStarted()) {
+          const dynamicComponent: any = component;
+          dynamicComponent.onStart();
+        }
+        if (this._isEligibleComponent(object, component, generation)) {
+          const dynamicComponent: any = component;
+          dynamicComponent.update(dt);
+        }
+      }
+    }
+  }
+
+  updateFixed(fixedDt: number): void {
+    if (this.wasDestroyed) return;
+    const objects = this.sceneObjects.slice();
+    const generations: number[] = [];
+    const componentSnapshots: GameComponent[][] = [];
+    for (let index = 0; index < objects.length; index++) {
+      generations.push(objects[index]._getAttachmentGeneration());
+      componentSnapshots.push(objects[index]._componentsSnapshot());
+    }
+
+    for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
+      const object = objects[objectIndex];
+      const generation = generations[objectIndex];
+      if (!this._isEligibleObject(object, generation)) continue;
+
+      const dynamicObject: any = object;
+      dynamicObject.fixedUpdate(fixedDt);
+
+      const components = componentSnapshots[objectIndex];
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        const component = components[componentIndex];
+        if (!this._isEligibleComponent(object, component, generation)) continue;
+        const dynamicComponent: any = component;
+        dynamicComponent.fixedUpdate(fixedDt);
+      }
+    }
+  }
+
+  destroy(): void {
+    if (this.wasDestroyed) return;
+    this.wasDestroyed = true;
+    const objects = this.sceneObjects.slice();
+    for (let index = 0; index < objects.length; index++) {
+      const object = objects[index];
+      if (object.scene === this && object.parent === null) object.destroy();
+    }
+  }
+
   /** @internal Validates a detached subtree before an atomic scene attachment. */
   _canAttachSubtree(root: GameObject): boolean {
     const subtree = this._collectSubtree(root);
@@ -50,7 +130,7 @@ export class GameScene {
 
   /** @internal Attaches a detached subtree in parent-first insertion order. */
   _attachSubtree(root: GameObject): boolean {
-    if (!this._canAttachSubtree(root)) return false;
+    if (this.wasDestroyed || !this._canAttachSubtree(root)) return false;
     const subtree = this._collectSubtree(root);
     for (let index = 0; index < subtree.length; index++) {
       const object = subtree[index];
@@ -58,7 +138,54 @@ export class GameScene {
       object._setAttachmentGeneration(this.nextAttachmentGeneration++);
       this.sceneObjects.push(object);
     }
+    this._awakenSubtree(root);
     return true;
+  }
+
+  /** @internal Removes an object after all of its destruction callbacks return. */
+  _removeDestroyedObject(object: GameObject): void {
+    const index = this.sceneObjects.indexOf(object);
+    if (index >= 0) removeAt(this.sceneObjects, index);
+    object._setScene(null);
+  }
+
+  private _awakenSubtree(object: GameObject): void {
+    if (object.destroyed || object.scene !== this) return;
+    if (object._markAwake()) {
+      const dynamicObject: any = object;
+      dynamicObject.onAwake();
+    }
+    if (object.destroyed || object.scene !== this) return;
+
+    const components = object._componentsSnapshot();
+    for (let index = 0; index < components.length; index++) {
+      const component = components[index];
+      if (component.gameObject !== object || component.destroyed ||
+          !component._markAwake()) continue;
+      const dynamicComponent: any = component;
+      dynamicComponent.onAwake();
+    }
+    if (object.destroyed || object.scene !== this) return;
+
+    const children = object._childrenSnapshot();
+    for (let index = 0; index < children.length; index++) {
+      this._awakenSubtree(children[index]);
+    }
+  }
+
+  private _isEligibleObject(object: GameObject, generation: number): boolean {
+    return object.scene === this && !object.destroyed &&
+      object._getAttachmentGeneration() === generation && object.activeInHierarchy;
+  }
+
+  private _isEligibleComponent(
+    object: GameObject,
+    component: GameComponent,
+    generation: number,
+  ): boolean {
+    return this._isEligibleObject(object, generation) &&
+      component.gameObject === object && !component.destroyed && component.enabled &&
+      object.activeInHierarchy;
   }
 
   private _collectSubtree(root: GameObject): GameObject[] {
