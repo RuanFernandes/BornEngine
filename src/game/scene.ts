@@ -104,8 +104,7 @@ export class Scene extends GameScene {
 
   /** @internal Assigns the scene to one manager and runs its enter hook. */
   _activate(manager: object): boolean {
-    if (this.currentState !== 'ready' || this.managerOwner !== null ||
-        this.unloading || this.inLifecycleHook) return false;
+    if (!this._canActivate()) return false;
     this.managerOwner = manager;
     this.currentState = 'active';
     this.hasEntered = true;
@@ -131,9 +130,10 @@ export class Scene extends GameScene {
     return true;
   }
 
-  /** @internal Reports whether the given manager currently owns this scene. */
-  _isManagedBy(manager: object): boolean {
-    return this.managerOwner === manager;
+  /** @internal Validates a fresh scene before a manager unloads its current one. */
+  _canActivate(): boolean {
+    return this.currentState === 'ready' && this.managerOwner === null &&
+      !this.unloading && !this.inLifecycleHook;
   }
 
   /** @internal Advances scene-owned resources from the manager's frame loop. */

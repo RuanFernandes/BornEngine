@@ -120,13 +120,13 @@ git commit -m "feat: add scene lifecycle ownership"
 
 - [ ] **Step 1: Add a failing transition/reentrancy assertion**
 
-Import `SceneManager` from `../../src/game`. Add a fixture where `FirstScene.onEnter()`, `onPause()`, and `onExit()` each call `manager.changeTo(new Scene())`. Assert all nested calls return `false`, `currentScene` remains `FirstScene` until the outer operation completes, pause/resume changes state, and switching to a fresh scene marks the first unloaded.
+Import `SceneManager` from `../../src/game/scene-manager`. Add a fixture where `FirstScene.onEnter()`, `onPause()`, `onExit()`, and `onUnload()` each call `manager.changeTo(new Scene())`. Assert all nested calls return `false`, `currentScene` remains `FirstScene` until the outer operation completes, pause/resume changes state, and switching to a fresh scene marks the first unloaded.
 
 - [ ] **Step 2: Run the fixture to confirm the API is missing**
 
 Run: `perry run macos tests/game-runtime/scenes.ts`
 
-Expected: compilation fails because `SceneManager` is not exported.
+Expected: Perry cannot resolve the `scene-manager` import yet and the fixture cannot instantiate `SceneManager`.
 
 - [ ] **Step 3: Implement the manager**
 
