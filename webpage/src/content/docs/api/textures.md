@@ -2,7 +2,7 @@
 title: Textures
 description: Load images, draw sprites, set filtering, and use render textures for off-screen work.
 section: API / Textures
-order: 33
+order: 34
 ---
 
 Textures are explicit handles with width and height metadata. Keep the source path stable, configure filtering after loading, and release every texture that your game owns.

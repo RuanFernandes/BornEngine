@@ -2,7 +2,7 @@
 title: VFX
 description: Simulate GPU-ready particles and decals with explicit budgets, materials, and frame ordering.
 section: API / VFX
-order: 40
+order: 41
 ---
 
 The VFX module owns compact CPU-side pools and rewrites an instanced GPU buffer once per update. The game supplies a mesh and a material; the effect system supplies per-instance position, roll, scale, tint, and extra data. That keeps the draw cost tied to the number of visual systems rather than the number of live particles.

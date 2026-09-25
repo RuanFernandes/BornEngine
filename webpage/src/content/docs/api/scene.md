@@ -2,7 +2,7 @@
 title: Scene
 description: Build a retained scene graph with transforms, geometry, materials, lights, and picking.
 section: API / Scene
-order: 38
+order: 39
 ---
 
 The scene module is the retained-mode layer for persistent 3D content. Immediate helpers such as `drawCube()` are ideal for prototypes; scene nodes keep geometry and transforms alive across frames, can be attached into a hierarchy, and are available to picking, shadows, and post-processing.

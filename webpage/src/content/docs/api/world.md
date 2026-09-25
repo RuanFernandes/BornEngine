@@ -2,7 +2,7 @@
 title: World
 description: Load, validate, migrate, instantiate, and save versioned .world.json and .prefab.json files.
 section: API / World
-order: 41
+order: 42
 ---
 
 The world module separates authored JSON from runtime scene handles. `loadWorld()` is pure apart from file I/O and validation; `instantiateWorld()` turns entities, prefabs, terrain, water, and rivers into scene nodes using a model resolver supplied by the game.

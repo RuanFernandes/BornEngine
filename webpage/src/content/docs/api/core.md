@@ -2,7 +2,7 @@
 title: Core
 description: Windows, game loops, input, timing, colors, platform detection, and file helpers.
 section: API / Core
-order: 31
+order: 32
 ---
 
 Core owns the host surface and the boundary between one frame and the next. Import it directly or use the same exports from `@bornengine/engine`.

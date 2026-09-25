@@ -2,7 +2,7 @@
 title: Mobile input
 description: Add virtual joysticks and buttons while keeping multitouch claims and gameplay input explicit.
 section: API / Mobile
-order: 42
+order: 43
 ---
 
 The mobile module turns touch contacts into the same keyboard/gamepad signals that the rest of the engine reads. Virtual controls are plain state objects: update them during the input phase, read gameplay values, then draw their overlays during the UI phase.

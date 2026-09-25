@@ -2,7 +2,7 @@
 title: Models
 description: Load meshes, draw primitives, compile materials, instance geometry, and drive skeletal animation.
 section: API / Models
-order: 36
+order: 37
 ---
 
 The models module covers immediate 3D drawing and the lower-level mesh/material boundary. Use it for prototypes and custom render passes; use the [scene graph](../scene/) when objects need persistent transforms, picking, or per-node ownership.
