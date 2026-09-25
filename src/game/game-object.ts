@@ -48,6 +48,7 @@ export class GameObject {
   private wasDestroyed = false;
   private isDestroying = false;
   private wasAwake = false;
+  private awakeningDepth = 0;
   private wasStarted = false;
   private attachmentGeneration = 0;
 
@@ -171,7 +172,7 @@ export class GameObject {
     if (this.destroyed || component.destroyed || component.gameObject !== null) return null;
     if (!component._setGameObject(this)) return null;
     this.components.push(component);
-    if (this.wasAwake && component._markAwake()) {
+    if (this.wasAwake && this.awakeningDepth === 0 && component._markAwake()) {
       const dynamicComponent: any = component;
       dynamicComponent.onAwake();
     }
@@ -259,6 +260,16 @@ export class GameObject {
     if (this.wasAwake) return false;
     this.wasAwake = true;
     return true;
+  }
+
+  /** @internal Tracks the hierarchy traversal that dispatches awake callbacks. */
+  _beginAwakening(): void {
+    this.awakeningDepth++;
+  }
+
+  /** @internal Ends one hierarchy traversal that dispatches awake callbacks. */
+  _endAwakening(): void {
+    if (this.awakeningDepth > 0) this.awakeningDepth--;
   }
 
   /** @internal Marks start once per object lifetime. */

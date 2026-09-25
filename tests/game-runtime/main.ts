@@ -193,6 +193,7 @@ function hasEvent(log: string[], label: string): boolean {
 
 class LifecycleObject extends GameObject {
   readonly log: string[];
+  awakeAction: (() => void) | null = null;
   action: (() => void) | null = null;
 
   constructor(name: string, log: string[]) {
@@ -200,7 +201,12 @@ class LifecycleObject extends GameObject {
     this.log = log;
   }
 
-  onAwake(): void { this.log.push(this.name + '.awake'); }
+  onAwake(): void {
+    this.log.push(this.name + '.awake');
+    const action = this.awakeAction;
+    this.awakeAction = null;
+    if (action !== null) action();
+  }
   onStart(): void { this.log.push(this.name + '.start'); }
   update(_dt: number): void {
     this.log.push(this.name + '.update');
@@ -215,6 +221,7 @@ class LifecycleObject extends GameObject {
 class LifecycleComponent extends GameComponent {
   readonly label: string;
   readonly log: string[];
+  awakeAction: (() => void) | null = null;
 
   constructor(label: string, log: string[]) {
     super();
@@ -222,7 +229,12 @@ class LifecycleComponent extends GameComponent {
     this.log = log;
   }
 
-  onAwake(): void { this.log.push(this.label + '.awake'); }
+  onAwake(): void {
+    this.log.push(this.label + '.awake');
+    const action = this.awakeAction;
+    this.awakeAction = null;
+    if (action !== null) action();
+  }
   onStart(): void { this.log.push(this.label + '.start'); }
   update(_dt: number): void { this.log.push(this.label + '.update'); }
   fixedUpdate(_dt: number): void { this.log.push(this.label + '.fixed'); }
@@ -243,6 +255,41 @@ expect(lifecycleScene.add(lifecycleParent) === lifecycleParent,
 expectEvents(lifecycleEvents, [
   'parent.awake', 'parent-component.awake', 'child.awake', 'child-component.awake',
 ], 'scene attachment awakens parent before components and children');
+
+const childAwakeEvents: string[] = [];
+const childAwakeScene = new GameScene();
+const childAwakeRoot = new LifecycleObject('awake-root', childAwakeEvents);
+const firstAwakeChild = new LifecycleObject('first-child', childAwakeEvents);
+const secondAwakeChild = new LifecycleObject('second-child', childAwakeEvents);
+const addedAwakeChild = new LifecycleObject('added-child', childAwakeEvents);
+firstAwakeChild.awakeAction = () => {
+  expect(childAwakeRoot.addChild(addedAwakeChild, { preserveWorldTransform: false }) === addedAwakeChild,
+    'onAwake can attach another child');
+};
+childAwakeRoot.addChild(firstAwakeChild, { preserveWorldTransform: false });
+childAwakeRoot.addChild(secondAwakeChild, { preserveWorldTransform: false });
+childAwakeScene.add(childAwakeRoot);
+expectEvents(childAwakeEvents, [
+  'awake-root.awake', 'first-child.awake', 'second-child.awake', 'added-child.awake',
+], 'children added during onAwake awaken in child attachment order');
+
+const componentAwakeEvents: string[] = [];
+const componentAwakeScene = new GameScene();
+const componentAwakeObject = new LifecycleObject('component-owner', componentAwakeEvents);
+const firstAwakeComponent = new LifecycleComponent('first-component', componentAwakeEvents);
+const secondAwakeComponent = new LifecycleComponent('second-component', componentAwakeEvents);
+const addedAwakeComponent = new LifecycleComponent('added-component', componentAwakeEvents);
+firstAwakeComponent.awakeAction = () => {
+  expect(componentAwakeObject.addComponent(addedAwakeComponent) === addedAwakeComponent,
+    'onAwake can attach another component');
+};
+componentAwakeObject.addComponent(firstAwakeComponent);
+componentAwakeObject.addComponent(secondAwakeComponent);
+componentAwakeScene.add(componentAwakeObject);
+expectEvents(componentAwakeEvents, [
+  'component-owner.awake', 'first-component.awake',
+  'second-component.awake', 'added-component.awake',
+], 'components added during onAwake awaken in attachment order');
 
 clearEvents(lifecycleEvents);
 lifecycleScene.updateFixed(0.25);

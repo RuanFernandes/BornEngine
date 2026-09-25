@@ -88,8 +88,10 @@ object or any ancestor is inactive. Components have their own `enabled` flag;
 Adding an object to a scene calls `onAwake` once, even if the object is
 inactive. A subtree awakens parent first: each object's `onAwake`, its
 components in attachment order, then its children in child order. A component
-added to an already-awake object receives `onAwake` immediately. Removing and
-re-adding an object does not repeat `onAwake` or `onStart`.
+added to an awake object receives `onAwake` immediately when no awake traversal
+is in progress. Components and child subtrees added by an `onAwake` callback are
+picked up by that traversal before the outer scene attachment returns. Removing
+and re-adding an object does not repeat `onAwake` or `onStart`.
 
 `GameScene.update(dt)` runs in scene insertion order. For each eligible object,
 it calls `onStart` before the first `update`, then calls the object update and
@@ -97,11 +99,13 @@ each eligible component's `onStart` and `update` in attachment order.
 `GameScene.updateFixed(dt)` calls fixed callbacks without starting instances.
 Both phases recheck activation and component state before each callback.
 
-Each phase uses a stable snapshot. Objects and components attached during a
-callback receive required `onAwake` immediately, then wait until the next
-matching phase for update callbacks. Removing or destroying an object suppresses
-its later callbacks in the current snapshot. Removing and re-adding an object
-also invalidates its old snapshot entry.
+Each phase uses a stable snapshot. Objects and components attached during an
+update or fixed-update callback receive required `onAwake` immediately, then
+wait until the next matching phase for update callbacks. Additions during an
+awake traversal are incorporated in attachment order before scene attachment
+completes. Removing or destroying an object suppresses its later callbacks in
+the current snapshot. Removing and re-adding an object also invalidates its old
+snapshot entry.
 
 Destruction is synchronous and idempotent. Children are destroyed in child
 order before their parent. Each object's `onDestroy` runs before its components

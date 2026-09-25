@@ -1,15 +1,14 @@
-import { closeWindow, initWindow } from '../../src/core';
-import { closeAudio, initAudio, loadSound, playSound } from '../../src/audio';
-import { instantiateWorld } from '../../src/world/loader';
-import { WORLD_SCHEMA_VERSION } from '../../src/world/types';
-import type { WorldData } from '../../src/world/types';
+import { closeWindow, initWindow } from '@bornengine/engine/core';
+import { closeAudio, initAudio, loadSound, playSound } from '@bornengine/engine/audio';
+import { instantiateWorld, WORLD_SCHEMA_VERSION } from '@bornengine/engine/world';
+import type { WorldData } from '@bornengine/engine/world';
 import {
   AudioSourceComponent,
   GameObject,
   GameScene,
   RigidBodyComponent,
   SceneNodeComponent,
-} from '../../src/game';
+} from '@bornengine/engine/game';
 import {
   createBody,
   createWorld,
@@ -23,13 +22,13 @@ import {
   setBodyPosition,
   sphereShape,
   step,
-} from '../../src/physics';
+} from '@bornengine/engine/physics';
 import {
   createSceneNode,
   destroySceneNode,
   getSceneNodeCount,
   getSceneNodeTransform,
-} from '../../src/scene';
+} from '@bornengine/engine/scene';
 
 function expect(value: boolean, label: string): void {
   if (!value) {

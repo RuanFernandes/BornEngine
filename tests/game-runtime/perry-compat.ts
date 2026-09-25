@@ -1,3 +1,5 @@
+import { GameComponent, GameObject, GameScene } from '@bornengine/engine/game';
+
 class Base {
   readonly baseValue: number;
 
@@ -78,4 +80,34 @@ const healthProbe: HealthProbe | null =
   findComponent(componentList, HealthProbe);
 requireTrue(healthProbe !== null && healthProbe.value === 80,
   'generic constructor lookup and instanceof');
+
+class PublicPlayer extends GameObject {
+  constructor() {
+    super({ name: 'Perry compatibility player' });
+  }
+}
+
+class PublicHealth extends GameComponent {
+  value = 100;
+}
+
+const gameScene = new GameScene();
+const publicPlayer = new PublicPlayer();
+const attachedPlayer: PublicPlayer | null = gameScene.add(publicPlayer);
+requireTrue(attachedPlayer === publicPlayer, 'GameScene.add preserves subclass type');
+
+const publicHealth = new PublicHealth();
+const attachedHealth: PublicHealth | null = attachedPlayer === null
+  ? null
+  : attachedPlayer.addComponent(publicHealth);
+const foundHealth: PublicHealth | null = attachedPlayer === null
+  ? null
+  : attachedPlayer.getComponent(PublicHealth);
+const allPublicHealth: PublicHealth[] = attachedPlayer === null
+  ? []
+  : attachedPlayer.getComponents(PublicHealth);
+requireTrue(attachedHealth === publicHealth && foundHealth === publicHealth &&
+  allPublicHealth.length === 1 && allPublicHealth[0] === publicHealth,
+  'public GameObject component API preserves concrete types');
+
 console.log('Perry compatibility fixture passed');

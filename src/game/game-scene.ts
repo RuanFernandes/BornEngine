@@ -11,6 +11,8 @@ function removeAt<T>(values: T[], index: number): void {
 
 export class GameScene {
   private sceneObjects: GameObject[] = [];
+  private pendingAwakeRoots: GameObject[] = [];
+  private isAwakening = false;
   private nextAttachmentGeneration = 1;
   private wasDestroyed = false;
 
@@ -175,7 +177,19 @@ export class GameScene {
       object._setAttachmentGeneration(this.nextAttachmentGeneration++);
       this.sceneObjects.push(object);
     }
-    this._awakenSubtree(root);
+    if (this.isAwakening) {
+      this.pendingAwakeRoots.push(root);
+    } else {
+      this.isAwakening = true;
+      this._awakenSubtree(root);
+      let pendingIndex = 0;
+      while (pendingIndex < this.pendingAwakeRoots.length) {
+        this._awakenSubtree(this.pendingAwakeRoots[pendingIndex]);
+        pendingIndex++;
+      }
+      this.pendingAwakeRoots.length = 0;
+      this.isAwakening = false;
+    }
     return true;
   }
 
@@ -196,25 +210,47 @@ export class GameScene {
 
   private _awakenSubtree(object: GameObject): void {
     if (object.destroyed || object.scene !== this) return;
+    object._beginAwakening();
     if (object._markAwake()) {
       const dynamicObject: any = object;
       dynamicObject.onAwake();
     }
-    if (object.destroyed || object.scene !== this) return;
-
-    const components = object._componentsSnapshot();
-    for (let index = 0; index < components.length; index++) {
-      const component = components[index];
-      if (component.gameObject !== object || component.destroyed ||
-          !component._markAwake()) continue;
-      const dynamicComponent: any = component;
-      dynamicComponent.onAwake();
+    if (object.destroyed || object.scene !== this) {
+      object._endAwakening();
+      return;
     }
-    if (object.destroyed || object.scene !== this) return;
+
+    this._awakenComponents(object);
+    if (object.destroyed || object.scene !== this) {
+      object._endAwakening();
+      return;
+    }
 
     const children = object._childrenSnapshot();
     for (let index = 0; index < children.length; index++) {
       this._awakenSubtree(children[index]);
+    }
+    if (!object.destroyed && object.scene === this) {
+      this._awakenComponents(object);
+    }
+    object._endAwakening();
+  }
+
+  private _awakenComponents(object: GameObject): void {
+    while (!object.destroyed && object.scene === this) {
+      const components = object._componentsSnapshot();
+      let next: GameComponent | null = null;
+      for (let index = 0; index < components.length; index++) {
+        const component = components[index];
+        if (component.gameObject !== object || component.destroyed) continue;
+        if (component._markAwake()) {
+          next = component;
+          break;
+        }
+      }
+      if (next === null) return;
+      const dynamicComponent: any = next;
+      dynamicComponent.onAwake();
     }
   }
 
