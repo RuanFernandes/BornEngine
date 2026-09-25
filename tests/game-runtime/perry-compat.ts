@@ -6,6 +6,17 @@ import {
   SceneManager,
   SceneNodeComponent,
 } from '@bornengine/engine/game';
+import { SoundManager } from '@bornengine/engine/audio';
+import type { ManagedSoundOptions as RootManagedSoundOptions } from '@bornengine/engine';
+import {
+  SoundManager as RootSoundManager,
+  playSoundEx as rootPlaySoundEx,
+  unloadMusic as rootUnloadMusic,
+  unloadSound as rootUnloadSound,
+} from '@bornengine/engine';
+import type { ManagedSoundOptions, SpatialSoundOptions } from '@bornengine/engine/audio';
+
+declare const process: { exit(code: number): never };
 
 class Base {
   readonly baseValue: number;
@@ -133,3 +144,25 @@ if (scenePlayer !== null && rendererComponent !== null) {
   scenePlayer.addComponent(configuredRenderer);
 }
 oopManager.changeTo(oopScene);
+
+const compatibilityAudio = new SoundManager();
+const managedSoundOptions: ManagedSoundOptions = {
+  bus: 2,
+  cooldownSeconds: 0.1,
+  volumeRange: [0.9, 1.1],
+  pitchRange: [0.95, 1.05],
+};
+const managedSpatialOptions: SpatialSoundOptions = { looping: true, refDist: 1, maxDist: 20, rolloff: 1 };
+compatibilityAudio.loadSound('compatibility', 'assets/tone.wav', managedSoundOptions);
+compatibilityAudio.playSound('compatibility');
+compatibilityAudio.play3D('compatibility', { x: 0, y: 0, z: -1 }, managedSpatialOptions);
+compatibilityAudio.update(0.016);
+compatibilityAudio.dispose();
+const rootAudioManager = new RootSoundManager();
+const rootManagedOptions: RootManagedSoundOptions = { volumeRange: [1, 1] };
+rootAudioManager.loadSound('root-compatibility', 'assets/tone.wav', rootManagedOptions);
+const rootSoundHandle = { handle: 0 };
+rootPlaySoundEx(rootSoundHandle);
+rootUnloadSound(rootSoundHandle);
+rootUnloadMusic(rootSoundHandle);
+rootAudioManager.dispose();

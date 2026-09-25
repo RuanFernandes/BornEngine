@@ -58,12 +58,17 @@ export {
 
 export {
   initAudio, closeAudio, initAudioDevice, closeAudioDevice,
-  loadSound, playSound, stopSound,
+  loadSound, playSound, playSoundEx, stopSound, unloadSound,
   setSoundVolume, setMasterVolume,
-  loadMusic, playMusic, stopMusic, updateMusicStream, updateMusic,
+  loadMusic, playMusic, stopMusic, unloadMusic, updateMusicStream, updateMusic,
   setMusicVolume, isMusicPlaying,
   playSound3D, setListenerPosition,
   loadSoundAsync, loadMusicAsync, stageSounds, commitSound, commitMusic,
+  SoundManager,
+} from './audio/index';
+
+export type {
+  ManagedMusicOptions, ManagedSoundOptions, SpatialSoundOptions,
 } from './audio/index';
 
 export {

@@ -6,12 +6,15 @@ declare function bloom_init_audio(): void;
 declare function bloom_close_audio(): void;
 declare function bloom_load_sound(path: number): number;
 declare function bloom_play_sound(handle: number): void;
+declare function bloom_play_sound_ex(handle: number): number;
 declare function bloom_stop_sound(handle: number): void;
+declare function bloom_unload_sound(handle: number): void;
 declare function bloom_set_sound_volume(handle: number, volume: number): void;
 declare function bloom_set_master_volume(volume: number): void;
 declare function bloom_load_music(path: number): number;
 declare function bloom_play_music(handle: number): void;
 declare function bloom_stop_music(handle: number): void;
+declare function bloom_unload_music(handle: number): void;
 declare function bloom_update_music_stream(handle: number): void;
 declare function bloom_set_music_volume(handle: number, volume: number): void;
 declare function bloom_is_music_playing(handle: number): number;
@@ -39,8 +42,16 @@ export function playSound(sound: Sound): void {
   bloom_play_sound(sound.handle);
 }
 
+export function playSoundEx(sound: Sound): number {
+  return bloom_play_sound_ex(sound.handle);
+}
+
 export function stopSound(sound: Sound): void {
   bloom_stop_sound(sound.handle);
+}
+
+export function unloadSound(sound: Sound): void {
+  bloom_unload_sound(sound.handle);
 }
 
 export function setSoundVolume(sound: Sound, volume: number): void {
@@ -93,6 +104,15 @@ export function stopMusic(music: Music): void {
  */
 export function stopMusicRaw(handle: number): void {
   bloom_stop_music(handle);
+}
+
+/** @internal Numeric-handle variant used by SoundManager on Android. */
+export function unloadMusicRaw(handle: number): void {
+  bloom_unload_music(handle);
+}
+
+export function unloadMusic(music: Music): void {
+  bloom_unload_music(music.handle);
 }
 
 export function updateMusicStream(music: Music): void {
@@ -313,3 +333,6 @@ export function duckBus(bus: number, amount: number, attack: number, release: nu
 export function setReverb(size: number, damp: number, wet: number): void {
   bloom_set_reverb(size, damp, wet);
 }
+
+export { SoundManager } from './sound-manager';
+export type { ManagedMusicOptions, ManagedSoundOptions, SpatialSoundOptions } from './sound-manager';

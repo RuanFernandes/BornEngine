@@ -22,7 +22,7 @@ macro_rules! __bloom_ffi_audio_ffi {
         #[no_mangle]
         pub extern "C" fn bloom_play_sound_ex(handle: f64) -> f64 {
             $crate::ffi::guard("bloom_play_sound_ex", move || {
-                engine().audio.play_sound_ex(handle);
+                engine().audio.play_sound_ex(handle)
         })
         }
 
