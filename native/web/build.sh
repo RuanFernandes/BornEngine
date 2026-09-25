@@ -55,6 +55,7 @@ while (($#)); do
       ;;
     --output)
       (($# >= 2)) || usage_error "--output requires a directory"
+      [[ -n "$2" ]] || usage_error "--output requires a directory"
       OUTPUT_DIR="$2"
       shift 2
       ;;
@@ -81,6 +82,10 @@ done
 OUTPUT_DIR="${OUTPUT_DIR:-$ENGINE_DIR/dist/web}"
 if [[ "$OUTPUT_DIR" != /* ]]; then
   OUTPUT_DIR="$PWD/$OUTPUT_DIR"
+fi
+OUTPUT_DIR="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$OUTPUT_DIR")"
+if [[ "$OUTPUT_DIR" == "/" || "$OUTPUT_DIR" == "$WEB_CRATE" || "$OUTPUT_DIR" == "$WEB_CRATE/"* || "$WEB_CRATE" == "$OUTPUT_DIR/"* ]]; then
+  usage_error "--output must not overlap the native/web source tree"
 fi
 
 # Resolve the game file to an absolute path NOW, while still in the caller's
@@ -144,6 +149,11 @@ fi
 # 3. Assemble output directory
 echo "[3/3] Assembling output..."
 mkdir -p "$OUTPUT_DIR"
+
+# Replace artifacts owned by this build so repeated builds never nest pkg or
+# assets directories, or leave stale files from the previous game/profile.
+rm -rf "$OUTPUT_DIR/pkg" "$OUTPUT_DIR/assets"
+rm -f "$OUTPUT_DIR/index.html" "$OUTPUT_DIR/bloom_glue.js" "$OUTPUT_DIR/jolt_bridge.js"
 
 # Copy Bloom WASM package
 cp -r "$WEB_CRATE/pkg" "$OUTPUT_DIR/pkg"

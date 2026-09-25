@@ -24,6 +24,7 @@ Choose another output directory with `--output`. Relative paths are resolved fro
 ```
 
 The script compiles the game with `perry --target wasm` and assembles the engine package and game into the selected output directory.
+Each run replaces generated engine files and copied `assets/` there, so stale WASM packages or assets from an earlier build are not retained.
 
 ## Game loop and browser APIs
 

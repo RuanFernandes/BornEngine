@@ -72,8 +72,12 @@ jobs:
           else
             compiler_version="$(c++ --version | head -n 1)"
           fi
+          target_config="none"
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            target_config="macos-${MACOSX_DEPLOYMENT_TARGET:-default}-sdk-$(xcrun --sdk macosx --show-sdk-version)"
+          fi
           toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
-          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$jolt_revision-$toolchain-$target_config" >> "$GITHUB_OUTPUT"
 
       - name: Cache stable Jolt CMake build
         uses: actions/cache@v4
@@ -81,7 +85,7 @@ jobs:
           path: native/third_party/bloom_jolt/build
           # Exact-match only: build.rs reuses existing archives without
           # reconfiguring them, so a stale CMake output must never be restored.
-          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('.github/workflows/test.yml', 'native/shared/Cargo.lock', 'native/macos/Cargo.lock', 'native/linux/Cargo.lock', 'native/windows/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -166,14 +170,15 @@ jobs:
           jolt_revision="$(git ls-tree HEAD native/third_party/JoltPhysics | awk '{print $3}')"
           cmake_version="$(cmake --version | head -n 1)"
           compiler_version="$(c++ --version | head -n 1)"
+          target_config="macos-${MACOSX_DEPLOYMENT_TARGET:-default}-sdk-$(xcrun --sdk macosx --show-sdk-version)"
           toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
-          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$jolt_revision-$toolchain-$target_config" >> "$GITHUB_OUTPUT"
 
       - name: Cache stable Jolt CMake build
         uses: actions/cache@v4
         with:
           path: native/third_party/bloom_jolt/build
-          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('.github/workflows/test.yml', 'native/shared/Cargo.lock', 'native/macos/Cargo.lock', 'native/linux/Cargo.lock', 'native/windows/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -214,14 +219,15 @@ jobs:
           jolt_revision="$(git ls-tree HEAD native/third_party/JoltPhysics | awk '{print $3}')"
           cmake_version="$(cmake --version | head -n 1)"
           compiler_version="$(c++ --version | head -n 1)"
+          target_config="none"
           toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
-          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$jolt_revision-$toolchain-$target_config" >> "$GITHUB_OUTPUT"
 
       - name: Cache stable Jolt CMake build
         uses: actions/cache@v4
         with:
           path: native/third_party/bloom_jolt/build
-          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('.github/workflows/test.yml', 'native/shared/Cargo.lock', 'native/macos/Cargo.lock', 'native/linux/Cargo.lock', 'native/windows/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -265,14 +271,15 @@ jobs:
             compiler_version="$(cl 2>&1 | head -n 1 || true)"
           fi
           compiler_version="${compiler_version:-unknown}-${WindowsSDKVersion:-unknown}"
+          target_config="none"
           toolchain="$(printf '%s-%s' "$cmake_version" "$compiler_version" | tr -cs '[:alnum:].-' '-')"
-          echo "fingerprint=$jolt_revision-$toolchain" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$jolt_revision-$toolchain-$target_config" >> "$GITHUB_OUTPUT"
 
       - name: Cache stable Jolt CMake build
         uses: actions/cache@v4
         with:
           path: native/third_party/bloom_jolt/build
-          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('native/shared/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-jolt-${{ steps.jolt-cache.outputs.fingerprint }}-${{ hashFiles('.github/workflows/test.yml', 'native/shared/Cargo.lock', 'native/macos/Cargo.lock', 'native/linux/Cargo.lock', 'native/windows/Cargo.lock', 'native/shared/build.rs', 'native/third_party/bloom_jolt/CMakeLists.txt', 'native/third_party/bloom_jolt/include/**', 'native/third_party/bloom_jolt/src/**') }}
 
       - name: Cache cargo
         uses: actions/cache@v4
