@@ -552,7 +552,21 @@
           "returns": "void"
         },
         {
+          "name": "bloom_play_sound_ex",
+          "params": [
+            "f64"
+          ],
+          "returns": "f64"
+        },
+        {
           "name": "bloom_stop_sound",
+          "params": [
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_unload_sound",
           "params": [
             "f64"
           ],
@@ -2141,6 +2155,13 @@
         },
         {
           "name": "bloom_stop_music",
+          "params": [
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_unload_music",
           "params": [
             "f64"
           ],

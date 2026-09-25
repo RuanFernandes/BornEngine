@@ -49,9 +49,9 @@ const OVERRIDES = new Set([
   'bloom_draw_cylinder', 'bloom_draw_plane', 'bloom_draw_grid',
   // Audio
   'bloom_init_audio', 'bloom_close_audio',
-  'bloom_load_sound', 'bloom_play_sound', 'bloom_stop_sound',
+  'bloom_load_sound', 'bloom_play_sound', 'bloom_play_sound_ex', 'bloom_stop_sound', 'bloom_unload_sound',
   'bloom_set_sound_volume', 'bloom_set_master_volume', 'bloom_play_sound_3d',
-  'bloom_load_music', 'bloom_play_music', 'bloom_stop_music',
+  'bloom_load_music', 'bloom_play_music', 'bloom_stop_music', 'bloom_unload_music',
   'bloom_update_music_stream', 'bloom_set_music_volume', 'bloom_is_music_playing',
   // Retained scene graph
   'bloom_scene_create_node', 'bloom_scene_destroy_node',

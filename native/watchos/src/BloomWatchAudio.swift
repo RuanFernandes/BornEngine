@@ -16,8 +16,8 @@ import AVFoundation
 final class BloomAudioManager {
     static let shared = BloomAudioManager()
 
-    private var sounds: [AVAudioPlayer] = []
-    private var musics: [AVAudioPlayer] = []
+    private var sounds: [AVAudioPlayer?] = []
+    private var musics: [AVAudioPlayer?] = []
     private var masterVolume: Float = 1.0
     private let lock = NSLock()
     private var sessionStarted = false
@@ -35,10 +35,14 @@ final class BloomAudioManager {
 
     func closeAudio() {
         lock.lock()
-        sounds.forEach { $0.stop() }
-        musics.forEach { $0.stop() }
-        sounds.removeAll()
-        musics.removeAll()
+        for index in sounds.indices {
+            sounds[index]?.stop()
+            sounds[index] = nil
+        }
+        for index in musics.indices {
+            musics[index]?.stop()
+            musics[index] = nil
+        }
         lock.unlock()
     }
 
@@ -68,6 +72,15 @@ final class BloomAudioManager {
         sound(handle)?.stop()
     }
 
+    func unloadSound(_ handle: UInt32) {
+        lock.lock()
+        defer { lock.unlock() }
+        let index = Int(handle)
+        guard index >= 1, index <= sounds.count, let player = sounds[index - 1] else { return }
+        player.stop()
+        sounds[index - 1] = nil
+    }
+
     func setSoundVolume(_ handle: UInt32, _ v: Float) {
         sound(handle)?.volume = v * masterVolume
     }
@@ -75,8 +88,8 @@ final class BloomAudioManager {
     func setMasterVolume(_ v: Float) {
         lock.lock()
         masterVolume = v
-        sounds.forEach { $0.volume = v }
-        musics.forEach { $0.volume = v }
+        sounds.forEach { $0?.volume = v }
+        musics.forEach { $0?.volume = v }
         lock.unlock()
     }
 
@@ -100,6 +113,14 @@ final class BloomAudioManager {
     }
 
     func stopMusic(_ handle: UInt32) { music(handle)?.stop() }
+    func unloadMusic(_ handle: UInt32) {
+        lock.lock()
+        defer { lock.unlock() }
+        let index = Int(handle)
+        guard index >= 1, index <= musics.count, let player = musics[index - 1] else { return }
+        player.stop()
+        musics[index - 1] = nil
+    }
     func setMusicVolume(_ handle: UInt32, _ v: Float) { music(handle)?.volume = v * masterVolume }
     func isMusicPlaying(_ handle: UInt32) -> Bool { music(handle)?.isPlaying ?? false }
 
@@ -143,6 +164,11 @@ public func bloom_watchos_sound_stop(_ handle: UInt32) {
     BloomAudioManager.shared.stopSound(handle)
 }
 
+@_cdecl("bloom_watchos_sound_unload")
+public func bloom_watchos_sound_unload(_ handle: UInt32) {
+    BloomAudioManager.shared.unloadSound(handle)
+}
+
 @_cdecl("bloom_watchos_sound_volume")
 public func bloom_watchos_sound_volume(_ handle: UInt32, _ v: Float) {
     BloomAudioManager.shared.setSoundVolume(handle, v)
@@ -166,6 +192,11 @@ public func bloom_watchos_music_play(_ handle: UInt32) {
 @_cdecl("bloom_watchos_music_stop")
 public func bloom_watchos_music_stop(_ handle: UInt32) {
     BloomAudioManager.shared.stopMusic(handle)
+}
+
+@_cdecl("bloom_watchos_music_unload")
+public func bloom_watchos_music_unload(_ handle: UInt32) {
+    BloomAudioManager.shared.unloadMusic(handle)
 }
 
 @_cdecl("bloom_watchos_music_volume")

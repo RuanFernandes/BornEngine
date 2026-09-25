@@ -785,7 +785,9 @@ pub extern "C" fn bloom_load_sound(path: i64) -> f64 {
     audio::load_sound(perry_str(path)) as f64
 }
 #[no_mangle] pub extern "C" fn bloom_play_sound(handle: f64) { audio::play_sound(handle as u32); }
+#[no_mangle] pub extern "C" fn bloom_play_sound_ex(_handle: f64) -> f64 { 0.0 }
 #[no_mangle] pub extern "C" fn bloom_stop_sound(handle: f64) { audio::stop_sound(handle as u32); }
+#[no_mangle] pub extern "C" fn bloom_unload_sound(handle: f64) { audio::unload_sound(handle as u32); }
 #[no_mangle] pub extern "C" fn bloom_set_sound_volume(handle: f64, v: f64) {
     audio::set_sound_volume(handle as u32, v as f32);
 }
@@ -803,6 +805,7 @@ pub extern "C" fn bloom_load_music(path: i64) -> f64 {
 }
 #[no_mangle] pub extern "C" fn bloom_play_music(handle: f64) { audio::play_music(handle as u32); }
 #[no_mangle] pub extern "C" fn bloom_stop_music(handle: f64) { audio::stop_music(handle as u32); }
+#[no_mangle] pub extern "C" fn bloom_unload_music(handle: f64) { audio::unload_music(handle as u32); }
 #[no_mangle] pub extern "C" fn bloom_set_music_volume(handle: f64, v: f64) {
     audio::set_music_volume(handle as u32, v as f32);
 }
