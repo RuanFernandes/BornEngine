@@ -141,7 +141,7 @@ export class Scene extends GameScene {
     if (this.currentState !== 'active' && this.currentState !== 'paused') return;
     const resources = this.ownedResources.slice();
     for (let index = 0; index < resources.length; index++) {
-      if (this.currentState === 'unloaded') return;
+      if (this.isUnloaded()) return;
       const resource: any = resources[index];
       if (resource.update !== undefined) resource.update(dt);
     }
@@ -168,5 +168,9 @@ export class Scene extends GameScene {
     else if (hook === 'exit') dynamicScene.onExit();
     else dynamicScene.onUnload();
     this.inLifecycleHook = false;
+  }
+
+  private isUnloaded(): boolean {
+    return this.currentState === 'unloaded';
   }
 }

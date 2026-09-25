@@ -134,7 +134,7 @@ Create `src/game/scene-manager.ts`. Validate a fresh `ready` replacement that is
 
 - [ ] **Step 4: Verify pause and callback interruption**
 
-Extend the fixture with a resource that records `update(dt)`, an object whose `update()` requests a replacement, and a second object's `fixedUpdate()` that requests a replacement. Assert paused scenes tick resources but not objects, transitions stop callbacks from both update phases, and the replacement starts on the next manager tick.
+Extend the fixture with a resource whose `update(dt)` requests a replacement plus a later resource, an object whose `update()` requests a replacement, and a second object's `fixedUpdate()` that requests a replacement. Assert paused scenes tick resources but not objects, a resource-triggered transition stops ticking the unloaded scene, transitions stop callbacks from both object update phases, and each replacement starts on the next manager tick.
 
 Run: `perry run macos tests/game-runtime/scenes.ts`
 
@@ -153,6 +153,7 @@ git commit -m "feat: add scene manager transitions"
 - Modify: `src/game/adapters/scene-node-component.ts`
 - Modify: `src/game/index.ts` and `src/index.ts`
 - Modify: `tests/game-runtime/adapters.ts` and `tests/game-runtime/perry-compat.ts`
+- Create: `tests/game-runtime/scene-node-api-types.ts`
 
 **Interfaces:**
 - Consumes: existing `createSceneNode`, `destroySceneNode`, material setters, and `attachModelToNode`.
@@ -160,29 +161,30 @@ git commit -m "feat: add scene manager transitions"
 
 - [ ] **Step 1: Add compile-time usage and ownership assertions**
 
-In `perry-compat.ts`, import `Scene`, `SceneManager`, and `SceneNodeComponent` from `../../src/game`, then instantiate a scene, add a `GameObject` subclass, create a renderer component, and chain `.setVisible(true).setColor(1, 1, 1, 1).setPbr(0.5, 0.1).setTexture(0)`. In `adapters.ts`, verify an owned created node is destroyed with its component, a borrowed node survives, fluent methods return the component, model attachment forwards the supplied model and mesh index, and a parent/child GameObject transform reaches its renderer nodes once through the scene sync.
+In `perry-compat.ts`, import `Scene`, `SceneManager`, and `SceneNodeComponent` from `@bornengine/engine/game`, then instantiate a scene, add a `GameObject` subclass, create a renderer component, and chain `.setVisible(true).setColor(255, 255, 255, 255).setPbr(0.5, 0.1).setTexture(0)`. Add `scene-node-api-types.ts` with a strict TypeScript assertion that `create()` returns `SceneNodeComponent | null` and the fluent setters plus `attachModel(model, meshIndex)` return `SceneNodeComponent`. In `adapters.ts`, verify an owned created node is destroyed with its component, a borrowed node survives, fluent methods return the component, model attachment forwards the supplied model and mesh index, and a parent/child GameObject transform reaches its renderer nodes once through the scene sync.
 
 - [ ] **Step 2: Implement the component wrappers**
 
 `create()` calls `createSceneNode()` and returns `null` for handle `0`; otherwise it constructs the component with owned ownership. Instance methods forward the existing scene calls and return `this`. Preserve borrowed constructor default and current parent/transform synchronization.
 
-- [ ] **Step 3: Verify runtime and target signatures**
+- [ ] **Step 3: Verify the API types and target signatures**
 
 Run:
 
 ~~~sh
-perry run macos tests/game-runtime/adapters.ts
+npm exec --yes --package=typescript@6.0.3 -- tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler tests/game-runtime/scene-node-api-types.ts
+perry check --strict --target macos tests/game-runtime/adapters.ts
 for target in macos windows linux ios tvos watchos android visionos web; do
   perry check --strict --target "$target" tests/game-runtime/perry-compat.ts || exit 1
 done
 ~~~
 
-Expected: ownership checks pass and every Perry target accepts the public APIs.
+Expected: TypeScript verifies the fluent return type and model argument, the adapter integration fixture passes Perry compatibility checks, and every target accepts the public APIs. Runtime execution of `adapters.ts` requires the platform FFI library and is not part of Perry's runtime-only runner.
 
 - [ ] **Step 4: Commit this unit**
 
 ~~~sh
-git add src/game/adapters/scene-node-component.ts src/game/index.ts src/index.ts tests/game-runtime/adapters.ts tests/game-runtime/perry-compat.ts
+git add src/game/adapters/scene-node-component.ts src/game/index.ts src/index.ts tests/game-runtime/adapters.ts tests/game-runtime/perry-compat.ts tests/game-runtime/scene-node-api-types.ts
 git commit -m "feat: add OOP scene node controls"
 ~~~
 

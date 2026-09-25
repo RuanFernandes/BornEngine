@@ -98,6 +98,23 @@ class UpdateResource {
   dispose(): void { this.disposed = true; }
 }
 
+class ResourceSwitch extends UpdateResource {
+  switched = false;
+  private readonly manager: SceneManager;
+  private readonly replacement: Scene;
+
+  constructor(manager: SceneManager, replacement: Scene) {
+    super();
+    this.manager = manager;
+    this.replacement = replacement;
+  }
+
+  update(dt: number): void {
+    super.update(dt);
+    if (!this.switched) this.switched = this.manager.changeTo(this.replacement);
+  }
+}
+
 const pausedScene = new Scene({ name: 'paused' });
 const pausedObject = new UpdateCounter();
 const pausedResource = new UpdateResource();
@@ -184,5 +201,26 @@ expect(skippedAfterFixedSwitch.fixedUpdates === 0 && fixedReplacementObject.fixe
 transitionManager.updateFixed(1 / 60);
 expect(fixedReplacementObject.fixedUpdates === 1,
   'replacement receives fixedUpdate on the next manager tick');
+
+const resourceReplacement = new Scene({ name: 'resource-replacement' });
+const resourceReplacementObject = new UpdateCounter();
+resourceReplacement.addNode(resourceReplacementObject);
+const resourceSource = new Scene({ name: 'resource-source' });
+const resourceSwitch = new ResourceSwitch(transitionManager, resourceReplacement);
+const disposedResource = new UpdateResource();
+const skippedAfterResourceSwitch = new UpdateCounter();
+resourceSource.addNode(skippedAfterResourceSwitch);
+resourceSource.own(resourceSwitch);
+resourceSource.own(disposedResource);
+expect(transitionManager.changeTo(resourceSource), 'manager activates resource transition source');
+transitionManager.update(0.1);
+expect(resourceSwitch.switched && transitionManager.currentScene === resourceReplacement,
+  'owned resource can change the active scene during its update');
+expect(disposedResource.disposed && disposedResource.elapsed === 0 &&
+  skippedAfterResourceSwitch.updates === 0 && resourceReplacementObject.updates === 0,
+  'resource transition stops updates on the unloaded scene and defers replacement');
+transitionManager.update(0.1);
+expect(resourceReplacementObject.updates === 1,
+  'resource-triggered replacement starts on the next manager tick');
 expect(transitionManager.unloadCurrent() && transitionManager.currentScene === null,
   'unloadCurrent clears the active scene');
