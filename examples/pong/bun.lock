@@ -3,13 +3,13 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "pong",
+      "name": "bornengine-pong",
       "dependencies": {
-        "bloom": "file:../../",
+        "@bornengine/engine": "file:../../",
       },
     },
   },
   "packages": {
-    "bloom": ["bloom@file:../..", {}],
+    "@bornengine/engine": ["@bornengine/engine@file:../..", {}],
   }
 }

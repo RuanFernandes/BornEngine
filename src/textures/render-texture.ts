@@ -1,5 +1,5 @@
 import type { Game } from '../core/game';
-import { GameContext, ContextDrawable } from '../core/context';
+import { GameContext, ContextDrawable, getGameContext } from '../core/context';
 import * as operations from './internal';
 import { Colors } from '../core/colors';
 import type { Color, Vec2 } from '../core/types';
@@ -15,7 +15,7 @@ export class RenderTexture implements ContextDrawable {
   private readonly context: GameContext;
 
   constructor(private readonly game: Game, readonly width: number, readonly height: number) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || width <= 0 || height <= 0) {
       this.error = 'A ready Game and positive render target dimensions are required.';

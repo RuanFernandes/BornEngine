@@ -21,6 +21,19 @@ export type ContextRenderTargetHandler = (resource: ContextResource, action: 'be
 
 let nextContextId = 1;
 let activeContext: GameContext | null = null;
+const gameContexts = new WeakMap<object, GameContext>();
+
+/** @internal Associates a Game with its implementation context. */
+export function bindGameContext(game: object, context: GameContext): void {
+  gameContexts.set(game, context);
+}
+
+/** @internal Resolves a Game's implementation context without exposing it publicly. */
+export function getGameContext(game: object): GameContext {
+  const context = gameContexts.get(game);
+  if (context === undefined) throw new Error('Game context is not initialized.');
+  return context;
+}
 
 export const CONTEXT_ALREADY_ACTIVE_ERROR = 'Only one BornEngine Game may be active at a time.';
 

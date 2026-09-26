@@ -20,20 +20,20 @@ The animation system is split into three layers:
 
 1. **Asset loading** (`models.rs`) -- parses glTF/GLB files, extracts skeleton hierarchy, inverse bind matrices, animation channels (translation/rotation/scale keyframes per joint), and skin data (JOINTS_0 + WEIGHTS_0 vertex attributes). Since EN-055, the parsed clip data (`SkeletonData`, animations, rest rotations) is immutable and `Arc`-shared: `instantiateAnimation(src)` creates a new instance with a fresh mixer and joint state without re-parsing the GLB.
 
-2. **Animation update** (`models.rs` + `anim_mixer.rs`) -- each frame, the per-instance `AnimMixer` (EN-028) advances clip time, crossfades between clips, applies masked additive layers and optional root motion, samples keyframes, walks the joint hierarchy to compute world transforms, and multiplies by inverse bind matrices to produce final joint matrices. These are stored in a pending buffer. (The older raw-`time` sampling path still exists for direct `updateModelAnimation` calls.)
+2. **Animation update** (`models.rs` + `anim_mixer.rs`) -- each frame, the per-instance `AnimMixer` (EN-028) advances clip time, crossfades between clips, applies masked additive layers and optional root motion, samples keyframes, walks the joint hierarchy to compute world transforms, and multiplies by inverse bind matrices to produce final joint matrices. These are stored in a pending buffer. (The older raw-`time` sampling path still exists for direct `Animation.update` calls.)
 
 3. **GPU skinning** (`renderer/`) -- the WGSL vertex shader (`renderer/shaders/core.rs`) applies 4-bone linear blend skinning using joint matrices from a 1024-entry uniform buffer, flushed to the GPU in `end_frame()`. A second `joints_prev` buffer at `@group(3) @binding(1)` feeds motion vectors (EN-022).
 
 ```
 Game Loop                Engine                          GPU
 ─────────              ─────────                      ──────
-updateModelAnimation → sample keyframes
+Animation.update → sample keyframes
                        walk hierarchy
                        joint_matrices = world * IBM
                        set pending_joint_matrices ──→ flush to uniform buffer
-drawModel           → push skinned vertices        ──→ vertex shader applies
+Model.draw           → push skinned vertices        ──→ vertex shader applies
                                                        4-bone blend skinning
-endDrawing          → end_frame()                  ──→ render pass executes
+Game.run frame end  → end_frame()                  ──→ render pass executes
 ```
 
 ---
@@ -42,7 +42,7 @@ endDrawing          → end_frame()                  ──→ render pass execu
 
 ### Vertex Layout
 
-Every 3D vertex in Bloom includes joint/weight data, whether skinned or not:
+Every 3D vertex in BornEngine includes joint/weight data, whether skinned or not:
 
 ```rust
 // native/shared/src/renderer/types.rs
@@ -125,113 +125,82 @@ The 3D pipeline uses four bind groups:
 
 Joint matrices are written to the GPU in `end_frame()` via `flush_joint_matrices()`. This happens **before** the render pass begins, ensuring all skinned draw calls in the frame see the same joint state. The flow is:
 
-1. Game calls `updateModelAnimation()` -- computes joint matrices, stores in `pending_joint_matrices`
-2. Game calls `drawModel()` -- queues skinned vertices (bind-pose positions)
-3. Game calls `endDrawing()` -> `end_frame()` -> `flush_joint_matrices()` -- writes to GPU
+1. Game calls `Animation.update()` -- computes joint matrices, stores in `pending_joint_matrices`
+2. Game calls `Model.draw()` -- queues skinned vertices (bind-pose positions)
+3. Game calls `Game.run()` frame completion -> `end_frame()` -> `flush_joint_matrices()` -- writes to GPU
 4. Render pass executes -- shader reads joint buffer and skins vertices
 
 ---
 
 ## TypeScript API
 
-### Loading
+`Model` and `Animation` instances belong to one `Game`. Create them after the game is ready, inspect load failures, and dispose them when their scene ends. `Game.dispose()` also releases every remaining game-owned resource.
+
+### Load a model and animation
 
 ```typescript
-import { loadModel, loadModelAnimation, drawModel, updateModelAnimation } from "@bornengine/engine";
+import { Animation, Game, Model } from "@bornengine/engine";
 
-// Load the mesh (vertices with skin data: JOINTS_0 + WEIGHTS_0)
-const model = loadModel("assets/models/character.glb");
+const game = new Game({ window: { title: "Animation Demo" } });
+const model = new Model(game, "assets/models/character.glb");
+const animation = new Animation(game, "assets/models/character.glb");
 
-// Load the skeleton + animation channels (can be the same GLB file)
-const animHandle = loadModelAnimation("assets/models/character.glb");
+if (!model.isLoaded) console.error(model.error);
+if (!animation.isLoaded) console.error(animation.error);
 ```
 
-`loadModel(path)` returns a `Model` object with a numeric `handle`. Loads GLB/glTF files, extracting mesh geometry including joint indices and weights from `JOINTS_0` and `WEIGHTS_0` vertex attributes.
+### Control animation
 
-`loadModelAnimation(path)` returns a numeric handle. Parses the glTF skin (skeleton hierarchy + inverse bind matrices) and all animation clips (translation/rotation/scale keyframes per joint).
-
-### Instancing (EN-055)
-
-Crowds should parse each GLB **once** and instantiate per entity:
+Mixer state belongs to the `Animation` instance. Select a clip with `play`, configure optional layers or root motion, and advance it once per update before drawing the model. `findJoint()` returns a joint index suitable for `setLayer()`.
 
 ```typescript
-const src = loadModelAnimation("assets/models/enemy.glb");   // one parse
-const anim1 = instantiateAnimation(src);   // Arc-shared clips, fresh mixer
-const anim2 = instantiateAnimation(src);   // each instance animates freely
-```
-
-`instantiateAnimation(src)` shares the immutable parsed data (skeleton, clips, rest rotations) and gives the new handle its own mixer, joint matrices, and mask cache. The shooter's boot went from ~30 re-parses of seven GLBs to seven parses.
-
-### Updating — mixer API (preferred)
-
-The per-instance `AnimMixer` (EN-028, `native/shared/src/anim_mixer.rs`) owns clip time, crossfades, masked layers, and opt-in root motion:
-
-```typescript
-animPlay(anim, moving ? CLIP_WALK : CLIP_IDLE, 0.15); // crossfade; idempotent per frame
-const spine = findJoint(anim, "Spine");               // joint index — once, at load
-animSetLayer(anim, attacking ? CLIP_ATTACK : -1, 1.0, spine); // masked layer (-1 = off)
-animSetRootMotion(anim, true);                        // opt in (off by default)
-animUpdate(anim, dt, scale, px, py, pz, yawRadians);  // one call per model per frame
-if (animFinished(anim)) { /* non-looping clip ended */ }
-const dx = animRootDelta(anim, 0);                    // root-motion delta, axis 0/1/2
-```
-
-See `src/models/index.ts` for the full surface (`animPlay`, `animSetLayer`, `animSetRootMotion`, `animUpdate`, `animFinished`, `animClipDuration`, `animRootDelta`).
-
-### Updating — raw-time API (legacy, still supported)
-
-```typescript
-// In your game loop:
-const time = getTime();  // seconds since start
-updateModelAnimation(animHandle, 0, time, 1.0, playerX, playerY, playerZ, rotY);
-```
-
-`updateModelAnimation(handle, animIndex, time, scale, px, py, pz, rotY)`:
-- `handle` -- animation handle from `loadModelAnimation()`
-- `animIndex` -- which animation clip to play (0-based, order matches GLB)
-- `time` -- current time in seconds (automatically wraps via modulo with clip duration)
-- `scale` -- model scale (baked into joint matrices for correct skinned positioning)
-- `px, py, pz` -- world position (baked into joint matrices)
-- `rotY` -- yaw in **radians** (baked into joint matrices; note `drawModelRotated` takes degrees — these two differ deliberately, see the FFI comment in `ffi_core/models.rs`)
-
-This function samples all animation channels at the given time, walks the skeleton hierarchy, and produces final joint matrices that include scale, position, and yaw. The matrices are staged for GPU upload.
-
-### Rendering
-
-```typescript
-drawModel(model, { x: playerX, y: playerY, z: playerZ }, 1.0, WHITE);
-```
-
-`drawModel(model, position, scale, tint)` renders the model. For skinned meshes, the position and scale parameters are still passed but the actual transform comes from the joint matrices set by `updateModelAnimation()`. The `scale` parameter should match what was passed to `updateModelAnimation()`.
-
-### Complete Example
-
-```typescript
-import { initWindow, windowShouldClose, beginDrawing, endDrawing,
-         clearBackground, loadModel, loadModelAnimation,
-         updateModelAnimation, drawModel, getTime, Colors } from "@bornengine/engine";
-
-initWindow(800, 600, "Animation Demo");
-
-const character = loadModel("assets/models/character.glb");
-const anim = loadModelAnimation("assets/models/character.glb");
-
-while (!windowShouldClose()) {
-    const t = getTime();
-    updateModelAnimation(anim, 0, t, 1.0, 0.0, 0.0, 0.0, 0.0);
-
-    beginDrawing();
-    clearBackground(Colors.SKYBLUE);
-    drawModel(character, { x: 0, y: 0, z: 0 }, 1.0, Colors.WHITE);
-    endDrawing();
+if (animation.isLoaded) {
+  animation.play(0, 0.15, 1, true);
+  const spine = animation.findJoint("Spine");
+  if (spine >= 0) animation.setLayer(1, 0.5, spine);
+  animation.setRootMotion(true);
 }
+
+// In update(deltaTime):
+animation.update(deltaTime, playerPosition, 1, yawDegrees);
+const rootMotionX = animation.getRootMotionDelta(0);
+if (animation.isFinished()) console.log("clip finished");
 ```
+
+`getClipDuration(clip)` returns a clip length. `getRootMotionDelta(axis)` returns the current root-motion delta for axis 0, 1, or 2. If root motion is enabled, apply the displacement to gameplay state before drawing the pose.
+
+### Render and release
+
+Use the owning renderer or the model convenience method. Pass the same scale to animation update and model drawing when the animation pose incorporates scale. `Game.run()` handles frame completion and submits the staged joint matrices after rendering.
+
+```typescript
+import { Animation, Colors, Game, Model } from "@bornengine/engine";
+
+const game = new Game({ window: { title: "Animation Demo", width: 800, height: 600 } });
+const model = new Model(game, "assets/models/character.glb");
+const animation = new Animation(game, "assets/models/character.glb");
+if (animation.isLoaded) animation.play(0);
+
+const position = { x: 0, y: 0, z: 0 };
+game.run({
+  update(deltaTime) {
+    if (animation.isLoaded) animation.update(deltaTime, position, 1);
+  },
+  render() {
+    game.renderer.clear(Colors.SKYBLUE);
+    if (model.isLoaded) model.draw(game.renderer, position, 1, Colors.WHITE);
+  },
+  onStop: () => game.dispose(),
+});
+```
+
+For a shorter scene lifetime, call `animation.dispose()` and `model.dispose()` before releasing the game.
 
 ---
 
 ## Blender Export Pipeline
 
-Getting animated characters from Mixamo into Bloom requires a specific export workflow. The steps below were discovered through extensive trial and error -- each one addresses a specific failure mode.
+Getting animated characters from Mixamo into BornEngine requires a specific export workflow. The steps below were discovered through extensive trial and error -- each one addresses a specific failure mode.
 
 ### Prerequisites
 
@@ -370,11 +339,11 @@ See `scripts/export_mixamo_glb.py` for full documentation.
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Character slides across ground | Root joint has translation keys | Root translation is locked to rest pose by default (see `root_translation_at` in `models.rs`); enable it deliberately with `animSetRootMotion(handle, true)` and consume `animRootDelta` |
-| Character renders at wrong position | Scale mismatch between `updateModelAnimation` and `drawModel` | Use same scale value in both calls |
-| Character invisible / at origin | `loadModelAnimation` failed (returned 0) | Check file path; on iOS check `resolve_path()` |
-| Perry crash on animation call | NaN-boxed pointer from failed load used as handle | Check return value of `loadModelAnimation()` before using |
-| Lighting wrong on deformed mesh | Normals not skinned | Bloom skins normals in the vertex shader (already handled) |
+| Character slides across ground | Root joint has translation keys | Root translation is locked to rest pose by default (see `root_translation_at` in `models.rs`); enable it deliberately with `animation.setRootMotion(true)` and consume `animation.getRootMotionDelta(axis)` |
+| Character renders at wrong position | Scale mismatch between `Animation.update` and `Model.draw` | Use same scale value in both calls |
+| Character invisible / at origin | `Animation.isLoaded` is false | Check `Animation.error` and the asset path; on iOS check `resolve_path()` |
+| Animation appears unchanged | Animation methods called before the asset is ready | Check `Animation.isLoaded` before calling `play()` or `update()` |
+| Lighting wrong on deformed mesh | Normals not skinned | BornEngine skins normals in the vertex shader (already handled) |
 
 ### Scale Conventions
 
@@ -415,14 +384,12 @@ See `scripts/export_mixamo_glb.py` for full documentation.
 ### TypeScript (API surface)
 
 - **`src/models/index.ts`** -- Public API:
-  - `loadModel(path)` -- returns `Model` with handle
-  - `loadModelAnimation(path)` -- returns numeric animation handle
-  - `instantiateAnimation(src)` -- EN-055: cheap per-entity instance of a parsed animation
-  - `animPlay` / `animSetLayer` / `animSetRootMotion` / `animUpdate` / `animFinished` / `animClipDuration` / `animRootDelta` -- the mixer API (EN-028)
-  - `updateModelAnimation(handle, animIndex, time, scale, px, py, pz, rotY)` -- legacy raw-time update
-  - `drawModel(model, position, scale, tint)` -- renders
-  - `findJoint(handle, name)` / `jointWorld(handle, joint)` -- joint queries (EN-033)
-  - `setJointTest(joint, angle)` -- debug function
+  - `new Model(game, path)` loads a drawable model and exposes `isLoaded`, `error`, mesh/material counts, and bounds.
+  - `new Animation(game, path)` creates an animation controller with private native identity and inspectable load state.
+  - `Animation.play()`, `setLayer()`, and `setRootMotion()` configure playback; `update(deltaTime, position, scale, rotationY)` advances the pose.
+  - `Animation.findJoint()`, `getJointWorldTransformComponent()`, `getClipDuration()`, and `getRootMotionDelta()` query the active animation.
+  - `Model.draw(renderer, position, scale, tint)` submits the model through its owning renderer.
+  - Call `dispose()` when an asset leaves the scene, or let `game.dispose()` release it at shutdown.
 
 ### Blender Scripts
 
@@ -450,13 +417,7 @@ Things to check:
 - **"avg N/ch keyframes"** should be 20+ for a typical animation (if it's 2-3, the export optimizer stripped keyframes)
 - **Joint0 final diag** should be near 1.0 for a properly scaled model
 
-### Manual Joint Testing
-
-Use `setJointTest(jointIndex, angle)` to manually rotate a single joint, useful for verifying the skinning pipeline works before adding animation data:
-
-```typescript
-setJointTest(0, Math.sin(getTime()) * 0.8);  // wobble the root joint
-```
+The public API does not expose direct joint mutation. To inspect a skinning asset, load its `Animation`, check `isLoaded`, play a clip, and compare the rendered pose over time.
 
 ### Verifying GLB Contents
 

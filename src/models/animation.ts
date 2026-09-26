@@ -1,5 +1,5 @@
 import type { Game } from '../core/game';
-import { GameContext, ContextResource } from '../core/context';
+import { GameContext, ContextResource, getGameContext } from '../core/context';
 import * as operations from './internal';
 import type { Vec3 } from '../core/types';
 
@@ -11,7 +11,7 @@ export class Animation implements ContextResource {
   private readonly context: GameContext;
 
   constructor(game: Game, readonly path: string) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before loading an animation.';

@@ -1,34 +1,51 @@
 ---
-title: Migration notes
-description: Track the breaking conventions introduced by the 0.5 API cleanup before moving an older project.
+title: Migrate to BornEngine 0.6
+description: Replace the flat 0.5 function-and-handle API with Game-owned classes and services.
 section: Reference
 order: 81
 ---
 
-## Colors use 0–255
+BornEngine 0.6 changes the public TypeScript surface to classes owned by a `Game`. The old free-function API has no compatibility aliases. Migrate the runtime owner first, then move each subsystem operation onto its service or resource instance.
 
-Scene surface colors now use the same 0–255 channels as drawing calls and `Colors` presets. Light colors remain 0–1 floats with a separate intensity, and world-file tints remain 0–1 serialized values.
+## Application lifecycle
 
-```ts
-// old                         // current
-setSceneNodeColor(node, 0.75, 0.75, 0.7);
-setSceneNodeColor(node, 191, 191, 179);
-```
+| 0.5 | 0.6 |
+| --- | --- |
+| `initWindow(width, height, title)` | `new Game({ window: { width, height, title } })` |
+| `while (!windowShouldClose())` | `game.run({ update, render, onStop })` |
+| `beginDrawing()` / `endDrawing()` | Managed by `Game.run()` |
+| `closeWindow()` | `game.dispose()` |
+| `runGame(update)` | `game.run({ update, render })` |
+| `setWindowTitle(title)` | `game.window.setTitle(title)` |
 
-## Angles use degrees
+## Services and resources
 
-User-facing angles use degrees. Physics angular velocity remains radians per second, and quaternions remain quaternions:
+| 0.5 operation | 0.6 owner |
+| --- | --- |
+| `clearBackground(color)` | `game.renderer.clear(color)` |
+| `drawRect(...)`, `drawText(...)` | `game.renderer.drawRectangle(...)`, `game.renderer.drawText(...)` |
+| `loadTexture(path)` / `unloadTexture(texture)` | `new Texture(game, path)` / `texture.dispose()` |
+| `loadModel(path)` / `unloadModel(model)` | `new Model(game, path)` / `model.dispose()` |
+| `loadSound(path)` / `playSound(sound)` | `game.audio.loadSound(path)` / `sound.play()` |
+| `loadMusic(path)` / `updateMusicStream(music)` | `game.audio.loadMusic(path)` / `game.audio.update(deltaTime)` |
+| `isKeyDown(key)` | `game.input.isKeyDown(key)` |
+| `new InputActionMap()` | `game.input.createActionMap()` |
+| `createSceneNode()` / `setSceneNodeTrs(...)` | `game.sceneGraph.createNode()` / `node.setTrs(position, yaw, scale)` |
+| `createWorld(options)` / `step(world, dt)` | `new PhysicsWorld(game, options)` / `world.step(dt)` |
+| `pumpColyseusClients()` | Automatic during `game.run()` |
 
-```ts
-drawModelRotated(model, position, 1, 90, Colors.WHITE);
-```
+## Resource ownership changes
 
-## Texture handles
+Construct runtime resources with their owning `Game`. Check `isLoaded` and `error` after fallible resource creation. Dispose resources when their lifetime ends; `Game.dispose()` also releases resources still registered with that game. A resource from a different game is rejected, and its native handle is no longer part of the public API.
 
-`Texture.id` became `Texture.handle`, matching `Sound`, `Music`, `Font`, and `Model` resources.
+The engine currently permits one active native runtime at a time. Dispose one `Game` before constructing the next. For host-owned native windows, use embedded mode and call `runFrame()` from the host scheduler.
 
-## Physics and stale handles
+## Migration sequence
 
-`physics.step()` uses a fixed timestep with an accumulator and returns interpolation alpha. `stepVariable()` preserves exact-delta stepping for code that owns its own accumulator. Stale handles now fail registry lookups rather than aliasing a slot reused by another resource.
+1. Create `Game` and move window configuration into its options.
+2. Split the old drawing loop into `update` and `render`; remove manual begin/end calls.
+3. Move free functions to `game.renderer`, `game.input`, `game.audio`, or the owning resource class.
+4. Replace public numeric handles with resource instances.
+5. Add explicit disposal and startup/load error checks.
 
-When migrating a project, update examples and helpers together; the [physics API](../../api/physics/) and [scene API](../../api/scene/) show the current surface.
+See the [quickstart](../../getting-started/quickstart/) and the subsystem references for complete class-first examples.

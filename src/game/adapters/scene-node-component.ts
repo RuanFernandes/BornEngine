@@ -1,7 +1,7 @@
 import { GameComponent } from '../game-component';
 import type { GameObject } from '../game-object';
 import type { SceneNode } from '../../scene/scene-node';
-import type { Model } from '../../models/model';
+import type { Mesh, Model } from '../../models/model';
 import type { Color } from '../../core/types';
 import type { GameContext } from '../../core/context';
 
@@ -40,7 +40,7 @@ export class SceneNodeComponent extends GameComponent {
     return this;
   }
 
-  attachModel(model: Model, meshIndex = 0): this {
+  attachModel(model: Model | Mesh, meshIndex = 0): this {
     if (!this.destroyed) this.node.attachModel(model, meshIndex);
     return this;
   }

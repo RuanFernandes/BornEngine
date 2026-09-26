@@ -1,8 +1,9 @@
-import { GameContext, ContextResource } from '../core/context';
+import { GameContext, ContextResource, getGameContext } from '../core/context';
 import type { Game } from '../core/game';
 import * as operations from './internal';
 import { SceneNode, SceneNodeOptions } from './scene-node';
 import { matchesSceneNodeHandle } from './ownership';
+import { setAmbientLight } from '../models/internal';
 import type { Color, Vec2, Vec3 } from '../core/types';
 
 export interface ScenePickHit {
@@ -26,7 +27,7 @@ export class SceneGraph implements ContextResource {
   private readonly context: GameContext;
 
   constructor(private readonly game: Game) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     this.context.register(this);
   }
 
@@ -35,9 +36,7 @@ export class SceneGraph implements ContextResource {
   getNodes(): SceneNode[] { return this.nodes.slice(); }
 
   createNode(options: SceneNodeOptions = {}): SceneNode {
-    const node = new SceneNode(this.game, options);
-    this.nodes.push(node);
-    return node;
+    return new SceneNode(this.game, options);
   }
 
   add(node: SceneNode): boolean {
@@ -103,6 +102,12 @@ export class SceneGraph implements ContextResource {
     return true;
   }
 
+  setAmbientLight(color: Color, intensity: number): boolean {
+    if (!this.isReady) return false;
+    setAmbientLight(color, intensity);
+    return true;
+  }
+
   addPointLight(position: Vec3, range: number, color: Color, intensity: number): boolean {
     if (!this.isReady) return false;
     operations.addPointLight(position.x, position.y, position.z, range,
@@ -162,8 +167,9 @@ export class SceneGraph implements ContextResource {
     if (this.disposed) return;
     for (let index = this.frameSubscriptions.length - 1; index >= 0; index--) this.frameSubscriptions[index].dispose();
     this.frameSubscriptions.length = 0;
-    for (let index = this.nodes.length - 1; index >= 0; index--) this.nodes[index].dispose();
+    const nodes = this.nodes.slice();
     this.nodes.length = 0;
+    for (let index = nodes.length - 1; index >= 0; index--) nodes[index].dispose();
     this.disposed = true;
     this.context.unregister(this);
   }
@@ -176,7 +182,7 @@ export class FrameSubscription implements ContextResource {
   private readonly context: GameContext;
 
   constructor(game: Game, priority: number, callback: (deltaTime: number) => void) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) return;
     this.callbackId = operations.registerFrameCallback(priority, callback);

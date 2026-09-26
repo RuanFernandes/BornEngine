@@ -12,7 +12,7 @@
   },
   "perry": {
     "allow": {
-      "nativeLibrary": ["@bornengine/engine/colyseus"]
+      "nativeLibrary": ["@bornengine/engine/*"]
     }
   }
 }

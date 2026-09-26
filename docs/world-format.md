@@ -1,4 +1,4 @@
-# The Bloom world format — what "uses the world format" means
+# BornEngine World Format
 
 This is the contract for any game that wants its levels to be authored in the
 [Bloom world editor](https://github.com/Bloom-Engine/editor). A game that
@@ -29,16 +29,16 @@ format. Summary:
 Colors in world files are **0–1 floats** everywhere. (The runtime scene API
 takes 0–255; the shared helpers convert — never convert twice.)
 
-Loading is `loadWorld(path)` from `bloom/world`: read → parse → migrate →
-validate. It throws on malformed files and **migrates old schema versions
-automatically** (v1 worlds carrying `userData.kind === "point_light"` entities
-get them lifted into `lights[]`).
+Load a file with `new WorldData(path).load()`. The class reads, parses, migrates,
+and validates the document. Older schema versions are migrated automatically
+(v1 worlds carrying `userData.kind === "point_light"` entities get them lifted
+into `lights[]`); malformed files expose an error through `WorldData.error`.
 
 ## 2. Extension points — and what gets DROPPED
 
 The saver is schema-explicit: it writes the fields it knows and nothing else.
 An unknown field survives `loadWorld` (JSON keeps it) but is **silently absent
-after the first save from the editor**. Both `loadWorld` and the editor warn
+after the first save from the editor**. Both `WorldData.load()` and the editor warn
 loudly when they see unknown fields (`listUnknownWorldFields`), naming each
 one, before anyone can save.
 
@@ -99,28 +99,51 @@ Two proven shapes:
 **Generic path** (shortest; the world-viewer example is exactly this):
 
 ```ts
-import { loadWorld, instantiateWorld, applyWorldEnvironment } from 'bloom/world';
+import { Game, Model, WorldData } from '@bornengine/engine';
 
-const world = loadWorld('assets/worlds/level1.world.json');
-const result = instantiateWorld(world, {
-  getModelHandle: ref => myModelCache(ref),   // 0 = skip + warning
-  prefabRegistry: myPrefabs,                  // or null
-});
-// every frame:
-applyWorldEnvironment(world);   // ambient + sun + point lights + fog
+const game = new Game();
+const models = new Map<string, Model>();
+const data = new WorldData('assets/worlds/level1.world.json');
+if (!data.load()) {
+  console.error(data.error || 'World load failed');
+} else {
+  const instance = data.instantiate(game, {
+    getModel(path) {
+      let model = models.get(path);
+      if (model === undefined) {
+        model = new Model(game, path);
+        models.set(path, model);
+      }
+      return model.isLoaded ? model : null;
+    },
+    prefabs: null,
+  });
+
+  if (!instance.isLoaded) {
+    console.error(instance.error);
+  } else {
+    game.run({
+      update() {},
+      render() { instance.applyLighting(); },
+      onStop() {
+        instance.dispose();
+        game.dispose();
+      },
+    });
+  }
+}
 ```
 
-`instantiateWorld` spawns terrain, entities (prefabs expanded, cycles
+`WorldData.instantiate()` creates game-owned nodes for terrain, entities (prefabs expanded, cycles
 rejected), water volumes, and river ribbons through the same shared helpers
 the editor renders with — a river cannot look different in-game than in the
-editor. **`applyWorldEnvironment` (or your own equivalent) must run every
-frame**: the renderer clears its lighting block in `begin_frame`, so applying
-the environment once lights exactly one frame.
+editor. **`WorldInstance.applyLighting()` must run every frame**: the renderer clears its lighting block at frame start, so applying
+the environment once lights exactly one frame. `WorldInstance.dispose()` releases the runtime nodes when replacing the level; cached models remain owned by the Game.
 
-**Own spawn code** (full control; what the shooter does): call `loadWorld`,
-then walk `world.*` yourself and feed your own systems — physics colliders
-from `userData`, flat arrays, whatever your game wants. You own the semantics;
-the editor still round-trips the data losslessly.
+**Own spawn code** (full control; what the shooter does): load a `WorldData`
+instance, read its `document`, then walk `document.*` yourself and feed your own
+systems — physics colliders from `userData`, flat arrays, whatever your game
+wants. You own the semantics; the editor still round-trips the data losslessly.
 
 ## 6. Versioning promises
 
@@ -129,5 +152,5 @@ the editor still round-trips the data losslessly.
 - Files claiming a NEWER version than the engine fail validation loudly —
   never silently misread.
 - The editor's self-test suite round-trips real shipped worlds
-  (`loadWorld → saveWorld → deep-compare`); any normalization the saver
+  (`WorldData.load() → WorldData.save() → deep-compare`); any normalization the saver
   applies to untouched data is treated as a bug there, not a tolerance.

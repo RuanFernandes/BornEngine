@@ -42,7 +42,7 @@ export const apiCoverage = [
     slug: 'text',
     file: 'api/text.md',
     href: '/docs/api/text/',
-    sections: ['Default font', 'Font handles', 'Measurement'],
+    sections: ['Default font', 'Custom fonts', 'Measurement'],
   },
   {
     slug: 'audio',

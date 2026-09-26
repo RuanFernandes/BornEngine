@@ -1,6 +1,6 @@
 # Web/WASM Target
 
-Bloom games can run in the browser via WebAssembly. The web target uses WebGPU (with WebGL fallback) for rendering and Web Audio API for sound.
+BornEngine games can run in the browser via WebAssembly. The web target uses WebGPU (with WebGL fallback) for rendering and Web Audio API for sound.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ Game.ts ─(perry --target wasm)──> game WASM  (game logic, base64-embedded
                                       │
                                       │ wasm-bindgen calls
                                       ▼
-                               bloom_web.wasm  (Bloom rendering in WASM)
+                               bloom_web.wasm  (BornEngine rendering in WASM)
                                       │
                                       ▼
                               Browser: <canvas> + WebGPU + Web Audio + DOM Events
@@ -54,35 +54,37 @@ python3 -m http.server 8080
 
 ## Game Loop
 
-Browsers cannot run blocking `while` loops. Use `runGame()` instead:
+Browsers own frame scheduling, so a game should use the same callback-based `Game.run()` lifecycle as native targets:
 
 ```typescript
-import { initWindow, runGame, clearBackground, drawRect, Colors } from "@bornengine/engine";
+import { Colors, Game } from "@bornengine/engine";
 
-initWindow(800, 600, "My Game");
-
-runGame((dt) => {
-  clearBackground(Colors.BLACK);
-  drawRect(100, 100, 50, 50, Colors.RED);
+const game = new Game({ window: { title: "My Game", width: 800, height: 600 } });
+game.run({
+  update(deltaTime) { updateGameplay(deltaTime); },
+  render() {
+    game.renderer.clear(Colors.BLACK);
+    game.renderer.drawRectangle({ x: 100, y: 100, width: 50, height: 50 }, Colors.RED);
+  },
+  onStop: () => game.dispose(),
 });
 ```
 
-On native, `runGame()` enters a blocking loop. On web, it passes the callback to the JS runtime which drives it via `requestAnimationFrame`.
-
-The traditional `while (!windowShouldClose())` pattern still works on native but is not supported on web.
+The engine calls update before render, opens and closes the drawing frame, and uses the browser animation-frame scheduler. A blocking `while` loop is not supported on web.
 
 ## Asset Loading
 
-Assets are loaded via synchronous HTTP requests from the game's served directory:
+Create assets with their owning Game, inspect load failures, and keep their paths relative to the project:
 
 ```typescript
-const tex = loadTexture("assets/player.png");   // sync fetch from server
-const snd = loadSound("assets/jump.wav");        // WAV or OGG
-const model = loadModel("assets/scene.glb");     // glTF/GLB
-const font = loadFont("assets/font.ttf", 20);   // TTF/OTF
-```
+import { Font, Game, Model, Texture } from "@bornengine/engine";
 
-Place asset files in your game's `assets/` directory. The build script copies them to the output.
+const game = new Game();
+const texture = new Texture(game, "assets/player.png");
+const sound = game.audio.loadSound("assets/jump.wav");
+const model = new Model(game, "assets/scene.glb");
+const font = new Font(game, "assets/font.ttf", 20);
+```
 
 Supported formats:
 - **Images**: PNG, JPEG, BMP, TGA
@@ -90,36 +92,37 @@ Supported formats:
 - **Models**: glTF, GLB
 - **Fonts**: TTF, OTF
 
+Textures own their filtering configuration through `texture.setFilter(mode)`. Post-processing belongs to the Game renderer, for example `game.renderer.setVignette(strength, softness)`. Asset loading, filtering, and renderer settings are scoped to their owning Game.
+
 ## Audio
 
-Audio uses the Web Audio API with the shared Rust AudioMixer:
+The Game owns one AudioSystem and its Sound/Music resources:
 
 ```typescript
-initAudio();
-const sound = loadSound("assets/click.wav");
-playSound(sound);
+const sound = game.audio.loadSound("assets/click.wav");
+if (sound.isLoaded) sound.play();
 ```
 
-The JS glue creates an `AudioContext` with a `ScriptProcessorNode` that calls `bloom_audio_mix()` each audio frame. The Rust AudioMixer handles mixing, volume, and spatial audio identically to native.
+The JS glue connects Web Audio output to the engine mixer. `Game.run()` advances streamed music and Colyseus callbacks automatically.
 
 ## File I/O
 
-`writeFile` / `readFile` / `fileExists` use `localStorage` on web (prefixed with `bloom_fs:`):
+`game.input.writeFile`, `readFile`, and `fileExists` use browser storage on web:
 
 ```typescript
-writeFile("save.json", JSON.stringify(gameState));
-if (fileExists("save.json")) {
-  const data = readFile("save.json");
+game.input.writeFile("save.json", JSON.stringify(gameState));
+if (game.input.fileExists("save.json")) {
+  const data = game.input.readFile("save.json");
 }
 ```
 
 ## Platform Detection
 
 ```typescript
-import { getPlatform, Platform } from "@bornengine/engine";
-
-if (getPlatform() === Platform.WEB) {
-  // web-specific code
+import { Game, Platform } from "@bornengine/engine";
+const game = new Game();
+if (game.input.getPlatform() === Platform.WEB) {
+  // Apply a browser-specific presentation choice.
 }
 ```
 
@@ -136,11 +139,11 @@ The wgpu backend supports both WebGPU and WebGL. WebGL is used automatically as 
 
 ### String Handling
 
-Perry WASM uses NaN-boxed values internally, but Perry's runtime wraps the entire `ffi` namespace with `wrapFfiForI64`, which decodes each NaN-boxed argument to a plain JS value before the glue is called. The glue therefore receives ordinary JS strings and simply routes them to Bloom's `_str` variants via wasm-bindgen — there is no manual NaN-boxing or decoding in the glue.
+Perry WASM uses NaN-boxed values internally, but Perry's runtime wraps the entire `ffi` namespace with `wrapFfiForI64`, which decodes each NaN-boxed argument to a plain JS value before the glue is called. The glue therefore receives ordinary JS strings and simply routes them to BornEngine's `_str` variants via wasm-bindgen — there is no manual NaN-boxing or decoding in the glue.
 
 ### Two-Module WASM
 
-Perry compiles game TypeScript to one WASM module. Bloom's Rust backend compiles to a second WASM module via wasm-pack. The JS glue:
+Perry compiles game TypeScript to one WASM module. BornEngine's Rust backend compiles to a second WASM module via wasm-pack. The JS glue:
 1. Loads bloom_web.wasm and extracts all `bloom_*` exports
 2. Wraps every export as an FFI import, passing values straight through (Perry's `wrapFfiForI64` has already decoded them)
 3. Overrides string- and asset-param functions to route them to their `_str`/`_bytes` variants
@@ -148,4 +151,4 @@ Perry compiles game TypeScript to one WASM module. Bloom's Rust backend compiles
 
 ### Shared Code
 
-About two-thirds of Bloom's Rust code is in `native/shared/` — the renderer, audio mixer, text renderer, model loader, scene graph. This code compiles identically for native and WASM. Only the platform layer (~3300 lines across `native/web/src/`: `lib.rs`, `input_ffi.rs`, `material_ffi.rs`, `physics_ffi.rs`, `render_settings.rs`) is web-specific.
+About two-thirds of BornEngine's Rust code is in `native/shared/` — the renderer, audio mixer, text renderer, model loader, scene graph. This code compiles identically for native and WASM. Only the platform layer (~3300 lines across `native/web/src/`: `lib.rs`, `input_ffi.rs`, `material_ffi.rs`, `physics_ffi.rs`, `render_settings.rs`) is web-specific.

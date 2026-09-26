@@ -1,4 +1,4 @@
-import { GameContext, ContextResource } from '../core/context';
+import { GameContext, ContextResource, getGameContext } from '../core/context';
 import type { Game } from '../core/game';
 import * as operations from './internal';
 import type { Vec3 } from '../core/types';
@@ -35,17 +35,17 @@ export class StagedSound implements ContextResource {
     readonly path: string,
     private handleValue: number,
   ) {
-    game.context.register(this);
+    getGameContext(game).register(this);
   }
 
   static async stage(game: Game, path: string): Promise<StagedSound> {
-    const context = game.context;
+    const context = getGameContext(game);
     const handle = !context.isReady || context.isDisposed ? 0 : await operations.stageSoundAsync(path);
     return new StagedSound(game, path, handle);
   }
 
   static stageMany(game: Game, paths: string[]): StagedSound[] {
-    const context = game.context;
+    const context = getGameContext(game);
     const handles = !context.isReady || context.isDisposed
       ? []
       : operations.stageSounds(paths);
@@ -60,7 +60,7 @@ export class StagedSound implements ContextResource {
 
   commit(): Sound { return new Sound(this.game, this); }
 
-  private get context(): GameContext { return this.game.context; }
+  private get context(): GameContext { return getGameContext(this.game); }
 
   private takeForCommit(context: GameContext): number {
     if (this.consumed || context !== this.context || !context.isReady) return 0;
@@ -90,7 +90,7 @@ export class Sound implements ContextResource {
   private readonly context: GameContext;
 
   constructor(private readonly game: Game, source: string | StagedSound) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     let loaded: { handle: number } = { handle: 0 };
     if (!context.isReady || context.isDisposed) {

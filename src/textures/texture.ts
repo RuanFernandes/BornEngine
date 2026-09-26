@@ -1,5 +1,5 @@
 import type { Game } from '../core/game';
-import { GameContext, ContextDrawable } from '../core/context';
+import { GameContext, ContextDrawable, getGameContext } from '../core/context';
 import { Colors } from '../core/colors';
 import * as operations from './internal';
 import type { ImageData } from './image-data';
@@ -21,7 +21,7 @@ export class Texture implements ContextDrawable {
   private readonly context: GameContext;
 
   constructor(private readonly game: Game, source: TextureSource) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     let loaded: { handle: number; width: number; height: number } | null = null;
     let sourceName = '';

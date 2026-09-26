@@ -1,4 +1,4 @@
-import { GameContext } from '../core/context';
+import { GameContext, getGameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { Vec3 } from '../core/types';
 import * as operations from './internal';
@@ -18,7 +18,7 @@ export class AudioSystem {
   private readonly context: GameContext;
 
   constructor(private readonly game: Game) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     this.ensureDevice();
   }
 

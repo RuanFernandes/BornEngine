@@ -1,5 +1,5 @@
 // ============================================================
-// Bloom PBR Material Grid (validation scene)
+// BornEngine PBR Material Grid (validation scene)
 // ============================================================
 // 5×5 grid of spheres sharing a base color (gold-ish), one row
 // per metallic value (top = full metal, bottom = full dielectric)
@@ -14,21 +14,8 @@
 //   - Headless:    --camera px py pz tx ty tz fov --out path.png
 //                  (matches renderer-test's headless interface).
 
-import {
-  initWindow, beginDrawing, endDrawing, takeScreenshot,
-  setEnvClearFromHdr,
-  setTargetFPS,
-  windowShouldClose,
-  beginMode3D, endMode3D,
-} from "bloom/core";
-import { genMeshCube, createMeshExplicit } from "bloom/models";
-import {
-  createSceneNode, setSceneNodeTransform,
-  setSceneNodeColor, setSceneNodePbr,
-  setSceneNodeCastShadow, setSceneNodeReceiveShadow,
-  attachModelToNode,
-} from "bloom/scene";
-import { mat4Identity, mat4Translate, mat4Scale } from "bloom/math";
+import { Game, Mesh } from '@bornengine/engine';
+import type { Camera3D } from '@bornengine/engine';
 
 // ---- Scene parameters ----
 // Picked so the grid spans roughly ±3 units in X/Y, fitting a
@@ -75,9 +62,8 @@ for (let i = 2; i < argv.length; i = i + 1) {
 }
 
 // ---- Init ----
-initWindow(headlessResW, headlessResH, "Bloom PBR Spheres", 0);
-setTargetFPS(60);
-setEnvClearFromHdr("assets/outdoor.hdr");
+const game = new Game({ window: { width: headlessResW, height: headlessResH, title: "BornEngine PBR Spheres" }, targetFps: 60 });
+game.renderer.setEnvironmentFromHdr("assets/outdoor.hdr");
 
 // Mirror renderer-test's pattern exactly: declare let-binding for
 // the handle, populate inside a function (function-local scope
@@ -86,43 +72,6 @@ setEnvClearFromHdr("assets/outdoor.hdr");
 const PI = 3.14159265;
 const TWO_PI = 6.28318530;
 
-function makeSphereVertices(radius: number, segs: number, rings: number): number[] {
-  const v: number[] = [];
-  for (let r = 0; r <= rings; r = r + 1) {
-    const phi = PI * r / rings;
-    const sp = Math.sin(phi);
-    const cp = Math.cos(phi);
-    for (let s = 0; s <= segs; s = s + 1) {
-      const theta = TWO_PI * s / segs;
-      const st = Math.sin(theta);
-      const ct = Math.cos(theta);
-      const x = sp * ct;
-      const y = cp;
-      const z = sp * st;
-      v.push(x * radius, y * radius, z * radius);
-      v.push(x, y, z);
-      v.push(1, 1, 1, 1);
-      v.push(s / segs, r / rings);
-    }
-  }
-  return v;
-}
-
-function makeSphereIndices(segs: number, rings: number): number[] {
-  const idx: number[] = [];
-  for (let r = 0; r < rings; r = r + 1) {
-    for (let s = 0; s < segs; s = s + 1) {
-      const a = r * (segs + 1) + s;
-      const b = a + segs + 1;
-      idx.push(a, b, a + 1);
-      idx.push(b, b + 1, a + 1);
-    }
-  }
-  return idx;
-}
-
-let sphereHandle = 0;
-let cubeHandle = 0;
 // Procedural sphere mesh generator. Pre-sizes the arrays via
 // `new Array(N)` then writes each slot by index. Avoids `.push()`
 // entirely because Perry's current backend has bugs around .push:
@@ -131,8 +80,8 @@ let cubeHandle = 0;
 // `new Array(N)` + index assignment is documented as working
 // (per the perry-llvm fix history).
 function makeSphere(segs: number, rings: number): {
-  vertices: number[]; vertexCount: number;
-  indices: number[];  indexCount: number;
+  vertices: number[];
+  indices: number[];
 } {
   const vCount = (rings + 1) * (segs + 1);
   const iCount = rings * segs * 6;
@@ -166,18 +115,12 @@ function makeSphere(segs: number, rings: number): {
       ii = ii + 6;
     }
   }
-  return { vertices: verts, vertexCount: vCount, indices: inds, indexCount: iCount };
+  return { vertices: verts, indices: inds };
 }
 
-function initSharedMeshes(): void {
-  const sphere = makeSphere(24, 16);
-  sphereHandle = createMeshExplicit(
-    sphere.vertices, sphere.vertexCount,
-    sphere.indices,  sphere.indexCount,
-  ).handle;
-  cubeHandle = genMeshCube(1.0, 1.0, 1.0).handle;
-}
-initSharedMeshes();
+const sphereData = makeSphere(24, 16);
+const sphereMesh = new Mesh(game, sphereData.vertices, sphereData.indices);
+if (!sphereMesh.isLoaded) console.error(sphereMesh.error);
 
 // Build the grid. Roughness clamped away from exact 0 / 1 because
 // the GGX BRDF is undefined at zero roughness and the prefilter
@@ -193,46 +136,45 @@ for (let row = 0; row < GRID_N; row = row + 1) {
   for (let col = 0; col < GRID_N; col = col + 1) {
     const roughness = ROUGH_MIN + (ROUGH_MAX - ROUGH_MIN) * (col / (GRID_N - 1));
 
-    const node = createSceneNode();
-    attachModelToNode(node, sphereHandle, 0);
-    setSceneNodeColor(node, BASE_R * 255, BASE_G * 255, BASE_B * 255);
-    setSceneNodePbr(node, roughness, metallic);
-    setSceneNodeCastShadow(node, false);
-    setSceneNodeReceiveShadow(node, false);
+    const node = game.sceneGraph.createNode();
+    node.attachModel(sphereMesh, 0);
+    node.setColor({ r: BASE_R * 255, g: BASE_G * 255, b: BASE_B * 255, a: 255 });
+    node.setPbr(roughness, metallic);
+    node.setCastShadow(false);
+    node.setReceiveShadow(false);
 
     const x = (col - (GRID_N - 1) / 2) * SPACING;
     const y = (row - (GRID_N - 1) / 2) * SPACING;
-    let m = mat4Identity();
-    m = mat4Translate(m, { x: x, y: y, z: 0.0 });
-    m = mat4Scale(m, { x: SPHERE_R, y: SPHERE_R, z: SPHERE_R });
-    setSceneNodeTransform(node, m);
+    node.setTrs({ x, y, z: 0 }, 0, SPHERE_R);
   }
 }
 
 // ---- Loop ----
 let headlessFrame = 0;
 const HEADLESS_WARMUP_FRAMES = 30;
+const camera: Camera3D = {
+  position: { x: headlessCamX, y: headlessCamY, z: headlessCamZ },
+  target: { x: headlessTargetX, y: headlessTargetY, z: headlessTargetZ },
+  up: { x: 0, y: 1, z: 0 },
+  fovy: headlessFov,
+  projection: "perspective",
+};
 
-while (!windowShouldClose()) {
-  beginDrawing();
+game.run({
+  update() {},
+  render() {
+    game.renderer.begin3D(camera);
+    game.renderer.end3D();
 
-  beginMode3D({
-    position: { x: headlessCamX, y: headlessCamY, z: headlessCamZ },
-    target: { x: headlessTargetX, y: headlessTargetY, z: headlessTargetZ },
-    up: { x: 0, y: 1, z: 0 },
-    fovy: headlessFov,
-    projection: "perspective",
-  });
-  endMode3D();
-
-  endDrawing();
-
-  if (headlessMode) {
-    headlessFrame = headlessFrame + 1;
-    if (headlessFrame === HEADLESS_WARMUP_FRAMES) {
-      takeScreenshot(headlessOutPath);
-    } else if (headlessFrame > HEADLESS_WARMUP_FRAMES) {
-      break;
+    if (headlessMode) {
+      headlessFrame = headlessFrame + 1;
+      if (headlessFrame >= HEADLESS_WARMUP_FRAMES) {
+        if (headlessOutPath.length > 0) game.renderer.screenshot(headlessOutPath);
+        game.stop();
+      }
     }
-  }
-}
+  },
+  onStop() {
+    game.dispose();
+  },
+});

@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import { SceneNode } from '../scene/scene-node';
@@ -35,7 +36,7 @@ export class WorldInstance implements ContextResource {
   private disposed = false;
 
   constructor(owner: Game, data: WorldData, options: WorldInstantiateOptions) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     this.worldDocument = data.document;
     this.warnings = [];
     if (!this.context.isReady || this.context.isDisposed || this.worldDocument === null) {

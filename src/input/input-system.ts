@@ -1,4 +1,4 @@
-import { GameContext } from '../core/context';
+import { GameContext, getGameContext } from '../core/context';
 import type { Game } from '../core/game';
 import * as native from '../core/internal';
 import type { Camera2D } from '../core/types';
@@ -9,7 +9,7 @@ export class InputSystem {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(owner: Game) { this.context = owner.context; }
+  constructor(owner: Game) { this.context = getGameContext(owner); }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
 
@@ -40,6 +40,12 @@ export class InputSystem {
   getMouseDeltaX(): number { return this.isReady ? native.getMouseDeltaX() : 0; }
   getMouseDeltaY(): number { return this.isReady ? native.getMouseDeltaY() : 0; }
   getMouseWheel(): number { return this.isReady ? native.getMouseWheel() : 0; }
+  setCursorCaptured(captured: boolean): boolean {
+    if (!this.isReady) return false;
+    if (captured) native.disableCursor();
+    else native.enableCursor();
+    return true;
+  }
   getCharPressed(): number { return this.isReady ? native.getCharPressed() : 0; }
   isGamepadAvailable(id?: number): boolean { return this.isReady && native.isGamepadAvailable(id); }
   getGamepadAxis(axis: number): number { return this.isReady ? native.getGamepadAxis(axis) : 0; }

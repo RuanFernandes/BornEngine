@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { Texture } from '../core/types';
@@ -11,7 +12,7 @@ export class UiSurface implements ContextResource {
   private disposed = false;
 
   constructor(owner: Game, backend: UiBackendId) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     const api = createUiApi(
       backend,
       () => this.isReady,

@@ -1,5 +1,5 @@
 import type { Game } from '../core/game';
-import { GameContext, ContextResource } from '../core/context';
+import { GameContext, ContextResource, getGameContext } from '../core/context';
 import * as operations from './internal';
 import type { Renderer } from '../core/renderer';
 import type { Color, Vec2 } from '../core/types';
@@ -12,7 +12,7 @@ export class Font implements ContextResource {
   private readonly context: GameContext;
 
   constructor(game: Game, readonly path: string, readonly size: number) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || size <= 0) {
       this.error = 'A ready Game and positive font size are required.';

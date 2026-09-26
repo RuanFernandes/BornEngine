@@ -1,7 +1,8 @@
-import { GameContext, ContextResource } from '../core/context';
+import { GameContext, ContextResource, getGameContext } from '../core/context';
 import type { Game } from '../core/game';
+import type { SceneGraph } from './scene-graph';
 import * as operations from './internal';
-import type { Model } from '../models/model';
+import type { Mesh, Model } from '../models/model';
 import type { BoundingBox, Color, Mat4, Vec3 } from '../core/types';
 
 export interface SceneNodeOptions {
@@ -18,10 +19,12 @@ export class SceneNode implements ContextResource {
   private childrenValue: SceneNode[] = [];
 
   private readonly context: GameContext;
+  private readonly sceneGraph: SceneGraph;
 
   constructor(owner: Game, options?: SceneNodeOptions);
   constructor(owner: Game, options: SceneNodeOptions = {}, adoptedHandle?: number) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
+    this.sceneGraph = owner.sceneGraph;
     const context = this.context;
     this.name = options.name || '';
     if (!context.isReady || context.isDisposed) {
@@ -30,7 +33,10 @@ export class SceneNode implements ContextResource {
     }
     this.handleValue = adoptedHandle === undefined ? operations.createSceneNode() : adoptedHandle;
     this.error = this.handleValue === 0 ? 'Unable to create scene node.' : null;
-    if (this.handleValue !== 0) context.register(this);
+    if (this.handleValue !== 0) {
+      context.register(this);
+      this.sceneGraph.add(this);
+    }
   }
 
   /** @internal Wraps a node created by the world loader without exposing its identity. */
@@ -114,13 +120,13 @@ export class SceneNode implements ContextResource {
     return true;
   }
 
-  attachModel(model: Model, meshIndex = 0): boolean {
+  attachModel(model: Model | Mesh, meshIndex = 0): boolean {
     if (!this.isLoaded || !this.context.owns(model) || !model.isLoaded) return false;
     operations.attachModelToNode(this.handleValue, (model as any).handleValue, meshIndex);
     return true;
   }
 
-  attachModelLod(model: Model, meshIndex: number, level: number, maxCoverage: number): boolean {
+  attachModelLod(model: Model | Mesh, meshIndex: number, level: number, maxCoverage: number): boolean {
     if (!this.isLoaded || !this.context.owns(model) || !model.isLoaded) return false;
     operations.attachModelLodToNode(this.handleValue, { handle: (model as any).handleValue }, meshIndex, level, maxCoverage);
     return true;
@@ -186,6 +192,7 @@ export class SceneNode implements ContextResource {
     if (this.handleValue !== 0) operations.destroySceneNode(this.handleValue);
     this.handleValue = 0;
     this.disposed = true;
+    this.sceneGraph.remove(this);
     this.context.unregister(this);
   }
 

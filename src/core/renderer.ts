@@ -1,4 +1,4 @@
-import { GameContext } from './context';
+import { GameContext, getGameContext } from './context';
 import type { ContextResource } from './context';
 import type { Game } from './game';
 import { Colors } from './colors';
@@ -32,7 +32,7 @@ export class Renderer {
   private readonly context: GameContext;
 
   constructor(owner: Game) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     this.context.setDrawHandler((resource, position, tint) =>
       this.drawTexture(resource as Texture | RenderTexture, position, tint));
     this.context.setRenderTargetHandler((resource, action) => {

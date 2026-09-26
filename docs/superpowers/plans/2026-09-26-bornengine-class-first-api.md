@@ -340,27 +340,27 @@ Use `refactor: publish class-first TypeScript API`.
 - The root quickstart and website quickstart use the same `Game` / `GameLoopCallbacks` lifecycle from Task 2.
 - Migration reference maps old function calls to instance/class methods with no compatibility aliases.
 
-- [ ] **Step 1: Replace the flat-function API design rationale**
+- [x] **Step 1: Replace the flat-function API design rationale**
 
 Document the `Game` ownership model, renderer/services/resources, explicit disposal, Perry-compatible failure behavior, and single-runtime constraint.
 
-- [ ] **Step 2: Migrate quickstarts and examples by subsystem**
+- [x] **Step 2: Migrate quickstarts and examples by subsystem**
 
 Update application, 2D/3D rendering, textures, models, audio, input, gameplay scenes, physics, world loading, mobile, UI, VFX, and multiplayer examples.
 
-- [ ] **Step 3: Write the 0.5-to-0.6 migration reference**
+- [x] **Step 3: Write the 0.5-to-0.6 migration reference**
 
 Include old-to-new mappings for each module and a short description of changed ownership/disposal behavior.
 
-- [ ] **Step 4: Reconcile navigation and docs coverage metadata**
+- [x] **Step 4: Reconcile navigation and docs coverage metadata**
 
 Ensure each documented public module matches the package export map and no stale API page points to free functions.
 
-- [ ] **Step 5: Search public docs and source examples for removed API calls**
+- [x] **Step 5: Search public docs and source examples for removed API calls**
 
 Review matches for `initWindow`, `runGame`, `beginDrawing`, `loadTexture`, `createPhysicsWorld`, `stepPhysics`, and other old operation exports; keep native FFI names only in internal implementation documentation where needed.
 
-- [ ] **Step 6: Commit documentation migration**
+- [x] **Step 6: Commit documentation migration**
 
 Use `docs: migrate guides to class-first API`.
 
@@ -375,23 +375,23 @@ Use `docs: migrate guides to class-first API`.
 - The example uses `Game`, `Renderer`, `InputSystem`/`InputActionMap`, `SceneManager`, `GameObject`, scene adapters, `Model`, and `ColyseusClient` instances.
 - The example package points to an immutable engine API revision using the repository's pinned-dependency policy; do not invent a commit hash or commit an absolute local path.
 
-- [ ] **Step 1: Create an isolated worktree for the clean multiplayer repository**
+- [x] **Step 1: Create an isolated worktree for the clean multiplayer repository**
 
 Start from its current `origin/main`; leave the original demo checkout untouched.
 
-- [ ] **Step 2: Rewrite the game entry point around `Game` and its services**
+- [x] **Step 2: Rewrite the game entry point around `Game` and its services**
 
 Remove `initWindow`, direct input/scene/render free-function calls, and top-level Colyseus pumping. Keep the same arena, authoritative server input, local/remote player state, and HUD.
 
-- [ ] **Step 3: Update demo docs and dependency metadata**
+- [x] **Step 3: Update demo docs and dependency metadata**
 
 Document the new engine API and set the engine pin only to a real immutable revision available from the configured remote; keep any existing Colyseus patch applicable to that revision. If the engine change has not been published to a resolvable remote revision, leave the pin/lockfile for that exact step and report the release dependency rather than committing an unpublished SHA or a local path.
 
-- [ ] **Step 4: Review dependency/lock consistency and user-state preservation**
+- [x] **Step 4: Review dependency/lock consistency and user-state preservation**
 
 Inspect the manifest and lockfile references. Confirm the original demo checkout and all dirty `MeuGame` files are unchanged.
 
-- [ ] **Step 5: Commit the example migration**
+- [x] **Step 5: Commit the example migration**
 
 Use `feat: migrate multiplayer example to class-first API`.
 
@@ -404,15 +404,15 @@ Use `feat: migrate multiplayer example to class-first API`.
 - Consumes all outputs from Tasks 1–10.
 - Produces a concise summary of changed API areas, worktree locations, unresolved release-pin dependency (if the immutable engine revision is not yet available), and explicit verification limits.
 
-- [ ] **Step 1: Compare public exports, docs examples, and consumer imports to the spec**
+- [x] **Step 1: Compare public exports, docs examples, and consumer imports to the spec**
 
 Review root/subpath export barrels and search docs/sample code for obsolete free-function calls.
 
-- [ ] **Step 2: Confirm preserved working-tree state**
+- [x] **Step 2: Confirm preserved working-tree state**
 
 Inspect the original engine checkout and `MeuGame` status without changing their dirty files; inspect the original multiplayer checkout remains clean.
 
-- [ ] **Step 3: Report worktree branches, commits, migration coverage, and unrun verification**
+- [x] **Step 3: Report worktree branches, commits, migration coverage, and unrun verification**
 
 Do not claim tests or builds passed; no test suites are run under the current request constraints.
 

@@ -1,5 +1,5 @@
 import type { Game } from '../core/game';
-import { GameContext, ContextResource } from '../core/context';
+import { GameContext, ContextResource, getGameContext } from '../core/context';
 import * as operations from './internal';
 import type { Renderer } from '../core/renderer';
 import type { BoundingBox, Color, Mat4, Vec3 } from '../core/types';
@@ -17,7 +17,7 @@ export class Model implements ContextResource {
   private readonly context: GameContext;
 
   constructor(game: Game, readonly path: string) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before loading a model.';
@@ -96,7 +96,7 @@ export class Mesh implements ContextResource {
   private readonly context: GameContext;
 
   constructor(game: Game, vertices: number[], indices: number[]) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || vertices.length === 0 || indices.length === 0) {
       this.error = 'A ready Game and non-empty mesh buffers are required.';

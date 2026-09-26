@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { Renderer, InstancedDrawSource } from '../core/renderer';
@@ -63,7 +64,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
   private readonly context: GameContext;
 
   constructor(owner: Game, readonly capacity: number, config: ParticleConfig = {}) {
-    const context = owner.context;
+    const context = getGameContext(owner);
     this.context = context;
     if (!context.isReady || context.isDisposed || capacity <= 0) {
       this.error = 'A ready Game and positive particle capacity are required.';
@@ -159,7 +160,7 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
   private readonly ownsRuntimeSlot: boolean;
 
   constructor(owner: Game, readonly capacity: number) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     const registered = this.context.getOrCreateService(DECAL_RUNTIME_SLOT, () => this);
     this.ownsRuntimeSlot = registered === this;
     if (!this.ownsRuntimeSlot || !this.context.isReady || this.context.isDisposed || capacity <= 0) {

@@ -1,13 +1,13 @@
 ---
 title: Web / WASM
-description: Compile BornEngine to browser WebAssembly with WebGPU, WebGL fallback, Web Audio, and a non-blocking game loop.
+description: Compile BornEngine to browser WebAssembly with WebGPU, WebGL fallback, Web Audio, and Game callbacks.
 section: Platforms / Web
 order: 54
 ---
 
 ## Build
 
-Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) with the command documented by BornEngine, then build from the repository root:
+Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) and build from the repository root:
 
 ```sh
 cargo install wasm-pack
@@ -15,34 +15,30 @@ cargo install wasm-pack
 cd dist/web && python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080`. The `--dev` profile skips `wasm-opt` to shorten iteration time. For a shipping build, use `./native/web/build.sh --release main.ts`; release is also the default when no profile is specified and runs `wasm-opt -Oz` once through `wasm-pack`.
-
-Choose another output directory with `--output`. Relative paths are resolved from the directory where you run the command:
-
-```sh
-./native/web/build.sh --dev --output build/web main.ts
-```
-
-The script compiles the game with `perry --target wasm` and assembles the engine package and game into the selected output directory.
-Each run replaces generated engine files and copied `assets/` there, so stale WASM packages or assets from an earlier build are not retained. The script rejects an output path that would overlap the game's TypeScript entry file or source `assets/` directory; for a project-local build, use a separate folder such as `build/web`.
+Open `http://localhost:8080`. The `--dev` profile skips `wasm-opt` for faster iteration. For a shipping build, use `--release`; it is also the default profile. Choose another output directory with `--output DIR`.
 
 ## Game loop and browser APIs
 
-Browsers cannot run a blocking `while` loop. Use `runGame()`:
+Browsers cannot let game code block the main thread. `Game.run()` hands frame scheduling to the browser and calls update before render:
 
 ```ts
-runGame((dt) => {
-  clearBackground(Colors.BLACK);
-  drawRect(100, 100, 50, 50, Colors.RED);
+import { Colors, Game } from '@bornengine/engine';
+
+const game = new Game({ window: { title: 'Browser game', width: 800, height: 600 } });
+game.run({
+  update(deltaTime) { updateGame(deltaTime); },
+  render() {
+    game.renderer.clear(Colors.BLACK);
+    game.renderer.drawRectangle({ x: 100, y: 100, width: 50, height: 50 }, Colors.RED);
+  },
+  onStop: () => game.dispose(),
 });
 ```
 
-Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. Game and engine rendering both run in WebAssembly, with a small JavaScript glue layer for DOM events, asset fetching, and audio output.
-
-Colyseus uses the bundled official TypeScript client behind the same `@bornengine/engine/colyseus` API. `native/web/build.sh` builds the SDK bundle together with the WebAssembly package; see the [Colyseus API guide](../../api/colyseus/) for supported operations and the runtime validation scope.
+The same callbacks run on native. Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. A small JavaScript glue layer handles DOM events, asset fetching, and audio output.
 
 ## Assets and support
 
-The served output contains project assets. Images support PNG, JPEG, BMP, and TGA; audio supports WAV and OGG; models use glTF/GLB; fonts use TTF/OTF. File helpers use `localStorage` on the web. Chrome 113+, Firefox 141+, and Edge 113+ have the documented WebGPU path; Safari uses its available WebGPU/WebGL support.
+The served output contains project assets. Images support PNG, JPEG, BMP, and TGA; audio supports WAV and OGG; models use glTF/GLB; fonts use TTF/OTF. File helpers on `game.input` use browser storage. Current supported-browser details can vary with browser releases; consult the platform matrix before shipping.
 
-The [2D game recipe](../../guides/2d-game/) uses the non-blocking `runGame()` loop and relative asset paths that work with this browser build.
+The [2D game recipe](../../guides/2d-game/) uses the class-first frame loop and portable asset paths.

@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import { Scene } from './scene';
 import type { GameContext, ContextResource } from '../core/context';
 import type { Game } from '../core/game';
@@ -9,7 +10,7 @@ export class SceneManager implements ContextResource {
   private transitioning = false;
 
   constructor(owner: Game) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     this.context.register(this);
   }
 

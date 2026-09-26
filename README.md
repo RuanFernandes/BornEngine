@@ -44,31 +44,49 @@ You'll also need:
 ## Quick Start
 
 ```typescript
-import { initWindow, windowShouldClose, beginDrawing,
-         endDrawing, clearBackground, drawText, Colors } from "@bornengine/engine";
+import { Colors, Game } from "@bornengine/engine";
 
-initWindow(800, 450, "My Game");
+const game = new Game({
+  window: { title: "My Game", width: 800, height: 450 },
+  targetFps: 60,
+});
 
-while (!windowShouldClose()) {
-  beginDrawing();
-  clearBackground(Colors.SNOW);
-drawText("Hello, BornEngine!", 190, 200, 20, Colors.DARKGRAY);
-  endDrawing();
-}
+if (!game.isReady) console.error(game.error || "Could not start BornEngine");
+
+game.run({
+  update(deltaTime) {
+    // Update gameplay state here.
+  },
+  render() {
+    game.renderer.clear(Colors.SNOW);
+    game.renderer.drawText("Hello, BornEngine!", { x: 190, y: 200 }, 20, Colors.DARKGRAY);
+  },
+  onStop() {
+    game.dispose();
+  },
+});
 ```
+
+`Game` owns the window, frame lifecycle, renderer, input, audio, scenes, and resources created for that runtime. The engine begins and ends each frame around your callbacks. Call `dispose()` when the game shuts down; it is safe to call more than once.
 
 ### Web-Compatible Pattern
 
-Use `runGame()` for code that works on both native and web:
+The same `Game.run()` callback API works on native and Web/WASM. The platform drives the frame schedule, so keep simulation changes in `update(deltaTime)` and drawing in `render()`:
 
 ```typescript
-import { initWindow, runGame, clearBackground, drawText, Colors } from "@bornengine/engine";
+import { Colors, Game } from "@bornengine/engine";
 
-initWindow(800, 450, "My Game");
+const game = new Game({ window: { title: "My Game", width: 800, height: 450 } });
 
-runGame((dt) => {
-  clearBackground(Colors.SNOW);
-drawText("Hello, BornEngine!", 190, 200, 20, Colors.DARKGRAY);
+game.run({
+  update(deltaTime) {
+    // deltaTime is elapsed seconds since the previous frame.
+  },
+  render() {
+    game.renderer.clear(Colors.SNOW);
+    game.renderer.drawText("Runs on native and web", { x: 190, y: 200 }, 20, Colors.DARKGRAY);
+  },
+  onStop: () => game.dispose(),
 });
 ```
 
@@ -83,21 +101,15 @@ Use `--release` (the default) for optimized builds.
 
 ## Features
 
-- **Two gameplay styles** — Use the flat function-and-handle API directly, or build with the optional class-based GameObject runtime. ([design rationale](docs/design-api.md), [game objects](docs/game-objects.md))
+- **Class-first TypeScript API** — A `Game` owns its renderer, input, audio, scenes, and disposable resources. ([API design](docs/design-api.md), [game objects](docs/game-objects.md))
 - **True native** — Compiles to Metal, DirectX 12, Vulkan, OpenGL, and WebGPU via wgpu.
 - **Ship everywhere** — macOS, Windows, Linux, iOS, tvOS, Android, and Web from one codebase.
 - **Unified 2D/3D** — Shapes, textures, text, 3D models, and audio in one engine.
-- **Zero magic** — Explicit game loops, no hidden framework overhead.
+- **Explicit lifecycle** — Separate update and render callbacks, inspect startup/resource errors, and dispose owned state deliberately.
 
 ## How BornEngine relates to raylib
 
-BornEngine's low-level modules are heavily inspired by [raylib](https://github.com/raysan5/raylib).
-raylib's API is, in our opinion, one of the best in the gamedev space — a flat library
-of plain functions, small enough to learn from a cheatsheet — so those modules follow
-that shape. The optional game module adds class-based gameplay objects. You'll recognize
-the low-level API immediately: `initWindow`, `beginDrawing`,
-`clearBackground`, `drawText`, and modules named core / shapes / textures / text /
-audio / models.
+BornEngine is inspired by [raylib](https://github.com/raysan5/raylib), especially its focus on clear, approachable game APIs. BornEngine presents a class-first TypeScript surface: a `Game` owns its services and resources, while the implementation keeps its native boundary explicit and data-oriented.
 
 That's where the relationship ends. **BornEngine's implementation is entirely independent —
 it does not link against, embed, or call raylib.** BornEngine compiles TypeScript directly to
@@ -105,13 +117,14 @@ native code via Perry, our LLVM-based AOT compiler, and renders through wgpu (Me
 DirectX 12, Vulkan, OpenGL, WebGPU). It is not a port or a binding — just an engine that
 admires raylib's API design. Thanks to
 [Ramon Santamaria (@raysan5)](https://github.com/raysan5) and the raylib community for
-setting the bar. ([full design rationale](docs/design-api.md))
+setting the bar. ([design overview](docs/design-api.md))
 
 ## Modules
 
 | Module | Import | Description |
 |--------|--------|-------------|
-| **Core** | `@bornengine/engine/core` | Window, game loop, input, timing |
+| **Core** | `@bornengine/engine/core` | Game, window, game loop, timing |
+| **Input** | `@bornengine/engine/input` | Keyboard, mouse, gamepad, action maps |
 | **Game** | `@bornengine/engine/game` | GameObjects, components, transforms, scenes, and native-handle adapters ([docs](docs/game-objects.md)) |
 | **Shapes** | `@bornengine/engine/shapes` | 2D drawing + collision detection |
 | **Textures** | `@bornengine/engine/textures` | Image loading, sprite batching |
@@ -124,6 +137,9 @@ setting the bar. ([full design rationale](docs/design-api.md))
 | **VFX** | `@bornengine/engine/vfx` | GPU particle systems + decals |
 | **World** | `@bornengine/engine/world` | `.world.json` loading, validation, instantiation ([docs](docs/world-format.md)) |
 | **Mobile** | `@bornengine/engine/mobile` | Virtual joystick/buttons, touch-input helpers |
+| **UI** | `@bornengine/engine/ui` | Game-owned interface rendering |
+| **Debug UI** | `@bornengine/engine/debug-ui` | Runtime diagnostics and inspection |
+| **Colyseus** | `@bornengine/engine/colyseus` | Multiplayer rooms and state updates |
 
 ## Platforms
 
@@ -165,64 +181,64 @@ examples/
   pong/               Complete working example (~170 lines)
 ```
 
-## Core data types
+## Runtime ownership
 
-The native function modules use plain data interfaces and numeric resource handles:
+Create one `Game` for the active runtime. Stateful resources are constructed with that owner, keep their native handles private, and expose lifecycle state directly:
 
-```typescript
-interface Vec2 { x: number; y: number }
-interface Vec3 { x: number; y: number; z: number }
-interface Color { r: number; g: number; b: number; a: number }
-interface Rect { x: number; y: number; width: number; height: number }
-interface Camera2D { offset: Vec2; target: Vec2; rotation: number; zoom: number }
-interface Camera3D { position: Vec3; target: Vec3; up: Vec3; fovy: number; projection: number }
-interface Texture { handle: number; width: number; height: number }
-interface Sound { handle: number }
-interface Model { handle: number }
-```
+~~~typescript
+import { Game, Model, Texture, Vec3 } from "@bornengine/engine";
+
+const game = new Game({ window: { title: "Adventure", width: 1280, height: 720 } });
+const hero = new Texture(game, "assets/hero.png");
+const world = new Model(game, "assets/world.glb");
+const spawn = new Vec3(0, 1, -4);
+
+if (!hero.isLoaded) console.error(hero.error);
+if (!world.isLoaded) console.error(world.error);
+~~~
+
+Value types such as vectors, colors, rectangles, and camera descriptions stay lightweight. `Game.dispose()` releases any still-owned runtime resources.
 
 ## Fullscreen
 
-Launch your game in fullscreen by passing `true` as the fourth argument to `initWindow`:
+Configure the initial window on Game construction and toggle it through the owning window service:
 
-```typescript
-initWindow(800, 450, "My Game", true);   // launches fullscreen
-initWindow(800, 450, "My Game");         // windowed (default)
-```
+~~~typescript
+import { Game, Key } from "@bornengine/engine";
+const game = new Game({ window: { title: "My Game", width: 800, height: 450, fullscreen: true } });
+game.run({
+  update() { if (game.input.isKeyPressed(Key.F11)) game.window.toggleFullscreen(); },
+  render() {},
+  onStop: () => game.dispose(),
+});
+~~~
 
-Toggle fullscreen at runtime:
-
-```typescript
-if (isKeyPressed(Key.F11)) {
-  toggleFullscreen();
-}
-```
-
-Fullscreen is supported on macOS (native AppKit fullscreen), Windows (borderless fullscreen), and Linux (EWMH/X11). The width and height you pass are used as the windowed dimensions when exiting fullscreen.
+The initial window dimensions are restored when leaving fullscreen where the platform supports it.
 
 ## Skeletal Animation
 
-BornEngine supports GPU-accelerated skeletal animation via glTF/GLB models. The pipeline uses 4-bone linear blend skinning with a 128-joint uniform buffer, running entirely on the GPU.
+BornEngine supports GPU-accelerated skeletal animation from glTF/GLB models. The pipeline uses four-bone linear blend skinning and a 128-joint uniform buffer.
 
-```typescript
-import { loadModel, loadModelAnimation, updateModelAnimation, drawModel,
-         getTime, Colors } from "@bornengine/engine";
+~~~typescript
+import { Animation, Colors, Game, Model } from "@bornengine/engine";
 
-const character = loadModel("assets/models/character.glb");
-const anim = loadModelAnimation("assets/models/character.glb");
+const game = new Game({ window: { title: "Animation Demo" } });
+const character = new Model(game, "assets/models/character.glb");
+const animation = new Animation(game, "assets/models/character.glb");
 
-// In your game loop:
-updateModelAnimation(anim, 0, getTime(), 1.0, 0, 0, 0);
-drawModel(character, { x: 0, y: 0, z: 0 }, 1.0, Colors.WHITE);
-```
+ game.run({
+  update(deltaTime) {
+    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
+  },
+  render() {
+    game.renderer.clear(Colors.SKYBLUE);
+    if (character.isLoaded) character.draw(game.renderer, { x: 0, y: 0, z: 0 });
+  },
+  onStop: () => game.dispose(),
+});
+~~~
 
-Key functions:
-- `loadModel(path)` -- loads GLB with skin data (JOINTS_0, WEIGHTS_0)
-- `loadModelAnimation(path)` -- loads skeleton + animation channels from GLB
-- `updateModelAnimation(handle, animIndex, time, scale, px, py, pz)` -- samples animation, computes joint matrices
-- `drawModel(model, position, scale, tint)` -- renders with GPU skinning
-
-For the full pipeline (Blender export, pitfalls, architecture), see [docs/skeletal-animation.md](docs/skeletal-animation.md).
+Create animation resources with their Game, play a clip with `animation.play(index)`, and update them before drawing. See the [skeletal animation guide](docs/skeletal-animation.md) for the Blender export pipeline.
 
 ## Built with the original Bloom Engine
 

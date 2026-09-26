@@ -71,4 +71,4 @@ export { Ui, UiBackend, UiOpcode } from './ui';
 export { DebugUi } from './debug-ui';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui';
 export { ColyseusClient, Room } from './colyseus';
-export type { RoomRequestOptions, ColyseusError } from './colyseus';
+export type { RoomRequestOptions, ColyseusError, RoomJoinCallbacks } from './colyseus';

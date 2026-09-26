@@ -1,5 +1,5 @@
 import type { Game } from '../core/game';
-import { GameContext } from '../core/context';
+import { GameContext, getGameContext } from '../core/context';
 import * as operations from './internal';
 import type { Rect } from '../core/types';
 import { Texture } from './texture';
@@ -13,7 +13,7 @@ export class ImageData {
   private readonly context: GameContext;
 
   constructor(private readonly game: Game, readonly path: string) {
-    this.context = game.context;
+    this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before loading image data.';

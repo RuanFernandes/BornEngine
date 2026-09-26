@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import type { GameContext, ContextResource } from '../core/context';
 import type { Game } from '../core/game';
 import type { Quat, Vec3 } from '../core/types';
@@ -59,7 +60,7 @@ export class PhysicsWorld implements ContextResource {
   private disposed = false;
 
   constructor(owner: Game, options: PhysicsWorldOptions = {}) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     this.sceneManager = options.sceneManager || owner.scenes || null;
     let handle = 0;
     if (this.context.isReady && !this.context.isDisposed) {

@@ -1,12 +1,5 @@
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, getDeltaTime, isKeyPressed, isKeyDown,
-  getScreenWidth, getScreenHeight, closeWindow, beginMode2D, endMode2D,
-} from "bloom/core";
-import { Color, Key, Camera2D } from "bloom/core";
-import { drawRect, drawCircle, drawRectLines } from "bloom/shapes";
-import { drawText, measureText } from "bloom/text";
-import { clamp, randomInt, randomFloat } from "bloom/math";
+import { Collision, Colors, Game, Key, Mathf } from '@bornengine/engine';
+import type { Camera2D, Color } from '@bornengine/engine';
 
 // Constants
 const SCREEN_WIDTH = 800;
@@ -98,10 +91,10 @@ function generateDungeon(): void {
   // Generate rooms
   const rooms: Room[] = [];
   for (let attempt = 0; attempt < 100 && rooms.length < MAX_ROOMS; attempt++) {
-    const w = randomInt(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
-    const h = randomInt(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
-    const rx = randomInt(1, MAP_WIDTH - w - 1);
-    const ry = randomInt(1, MAP_HEIGHT - h - 1);
+    const w = Mathf.randomInt(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+    const h = Mathf.randomInt(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+    const rx = Mathf.randomInt(1, MAP_WIDTH - w - 1);
+    const ry = Mathf.randomInt(1, MAP_HEIGHT - h - 1);
 
     // Check overlap
     let overlaps = false;
@@ -162,10 +155,10 @@ function generateDungeon(): void {
   // Place enemies in other rooms
   let enemyIdx = 0;
   for (let r = 1; r < rooms.length - 1 && enemyIdx < MAX_ENEMIES; r++) {
-    const count = randomInt(1, 2);
+    const count = Mathf.randomInt(1, 2);
     for (let e = 0; e < count && enemyIdx < MAX_ENEMIES; e++) {
-      const ex = randomInt(rooms[r].x + 1, rooms[r].x + rooms[r].w - 2);
-      const ey = randomInt(rooms[r].y + 1, rooms[r].y + rooms[r].h - 2);
+      const ex = Mathf.randomInt(rooms[r].x + 1, rooms[r].x + rooms[r].w - 2);
+      const ey = Mathf.randomInt(rooms[r].y + 1, rooms[r].y + rooms[r].h - 2);
       if (enemyIdx >= enemies.length) {
         enemies.push({ x: ex, y: ey, hp: 5 + floor * 2, maxHp: 5 + floor * 2, attack: 2 + floor, active: true, name: "Goblin" });
       } else {
@@ -225,7 +218,7 @@ function tryMove(dx: number, dy: number): void {
   const ei = enemyAt(nx, ny);
   if (ei >= 0) {
     // Attack enemy
-    const dmg = randomInt(player.attack - 1, player.attack + 1);
+    const dmg = Mathf.randomInt(player.attack - 1, player.attack + 1);
     enemies[ei].hp = enemies[ei].hp - dmg;
     if (enemies[ei].hp <= 0) {
       enemies[ei].active = false;
@@ -256,7 +249,7 @@ function tryMove(dx: number, dy: number): void {
 
     if (dist <= 1) {
       // Attack player
-      const dmg = randomInt(enemies[i].attack - 1, enemies[i].attack + 1);
+      const dmg = Mathf.randomInt(enemies[i].attack - 1, enemies[i].attack + 1);
       player.hp = player.hp - dmg;
       showMessage(enemies[i].name + " hits you for " + dmg.toString() + "!");
     } else if (dist <= FOV_RADIUS && isVisible(enemies[i].x, enemies[i].y)) {
@@ -290,9 +283,7 @@ function getTileColor(tile: number, vis: boolean, exp: boolean): Color {
   return { r: Math.floor(40 * dim), g: Math.floor(40 * dim), b: Math.floor(50 * dim), a: 255 };
 }
 
-// Initialize
-initWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Dungeon Crawl");
-setTargetFPS(60);
+const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Dungeon Crawl" }, targetFps: 60 });
 
 // Initialize arrays
 for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
@@ -312,19 +303,19 @@ const camera: Camera2D = {
 };
 
 // Main game loop
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
+game.run({
+  update(dt) {
 
   if (player.hp > 0) {
     // Turn-based input
-    if (isKeyPressed(Key.UP) || isKeyPressed(Key.W)) tryMove(0, -1);
-    if (isKeyPressed(Key.DOWN) || isKeyPressed(Key.S)) tryMove(0, 1);
-    if (isKeyPressed(Key.LEFT) || isKeyPressed(Key.A)) tryMove(-1, 0);
-    if (isKeyPressed(Key.RIGHT) || isKeyPressed(Key.D)) tryMove(1, 0);
+    if (game.input.isKeyPressed(Key.UP) || game.input.isKeyPressed(Key.W)) tryMove(0, -1);
+    if (game.input.isKeyPressed(Key.DOWN) || game.input.isKeyPressed(Key.S)) tryMove(0, 1);
+    if (game.input.isKeyPressed(Key.LEFT) || game.input.isKeyPressed(Key.A)) tryMove(-1, 0);
+    if (game.input.isKeyPressed(Key.RIGHT) || game.input.isKeyPressed(Key.D)) tryMove(1, 0);
     // Wait
-    if (isKeyPressed(Key.PERIOD)) tryMove(0, 0);
+    if (game.input.isKeyPressed(Key.PERIOD)) tryMove(0, 0);
   } else {
-    if (isKeyPressed(Key.ENTER)) {
+    if (game.input.isKeyPressed(Key.ENTER)) {
       player.hp = player.maxHp;
       floor = 1;
       turnCount = 0;
@@ -335,8 +326,8 @@ while (!windowShouldClose()) {
   }
 
   // Camera zoom
-  if (isKeyDown(Key.EQUAL)) camera.zoom = clamp(camera.zoom + dt, 0.5, 3.0);
-  if (isKeyDown(Key.MINUS)) camera.zoom = clamp(camera.zoom - dt, 0.5, 3.0);
+  if (game.input.isKeyDown(Key.EQUAL)) camera.zoom = Mathf.clamp(camera.zoom + dt, 0.5, 3.0);
+  if (game.input.isKeyDown(Key.MINUS)) camera.zoom = Mathf.clamp(camera.zoom - dt, 0.5, 3.0);
 
   // Smooth camera follow
   const targetCamX = player.x * TILE_SIZE + TILE_SIZE / 2;
@@ -348,10 +339,11 @@ while (!windowShouldClose()) {
   if (messageTimer > 0) messageTimer = messageTimer - dt;
 
   // Drawing
-  beginDrawing();
-  clearBackground({ r: 10, g: 10, b: 15, a: 255 });
+  },
+  render() {
+  game.renderer.clear({ r: 10, g: 10, b: 15, a: 255 });
 
-  beginMode2D(camera);
+  game.renderer.begin2D(camera);
 
   // Draw tiles
   const viewTiles = Math.ceil(SCREEN_WIDTH / TILE_SIZE / camera.zoom) + 2;
@@ -367,7 +359,7 @@ while (!windowShouldClose()) {
       const exp = isExplored(tx, ty);
       if (!vis && !exp) continue;
       const color = getTileColor(tile, vis, exp);
-      drawRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE, color);
+      game.renderer.drawRectangle({ x: tx * TILE_SIZE, y: ty * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }, color);
     }
   }
 
@@ -375,49 +367,38 @@ while (!windowShouldClose()) {
   for (let i = 0; i < enemies.length; i++) {
     if (!enemies[i].active) continue;
     if (!isVisible(enemies[i].x, enemies[i].y)) continue;
-    drawRect(
-      enemies[i].x * TILE_SIZE + 4,
-      enemies[i].y * TILE_SIZE + 4,
-      TILE_SIZE - 8, TILE_SIZE - 8,
-      { r: 200, g: 50, b: 50, a: 255 },
-    );
+    game.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE + 4, y: enemies[i].y * TILE_SIZE + 4, width: TILE_SIZE - 8, height: TILE_SIZE - 8 }, { r: 200, g: 50, b: 50, a: 255 });
     // HP bar
     const hpRatio = enemies[i].hp / enemies[i].maxHp;
-    drawRect(enemies[i].x * TILE_SIZE, enemies[i].y * TILE_SIZE - 4, Math.floor(TILE_SIZE * hpRatio), 3, Color.Red);
+    game.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE, y: enemies[i].y * TILE_SIZE - 4, width: Math.floor(TILE_SIZE * hpRatio), height: 3 }, Colors.RED);
   }
 
   // Draw player
-  drawRect(
-    player.x * TILE_SIZE + 2,
-    player.y * TILE_SIZE + 2,
-    TILE_SIZE - 4, TILE_SIZE - 4,
-    { r: 50, g: 150, b: 255, a: 255 },
-  );
+  game.renderer.drawRectangle({ x: player.x * TILE_SIZE + 2, y: player.y * TILE_SIZE + 2, width: TILE_SIZE - 4, height: TILE_SIZE - 4 }, { r: 50, g: 150, b: 255, a: 255 });
 
-  endMode2D();
+  game.renderer.end2D();
 
   // HUD
-  drawRect(0, 0, SCREEN_WIDTH, 35, { r: 0, g: 0, b: 0, a: 180 });
-  drawText("HP: " + player.hp.toString() + "/" + player.maxHp.toString(), 10, 8, 20, player.hp > player.maxHp / 3 ? Color.Green : Color.Red);
-  drawText("Floor: " + floor.toString(), 200, 8, 20, Color.White);
-  drawText("Turns: " + turnCount.toString(), 350, 8, 20, Color.LightGray);
+  game.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 35 }, { r: 0, g: 0, b: 0, a: 180 });
+  game.renderer.drawText("HP: " + player.hp.toString() + "/" + player.maxHp.toString(), { x: 10, y: 8 }, 20, player.hp > player.maxHp / 3 ? Colors.GREEN : Colors.RED);
+  game.renderer.drawText("Floor: " + floor.toString(), { x: 200, y: 8 }, 20, Colors.WHITE);
+  game.renderer.drawText("Turns: " + turnCount.toString(), { x: 350, y: 8 }, 20, Colors.LIGHTGRAY);
 
   // Message log
   if (messageTimer > 0) {
-    const alpha = Math.floor(clamp(messageTimer * 255, 0, 255));
-    drawText(message, 10, SCREEN_HEIGHT - 30, 18, { r: 255, g: 255, b: 200, a: alpha });
+    const alpha = Math.floor(Mathf.clamp(messageTimer * 255, 0, 255));
+    game.renderer.drawText(message, { x: 10, y: SCREEN_HEIGHT - 30 }, 18, { r: 255, g: 255, b: 200, a: alpha });
   }
 
   // Death screen
   if (player.hp <= 0) {
-    drawRect(0, SCREEN_HEIGHT / 2 - 50, SCREEN_WIDTH, 100, { r: 0, g: 0, b: 0, a: 200 });
+    game.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 50, width: SCREEN_WIDTH, height: 100 }, { r: 0, g: 0, b: 0, a: 200 });
     const deathMsg = "You have perished on floor " + floor.toString();
-    drawText(deathMsg, SCREEN_WIDTH / 2 - measureText(deathMsg, 24) / 2, SCREEN_HEIGHT / 2 - 20, 24, Color.Red);
+    game.renderer.drawText(deathMsg, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(deathMsg, 24) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 24, Colors.RED);
     const restartMsg = "Press ENTER to try again";
-    drawText(restartMsg, SCREEN_WIDTH / 2 - measureText(restartMsg, 18) / 2, SCREEN_HEIGHT / 2 + 15, 18, Color.LightGray);
+    game.renderer.drawText(restartMsg, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(restartMsg, 18) / 2, y: SCREEN_HEIGHT / 2 + 15 }, 18, Colors.LIGHTGRAY);
   }
 
-  endDrawing();
-}
-
-closeWindow();
+  },
+  onStop: () => game.dispose(),
+});

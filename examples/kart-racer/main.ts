@@ -1,19 +1,5 @@
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, getDeltaTime, isKeyDown, isKeyPressed,
-  closeWindow, beginMode3D, endMode3D,
-} from "bloom/core";
-import { Color, Key, Camera3D } from "bloom/core";
-import {
-  drawCube, drawPlane, drawSphere, drawCubeWires, drawGrid,
-} from "bloom/models";
-import { drawText, measureText } from "bloom/text";
-import { drawRect } from "bloom/shapes";
-import {
-  clamp, lerp, vec3, vec3Add, vec3Sub, vec3Scale, vec3Normalize, vec3Length,
-  randomFloat, randomInt,
-} from "bloom/math";
-import { Vec3 } from "bloom/core";
+import { Colors, Game, Key, Mathf } from '@bornengine/engine';
+import type { Camera3D, Color } from '@bornengine/engine';
 
 // Constants
 const SCREEN_WIDTH = 960;
@@ -84,7 +70,7 @@ function createKart(startIdx: number, color: Color, isPlayer: boolean): Kart {
     color,
     isPlayer,
     targetCheckpoint: (startIdx + 1) % NUM_CHECKPOINTS,
-    steerBias: randomFloat(-0.3, 0.3),
+    steerBias: Mathf.randomFloat(-0.3, 0.3),
   };
 }
 
@@ -131,7 +117,7 @@ function updateKartPhysics(kart: Kart, dt: number, accel: number, steer: number)
 
   kart.speed = kart.speed + accel * dt;
   kart.speed = kart.speed - Math.sign(kart.speed) * FRICTION * dt;
-  kart.speed = clamp(kart.speed, -MAX_SPEED * 0.3, MAX_SPEED);
+  kart.speed = Mathf.clamp(kart.speed, -MAX_SPEED * 0.3, MAX_SPEED);
 
   if (Math.abs(kart.speed) > 1) {
     kart.angle = kart.angle + steer * dt * (kart.speed > 0 ? 1 : -1);
@@ -140,8 +126,8 @@ function updateKartPhysics(kart: Kart, dt: number, accel: number, steer: number)
   // Velocity with drift
   const targetVelX = Math.cos(kart.angle) * kart.speed;
   const targetVelZ = Math.sin(kart.angle) * kart.speed;
-  kart.velX = lerp(kart.velX, targetVelX, DRIFT_FACTOR);
-  kart.velZ = lerp(kart.velZ, targetVelZ, DRIFT_FACTOR);
+  kart.velX = Mathf.lerp(kart.velX, targetVelX, DRIFT_FACTOR);
+  kart.velZ = Mathf.lerp(kart.velZ, targetVelZ, DRIFT_FACTOR);
 
   kart.x = kart.x + kart.velX * dt;
   kart.z = kart.z + kart.velZ * dt;
@@ -161,7 +147,7 @@ function updateAI(kart: Kart, dt: number): void {
   while (angleDiff > Math.PI) angleDiff = angleDiff - Math.PI * 2;
   while (angleDiff < -Math.PI) angleDiff = angleDiff + Math.PI * 2;
 
-  const steer = clamp(angleDiff * 3.0 + kart.steerBias, -TURN_SPEED, TURN_SPEED);
+  const steer = Mathf.clamp(angleDiff * 3.0 + kart.steerBias, -TURN_SPEED, TURN_SPEED);
 
   // AI always accelerates, brakes on sharp turns
   let accel = ACCEL * 0.85;
@@ -196,9 +182,7 @@ function placeSuffix(p: number): string {
   return p.toString() + "th";
 }
 
-// Initialize
-initWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Kart Racer");
-setTargetFPS(60);
+const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Kart Racer" }, targetFps: 60 });
 
 const camera: Camera3D = {
   position: { x: 0, y: 30, z: -50 },
@@ -208,8 +192,8 @@ const camera: Camera3D = {
   projection: "perspective",
 };
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
+game.run({
+  update(dt) {
   const player = karts[0];
 
   // Countdown
@@ -227,10 +211,10 @@ while (!windowShouldClose()) {
     // Player input
     let accel = 0;
     let steer = 0;
-    if (isKeyDown(Key.UP) || isKeyDown(Key.W)) accel = ACCEL;
-    if (isKeyDown(Key.DOWN) || isKeyDown(Key.S)) accel = -BRAKE_DECEL;
-    if (isKeyDown(Key.LEFT) || isKeyDown(Key.A)) steer = -TURN_SPEED;
-    if (isKeyDown(Key.RIGHT) || isKeyDown(Key.D)) steer = TURN_SPEED;
+    if (game.input.isKeyDown(Key.UP) || game.input.isKeyDown(Key.W)) accel = ACCEL;
+    if (game.input.isKeyDown(Key.DOWN) || game.input.isKeyDown(Key.S)) accel = -BRAKE_DECEL;
+    if (game.input.isKeyDown(Key.LEFT) || game.input.isKeyDown(Key.A)) steer = -TURN_SPEED;
+    if (game.input.isKeyDown(Key.RIGHT) || game.input.isKeyDown(Key.D)) steer = TURN_SPEED;
 
     updateKartPhysics(player, dt, accel, steer);
 
@@ -266,22 +250,23 @@ while (!windowShouldClose()) {
   const camHeight = 10;
   const behindX = player.x - Math.cos(player.angle) * camDist;
   const behindZ = player.z - Math.sin(player.angle) * camDist;
-  camera.position.x = lerp(camera.position.x, behindX, 4 * dt);
-  camera.position.y = lerp(camera.position.y, camHeight, 4 * dt);
-  camera.position.z = lerp(camera.position.z, behindZ, 4 * dt);
+  camera.position.x = Mathf.lerp(camera.position.x, behindX, 4 * dt);
+  camera.position.y = Mathf.lerp(camera.position.y, camHeight, 4 * dt);
+  camera.position.z = Mathf.lerp(camera.position.z, behindZ, 4 * dt);
   const lookAhead = 8;
-  camera.target.x = lerp(camera.target.x, player.x + Math.cos(player.angle) * lookAhead, 6 * dt);
+  camera.target.x = Mathf.lerp(camera.target.x, player.x + Math.cos(player.angle) * lookAhead, 6 * dt);
   camera.target.y = 1;
-  camera.target.z = lerp(camera.target.z, player.z + Math.sin(player.angle) * lookAhead, 6 * dt);
+  camera.target.z = Mathf.lerp(camera.target.z, player.z + Math.sin(player.angle) * lookAhead, 6 * dt);
 
   // Drawing
-  beginDrawing();
-  clearBackground({ r: 100, g: 180, b: 255, a: 255 });
+  },
+  render() {
+  game.renderer.clear({ r: 100, g: 180, b: 255, a: 255 });
 
-  beginMode3D(camera);
+  game.renderer.begin3D(camera);
 
   // Ground
-  drawPlane({ x: 0, y: -0.1, z: 0 }, 200, 200, { r: 50, g: 140, b: 50, a: 255 });
+  game.renderer.drawPlane({ x: 0, y: -0.1, z: 0 }, 200, 200, { r: 50, g: 140, b: 50, a: 255 });
 
   // Track segments
   for (let i = 0; i < NUM_CHECKPOINTS; i++) {
@@ -296,32 +281,28 @@ while (!windowShouldClose()) {
 
     // Draw track surface as a flat cube
     // Track is oriented along the segment direction, width = TRACK_WIDTH
-    drawCube(
-      { x: mx, y: 0, z: mz },
-      segLen + 2, 0.15, TRACK_WIDTH,
-      { r: 80, g: 80, b: 90, a: 255 },
-    );
+    game.renderer.drawCube({ x: mx, y: 0, z: mz }, { x: segLen + 2, y: 0.15, z: TRACK_WIDTH }, { r: 80, g: 80, b: 90, a: 255 });
   }
 
   // Start/finish line
   const startCp = checkpoints[0];
-  drawCube({ x: startCp.x, y: 0.2, z: startCp.z }, 1, 0.3, TRACK_WIDTH, Color.White);
+  game.renderer.drawCube({ x: startCp.x, y: 0.2, z: startCp.z }, { x: 1, y: 0.3, z: TRACK_WIDTH }, Colors.WHITE);
 
   // Checkpoint markers (small posts on track edges)
   for (let i = 0; i < NUM_CHECKPOINTS; i++) {
     const cp = checkpoints[i];
-    const color = i === 0 ? Color.White : { r: 200, g: 200, b: 50, a: 255 };
-    drawCube({ x: cp.x, y: 1, z: cp.z - TRACK_WIDTH * 0.5 - 1 }, 0.5, 2, 0.5, color);
-    drawCube({ x: cp.x, y: 1, z: cp.z + TRACK_WIDTH * 0.5 + 1 }, 0.5, 2, 0.5, color);
+    const color = i === 0 ? Colors.WHITE : { r: 200, g: 200, b: 50, a: 255 };
+    game.renderer.drawCube({ x: cp.x, y: 1, z: cp.z - TRACK_WIDTH * 0.5 - 1 }, { x: 0.5, y: 2, z: 0.5 }, color);
+    game.renderer.drawCube({ x: cp.x, y: 1, z: cp.z + TRACK_WIDTH * 0.5 + 1 }, { x: 0.5, y: 2, z: 0.5 }, color);
   }
 
   // Draw karts
   for (let i = 0; i < karts.length; i++) {
     const k = karts[i];
     // Body
-    drawCube({ x: k.x, y: 0.7, z: k.z }, 2.5, 1.0, 1.5, k.color);
+    game.renderer.drawCube({ x: k.x, y: 0.7, z: k.z }, { x: 2.5, y: 1.0, z: 1.5 }, k.color);
     // Cockpit
-    drawCube({ x: k.x, y: 1.4, z: k.z }, 1.2, 0.6, 1.0, { r: 200, g: 200, b: 220, a: 255 });
+    game.renderer.drawCube({ x: k.x, y: 1.4, z: k.z }, { x: 1.2, y: 0.6, z: 1.0 }, { r: 200, g: 200, b: 220, a: 255 });
     // Wheels (4 spheres)
     const cos = Math.cos(k.angle);
     const sin = Math.sin(k.angle);
@@ -334,7 +315,7 @@ while (!windowShouldClose()) {
     for (const wp of wheelPositions) {
       const wx = k.x + cos * wp.fx - sin * wp.fz;
       const wz = k.z + sin * wp.fx + cos * wp.fz;
-      drawSphere({ x: wx, y: 0.3, z: wz }, 0.35, { r: 30, g: 30, b: 30, a: 255 });
+      game.renderer.drawSphere({ x: wx, y: 0.3, z: wz }, 0.35, { r: 30, g: 30, b: 30, a: 255 });
     }
   }
 
@@ -345,33 +326,33 @@ while (!windowShouldClose()) {
     const tx = Math.cos(t) * r;
     const tz = Math.sin(t) * r * 0.6;
     // Trunk
-    drawCube({ x: tx, y: 2, z: tz }, 0.8, 4, 0.8, { r: 100, g: 60, b: 30, a: 255 });
+    game.renderer.drawCube({ x: tx, y: 2, z: tz }, { x: 0.8, y: 4, z: 0.8 }, { r: 100, g: 60, b: 30, a: 255 });
     // Foliage
-    drawSphere({ x: tx, y: 5.5, z: tz }, 2.5, { r: 30, g: 120, b: 30, a: 255 });
+    game.renderer.drawSphere({ x: tx, y: 5.5, z: tz }, 2.5, { r: 30, g: 120, b: 30, a: 255 });
   }
 
-  endMode3D();
+  game.renderer.end3D();
 
   // HUD
-  drawRect(0, 0, SCREEN_WIDTH, 40, { r: 0, g: 0, b: 0, a: 150 });
+  game.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 40 }, { r: 0, g: 0, b: 0, a: 150 });
 
   // Speed
   const speedKmh = Math.floor(Math.abs(player.speed) * 3.6);
-  drawText(speedKmh.toString() + " km/h", 10, 10, 22, Color.White);
+  game.renderer.drawText(speedKmh.toString() + " km/h", { x: 10, y: 10 }, 22, Colors.WHITE);
 
   // Position
-  drawText(placeSuffix(playerPlace), 200, 10, 22, Color.Yellow);
+  game.renderer.drawText(placeSuffix(playerPlace), { x: 200, y: 10 }, 22, Colors.YELLOW);
 
   // Lap
   const lapText = "Lap " + Math.min(player.lap + 1, TOTAL_LAPS).toString() + "/" + TOTAL_LAPS.toString();
-  drawText(lapText, 350, 10, 22, Color.White);
+  game.renderer.drawText(lapText, { x: 350, y: 10 }, 22, Colors.WHITE);
 
   // Time
-  drawText(formatTime(raceTime), SCREEN_WIDTH - 150, 10, 22, Color.LightGray);
+  game.renderer.drawText(formatTime(raceTime), { x: SCREEN_WIDTH - 150, y: 10 }, 22, Colors.LIGHTGRAY);
 
   // Best lap
   if (bestLapTime > 0) {
-    drawText("Best: " + formatTime(bestLapTime), SCREEN_WIDTH - 150, 35, 16, Color.Green);
+    game.renderer.drawText("Best: " + formatTime(bestLapTime), { x: SCREEN_WIDTH - 150, y: 35 }, 16, Colors.GREEN);
   }
 
   // Countdown
@@ -379,25 +360,23 @@ while (!windowShouldClose()) {
     const countNum = Math.ceil(countdown);
     const countText = countNum > 0 ? countNum.toString() : "GO!";
     const fontSize = 80;
-    drawText(countText, SCREEN_WIDTH / 2 - measureText(countText, fontSize) / 2, SCREEN_HEIGHT / 2 - 50, fontSize,
-      countNum <= 1 ? Color.Green : Color.Red);
+    game.renderer.drawText(countText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(countText, fontSize) / 2, y: SCREEN_HEIGHT / 2 - 50 }, fontSize, countNum <= 1 ? Colors.GREEN : Colors.RED);
   }
 
   // Race finish
   if (raceFinished) {
-    drawRect(0, SCREEN_HEIGHT / 2 - 60, SCREEN_WIDTH, 120, { r: 0, g: 0, b: 0, a: 200 });
+    game.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 60, width: SCREEN_WIDTH, height: 120 }, { r: 0, g: 0, b: 0, a: 200 });
     const finishText = "RACE COMPLETE!";
-    drawText(finishText, SCREEN_WIDTH / 2 - measureText(finishText, 50) / 2, SCREEN_HEIGHT / 2 - 45, 50, Color.Gold);
+    game.renderer.drawText(finishText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(finishText, 50) / 2, y: SCREEN_HEIGHT / 2 - 45 }, 50, Colors.GOLD);
     const resultText = "Finished " + placeSuffix(playerPlace) + " — Time: " + formatTime(raceTime);
-    drawText(resultText, SCREEN_WIDTH / 2 - measureText(resultText, 24) / 2, SCREEN_HEIGHT / 2 + 15, 24, Color.White);
+    game.renderer.drawText(resultText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(resultText, 24) / 2, y: SCREEN_HEIGHT / 2 + 15 }, 24, Colors.WHITE);
   }
 
   // Controls hint (first few seconds)
   if (raceTime < 5 && raceStarted) {
-    drawText("WASD/Arrows to drive", 10, SCREEN_HEIGHT - 25, 16, { r: 200, g: 200, b: 200, a: 180 });
+    game.renderer.drawText("WASD/Arrows to drive", { x: 10, y: SCREEN_HEIGHT - 25 }, 16, { r: 200, g: 200, b: 200, a: 180 });
   }
 
-  endDrawing();
-}
-
-closeWindow();
+  },
+  onStop: () => game.dispose(),
+});

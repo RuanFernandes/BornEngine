@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { InputSystem } from '../input/input-system';
@@ -29,7 +30,7 @@ export class TouchControls implements ContextResource {
   private disposed = false;
 
   constructor(private readonly host: Game) {
-    this.context = host.context;
+    this.context = getGameContext(host);
     this.context.register(this);
   }
 

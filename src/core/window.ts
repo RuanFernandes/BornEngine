@@ -1,5 +1,5 @@
 import * as native from './internal';
-import { GameContext } from './context';
+import { GameContext, getGameContext } from './context';
 import type { Game } from './game';
 
 export type WindowMode = 'windowed' | 'embedded';
@@ -34,7 +34,7 @@ export class Window {
 
   constructor(owner: Game, options: WindowOptions = {}) {
     this.owner = owner;
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     this.mode = options.mode || 'windowed';
     this.widthValue = options.width === undefined ? DEFAULT_WIDTH : options.width;
     this.heightValue = options.height === undefined ? DEFAULT_HEIGHT : options.height;

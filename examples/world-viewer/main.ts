@@ -1,175 +1,133 @@
-// world-viewer — the reference consumer of the shared world format.
-//
-// Loads any `*.world.json` and shows it with a fly camera, going through the
-// GENERIC path end to end: loadWorld → instantiateWorld (terrain, entities,
-// prefabs, water, rivers) → applyWorldEnvironment every frame. If a world
-// looks right here, it will look right in any game that uses the same calls —
-// this example exists to keep that path honest (it had zero consumers before;
-// every game hand-rolled its own spawn code).
-//
-//   perry compile main.ts -o world-viewer
-//   cd <your-game>   # modelRef paths resolve relative to CWD
-//   <path>/world-viewer --world assets/worlds/level.world.json [--prefabs assets/prefabs]
-//
+// Reference consumer for the shared world format using the class-first API.
+// Run from a game directory so world model references resolve against its assets.
+// Usage: world-viewer --world assets/worlds/level.world.json [--prefabs assets/prefabs]
 // Controls: WASD move, Q/E down/up, hold right mouse to look, Shift = fast.
 
-import {
-  initWindow, windowShouldClose, closeWindow,
-  beginDrawing, endDrawing, clearBackground,
-  beginMode3D, endMode3D, setTargetFPS, getDeltaTime,
-  isKeyDown, Key, drawText,
-  isMouseButtonDown, MouseButton, getMouseDeltaX, getMouseDeltaY,
-  loadModel, Camera3D,
-} from 'bloom';
+import { Game, Key, Model, MouseButton, PrefabLibrary, WorldData } from '@bornengine/engine';
+import type { Camera3D } from '@bornengine/engine';
 import { readdirSync } from 'fs';
-import {
-  loadWorld, instantiateWorld, applyWorldEnvironment,
-  InstantiateContext, WorldData,
-  createPrefabRegistry, registerPrefab, loadPrefab, PrefabRegistry,
-} from 'bloom/world';
-
-// ---- args --------------------------------------------------------------------
 
 let worldPath = '';
 let prefabsDir = '';
-for (let i = 0; i < process.argv.length; i++) {
-  if (process.argv[i] === '--world' && i + 1 < process.argv.length) {
-    worldPath = process.argv[i + 1];
-  }
-  if (process.argv[i] === '--prefabs' && i + 1 < process.argv.length) {
-    prefabsDir = process.argv[i + 1];
-  }
+for (let index = 0; index < process.argv.length; index += 1) {
+  if (process.argv[index] === '--world' && index + 1 < process.argv.length) worldPath = process.argv[index + 1];
+  if (process.argv[index] === '--prefabs' && index + 1 < process.argv.length) prefabsDir = process.argv[index + 1];
 }
 if (worldPath.length === 0) {
   console.error('usage: world-viewer --world <path/to/x.world.json> [--prefabs <dir>]');
   process.exit(2);
 }
 
-// ---- load ----------------------------------------------------------------------
+const worldData = new WorldData(worldPath);
+if (!worldData.load()) throw new Error(worldData.error || 'World load failed');
+const world = worldData.document;
+if (world === null) throw new Error('Loaded world document is unavailable');
 
-const world: WorldData = loadWorld(worldPath);
+const game = new Game({
+  window: { width: 1280, height: 800, title: 'world-viewer — ' + world.name },
+  targetFps: 60,
+});
+if (!game.isReady) throw new Error(game.error || 'Game startup failed');
 
-initWindow(1280, 800, 'world-viewer — ' + world.name);
-setTargetFPS(60);
-
-// Model cache: modelRef strings are paths relative to the game root, so run
-// this viewer from the game's root directory.
-const modelHandles = new Map<string, number>();
-function getModelHandle(modelRef: string): number {
-  const cached = modelHandles.get(modelRef);
-  if (cached !== undefined) return cached;
-  const model = loadModel(modelRef);
-  modelHandles.set(modelRef, model.handle);
-  return model.handle;
+const modelCache = new Map<string, Model>();
+function getModel(path: string): Model | null {
+  const cached = modelCache.get(path);
+  if (cached !== undefined) return cached.isLoaded ? cached : null;
+  const model = new Model(game, path);
+  modelCache.set(path, model);
+  if (!model.isLoaded) console.error('world-viewer: ' + model.error);
+  return model.isLoaded ? model : null;
 }
 
-// Prefab registry from --prefabs (optional).
-let registry: PrefabRegistry | null = null;
+let prefabs: PrefabLibrary | null = null;
 if (prefabsDir.length > 0) {
-  registry = createPrefabRegistry();
+  prefabs = new PrefabLibrary();
   let files: string[] = [];
   try {
     files = readdirSync(prefabsDir) as string[];
-  } catch (e) {
+  } catch (error) {
     console.error('world-viewer: cannot read --prefabs dir ' + prefabsDir);
   }
-  for (let i = 0; i < files.length; i++) {
-    if (!files[i].endsWith('.prefab.json')) continue;
+  for (const file of files) {
+    if (!file.endsWith('.prefab.json')) continue;
     try {
-      registerPrefab(registry, loadPrefab(prefabsDir + '/' + files[i]));
-    } catch (e) {
-      console.error('world-viewer: skipping prefab ' + files[i] + ': ' + (e as Error).message);
+      prefabs.load(prefabsDir + '/' + file);
+    } catch (error) {
+      console.error('world-viewer: skipping prefab ' + file + ': ' + String(error));
     }
   }
 }
 
-const ctx: InstantiateContext = {
-  getModelHandle: getModelHandle,
-  prefabRegistry: registry,
-};
+const instance = worldData.instantiate(game, { getModel, prefabs });
+if (instance.error !== null) throw new Error(instance.error);
+for (const warning of instance.warnings) console.error('world-viewer: ' + warning);
 
-const result = instantiateWorld(world, ctx);
-for (let i = 0; i < result.warnings.length; i++) {
-  console.error('world-viewer: ' + result.warnings[i]);
-}
-
-// ---- fly camera -----------------------------------------------------------------
-
-// Start behind the world bounds' center, looking at it.
-const bcx = (world.bounds.min[0] + world.bounds.max[0]) / 2;
-const bcy = (world.bounds.min[1] + world.bounds.max[1]) / 2;
-const bcz = (world.bounds.min[2] + world.bounds.max[2]) / 2;
+const centerX = (world.bounds.min[0] + world.bounds.max[0]) / 2;
+const centerY = (world.bounds.min[1] + world.bounds.max[1]) / 2;
+const centerZ = (world.bounds.min[2] + world.bounds.max[2]) / 2;
 const spanX = world.bounds.max[0] - world.bounds.min[0];
 const spanZ = world.bounds.max[2] - world.bounds.min[2];
 let span = spanX > spanZ ? spanX : spanZ;
 if (span < 10) span = 10;
 
-let camX = bcx;
-let camY = bcy + span * 0.35;
-let camZ = bcz + span * 0.7;
-let yaw = Math.PI;          // Facing -Z, toward the center.
+let cameraX = centerX;
+let cameraY = centerY + span * 0.35;
+let cameraZ = centerZ + span * 0.7;
+let yaw = Math.PI;
 let pitch = -0.35;
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
-
-  // Look (hold RMB).
-  if (isMouseButtonDown(MouseButton.RIGHT)) {
-    yaw -= getMouseDeltaX() * 0.003;
-    pitch -= getMouseDeltaY() * 0.003;
+function update(deltaTime: number): void {
+  if (game.input.isMouseButtonDown(MouseButton.RIGHT)) {
+    yaw -= game.input.getMouseDeltaX() * 0.003;
+    pitch -= game.input.getMouseDeltaY() * 0.003;
     if (pitch > 1.5) pitch = 1.5;
     if (pitch < -1.5) pitch = -1.5;
   }
 
-  const fwdX = Math.sin(yaw) * Math.cos(pitch);
-  const fwdY = Math.sin(pitch);
-  const fwdZ = Math.cos(yaw) * Math.cos(pitch);
+  const forwardX = Math.sin(yaw) * Math.cos(pitch);
+  const forwardY = Math.sin(pitch);
+  const forwardZ = Math.cos(yaw) * Math.cos(pitch);
   const rightX = Math.sin(yaw - Math.PI / 2);
   const rightZ = Math.cos(yaw - Math.PI / 2);
+  let speed = span * 0.15 * deltaTime;
+  if (game.input.isKeyDown(Key.LEFT_SHIFT)) speed *= 4;
+  if (game.input.isKeyDown(Key.W)) { cameraX += forwardX * speed; cameraY += forwardY * speed; cameraZ += forwardZ * speed; }
+  if (game.input.isKeyDown(Key.S)) { cameraX -= forwardX * speed; cameraY -= forwardY * speed; cameraZ -= forwardZ * speed; }
+  if (game.input.isKeyDown(Key.A)) { cameraX -= rightX * speed; cameraZ -= rightZ * speed; }
+  if (game.input.isKeyDown(Key.D)) { cameraX += rightX * speed; cameraZ += rightZ * speed; }
+  if (game.input.isKeyDown(Key.Q)) cameraY -= speed;
+  if (game.input.isKeyDown(Key.E)) cameraY += speed;
+}
 
-  let speed = span * 0.15 * dt;
-  if (isKeyDown(Key.LEFT_SHIFT)) speed *= 4;
-
-  if (isKeyDown(Key.W)) { camX += fwdX * speed; camY += fwdY * speed; camZ += fwdZ * speed; }
-  if (isKeyDown(Key.S)) { camX -= fwdX * speed; camY -= fwdY * speed; camZ -= fwdZ * speed; }
-  if (isKeyDown(Key.A)) { camX -= rightX * speed; camZ -= rightZ * speed; }
-  if (isKeyDown(Key.D)) { camX += rightX * speed; camZ += rightZ * speed; }
-  if (isKeyDown(Key.Q)) { camY -= speed; }
-  if (isKeyDown(Key.E)) { camY += speed; }
-
-  const cam: Camera3D = {
-    position: { x: camX, y: camY, z: camZ },
-    target: { x: camX + fwdX, y: camY + fwdY, z: camZ + fwdZ },
+function render(): void {
+  const camera: Camera3D = {
+    position: { x: cameraX, y: cameraY, z: cameraZ },
+    target: {
+      x: cameraX + Math.sin(yaw) * Math.cos(pitch),
+      y: cameraY + Math.sin(pitch),
+      z: cameraZ + Math.cos(yaw) * Math.cos(pitch),
+    },
     up: { x: 0, y: 1, z: 0 },
     fovy: 60,
     projection: 'perspective',
   };
-
-  beginDrawing();
-  clearBackground({
-    r: Math.floor(world.environment.skyColor[0] * 255),
-    g: Math.floor(world.environment.skyColor[1] * 255),
-    b: Math.floor(world.environment.skyColor[2] * 255),
+  const sky = world.environment.skyColor;
+  game.renderer.clear({
+    r: Math.floor(sky[0] * 255),
+    g: Math.floor(sky[1] * 255),
+    b: Math.floor(sky[2] * 255),
     a: 255,
   });
+  instance.applyLighting();
+  if (game.renderer.begin3D(camera)) game.renderer.end3D();
 
-  // The whole point: the renderer clears lighting per frame, so the world's
-  // environment + point lights re-apply per frame through the SHARED helper.
-  applyWorldEnvironment(world);
-
-  beginMode3D(cam);
-  // Scene nodes spawned by instantiateWorld draw themselves (retained mode).
-  endMode3D();
-
-  drawText(world.name + '  —  ' + world.entities.length + ' entities, ' +
+  const summary = world.name + ' — ' + world.entities.length + ' entities, ' +
     world.lights.length + ' lights, ' + world.water.length + ' water, ' +
     world.rivers.length + ' rivers' +
-    (result.warnings.length > 0 ? '  (' + result.warnings.length + ' warnings, see console)' : ''),
-    12, 12, 18, { r: 255, g: 255, b: 255, a: 220 });
-  drawText('WASD move · Q/E down/up · hold RMB look · Shift fast',
-    12, 34, 14, { r: 255, g: 255, b: 255, a: 140 });
-
-  endDrawing();
+    (instance.warnings.length > 0 ? ' (' + instance.warnings.length + ' warnings; see console)' : '');
+  game.renderer.drawText(summary, { x: 12, y: 12 }, 18, { r: 255, g: 255, b: 255, a: 220 });
+  game.renderer.drawText('WASD move · Q/E down/up · hold RMB look · Shift fast',
+    { x: 12, y: 34 }, 14, { r: 255, g: 255, b: 255, a: 140 });
 }
 
-closeWindow();
+game.run({ update, render, onStop: () => game.dispose() });

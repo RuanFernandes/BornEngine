@@ -81,7 +81,7 @@
     "@bornengine/jolt-prebuilt": "0.4.1"
   },
   "keywords": [
-    "bloom",
+    "bornengine",
     "game-engine",
     "perry",
     "typescript",

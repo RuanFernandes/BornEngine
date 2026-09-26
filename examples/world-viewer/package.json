@@ -1,12 +1,12 @@
 {
-  "name": "bloom-world-viewer",
+  "name": "bornengine-world-viewer",
   "version": "0.1.0",
   "dependencies": {
-    "bloom": "file:../../"
+    "@bornengine/engine": "file:../../"
   },
   "perry": {
     "allow": {
-      "nativeLibrary": ["bloom", "bloom/core", "bloom/world", "bloom/scene"]
+      "nativeLibrary": ["@bornengine/engine"]
     }
   }
 }

@@ -1,3 +1,4 @@
+import { getGameContext } from '../core/context';
 import { GameComponent } from './game-component';
 import { GameObject } from './game-object';
 import type { GameContext, ContextResource } from '../core/context';
@@ -20,7 +21,7 @@ export class GameScene implements ContextResource {
   private wasDestroyed = false;
 
   constructor(owner: Game) {
-    this.context = owner.context;
+    this.context = getGameContext(owner);
     this.context.register(this);
   }
 

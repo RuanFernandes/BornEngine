@@ -1,4 +1,4 @@
-import { GameContext, CONTEXT_ALREADY_ACTIVE_ERROR } from './context';
+import { GameContext, CONTEXT_ALREADY_ACTIVE_ERROR, bindGameContext, getGameContext } from './context';
 import { Window } from './window';
 import type { WindowOptions } from './window';
 import { Renderer } from './renderer';
@@ -28,7 +28,6 @@ function validTargetFps(value: number): boolean {
 
 /** Root owner for one BornEngine runtime and all of its services/resources. */
 export class Game {
-  readonly context: GameContext;
   readonly window: Window;
   readonly renderer: Renderer;
   readonly input: InputSystem;
@@ -52,14 +51,15 @@ export class Game {
 
   constructor(options: GameOptions = {}) {
     const runtime = GameContext.create();
-    this.context = runtime === null
+    const context = runtime === null
       ? GameContext.createFailed(CONTEXT_ALREADY_ACTIVE_ERROR)
       : runtime;
+    bindGameContext(this, context);
 
     if (options.targetFps !== undefined && !validTargetFps(options.targetFps)) {
       const configurationError = 'targetFps must be a positive finite number.';
       this.configurationError = configurationError;
-      this.context.markFailed(configurationError);
+      getGameContext(this).markFailed(configurationError);
     }
 
     this.window = new Window(this, options.window);
@@ -72,16 +72,16 @@ export class Game {
     this.ui = new Ui(this);
     this.debugUi = new DebugUi(this);
 
-    if (this.context.isReady) {
+    if (getGameContext(this).isReady) {
       if (options.targetFps !== undefined) setTargetFPS(options.targetFps);
       this.activateServices();
     }
   }
 
-  get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
+  get isReady(): boolean { return getGameContext(this).isReady && !getGameContext(this).isDisposed && !this.disposed; }
   get isRunning(): boolean { return this.hasRun && !this.runCompleted && !this.disposed; }
   get isDisposed(): boolean { return this.disposed; }
-  get error(): string | null { return this.context.error; }
+  get error(): string | null { return getGameContext(this).error; }
 
   /** Start the engine-owned native loop or the browser's animation-frame loop. */
   run(callbacks: GameLoopCallbacks): void {
@@ -140,25 +140,25 @@ export class Game {
 
   /** @internal Re-register services after an embedded host attaches its surface. */
   activateServices(): void {
-    if (!this.canActivateServices() || !this.context.isReady) return;
-    this.context.register(this.scenes);
-    this.context.register(this.sceneGraph);
-    this.context.register(this.mobile);
-    this.context.register(this.ui);
-    this.context.register(this.debugUi);
+    if (!this.canActivateServices() || !getGameContext(this).isReady) return;
+    getGameContext(this).register(this.scenes);
+    getGameContext(this).register(this.sceneGraph);
+    getGameContext(this).register(this.mobile);
+    getGameContext(this).register(this.ui);
+    getGameContext(this).register(this.debugUi);
     this.audio.activate();
   }
 
   /** @internal Validates an embedded attach before it reaches the native runtime. */
   canActivateServices(): boolean {
-    return this.configurationError === null && this.context.isActiveOwner() && !this.context.isDisposed;
+    return this.configurationError === null && getGameContext(this).isActiveOwner() && !getGameContext(this).isDisposed;
   }
 
   private dispatchFrame(deltaTime: number, callbacks: GameLoopCallbacks): void {
     if (!this.isReady || this.stopRequested) return;
     this.inFrame = true;
     this.input.update();
-    this.context.updateFrameServices(deltaTime);
+    getGameContext(this).updateFrameServices(deltaTime);
     this.audio.update(deltaTime);
     this.mobile.update();
     callbacks.update(deltaTime);
@@ -204,7 +204,7 @@ export class Game {
     this.audio.dispose();
     this.input.dispose();
     this.renderer.dispose();
-    this.context.dispose();
+    getGameContext(this).dispose();
     this.window.close();
     this.disposed = true;
     this.runCompleted = true;
