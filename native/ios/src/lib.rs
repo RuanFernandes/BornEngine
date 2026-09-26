@@ -248,7 +248,10 @@ fn register_metal_view_class() {
         class_addMethod(cls, sel!(touchesEnded:withEvent:), bloom_touches_ended as *const c_void, touch_types);
         class_addMethod(cls, sel!(touchesCancelled:withEvent:), bloom_touches_cancelled as *const c_void, touch_types);
 
-        extern "C" { fn objc_getProtocol(name: *const u8) -> *const c_void; }
+        extern "C" {
+            fn objc_getProtocol(name: *const u8) -> *const c_void;
+            fn class_addProtocol(cls: *mut AnyClass, protocol: *const c_void) -> bool;
+        }
         let keyboard_protocol = objc_getProtocol(b"UIKeyInput\0".as_ptr());
         if !keyboard_protocol.is_null() {
             class_addProtocol(cls, keyboard_protocol);

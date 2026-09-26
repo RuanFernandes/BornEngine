@@ -116,7 +116,7 @@ jobs:
         run: bash tools/build-colyseus-sdk.sh "${{ matrix.rust_target }}"
 
       - name: Link engine static library against Colyseus SDK
-        run: cargo build --release --manifest-path "${{ matrix.cargo_manifest }}" --no-default-features --target "${{ matrix.rust_target }}"
+        run: cargo build --release --manifest-path "${{ matrix.cargo_manifest }}" --no-default-features --features models3d,image-extras --target "${{ matrix.rust_target }}"
 
       - uses: actions/upload-artifact@v4
         with:

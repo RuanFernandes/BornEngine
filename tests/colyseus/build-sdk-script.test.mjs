@@ -65,6 +65,13 @@ test("native SDK runner links the engine crate for every artifact target", () =>
   }
   assert.match(workflow, /Install Rust toolchain/);
   assert.match(workflow, /Link engine static library against Colyseus SDK/);
-  assert.match(workflow, /cargo build --release --manifest-path.*--no-default-features --target/);
+  assert.match(workflow, /cargo build --release --manifest-path.*--no-default-features --features models3d,image-extras --target/);
   assert.doesNotMatch(workflow, /- name: Link engine static library against Colyseus SDK\n        shell: bash/);
+});
+
+test("iOS protocol registration uses an explicit Objective-C runtime declaration", () => {
+  const iosSource = resolve(repoRoot, "native/ios/src/lib.rs");
+  const source = readFileSync(iosSource, "utf8");
+
+  assert.match(source, /extern "C"\s*\{\s*fn class_addProtocol\(cls: \*mut AnyClass, protocol: \*const c_void\) -> bool;/);
 });
