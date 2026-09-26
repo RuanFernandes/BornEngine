@@ -8,6 +8,7 @@ if (identity.elements.length !== 16 || directIdentity.elements.length !== 16) {
 const products = [
   Matrix4.multiplyMatrices(identity, identity),
   identity.multiply(identity),
+  directIdentity.multiply(identity),
 ];
 
 for (let productIndex = 0; productIndex < products.length; productIndex++) {
