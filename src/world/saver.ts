@@ -1,4 +1,4 @@
-// World saver — serializes a `WorldData` to disk as pretty-printed JSON.
+// World saver — serializes a `WorldDocument` to disk as pretty-printed JSON.
 // Called by the editor's File -> Save / Save As commands and by any tooling
 // that programmatically generates worlds.
 //
@@ -21,8 +21,8 @@
 // fail three times in a row. The `.tmp`/`.bak` siblings are cheap litter;
 // gitignore them in game repos.
 
-import { readFile, writeFile, fileExists } from '../core/index';
-import { WORLD_SCHEMA_VERSION, WorldData, PrefabData } from './types';
+import { readFile, writeFile, fileExists } from '../core/internal';
+import { WORLD_SCHEMA_VERSION, WorldDocument, PrefabData } from './types';
 import { validateWorld, validatePrefab, formatValidationErrors } from './validate';
 import { serializeWorld, serializePrefab } from './serialize';
 
@@ -61,7 +61,7 @@ function safeWrite(path: string, json: string): string | null {
 // Write a world file. On success, returns `{ ok: true, errors: [] }`.
 // On validation failure, returns the errors without touching the filesystem.
 // On write failure (disk full, permissions), returns `{ ok: false, errors: [...] }`.
-export function saveWorld(path: string, world: WorldData): SaveResult {
+export function saveWorld(path: string, world: WorldDocument): SaveResult {
   // Always stamp the current schema version on save so stale copies don't
   // drift across editor sessions.
   world.schemaVersion = WORLD_SCHEMA_VERSION;

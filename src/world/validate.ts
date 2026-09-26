@@ -1,4 +1,4 @@
-// Runtime schema validation for `WorldData` and `PrefabData`. Called by the
+// Runtime schema validation for `WorldDocument` and `PrefabData`. Called by the
 // loader (to guard against corrupted or hand-edited files) and by the saver
 // (to catch editor bugs before they reach disk). Errors are returned as a
 // list of human-readable strings rather than thrown, so the caller can log
@@ -6,7 +6,7 @@
 
 import {
   WORLD_SCHEMA_VERSION,
-  WorldData,
+  WorldDocument,
   PrefabData,
   EntityData,
   PrefabChild,
@@ -21,7 +21,7 @@ export interface ValidationResult {
   errors: string[];
 }
 
-export function validateWorld(w: WorldData): ValidationResult {
+export function validateWorld(w: WorldDocument): ValidationResult {
   const errors: string[] = [];
 
   if (typeof w.schemaVersion !== 'number') {
@@ -255,7 +255,7 @@ function pushUnknownKeys(obj: unknown, allowed: string[], path: string, out: str
 // schema, as dotted paths ("world.navmesh", "world.entities[3].loot"). Call on
 // the object returned by `loadWorld` — JSON.parse keeps unknown keys, the
 // static types just hide them. Empty result means a save is lossless.
-export function listUnknownWorldFields(w: WorldData): string[] {
+export function listUnknownWorldFields(w: WorldDocument): string[] {
   const out: string[] = [];
   pushUnknownKeys(w, WORLD_KEYS, 'world', out);
   pushUnknownKeys(w.bounds, BOUNDS_KEYS, 'world.bounds', out);

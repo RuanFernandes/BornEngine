@@ -5,14 +5,15 @@
   "main": "main.ts",
   "scripts": {
     "build": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --no-cache -o colyseus-smoke",
-    "test": "npm run build && ./colyseus-smoke"
+    "test": "npm run build && ./colyseus-smoke",
+    "test:math": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile math-smoke.ts --no-cache -o math-smoke && ./math-smoke"
   },
   "dependencies": {
     "@bornengine/engine": "file:../../"
   },
   "perry": {
     "allow": {
-      "nativeLibrary": ["@bornengine/engine/colyseus"]
+      "nativeLibrary": ["@bornengine/engine/*"]
     }
   }
 }

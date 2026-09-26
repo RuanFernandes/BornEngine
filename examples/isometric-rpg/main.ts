@@ -1,18 +1,5 @@
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, getDeltaTime, isKeyPressed, isKeyDown,
-  getScreenWidth, getScreenHeight, closeWindow,
-  getMouseX, getMouseY, isMouseButtonPressed,
-  writeFile, fileExists,
-} from "bloom/core";
-import { Color, Key, Camera2D, MouseButton } from "bloom/core";
-import {
-  drawRect, drawRectLines, drawCircle, drawTriangle,
-  checkCollisionPointRec,
-} from "bloom/shapes";
-import { drawText, measureText } from "bloom/text";
-import { clamp, randomInt, randomFloat, lerp, vec2Distance } from "bloom/math";
-import { Rect, Vec2 } from "bloom/core";
+import { Colors, Game, Key, Mathf, MouseButton } from '@bornengine/engine';
+import type { Camera2D, Color } from '@bornengine/engine';
 
 // Constants
 const SCREEN_WIDTH = 960;
@@ -138,7 +125,7 @@ function itemColor(t: number): Color {
   if (t === ITEM_SHIELD) return { r: 100, g: 100, b: 200, a: 255 };
   if (t === ITEM_KEY) return { r: 255, g: 220, b: 50, a: 255 };
   if (t === ITEM_COIN) return { r: 255, g: 200, b: 0, a: 255 };
-  return Color.White;
+  return Colors.WHITE;
 }
 
 function itemName(t: number): string {
@@ -253,7 +240,7 @@ function tryMovePlayer(dx: number, dy: number): void {
       showDialogue = true;
     } else {
       // Combat
-      const dmg = Math.max(1, player.attack - npcs[ni].defense + randomInt(-2, 2));
+      const dmg = Math.max(1, player.attack - npcs[ni].defense + Mathf.randomInt(-2, 2));
       npcs[ni].hp = npcs[ni].hp - dmg;
       showMsg("Hit " + npcs[ni].name + " for " + dmg.toString() + "!");
       if (npcs[ni].hp <= 0) {
@@ -268,7 +255,7 @@ function tryMovePlayer(dx: number, dy: number): void {
         }
       } else {
         // Enemy counterattack
-        const eDmg = Math.max(1, npcs[ni].attack - player.defense + randomInt(-1, 1));
+        const eDmg = Math.max(1, npcs[ni].attack - player.defense + Mathf.randomInt(-1, 1));
         player.hp = player.hp - eDmg;
         showMsg(npcs[ni].name + " hits back for " + eDmg.toString() + "!");
       }
@@ -299,9 +286,7 @@ function tryMovePlayer(dx: number, dy: number): void {
   }
 }
 
-// Initialize
-initWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Isometric RPG");
-setTargetFPS(60);
+const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Isometric RPG" }, targetFps: 60 });
 generateWorld();
 
 const camera: Camera2D = {
@@ -311,11 +296,11 @@ const camera: Camera2D = {
   zoom: 1.0,
 };
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
+game.run({
+  update(dt) {
 
   if (showDialogue) {
-    if (isKeyPressed(Key.SPACE) || isKeyPressed(Key.ENTER)) {
+    if (game.input.isKeyPressed(Key.SPACE) || game.input.isKeyPressed(Key.ENTER)) {
       const npc = npcs[dialogueNpc];
       npc.dialogueIndex = (npc.dialogueIndex + 1) % npc.dialogue.length;
       if (npc.dialogueIndex === 0) {
@@ -326,16 +311,16 @@ while (!windowShouldClose()) {
     }
   } else if (player.hp > 0) {
     // Movement (turn-based)
-    if (isKeyPressed(Key.UP) || isKeyPressed(Key.W)) tryMovePlayer(0, -1);
-    if (isKeyPressed(Key.DOWN) || isKeyPressed(Key.S)) tryMovePlayer(0, 1);
-    if (isKeyPressed(Key.LEFT) || isKeyPressed(Key.A)) tryMovePlayer(-1, 0);
-    if (isKeyPressed(Key.RIGHT) || isKeyPressed(Key.D)) tryMovePlayer(1, 0);
+    if (game.input.isKeyPressed(Key.UP) || game.input.isKeyPressed(Key.W)) tryMovePlayer(0, -1);
+    if (game.input.isKeyPressed(Key.DOWN) || game.input.isKeyPressed(Key.S)) tryMovePlayer(0, 1);
+    if (game.input.isKeyPressed(Key.LEFT) || game.input.isKeyPressed(Key.A)) tryMovePlayer(-1, 0);
+    if (game.input.isKeyPressed(Key.RIGHT) || game.input.isKeyPressed(Key.D)) tryMovePlayer(1, 0);
 
     // Zoom
-    if (isKeyDown(Key.EQUAL)) camera.zoom = clamp(camera.zoom + dt, 0.5, 2.0);
-    if (isKeyDown(Key.MINUS)) camera.zoom = clamp(camera.zoom - dt, 0.5, 2.0);
+    if (game.input.isKeyDown(Key.EQUAL)) camera.zoom = Mathf.clamp(camera.zoom + dt, 0.5, 2.0);
+    if (game.input.isKeyDown(Key.MINUS)) camera.zoom = Mathf.clamp(camera.zoom - dt, 0.5, 2.0);
   } else {
-    if (isKeyPressed(Key.ENTER)) {
+    if (game.input.isKeyPressed(Key.ENTER)) {
       // Respawn
       player.hp = player.maxHp;
       player.mapX = 5;
@@ -346,8 +331,8 @@ while (!windowShouldClose()) {
 
   // Smooth camera
   const playerScreen = isoToScreen(player.mapX, player.mapY);
-  camera.target.x = lerp(camera.target.x, playerScreen.x, 6 * dt);
-  camera.target.y = lerp(camera.target.y, playerScreen.y, 6 * dt);
+  camera.target.x = Mathf.lerp(camera.target.x, playerScreen.x, 6 * dt);
+  camera.target.y = Mathf.lerp(camera.target.y, playerScreen.y, 6 * dt);
 
   if (messageTimer > 0) messageTimer = messageTimer - dt;
 
@@ -362,8 +347,9 @@ while (!windowShouldClose()) {
   player.screenY = ps.y;
 
   // Drawing
-  beginDrawing();
-  clearBackground({ r: 20, g: 25, b: 30, a: 255 });
+  },
+  render() {
+  game.renderer.clear({ r: 20, g: 25, b: 30, a: 255 });
 
   // Use camera for world rendering
   // We'll manually offset since beginMode2D uses camera transform
@@ -382,9 +368,9 @@ while (!windowShouldClose()) {
       const color = tileColor(tile);
 
       // Diamond shape using a filled rect (simplified isometric)
-      drawRect(sx - tw / 2, sy, tw, th, color);
+      game.renderer.drawRectangle({ x: sx - tw / 2, y: sy, width: tw, height: th }, color);
       // Outline
-      drawRectLines(sx - tw / 2, sy, tw, th, 1, { r: 0, g: 0, b: 0, a: 40 });
+      game.renderer.drawRectangleOutline({ x: sx - tw / 2, y: sy, width: tw, height: th }, { r: 0, g: 0, b: 0, a: 40 }, 1);
     }
   }
 
@@ -395,7 +381,7 @@ while (!windowShouldClose()) {
     const sx = s.x * camera.zoom + ox;
     const sy = s.y * camera.zoom + oy;
     const size = 8 * camera.zoom;
-    drawCircle(sx, sy + TILE_H * camera.zoom * 0.5, size, itemColor(items[i].type));
+    game.renderer.drawCircle({ x: sx, y: sy + TILE_H * camera.zoom * 0.5 }, size, itemColor(items[i].type));
   }
 
   // Draw NPCs
@@ -405,11 +391,11 @@ while (!windowShouldClose()) {
     const sy = npcs[i].screenY * camera.zoom + oy;
     const size = 12 * camera.zoom;
     const bodyColor = npcs[i].friendly ? { r: 50, g: 150, b: 50, a: 255 } : { r: 200, g: 50, b: 50, a: 255 };
-    drawRect(sx - size / 2, sy - size + TILE_H * camera.zoom * 0.3, size, size * 1.5, bodyColor);
+    game.renderer.drawRectangle({ x: sx - size / 2, y: sy - size + TILE_H * camera.zoom * 0.3, width: size, height: size * 1.5 }, bodyColor);
     // HP bar
     const barW = TILE_W * camera.zoom * 0.6;
     const hpRatio = npcs[i].hp / npcs[i].maxHp;
-    drawRect(sx - barW / 2, sy - size - 4 + TILE_H * camera.zoom * 0.3, barW * hpRatio, 3, Color.Red);
+    game.renderer.drawRectangle({ x: sx - barW / 2, y: sy - size - 4 + TILE_H * camera.zoom * 0.3, width: barW * hpRatio, height: 3 }, Colors.RED);
   }
 
   // Draw player
@@ -417,23 +403,23 @@ while (!windowShouldClose()) {
     const sx = player.screenX * camera.zoom + ox;
     const sy = player.screenY * camera.zoom + oy;
     const size = 14 * camera.zoom;
-    drawRect(sx - size / 2, sy - size + TILE_H * camera.zoom * 0.3, size, size * 1.5, { r: 50, g: 100, b: 255, a: 255 });
+    game.renderer.drawRectangle({ x: sx - size / 2, y: sy - size + TILE_H * camera.zoom * 0.3, width: size, height: size * 1.5 }, { r: 50, g: 100, b: 255, a: 255 });
     // Head
-    drawCircle(sx, sy - size + TILE_H * camera.zoom * 0.3 - 4 * camera.zoom, 5 * camera.zoom, { r: 230, g: 200, b: 170, a: 255 });
+    game.renderer.drawCircle({ x: sx, y: sy - size + TILE_H * camera.zoom * 0.3 - 4 * camera.zoom }, 5 * camera.zoom, { r: 230, g: 200, b: 170, a: 255 });
   }
 
   // HUD panel
-  drawRect(0, 0, SCREEN_WIDTH, 45, { r: 20, g: 20, b: 30, a: 220 });
-  drawText(player.name + "  Lv." + level.toString(), 10, 5, 18, Color.White);
+  game.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 45 }, { r: 20, g: 20, b: 30, a: 220 });
+  game.renderer.drawText(player.name + "  Lv." + level.toString(), { x: 10, y: 5 }, 18, Colors.WHITE);
   // HP bar
-  drawRect(10, 28, 120, 10, { r: 60, g: 0, b: 0, a: 255 });
-  drawRect(10, 28, Math.floor(120 * player.hp / player.maxHp), 10, Color.Red);
-  drawText(player.hp.toString() + "/" + player.maxHp.toString(), 15, 27, 10, Color.White);
+  game.renderer.drawRectangle({ x: 10, y: 28, width: 120, height: 10 }, { r: 60, g: 0, b: 0, a: 255 });
+  game.renderer.drawRectangle({ x: 10, y: 28, width: Math.floor(120 * player.hp / player.maxHp), height: 10 }, Colors.RED);
+  game.renderer.drawText(player.hp.toString() + "/" + player.maxHp.toString(), { x: 15, y: 27 }, 10, Colors.WHITE);
 
-  drawText("ATK: " + player.attack.toString(), 150, 8, 16, { r: 255, g: 150, b: 50, a: 255 });
-  drawText("DEF: " + player.defense.toString(), 240, 8, 16, { r: 50, g: 150, b: 255, a: 255 });
-  drawText("Gold: " + gold.toString(), 330, 8, 16, Color.Yellow);
-  drawText("EXP: " + exp.toString() + "/" + (level * 20).toString(), 430, 8, 16, { r: 150, g: 255, b: 150, a: 255 });
+  game.renderer.drawText("ATK: " + player.attack.toString(), { x: 150, y: 8 }, 16, { r: 255, g: 150, b: 50, a: 255 });
+  game.renderer.drawText("DEF: " + player.defense.toString(), { x: 240, y: 8 }, 16, { r: 50, g: 150, b: 255, a: 255 });
+  game.renderer.drawText("Gold: " + gold.toString(), { x: 330, y: 8 }, 16, Colors.YELLOW);
+  game.renderer.drawText("EXP: " + exp.toString() + "/" + (level * 20).toString(), { x: 430, y: 8 }, 16, { r: 150, g: 255, b: 150, a: 255 });
 
   // Inventory
   if (inventory.length > 0) {
@@ -442,36 +428,35 @@ while (!windowShouldClose()) {
       if (i > 0) invStr = invStr + ", ";
       invStr = invStr + itemName(inventory[i]);
     }
-    drawText(invStr, 550, 8, 14, Color.LightGray);
+    game.renderer.drawText(invStr, { x: 550, y: 8 }, 14, Colors.LIGHTGRAY);
   }
 
   // Dialogue box
   if (showDialogue) {
-    drawRect(50, SCREEN_HEIGHT - 120, SCREEN_WIDTH - 100, 100, { r: 10, g: 10, b: 30, a: 230 });
-    drawRectLines(50, SCREEN_HEIGHT - 120, SCREEN_WIDTH - 100, 100, 2, Color.White);
+    game.renderer.drawRectangle({ x: 50, y: SCREEN_HEIGHT - 120, width: SCREEN_WIDTH - 100, height: 100 }, { r: 10, g: 10, b: 30, a: 230 });
+    game.renderer.drawRectangleOutline({ x: 50, y: SCREEN_HEIGHT - 120, width: SCREEN_WIDTH - 100, height: 100 }, Colors.WHITE, 2);
     const npcName = npcs[dialogueNpc].name;
-    drawText(npcName, 70, SCREEN_HEIGHT - 110, 20, Color.Yellow);
-    drawText(dialogueText, 70, SCREEN_HEIGHT - 80, 18, Color.White);
-    drawText("[SPACE] to continue", 70, SCREEN_HEIGHT - 35, 14, Color.LightGray);
+    game.renderer.drawText(npcName, { x: 70, y: SCREEN_HEIGHT - 110 }, 20, Colors.YELLOW);
+    game.renderer.drawText(dialogueText, { x: 70, y: SCREEN_HEIGHT - 80 }, 18, Colors.WHITE);
+    game.renderer.drawText("[SPACE] to continue", { x: 70, y: SCREEN_HEIGHT - 35 }, 14, Colors.LIGHTGRAY);
   }
 
   // Message log
   if (messageTimer > 0) {
-    const alpha = Math.floor(clamp(messageTimer * 255, 0, 255));
-    drawText(message, 10, SCREEN_HEIGHT - 30, 16, { r: 255, g: 255, b: 200, a: alpha });
+    const alpha = Math.floor(Mathf.clamp(messageTimer * 255, 0, 255));
+    game.renderer.drawText(message, { x: 10, y: SCREEN_HEIGHT - 30 }, 16, { r: 255, g: 255, b: 200, a: alpha });
   }
 
   // Death
   if (player.hp <= 0) {
-    drawRect(0, SCREEN_HEIGHT / 2 - 40, SCREEN_WIDTH, 80, { r: 0, g: 0, b: 0, a: 200 });
-    drawText("YOU DIED", SCREEN_WIDTH / 2 - measureText("YOU DIED", 50) / 2, SCREEN_HEIGHT / 2 - 30, 50, Color.Red);
-    drawText("Press ENTER to respawn", SCREEN_WIDTH / 2 - measureText("Press ENTER to respawn", 18) / 2, SCREEN_HEIGHT / 2 + 25, 18, Color.LightGray);
+    game.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 40, width: SCREEN_WIDTH, height: 80 }, { r: 0, g: 0, b: 0, a: 200 });
+    game.renderer.drawText("YOU DIED", { x: SCREEN_WIDTH / 2 - game.renderer.measureText("YOU DIED", 50) / 2, y: SCREEN_HEIGHT / 2 - 30 }, 50, Colors.RED);
+    game.renderer.drawText("Press ENTER to respawn", { x: SCREEN_WIDTH / 2 - game.renderer.measureText("Press ENTER to respawn", 18) / 2, y: SCREEN_HEIGHT / 2 + 25 }, 18, Colors.LIGHTGRAY);
   }
 
   // Controls hint
-  drawText("WASD/Arrows: Move | +/-: Zoom", SCREEN_WIDTH - 310, SCREEN_HEIGHT - 20, 12, { r: 150, g: 150, b: 150, a: 150 });
+  game.renderer.drawText("WASD/Arrows: Move | +/-: Zoom", { x: SCREEN_WIDTH - 310, y: SCREEN_HEIGHT - 20 }, 12, { r: 150, g: 150, b: 150, a: 150 });
 
-  endDrawing();
-}
-
-closeWindow();
+  },
+  onStop: () => game.dispose(),
+});

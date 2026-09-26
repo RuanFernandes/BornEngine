@@ -1,38 +1,12 @@
 /**
- * Interactive Wall Editor — Phase 3 proof-of-concept.
+ * Interactive Wall Editor.
  *
- * Demonstrates the Pascal Editor's interaction model compiled natively:
- * - Scene picking (click to select walls)
- * - Wall drawing tool (click to place endpoints)
- * - Camera orbit controls (right-click drag)
- * - Event pipeline: mouse input → raycast → domain event → state update
+ * Demonstrates scene picking, wall placement, camera orbit controls, and
+ * game-owned frame systems using BornEngine's native runtime.
  */
 
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, drawText,
-  beginMode3D, endMode3D, drawGrid, drawRay,
-  isKeyPressed, isMouseButtonPressed, isMouseButtonDown,
-  getMouseX, getMouseY, getMouseDeltaX, getMouseDeltaY,
-  Key, MouseButton, Colors, getDeltaTime,
-  setAmbientLight, setDirectionalLight,
-} from 'bloom';
-
-import {
-  createSceneNode,
-  setSceneNodeColor, setSceneNodePbr,
-  getSceneNodeCount,
-  addDirectionalLight,
-  extrudePolygon,
-  pickScene,
-  registerFrameCallback,
-} from 'bloom/scene';
-
-import type { SceneNodeHandle, PickHit } from 'bloom/scene';
-
-// ============================================================
-// Store (Zustand-like: flat Map + dirty tracking)
-// ============================================================
+import { Colors, Game, Key, MouseButton } from '@bornengine/engine';
+import type { Camera3D, SceneNode, Vec3 } from '@bornengine/engine';
 
 interface WallData {
   id: string;
@@ -40,255 +14,217 @@ interface WallData {
   end: [number, number];
   thickness: number;
   height: number;
-  handle: SceneNodeHandle;
+  node: SceneNode;
 }
 
-const walls: Map<string, WallData> = new Map();
-const dirtyWalls: Set<string> = new Set();
+const game = new Game({
+  window: { width: 1280, height: 720, title: 'BornEngine — Interactive Wall Editor' },
+  targetFps: 60,
+});
+
+const walls = new Map<string, WallData>();
+const dirtyWalls = new Set<string>();
 let nextWallId = 1;
 let selectedWallId: string | null = null;
 
-// Floor node
-const floorHandle = createSceneNode();
-const floorPolygon = [-10, -10, 10, -10, 10, 10, -10, 10];
-extrudePolygon(floorHandle, floorPolygon, 0.02);
-setSceneNodeColor(floorHandle, 217, 217, 209, 255);
-setSceneNodePbr(floorHandle, 0.7, 0.0);
+const floor = game.sceneGraph.createNode({ name: 'Floor' });
+floor.extrudePolygon([
+  { x: -10, y: 0, z: -10 },
+  { x: 10, y: 0, z: -10 },
+  { x: 10, y: 0, z: 10 },
+  { x: -10, y: 0, z: 10 },
+], 0.02);
+floor.setColor({ r: 217, g: 217, b: 209, a: 255 });
+floor.setPbr(0.7, 0);
 
-// Handle → wall ID lookup (for picking)
-const handleToWallId: Map<number, string> = new Map();
+function extrudeFlatXZ(node: SceneNode, polygon: number[], depth: number): void {
+  const points: Vec3[] = [];
+  for (let index = 0; index + 1 < polygon.length; index += 2) {
+    points.push({ x: polygon[index], y: 0, z: polygon[index + 1] });
+  }
+  node.extrudePolygon(points, depth);
+}
 
 function createWall(sx: number, sz: number, ex: number, ez: number): string {
-  const id = "wall_" + String(nextWallId);
-  nextWallId += 1;
-
-  const handle = createSceneNode();
-  const wall: WallData = {
+  const id = 'wall_' + String(nextWallId++);
+  const node = game.sceneGraph.createNode({ name: id });
+  walls.set(id, {
     id,
     start: [sx, sz],
     end: [ex, ez],
     thickness: 0.2,
-    height: 3.0,
-    handle,
-  };
-  walls.set(id, wall);
-  handleToWallId.set(handle, id);
+    height: 3,
+    node,
+  });
   dirtyWalls.add(id);
   return id;
 }
 
-// ============================================================
-// Wall System (frame callback, priority 4)
-// ============================================================
-
-function wallSystem(dt: number): void {
+function wallSystem(): void {
   for (const id of dirtyWalls) {
     const wall = walls.get(id);
-    if (!wall) continue;
+    if (wall === undefined) continue;
 
     const [sx, sz] = wall.start;
     const [ex, ez] = wall.end;
-    const t = wall.thickness;
-
     const dx = ex - sx;
     const dz = ez - sz;
-    const len = Math.sqrt(dx * dx + dz * dz);
-    if (len < 0.001) continue;
+    const length = Math.sqrt(dx * dx + dz * dz);
+    if (length < 0.001) continue;
 
-    const nx = -dz / len;
-    const nz = dx / len;
-    const hx = nx * t * 0.5;
-    const hz = nz * t * 0.5;
-
-    // Wall footprint polygon
+    const nx = -dz / length;
+    const nz = dx / length;
+    const halfThickness = wall.thickness * 0.5;
     const polygon = [
-      sx + hx, sz + hz,
-      ex + hx, ez + hz,
-      ex - hx, ez - hz,
-      sx - hx, sz - hz,
+      sx + nx * halfThickness, sz + nz * halfThickness,
+      ex + nx * halfThickness, ez + nz * halfThickness,
+      ex - nx * halfThickness, ez - nz * halfThickness,
+      sx - nx * halfThickness, sz - nz * halfThickness,
     ];
 
-    extrudePolygon(wall.handle, polygon, wall.height);
-
-    // Color based on selection
-    if (wall.id === selectedWallId) {
-      setSceneNodeColor(wall.handle, 77, 153, 255, 255);
-    } else {
-      setSceneNodeColor(wall.handle, 242, 242, 235, 255);
-    }
-    setSceneNodePbr(wall.handle, 0.8, 0.0);
-
+    extrudeFlatXZ(wall.node, polygon, wall.height);
+    wall.node.setColor(wall.id === selectedWallId
+      ? { r: 77, g: 153, b: 255, a: 255 }
+      : { r: 242, g: 242, b: 235, a: 255 });
+    wall.node.setPbr(0.8, 0);
     dirtyWalls.delete(id);
   }
 }
 
-// Light system (priority 5)
-function lightSystem(dt: number): void {
-  addDirectionalLight(0.5, 1.0, 0.3, 1.0, 0.95, 0.9, 0.6);
-  addDirectionalLight(-0.3, 0.5, -0.7, 0.8, 0.85, 0.95, 0.25);
+function lightSystem(): void {
+  game.sceneGraph.addDirectionalLight(
+    { x: 0.5, y: 1, z: 0.3 },
+    { r: 255, g: 242, b: 230, a: 255 },
+    0.6,
+  );
+  game.sceneGraph.addDirectionalLight(
+    { x: -0.3, y: 0.5, z: -0.7 },
+    { r: 204, g: 217, b: 242, a: 255 },
+    0.25,
+  );
 }
 
-// ============================================================
-// Camera orbit controls
-// ============================================================
+game.sceneGraph.setAmbientLight(Colors.WHITE, 0.3);
+game.sceneGraph.onFrame(wallSystem, 4);
+game.sceneGraph.onFrame(lightSystem, 5);
 
-let camAngle = 0.5;
-let camPitch = 0.4;
-let camDist = 15.0;
-let camTargetX = 0.0;
-let camTargetZ = 0.0;
-
-function updateCamera(dt: number): void {
-  // Right-click drag to orbit
-  if (isMouseButtonDown(MouseButton.RIGHT)) {
-    const dx = getMouseDeltaX();
-    const dy = getMouseDeltaY();
-    camAngle -= dx * 0.005;
-    camPitch -= dy * 0.005;
-    camPitch = Math.max(0.1, Math.min(1.4, camPitch));
-  }
-}
-
-function getCameraPosition(): { x: number; y: number; z: number } {
-  return {
-    x: camTargetX + Math.cos(camAngle) * Math.cos(camPitch) * camDist,
-    y: Math.sin(camPitch) * camDist,
-    z: camTargetZ + Math.sin(camAngle) * Math.cos(camPitch) * camDist,
-  };
-}
-
-// ============================================================
-// Tool state (wall drawing)
-// ============================================================
-
-type ToolMode = 'select' | 'draw';
-let toolMode: ToolMode = 'draw';
-let drawStart: [number, number] | null = null;
-let previewHandle: SceneNodeHandle | null = null;
-
-// ============================================================
-// Main
-// ============================================================
-
-initWindow(1280, 720, "Bloom — Interactive Wall Editor (Phase 3)");
-setTargetFPS(60);
-setAmbientLight(255, 255, 255, 0.3);
-setDirectionalLight(0.5, 1.0, 0.3, 255, 240, 230, 0.5);
-
-// Register systems
-registerFrameCallback(4, wallSystem);
-registerFrameCallback(5, lightSystem);
-
-// Create some initial walls
 createWall(0, 0, 5, 0);
 createWall(5, 0, 5, 4);
 createWall(5, 4, 0, 4);
 createWall(0, 4, 0, 0);
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
-  updateCamera(dt);
+type ToolMode = 'select' | 'draw';
+let toolMode: ToolMode = 'draw';
+let drawStart: [number, number] | null = null;
+let cameraAngle = 0.5;
+let cameraPitch = 0.4;
+const cameraDistance = 15;
+let cameraTargetX = 0;
+let cameraTargetZ = 0;
 
-  // Toggle tool mode with Tab
-  if (isKeyPressed(Key.TAB)) {
-    toolMode = toolMode === 'select' ? 'draw' : 'select';
-    drawStart = null;
+function getCameraPosition(): Vec3 {
+  return {
+    x: cameraTargetX + Math.cos(cameraAngle) * Math.cos(cameraPitch) * cameraDistance,
+    y: Math.sin(cameraPitch) * cameraDistance,
+    z: cameraTargetZ + Math.sin(cameraAngle) * Math.cos(cameraPitch) * cameraDistance,
+  };
+}
+
+function updateCamera(): void {
+  if (!game.input.isMouseButtonDown(MouseButton.RIGHT)) return;
+  cameraAngle -= game.input.getMouseDeltaX() * 0.005;
+  cameraPitch -= game.input.getMouseDeltaY() * 0.005;
+  cameraPitch = Math.max(0.1, Math.min(1.4, cameraPitch));
+}
+
+function selectWall(id: string | null): void {
+  if (selectedWallId !== null) dirtyWalls.add(selectedWallId);
+  selectedWallId = id;
+  if (selectedWallId !== null) dirtyWalls.add(selectedWallId);
+}
+
+function handleLeftClick(): void {
+  const hit = game.sceneGraph.pick(game.input.getMousePosition());
+  if (toolMode === 'select') {
+    if (hit.hit && hit.node !== null) {
+      for (const [id, wall] of walls) {
+        if (wall.node === hit.node) {
+          selectWall(id);
+          return;
+        }
+      }
+    }
+    selectWall(null);
+    return;
   }
 
-  const cam = getCameraPosition();
+  if (!hit.hit || hit.node !== floor) return;
+  const worldX = Math.round(hit.point.x * 2) / 2;
+  const worldZ = Math.round(hit.point.z * 2) / 2;
+  if (drawStart === null) {
+    drawStart = [worldX, worldZ];
+    return;
+  }
 
-  beginDrawing();
-  clearBackground(Colors.SNOW);
+  createWall(drawStart[0], drawStart[1], worldX, worldZ);
+  drawStart = null;
+}
 
-  beginMode3D({
-    position: cam,
-    target: { x: camTargetX, y: 1.5, z: camTargetZ },
-    up: { x: 0, y: 1, z: 0 },
-    fovy: 45,
-    projection: "perspective",
-  });
+game.run({
+  update() {
+    updateCamera();
 
-  // Handle mouse click (left button)
-  if (isMouseButtonPressed(MouseButton.LEFT)) {
-    const mx = getMouseX();
-    const my = getMouseY();
+    if (game.input.isKeyPressed(Key.TAB)) {
+      toolMode = toolMode === 'select' ? 'draw' : 'select';
+      drawStart = null;
+    }
+
+    if (game.input.isMouseButtonPressed(MouseButton.LEFT)) handleLeftClick();
+    if (game.input.isKeyPressed(Key.ESCAPE)) drawStart = null;
+
+    if (game.input.isKeyPressed(Key.BACKSPACE) && selectedWallId !== null) {
+      const wall = walls.get(selectedWallId);
+      if (wall !== undefined) {
+        game.sceneGraph.remove(wall.node, true);
+        walls.delete(selectedWallId);
+        selectWall(null);
+      }
+    }
+  },
+  render() {
+    game.renderer.clear(Colors.SNOW);
+
+    const camera: Camera3D = {
+      position: getCameraPosition(),
+      target: { x: cameraTargetX, y: 1.5, z: cameraTargetZ },
+      up: { x: 0, y: 1, z: 0 },
+      fovy: 45,
+      projection: 'perspective',
+    };
+    if (game.renderer.begin3D(camera)) {
+      game.renderer.drawGrid(20, 0.5);
+      game.renderer.end3D();
+    }
+
+    game.renderer.drawText('Interactive Wall Editor', { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+    game.renderer.drawText('Mode: ' + toolMode + ' (Tab to toggle)', { x: 10, y: 35 }, 16, Colors.GRAY);
+    game.renderer.drawText('Scene nodes: ' + String(game.sceneGraph.nodeCount), { x: 10, y: 55 }, 16, Colors.GRAY);
+    game.renderer.drawText('Walls: ' + String(walls.size), { x: 10, y: 75 }, 16, Colors.GRAY);
 
     if (toolMode === 'select') {
-      // Pick scene — raycast against all scene nodes
-      const hit = pickScene(mx, my);
-      if (hit.hit) {
-        const wallId = handleToWallId.get(hit.handle);
-        if (wallId) {
-          // Deselect old wall
-          if (selectedWallId) dirtyWalls.add(selectedWallId);
-          // Select new wall
-          selectedWallId = wallId;
-          dirtyWalls.add(wallId);
-        }
-      } else {
-        // Clicked empty space — deselect
-        if (selectedWallId) {
-          dirtyWalls.add(selectedWallId);
-          selectedWallId = null;
-        }
+      game.renderer.drawText('LEFT CLICK: select wall | BACKSPACE: delete', { x: 10, y: 100 }, 14, Colors.BLUE);
+      if (selectedWallId !== null) {
+        game.renderer.drawText('Selected: ' + selectedWallId, { x: 10, y: 120 }, 14, Colors.BLUE);
       }
     } else {
-      // Draw mode: pick ground plane for wall placement
-      const hit = pickScene(mx, my);
-      if (hit.hit && hit.handle === floorHandle) {
-        const wx = Math.round(hit.point.x * 2) / 2; // snap to 0.5 grid
-        const wz = Math.round(hit.point.z * 2) / 2;
-
-        if (drawStart === null) {
-          drawStart = [wx, wz];
-        } else {
-          // Create wall from start to clicked point
-          createWall(drawStart[0], drawStart[1], wx, wz);
-          drawStart = null;
-        }
+      game.renderer.drawText('LEFT CLICK: place wall endpoint | ESC: cancel', { x: 10, y: 100 }, 14, Colors.GREEN);
+      if (drawStart !== null) {
+        const startText = 'Start: ' + String(drawStart[0]) + ', ' + String(drawStart[1]) + ' — click to place end';
+        game.renderer.drawText(startText, { x: 10, y: 120 }, 14, Colors.GREEN);
       }
     }
-  }
 
-  // Escape to cancel draw
-  if (isKeyPressed(Key.ESCAPE)) {
-    drawStart = null;
-  }
-
-  // Delete selected wall
-  if (isKeyPressed(Key.BACKSPACE) && selectedWallId) {
-    const wall = walls.get(selectedWallId);
-    if (wall) {
-      // Note: in a full implementation we'd call destroySceneNode(wall.handle)
-      setSceneNodeColor(wall.handle, 0, 0, 0, 0);
-      handleToWallId.delete(wall.handle);
-      walls.delete(selectedWallId);
-      selectedWallId = null;
-    }
-  }
-
-  drawGrid(20, 0.5);
-  endMode3D();
-
-  // HUD
-  drawText("Interactive Wall Editor", 10, 10, 20, Colors.DARKGRAY);
-  drawText("Mode: " + toolMode + " (Tab to toggle)", 10, 35, 16, Colors.GRAY);
-  drawText("Scene nodes: " + String(getSceneNodeCount()), 10, 55, 16, Colors.GRAY);
-  drawText("Walls: " + String(walls.size), 10, 75, 16, Colors.GRAY);
-
-  if (toolMode === 'select') {
-    drawText("LEFT CLICK: select wall | BACKSPACE: delete", 10, 100, 14, Colors.BLUE);
-    if (selectedWallId) {
-      drawText("Selected: " + selectedWallId, 10, 120, 14, Colors.BLUE);
-    }
-  } else {
-    drawText("LEFT CLICK: place wall endpoint | ESC: cancel", 10, 100, 14, Colors.GREEN);
-    if (drawStart) {
-      drawText("Start: " + String(drawStart[0]) + ", " + String(drawStart[1]) + " — click to place end", 10, 120, 14, Colors.GREEN);
-    }
-  }
-
-  drawText("RIGHT DRAG: orbit camera", 10, 145, 14, Colors.GRAY);
-
-  endDrawing();
-}
+    game.renderer.drawText('RIGHT DRAG: orbit camera', { x: 10, y: 145 }, 14, Colors.GRAY);
+  },
+  onStop: () => game.dispose(),
+});

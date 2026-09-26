@@ -5,25 +5,29 @@ section: Guides
 order: 60
 ---
 
-Create one world, reuse shapes, create bodies with an explicit motion type, optimize the broadphase after initial setup, and step it from the game loop:
+Create one game-owned world, reuse colliders, create bodies with an explicit motion type, optimize the broadphase after initial setup, and step it from the game loop:
 
 ```ts
-import * as physics from '@bornengine/engine/physics';
+import { BoxCollider, Game, MotionType, PhysicsWorld } from '@bornengine/engine';
 
-const world = physics.createWorld({ gravity: { x: 0, y: -9.81, z: 0 } });
-const groundShape = physics.boxShape({ x: 50, y: 0.5, z: 50 });
-const ground = physics.createBody(world, groundShape, {
-  motionType: physics.MotionType.STATIC,
+const game = new Game();
+const world = new PhysicsWorld(game, { gravity: { x: 0, y: -9.81, z: 0 } });
+const groundShape = new BoxCollider(world, { x: 50, y: 0.5, z: 50 });
+const ground = world.createBody(groundShape, {
+  motionType: MotionType.STATIC,
   position: { x: 0, y: -0.5, z: 0 },
-  objectLayer: physics.Layer.NON_MOVING,
 });
 
-physics.optimizeBroadphase(world);
-physics.step(world, dt);
+world.optimizeBroadphase();
+game.run({
+  update(deltaTime) { world.step(deltaTime); },
+  render() {},
+  onStop: () => game.dispose(),
+});
 ```
 
-`step()` uses a fixed internal timestep with an accumulator and returns interpolation alpha. Use `setInterpolation(world, true)` for smoothed body transforms or manually blend with `getStepAlpha()`. `stepVariable()` exists when your game owns the accumulator.
+`PhysicsWorld.step()` uses a fixed internal timestep with an accumulator and returns interpolation alpha. Use `world.setInterpolation(true)` for smoothed body transforms or read `world.stepAlpha` to blend your own values. `stepVariable()` exists when your game owns the accumulator.
 
 ## Larger systems
 
-Characters use `createCharacter` and `updateCharacter`; soft bodies use vertex positions and inverse masses; vehicles expose chassis and wheel transforms. Native and Web/WASM share the TypeScript surface, but capability gaps are documented in the API source and should be tested on the target you ship.
+Characters use `world.createCharacter()` and their controller instance, soft bodies use `world.createSoftBody()` with vertex positions and inverse masses, and vehicles expose chassis and wheel transforms through `world.createVehicle()`. Native and Web/WASM share the class surface; check target-specific limitations before relying on a feature.

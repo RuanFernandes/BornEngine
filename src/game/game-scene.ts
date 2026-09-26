@@ -1,6 +1,9 @@
+import { getGameContext } from '../core/context';
 import { GameComponent } from './game-component';
 import { GameObject } from './game-object';
-import type { WorldHandle } from '../physics';
+import type { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
+import type { PhysicsWorld } from '../physics';
 
 function removeAt<T>(values: T[], index: number): void {
   for (let current = index; current + 1 < values.length; current++) {
@@ -9,12 +12,18 @@ function removeAt<T>(values: T[], index: number): void {
   values.pop();
 }
 
-export class GameScene {
+export class GameScene implements ContextResource {
+  readonly context: GameContext;
   private sceneObjects: GameObject[] = [];
   private pendingAwakeRoots: GameObject[] = [];
   private isAwakening = false;
   private nextAttachmentGeneration = 1;
   private wasDestroyed = false;
+
+  constructor(owner: Game) {
+    this.context = getGameContext(owner);
+    this.context.register(this);
+  }
 
   get objects(): readonly GameObject[] {
     return this.sceneObjects.slice();
@@ -115,7 +124,7 @@ export class GameScene {
     this._syncRuntimeAdapters();
   }
 
-  syncPhysicsBeforeStep(world: WorldHandle, fixedDt: number): void {
+  syncPhysicsBeforeStep(world: PhysicsWorld, fixedDt: number): void {
     if (this.wasDestroyed) return;
     const objects = this.sceneObjects.slice();
     for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
@@ -131,7 +140,7 @@ export class GameScene {
     }
   }
 
-  syncPhysicsAfterStep(world: WorldHandle): void {
+  syncPhysicsAfterStep(world: PhysicsWorld): void {
     if (this.wasDestroyed) return;
     const objects = this.sceneObjects.slice();
     for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
@@ -156,13 +165,20 @@ export class GameScene {
       const object = objects[index];
       if (object.scene === this && object.parent === null) object.destroy();
     }
+    this.context.unregister(this);
   }
+
+  dispose(): void { this.destroy(); }
 
   /** @internal Validates a detached subtree before an atomic scene attachment. */
   _canAttachSubtree(root: GameObject): boolean {
     const subtree = this._collectSubtree(root);
     for (let index = 0; index < subtree.length; index++) {
       if (subtree[index].destroyed || subtree[index].scene !== null) return false;
+      const components = subtree[index]._componentsSnapshot();
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        if (!components[componentIndex]._canAttachTo(this.context)) return false;
+      }
     }
     return true;
   }

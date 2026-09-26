@@ -8,55 +8,44 @@
  * - Model instancing via scene nodes
  */
 
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, drawText,
-  beginMode3D, endMode3D, drawGrid,
-  isKeyPressed, Key, Colors, getDeltaTime,
-  setAmbientLight, setDirectionalLight,
-  loadModel,
-} from 'bloom';
-
-import {
-  createSceneNode,
-  setSceneNodeColor, setSceneNodePbr, setSceneNodeTransform,
-  getSceneNodeCount,
-  addDirectionalLight,
-  extrudePolygon,
-  enableShadows, attachModelToNode,
-  registerFrameCallback,
-} from 'bloom/scene';
-
-import { mat4Identity, mat4Translate, mat4Scale, mat4Multiply } from 'bloom';
+import { Colors, Game } from '@bornengine/engine';
+import type { SceneNode } from '@bornengine/engine';
 
 // ============================================================
 // Setup
 // ============================================================
 
-initWindow(1280, 720, "Bloom — Shadows + GLTF (Phase 4)");
-setTargetFPS(60);
+const game = new Game({ window: { width: 1280, height: 720, title: "BornEngine — Shadows + GLTF (Phase 4)" }, targetFps: 60 });
 
 // Enable shadow mapping
-enableShadows();
+game.sceneGraph.setShadowsEnabled(true);
 
 // Lighting
-setAmbientLight(255, 255, 255, 0.2);
-setDirectionalLight(0.5, 1.0, 0.3, 255, 240, 220, 0.7);
+game.sceneGraph.setAmbientLight({ r: 255, g: 255, b: 255, a: 255 }, 0.2);
+game.sceneGraph.addDirectionalLight({ x: 0.5, y: 1.0, z: 0.3 }, { r: 255, g: 240, b: 220, a: 255 }, 0.7);
+
+function extrude(node: SceneNode, flatXZ: number[], depth: number): void {
+  const points: { x: number; y: number; z: number }[] = [];
+  for (let index = 0; index + 1 < flatXZ.length; index += 2) {
+    points.push({ x: flatXZ[index], y: 0, z: flatXZ[index + 1] });
+  }
+  node.extrudePolygon(points, depth);
+}
 
 // ============================================================
 // Scene: room with furniture
 // ============================================================
 
 // Floor
-const floor = createSceneNode();
+const floor = game.sceneGraph.createNode();
 const floorPoly = [-5, -5, 5, -5, 5, 5, -5, 5];
-extrudePolygon(floor, floorPoly, 0.05);
-setSceneNodeColor(floor, 204, 199, 184, 255);
-setSceneNodePbr(floor, 0.7, 0.0);
+extrude(floor, floorPoly, 0.05);
+floor.setColor({ r: 204, g: 199, b: 184, a: 255 });
+floor.setPbr(0.7, 0.0);
 
 // Walls
 function makeWall(sx: number, sz: number, ex: number, ez: number): void {
-  const node = createSceneNode();
+  const node = game.sceneGraph.createNode();
   const dx = ex - sx;
   const dz = ez - sz;
   const len = Math.sqrt(dx * dx + dz * dz);
@@ -68,9 +57,9 @@ function makeWall(sx: number, sz: number, ex: number, ez: number): void {
     ex - nx, ez - nz,
     sx - nx, sz - nz,
   ];
-  extrudePolygon(node, poly, 3.0);
-  setSceneNodeColor(node, 242, 237, 224, 255);
-  setSceneNodePbr(node, 0.85, 0.0);
+  extrude(node, poly, 3.0);
+  node.setColor({ r: 242, g: 237, b: 224, a: 255 });
+  node.setPbr(0.85, 0.0);
 }
 
 makeWall(-5, -5, 5, -5);  // back
@@ -80,16 +69,15 @@ makeWall(-5, 5, -5, -5);  // left
 
 // Simple "table" made from extruded boxes
 function makeBox(cx: number, cy: number, cz: number, w: number, h: number, d: number, r: number, g: number, b: number): void {
-  const node = createSceneNode();
+  const node = game.sceneGraph.createNode();
   const hw = w / 2;
   const hd = d / 2;
   const poly = [cx - hw, cz - hd, cx + hw, cz - hd, cx + hw, cz + hd, cx - hw, cz + hd];
-  extrudePolygon(node, poly, h);
+  extrude(node, poly, h);
   // Offset Y via transform
-  const t = mat4Translate(mat4Identity(), 0, cy, 0);
-  setSceneNodeTransform(node, t);
-  setSceneNodeColor(node, r * 255, g * 255, b * 255, 255);
-  setSceneNodePbr(node, 0.6, 0.0);
+  node.setTrs({ x: 0, y: cy, z: 0 });
+  node.setColor({ r: r * 255, g: g * 255, b: b * 255, a: 255 });
+  node.setPbr(0.6, 0.0);
 }
 
 // Table
@@ -104,12 +92,10 @@ makeBox(2.0, 0, 0, 0.5, 0.45, 0.5, 0.55, 0.45, 0.35);
 makeBox(2.0, 0.45, -0.2, 0.5, 0.5, 0.08, 0.55, 0.45, 0.35);
 
 // Lighting system
-registerFrameCallback(5, (dt: number) => {
-  // Main sun
-  addDirectionalLight(0.5, 1.0, 0.3, 1.0, 0.95, 0.9, 0.6);
-  // Fill
-  addDirectionalLight(-0.3, 0.5, -0.7, 0.7, 0.8, 0.95, 0.2);
-});
+game.sceneGraph.onFrame(() => {
+  game.sceneGraph.addDirectionalLight({ x: 0.5, y: 1.0, z: 0.3 }, { r: 255, g: 242, b: 230, a: 255 }, 0.6);
+  game.sceneGraph.addDirectionalLight({ x: -0.3, y: 0.5, z: -0.7 }, { r: 178, g: 204, b: 242, a: 255 }, 0.2);
+}, 5);
 
 // ============================================================
 // Main loop
@@ -117,16 +103,15 @@ registerFrameCallback(5, (dt: number) => {
 
 let angle = 0;
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
-  angle += dt * 0.15;
-
-  beginDrawing();
-  clearBackground(Colors.SNOW);
+game.run({
+  update(dt) { angle += dt * 0.15; },
+  render() {
+    game.sceneGraph.setAmbientLight({ r: 255, g: 255, b: 255, a: 255 }, 0.2);
+    game.renderer.clear(Colors.SNOW);
 
   const camX = Math.cos(angle) * 12;
   const camZ = Math.sin(angle) * 12;
-  beginMode3D({
+  game.renderer.begin3D({
     position: { x: camX, y: 8, z: camZ },
     target: { x: 0, y: 1, z: 0 },
     up: { x: 0, y: 1, z: 0 },
@@ -134,13 +119,14 @@ while (!windowShouldClose()) {
     projection: "perspective",
   });
 
-  drawGrid(20, 1.0);
-  endMode3D();
+  game.renderer.drawGrid(20, 1.0);
+  game.renderer.end3D();
 
-  drawText("Bloom — Shadow Mapping + GLTF (Phase 4)", 10, 10, 20, Colors.DARKGRAY);
-  drawText("Scene nodes: " + String(getSceneNodeCount()), 10, 35, 16, Colors.GRAY);
-  drawText("Directional light shadows (2048x2048 PCF)", 10, 55, 16, Colors.GRAY);
-  drawText("Room with table + chair (extruded polygons)", 10, 75, 16, Colors.GRAY);
+  game.renderer.drawText("BornEngine — Shadow Mapping + GLTF (Phase 4)", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+  game.renderer.drawText("Scene nodes: " + String(game.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
+  game.renderer.drawText("Directional light shadows (2048x2048 PCF)", { x: 10, y: 55 }, 16, Colors.GRAY);
+  game.renderer.drawText("Room with table + chair (extruded polygons)", { x: 10, y: 75 }, 16, Colors.GRAY);
 
-  endDrawing();
-}
+  },
+  onStop: () => game.dispose(),
+});

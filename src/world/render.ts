@@ -14,14 +14,14 @@ import {
   createSceneNode, setSceneNodeVisible, setSceneNodeWaterMaterial,
   attachModelToNode, setSceneNodeColor, addPointLight,
   SceneNodeHandle,
-} from '../scene/index';
+} from '../scene/internal';
 import {
   genMeshCube, genMeshSplineRibbon, setAmbientLight, setDirectionalLight,
-} from '../models/index';
-import { setFog } from '../core/index';
-import { vec3 } from '../math/index';
-import { setSceneNodeTransform } from '../scene/index';
-import { WorldData, WaterVolume, RiverSpline } from './types';
+} from '../models/internal';
+import { setFog } from '../core/internal';
+import { vec3 } from '../math/internal';
+import { setSceneNodeTransform } from '../scene/internal';
+import { WorldDocument, WaterVolume, RiverSpline } from './types';
 
 // Re-submit the world's point lights.
 //
@@ -31,7 +31,7 @@ import { WorldData, WaterVolume, RiverSpline } from './types';
 // exactly one frame and then goes dark.
 //
 // Colour components are 0-1 in both the schema and `addPointLight`.
-export function applyWorldLights(world: WorldData): void {
+export function applyWorldLights(world: WorldDocument): void {
   for (let i = 0; i < world.lights.length; i++) {
     const l = world.lights[i];
     addPointLight(
@@ -54,7 +54,7 @@ export function applyWorldLights(world: WorldData): void {
 //
 // The world editor and the world-viewer example both drive their frames with
 // exactly this call, so lighting cannot look different in-game than in-editor.
-export function applyWorldEnvironment(world: WorldData): void {
+export function applyWorldEnvironment(world: WorldDocument): void {
   const env = world.environment;
   if (!env) return;
 

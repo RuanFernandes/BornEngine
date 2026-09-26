@@ -61,10 +61,10 @@ test('InputActionMap docs explain snapshot timing and device behavior', async ()
   const item = apiCoverage.find((entry) => entry.slug === 'input');
   const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
 
-  assert.match(source, /update\(\)` once per frame/);
+  assert.match(source, /Game advances each map once per frame/);
   assert.match(source, /isTouchActive/);
   assert.match(source, /primary gamepad/i);
-  assert.match(source, /@bornengine\/engine\/core/);
+  assert.match(source, /@bornengine\/engine/);
   assert.match(source, /wasPressed/);
   assert.match(source, /bindAxis/);
 });
@@ -89,7 +89,7 @@ test('Sound manager documentation covers ownership, cooldowns, and shared mixer 
   assert.match(sectionContent, /^```(?:ts|typescript)(?:\s|$)/m, 'Sound manager needs a TypeScript example');
   assert.match(sectionContent, /cooldownSeconds/);
   assert.match(sectionContent, /\.own\(audio\)/);
-  assert.match(sectionContent, /setBusGain\(\)/);
+  assert.match(sectionContent, /setBusGain\(BUS_SFX, 0\.9\)/);
   assert.match(sectionContent, /unloadMusic\(name\)/);
 });
 

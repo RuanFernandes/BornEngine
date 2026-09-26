@@ -1,15 +1,11 @@
 ---
 title: Colyseus
-description: Connect BornEngine games to Colyseus multiplayer rooms through native and Web client bridges.
-section: API / Networking
-order: 44
+description: Connect a game-owned Colyseus client to a room and manage its lifetime.
+section: API / Colyseus
+order: 37
 ---
 
-BornEngine's `@bornengine/engine/colyseus` module gives TypeScript games one Colyseus room API across native targets and WebAssembly. Native builds link the [Colyseus Native SDK](https://github.com/colyseus/native-sdk); Web builds bundle the official `@colyseus/sdk` package. Both backends use the Colyseus room protocol and MsgPack message encoding.
-
-The BornEngine API is a focused cross-platform façade, not a method-for-method implementation of every Colyseus SDK. It covers matchmaking, room state snapshots, string/numeric and binary messages, request/reply, lifecycle events, polling, explicit reconnection, and cleanup.
-
-For a server-to-client walkthrough with a runnable arena example, see the [multiplayer game guide](../../guides/multiplayer/).
+A ColyseusClient belongs to one Game. Game.run polls networking callbacks automatically; custom embedded hosts can drive `runFrame()` or call `client.poll()` explicitly.
 
 ## Verified platform matrix
 
@@ -31,101 +27,54 @@ For Android manifest, Apple sandbox, and Apple Local Network privacy details, se
 
 ## Connect and join
 
-Create a client with your server URL, then use one of the room matchmaking methods. Room join is asynchronous; the native callbacks are processed when the engine pumps frames.
-
 ```ts
-import { ColyseusClient, type Room } from '@bornengine/engine/colyseus';
-
-const client = new ColyseusClient('ws://localhost:2567');
-const join = client.joinOrCreate<{ counter: number }>('battle', {
-  name: 'Player One',
-});
-
-const result: { room?: Room<{ counter: number }>; error?: Error } = {};
-join.then((value) => { result.room = value; }, (error) => { result.error = error; });
-
-// If the engine loop has not started yet, pump callbacks until matchmaking completes.
-const deadline = Date.now() + 10_000;
-while (result.room === undefined && result.error === undefined && Date.now() < deadline) {
-  client.poll();
-  await new Promise<void>((resolve) => setTimeout(resolve, 5));
-}
-if (result.error !== undefined) throw result.error;
-const room = result.room;
-if (room === undefined) throw new Error('Timed out joining Colyseus room');
-
+import { ColyseusClient, Game } from '@bornengine/engine';
+const game = new Game();
+const client = new ColyseusClient(game, 'ws://127.0.0.1:2567');
+if (!client.isLoaded) console.error(client.error);
+const room = await client.joinOrCreate('arena', { name: 'Player' });
 console.log(room.roomId, room.sessionId);
-console.log('initial counter:', room.state?.counter);
 ```
 
-`joinOrCreate`, `create`, `join`, `joinById`, and `reconnect` return `Promise<Room<TState>>`. Pass room join options as a plain object. Both `ws://` and `wss://` endpoints are accepted; ports default to `2567` and `443` respectively. The façade uses the scheme, host, and port; custom endpoint paths, query parameters, and the SDK's auth/HTTP helpers are not exposed yet.
+Join methods return promises. They reject when the client is unavailable, matchmaking cannot start, or the server rejects the request.
 
-When using `runGame()` or the normal frame loop, `beginDrawing()` automatically calls `pumpColyseusClients()`. The sample above shows manual polling for a join that happens before the game loop starts. If a host drives a custom loop, call `client.poll()` or the room's `poll()` while waiting for room events:
+For a native Perry game that uses `Game.run()`, use the callback form. It delivers the join result from the frame loop's network polling, without waiting for a Promise continuation inside the blocking native loop.
 
 ```ts
-const pending = client.joinOrCreate('battle');
-while (!windowShouldClose()) {
-  client.poll();
-  // Continue the host's frame work.
-}
+client.joinOrCreateWithCallbacks('arena', { name: 'Player' }, {
+  onJoin(room) {
+    console.log('joined', room.roomId, room.sessionId);
+  },
+  onError(error) {
+    console.error('could not join', error.message);
+  },
+});
 ```
+
+The method returns `false` if matchmaking could not be started. Once started, success or failure is reported through one of the callbacks.
 
 ## State and messages
 
-The room exposes the latest decoded state snapshot through `room.state`. `onStateChange` runs when the server synchronizes state. The current bridge converts supported Colyseus schema values to ordinary TypeScript objects; it does not expose the JavaScript SDK's schema instances or fine-grained `Callbacks` API.
+Subscribe on the Room instance. Subscription methods return a function that removes that listener.
 
 ```ts
-room.onStateChange((state) => {
-  console.log('counter:', state.counter);
+const unsubscribe = room.onStateChange((state) => {
+  console.log('players', state.players);
 });
-
-room.onMessage('player-moved', (message: { x: number; y: number }) => {
-  console.log(message.x, message.y);
-});
-
-room.send('move', { x: 12, y: 4 });
-room.send(0, { jump: true });
+room.onMessage('welcome', (message) => console.log(message));
+room.send('move', { x: 1, y: 0 });
 ```
 
-`send()` serializes JSON-compatible values for the Native SDK's MsgPack encoder. Numeric and string message types are supported. `sendBytes()` accepts a `Uint8Array` or `number[]` and sends raw bytes. `onMessageAny()` receives every message together with its type. Listener registration methods return a function that removes that listener.
-
-## Request and response
-
-Use `request()` when the server's message handler returns a value or rejection:
-
-```ts
-try {
-  const profile = await room.request<{ displayName: string }>(
-    'get-profile',
-    { userId: 42 },
-    { timeout: 5_000 },
-  );
-  console.log(profile.displayName);
-} catch (error) {
-  console.error('request failed', error);
-}
-```
-
-The timeout defaults to 10 seconds. Rejected server requests become errors with `name === 'rejected'` and a `reason` field. Callbacks are delivered by the same poll mechanism as room events.
+Use `onMessageAny`, `onDrop`, `onReconnect`, `onLeave`, and `onError` for lifecycle events. State is delivered as snapshots through the configured schema bridge.
 
 ## Connection lifecycle and cleanup
 
-Use lifecycle listeners to react to drops, reconnections, errors, and leaving a room. `reconnectionToken` can be passed to `client.reconnect()` when the application chooses to reconnect explicitly.
+Dispose the client when leaving the owning Game; it also leaves its rooms and rejects pending joins. A Room can leave independently with `room.leave()`.
 
 ```ts
-room.onDrop((code, reason) => console.log('connection dropped', code, reason));
-room.onReconnect(() => console.log('reconnected'));
-room.onError((error) => console.error(error));
-room.onLeave((code, reason) => console.log('left room', code, reason));
-
 await room.leave();
 client.dispose();
+game.dispose();
 ```
 
-Dispose each client when its owner is finished. A scene or game shutdown hook is a good place to leave its room and dispose its client.
-
-## Current surface and limits
-
-The BornEngine façade exposes matchmaking, basic message send/receive, binary send, request/reply, room state snapshots, lifecycle events, polling, and explicit reconnection. It does not currently expose Colyseus Auth/HTTP utilities, schema change callbacks, input channels, prediction/reconciliation helpers, latency measurement, or every setting from the C SDK.
-
-For protocol details and the complete SDK reference, see the official [Client SDK](https://docs.colyseus.io/sdk), [State Synchronization](https://docs.colyseus.io/state), and [Connection Lifecycle](https://docs.colyseus.io/sdk/connection) documentation.
+Browser and native platform support depends on the Colyseus bridge included by the target build. Use a server endpoint reachable from that device rather than a developer-machine-only loopback address.

@@ -1,8 +1,7 @@
 # iOS target
 
-Metal via wgpu, UIKit for the window and touch, CoreAudio for sound, Jolt for
-physics. Shipped: [Bloom Jump](https://apps.apple.com/us/app/bloom-jump/id6761447092)
-is a Bloom game on the App Store.
+Metal via wgpu, UIKit for the window and touch, CoreAudio for sound, and Jolt
+for physics. Perry packages the engine library inside each iOS game app.
 
 The engine ships a **static library, not an app**. There is no Xcode project
 here — Perry owns the app shell (`Info.plist`, `UIApplicationMain`, the bundle,
@@ -23,8 +22,8 @@ xcrun devicectl device process launch --console --device <UDID> <bundle-id>
 
 `--features ios-game-loop` is **mandatory** for a game and is the single most
 common way to get a black screen. UIKit requires `UIApplicationMain()` to own
-the main thread forever, but a Bloom game loop (`while (!windowShouldClose())`)
-wants it too. The feature makes Perry emit `_perry_user_main` — run on a spawned
+the main thread forever, while `Game.run()` owns the blocking game loop. The
+feature makes Perry emit `_perry_user_main` — run on a spawned
 game thread — and hands the main thread to `UIApplicationMain`. Without it you
 get a plain `main()`, the app links, and no window ever appears.
 
@@ -69,24 +68,24 @@ the console to say so. FFIs that *write* a file (`takeScreenshot`,
 
 Touch is real UIKit multitouch: up to 10 points, `setMultipleTouchEnabled: YES`,
 coordinates scaled from points to pixels so they share a space with
-`getScreenWidth()` / `getScreenHeight()`.
+`game.input.getScreenWidth()` / `game.input.getScreenHeight()`.
 
 Touch 0 is also synthesised into mouse button 0, so mouse-driven games work
-unmodified. That is a trap for anything multi-touch: `isMouseButtonDown(0)` is
+unmodified. That is a trap for anything multi-touch: `game.input.isMouseButtonDown(0)` is
 true whenever *any* first finger is down, so an FPS that reads it as "fire" will
 shoot while you are steering with the movement stick. Read the touch API
-directly instead.
+through `game.input.isTouchActive(index)` and its touch-position methods instead.
 
-**Touch slots are not a dense list.** `getTouchCount()` is the number of live
+**Touch slots are not a dense list.** `game.input.getTouchCount()` is the number of live
 fingers, but touch points are addressed by *slot*, and slots go sparse the moment
 a finger lifts out of order — hold two fingers, lift the first, and the live
-finger is at slot 1 while the count is 1. Iterating `0..getTouchCount()` then
+finger is at slot 1 while the count is 1. Iterating `0..game.input.getTouchCount()` then
 reads slot 0 — released, but still holding its last coordinates — as if it were
 live, which presents as a finger frozen where it left the glass. Scan
-`0..getMaxTouchPoints()` and skip slots that `isTouchActive(i)` rejects.
+`0..game.input.getMaxTouchPoints()` and skip slots that `game.input.isTouchActive(i)` rejects.
 
 Gamepad is **not** implemented on iOS (`GCController` is never polled), despite
-the framework being linked. `isGamepadAvailable()` returns false. tvOS has the
+the framework being linked. `game.input.isGamepadAvailable()` returns false. tvOS has the
 code to copy if this is ever needed.
 
 ## Renderer notes
@@ -106,6 +105,6 @@ code to copy if this is ever needed.
 - **No CI build.** No workflow compiles `native/ios/`; the only iOS gate is
   `tools/validate-ffi.js`, which parses `lib.rs` for symbol names and proves
   nothing about whether the crate compiles or runs.
-- **EN-024** — iOS reports pixels where macOS reports points, so `getScreenWidth()`
+- **EN-024** — iOS reports pixels where macOS reports points, so screen dimensions
   and 2D HUD coordinates do not carry across Apple targets. Games currently
-  compensate themselves (scale the 2D pass through a `beginMode2D` zoom).
+  compensate themselves by scaling the 2D pass through `game.renderer.begin2D(camera)`.

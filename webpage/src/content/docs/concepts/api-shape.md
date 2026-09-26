@@ -1,54 +1,44 @@
 ---
 title: API shape
-description: Learn how BornEngine combines a direct function API with an optional class-based gameplay runtime.
+description: Understand Game ownership, class-based services, and resource lifecycle.
 section: Concepts
 order: 11
 ---
 
-BornEngine's native-facing modules use free functions, plain data, and explicit resource handles. This keeps the renderer and other engine boundaries easy to call from Perry-compiled TypeScript. The engine also provides an optional class-based runtime for gameplay objects; use either style, or combine them.
+BornEngine uses a class-first TypeScript API. Create one `Game` for a runtime, then reach services through that owner: `game.renderer`, `game.input`, `game.audio`, `game.scenes`, and `game.sceneGraph`. Resource constructors receive the same game so they can validate ownership and release native state safely.
 
 ```ts
-import { loadTexture, drawTexture, unloadTexture, Colors } from '@bornengine/engine';
+import { Colors, Game, Texture } from '@bornengine/engine';
 
-const player = loadTexture('assets/player.png');
-drawTexture(player, 100, 200, Colors.WHITE);
-unloadTexture(player);
-```
+const game = new Game({ window: { title: 'Sprite demo' } });
+const player = new Texture(game, 'assets/player.png');
 
-There is no `new Texture()` or `player.draw()` requirement in the native-facing API. Resource values carry handles and dimensions; functions cross the Perry/native boundary directly. That keeps resource ownership explicit and the native API small.
-
-For gameplay, import `GameObject`, `GameComponent`, and `GameScene` from `@bornengine/engine/game`. Extend `GameObject` for game-specific entities, then use components and scene lifecycle callbacks to organize behavior. The runtime stays in TypeScript and adapts existing renderer, physics, and audio handles.
-
-```ts
-import { GameObject, GameScene } from '@bornengine/engine/game';
-
-class Player extends GameObject {
-  constructor() {
-    super({ name: 'Player' });
-  }
-
-  update(dt: number): void {
-    this.transform.position.x += dt * 5;
-  }
+if (!player.isLoaded) {
+  console.error(player.error);
+} else {
+  game.run({
+    update(deltaTime) {
+      // Move the player by deltaTime.
+    },
+    render() {
+      game.renderer.clear(Colors.BLACK);
+      player.draw({ x: 100, y: 120 });
+    },
+    onStop: () => game.dispose(),
+  });
 }
-
-const scene = new GameScene();
-scene.add(new Player());
 ```
 
-## Tradeoffs
+## Ownership
 
-You still unload engine resources explicitly. The optional gameplay runtime supplies a base class, component model, transform hierarchy, and lifecycle callbacks where those features are useful. It does not replace direct functions for resource creation and rendering, or choose subclasses when loading a serialized world.
+A `Game` is the root owner for one engine context. Today the native runtime is process-global, so only one active `Game` can run at a time. Services and resources created for another game are rejected instead of silently crossing runtime boundaries.
 
-## Module map
+## Classes and values
 
-The root package re-exports common functions. Subpath imports keep larger projects explicit:
+Stateful engine objects use classes: `Texture`, `Sound`, `Model`, `PhysicsWorld`, `SceneNode`, and `ColyseusClient` keep context and lifecycle alongside their operations. Value-only data such as `Vec3`, colors, rectangles, and camera descriptions stays plain or uses small math classes. This makes ownership visible without forcing value data into runtime objects.
 
-- `@bornengine/engine/core` — windows, input, timing, and types.
-- `@bornengine/engine/shapes` — 2D drawing and collision helpers.
-- `@bornengine/engine/models` — models, materials, lighting, and animation.
-- `@bornengine/engine/physics` — Jolt-backed bodies, shapes, queries, and constraints.
-- `@bornengine/engine/world` — versioned world files and instantiation.
-- `@bornengine/engine/game` — runtime gameplay objects, components, scenes, and native-handle adapters.
+## Public imports
 
-See the [Game API guide](../../api/game/) for object lifecycle, component behavior, transforms, and physics synchronization.
+Import from `@bornengine/engine` for the common application surface, or use documented subpaths such as `@bornengine/engine/physics` and `@bornengine/engine/colyseus`. Those barrels expose the supported TypeScript API. Native operation declarations and numeric handle registries are internal implementation details.
+
+See the [Game API](../../api/game/) for gameplay lifecycle and [core API](../../api/core/) for the frame owner.

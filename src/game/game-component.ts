@@ -1,5 +1,6 @@
 import type { GameObject } from './game-object';
-import type { WorldHandle } from '../physics';
+import type { PhysicsWorld } from '../physics';
+import type { GameContext } from '../core/context';
 
 export type GameComponentType<T extends GameComponent> =
   new (...args: any[]) => T;
@@ -40,10 +41,13 @@ export class GameComponent {
   _syncRuntimeAfterPhase(): void {}
 
   /** @internal Pushes adapter state before a caller-owned physics step. */
-  _syncPhysicsBeforeStep(_world: WorldHandle, _fixedDt: number): void {}
+  _syncPhysicsBeforeStep(_world: PhysicsWorld, _fixedDt: number): void {}
 
   /** @internal Pulls adapter state after a caller-owned physics step. */
-  _syncPhysicsAfterStep(_world: WorldHandle): void {}
+  _syncPhysicsAfterStep(_world: PhysicsWorld): void {}
+
+  /** @internal Rejects adapters bound to a different Game runtime. */
+  _canAttachTo(_context: GameContext): boolean { return true; }
 
   /** @internal Assigns the single owning GameObject. */
   _setGameObject(owner: GameObject): boolean {

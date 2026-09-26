@@ -1,10 +1,10 @@
 # watchOS Target
 
-Bloom games can run on Apple Watch. Unlike every other Bloom platform, watchOS
+BornEngine games can run on Apple Watch. Unlike the other BornEngine targets, watchOS
 has **no wgpu and no direct Metal surface** for third-party apps, so the watch
 target does not use the wgpu renderer at all. Instead the engine emits a
 **draw list** whose 2D commands a SwiftUI `Canvas` rasterizes and whose 3D
-commands drive a SceneKit `SceneView` — the game's imperative draw calls work
+commands drive a SceneKit `SceneView` — the game's renderer calls work
 unchanged.
 
 ## Architecture
@@ -36,9 +36,9 @@ the Canvas and handled by a SceneKit `SceneView` layered underneath.
 
 3D works through SceneKit (Metal-backed under the hood, no wgpu involved):
 
-- **Immediate mode** — `drawCube`, `drawSphere` (+ wire variants) map to
+- **Immediate mode** — `game.renderer.drawCube`, `game.renderer.drawSphere` (+ wire variants) map to
   `bloom_draw_cube` / `bloom_draw_sphere` etc.
-- **Retained scene graph** — the `bloom_scene_*` FFI surface delta-syncs
+- **Retained scene graph** — `game.sceneGraph` delta-syncs
   scene nodes to `SCNNode`s (`contentRoot`/`retainedRoot`/`lightsRoot` +
   a camera node in `BloomWatchApp.swift`).
 - **Models** — a hand-rolled `.glb` loader (`native/watchos/src/models.rs`),
@@ -77,39 +77,49 @@ PERRY_RUNTIME_DIR=<perry>/target/aarch64-apple-watchos-sim/release \
 
 ## Game Loop
 
-The watch shell drives frames; the game's `runGame()` callback works as on every
-other platform:
+The watch shell drives frames through `Game.run()`, using the same update/render callbacks as other targets:
 
 ```typescript
-runGame((dt) => {
-  clearBackground(Colors.SKYBLUE);
-  drawRect(playerX, playerY, 16, 16, Colors.RED);
+import { Colors, Game } from "@bornengine/engine";
+
+const game = new Game();
+let playerX = 16;
+const speed = 40;
+
+game.run({
+  update(deltaTime) { playerX += speed * deltaTime; },
+  render() {
+    game.renderer.clear(Colors.SKYBLUE);
+    game.renderer.drawRectangle({ x: playerX, y: 80, width: 16, height: 16 }, Colors.RED);
+  },
+  onStop: () => game.dispose(),
 });
 ```
 
-The blocking `while (!windowShouldClose())` loop is not used on watchOS — the
-SwiftUI shell owns the run loop and calls into the game thread.
+The blocking native loop is not used on watchOS — the SwiftUI shell owns frame
+scheduling and calls into the game lifecycle.
 
 ## Input
 
 watchOS has no keyboard or pointer. Two input sources are bridged:
 
 ```typescript
-const turn = getCrownRotation();   // Digital Crown delta (radians) since last call
-const touches = getTouchCount();   // taps on the watch face
+const turn = game.input.getCrownRotation();   // Digital Crown delta (radians) since last call
+const touches = game.input.getTouchCount();   // taps on the watch face
 ```
 
 - **Digital Crown** — Swift's `.digitalCrownRotation` reports a delta each frame
-  via `bloom_watchos_crown_delta`; read it with `getCrownRotation()`. Reading
+  via `bloom_watchos_crown_delta`; read it with `game.input.getCrownRotation()`. Reading
   consumes the accumulator.
-- **Taps** — surfaced through the same touch API as iOS (`getTouchCount()` /
-  `getTouchX/Y()`), so `isWatch()` branches can treat any tap as e.g. "jump".
+- **Taps** — surfaced through the same touch API as iOS (`game.input.getTouchCount()` /
+  `game.input.getTouchX(index)` and `game.input.getTouchY(index)`), so
+  `game.input.isWatch()` branches can treat a tap as e.g. "jump".
 
-Use `isWatch()` (or `getPlatform() === Platform.WATCH`) to gate watch input.
+Use `game.input.isWatch()` (or `game.input.getPlatform() === Platform.WATCH`) to gate watch input.
 
 ## 2D Camera
 
-`beginMode2D()` / `endMode2D()` are supported: the engine emits `BEGIN_2D` /
+`game.renderer.begin2D(camera)` / `game.renderer.end2D()` are supported: the engine emits `BEGIN_2D` /
 `END_2D` marker commands carrying the camera offset, target, and zoom, and the
 SwiftUI Canvas applies the matching `CGAffineTransform` while replaying the draw
 list between the markers. This lets a side-scroller frame the world correctly on
@@ -126,7 +136,7 @@ files via `readFile` all work. Audio uses a watchOS-native mixer
 ## Localization
 
 The user's language is reported from Swift at launch (`Locale.preferredLanguages`)
-through `bloom_watchos_set_language`, so `getLanguage()` returns the real device
+through `bloom_watchos_set_language`, so `game.input.getLanguage()` returns the real device
 language and the game's i18n works as on other platforms. (Before engine #63 this
 was hardcoded to English.)
 

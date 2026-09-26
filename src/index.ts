@@ -1,200 +1,74 @@
-export {
-  initWindow, closeWindow, windowShouldClose, resize,
-  // Embedding (Perry UI `BloomView`, or any host that owns a native view).
-  // attachToNativeView is the portable one and is what new code should use;
-  // attachToHwnd is Windows-only, returns nothing, and is kept for the existing
-  // callers. Until now only the DEPRECATED one was reachable from the `bloom`
-  // root, which is a good way to make everyone write the wrong call.
-  attachToNativeView, attachToNSView, attachToUIView, attachToSurface,
-  attachToHwnd,
-  beginDrawing, endDrawing, takeScreenshot, clearBackground, setEnvClearFromHdr,
-  setTargetFPS, getDeltaTime, getFPS, getTime,
-  getScreenWidth, getScreenHeight,
-  isKeyPressed, isKeyDown, isKeyReleased, isKeyRepeated,
-  getMouseX, getMouseY, isMouseButtonPressed, isMouseButtonDown, isMouseButtonReleased,
-  getMousePosition, getTouchPosition,
-  beginMode2D, endMode2D, beginMode3D, endMode3D,
-  isGamepadAvailable, getGamepadAxis, getGamepadAxisValue, isGamepadButtonPressed,
-  isGamepadButtonDown, isGamepadButtonReleased, getGamepadAxisCount,
-  getTouchX, getTouchY, getTouchCount, getTouchPointCount,
-  isTouchActive, getMaxTouchPoints,
-  toggleFullscreen, setWindowTitle, setWindowIcon,
-  disableCursor, enableCursor, getMouseDeltaX, getMouseDeltaY, getMouseWheel, getCharPressed,
-  setCursorShape, CursorShape,
-  setClipboardText, getClipboardText,
-  openFileDialog, saveFileDialog,
-  writeFile, fileExists, readFile,
-  getScreenToWorld2D, getWorldToScreen2D,
-  // `Color` is not here: it is the RGBA type, re-exported as a type below.
-  // The palette map is `Colors` / `ColorConstants` (GH #53).
-  ColorConstants, Colors, Key, MouseButton,
-  injectKeyDown, injectKeyUp, isAnyInputPressed, getPlatform, isMobile, isTV, Platform,
-  injectGamepadAxis, injectGamepadButtonDown, injectGamepadButtonUp,
-  runGame,
-  setProfilerEnabled, getProfilerFrameCpuUs, getProfilerFrameGpuUs,
-  printProfilerSummary, getProfilerOverlay, getProfilerFrameHistory,
-  splatImpulse, setMaterialParams,
-} from './core/index';
+export { Game } from './core/game';
+export type { GameOptions, GameLoopCallbacks } from './core/game';
+export { Window, Renderer } from './core';
+export type { WindowMode, WindowOptions, UpscaleMode } from './core';
+export { ColorConstants, Colors, Key, MouseButton, CursorShape, Platform, QualityPreset, Tonemap } from './core';
+export type { Color, Rect, Camera2D, Camera3D, Ray, BoundingBox, RayHit, FrustumPlanes, Mat4 } from './core/types';
 
+export { Vec2, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
+export type { Matrix4Array } from './math';
+
+export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
+export { Font } from './text';
+export { Model, Mesh, Material, Animation } from './models';
+export type { MaterialKind, DrawCubeOpts, ProceduralSkyOptions, PbrMaterial } from './models';
+export {
+  BUCKET_ADDITIVE, BUCKET_CUTOUT, BUCKET_OPAQUE, BUCKET_TRANSPARENT,
+  PROFILE_OPAQUE, PROFILE_TRANSLUCENT,
+  SHADING_MODEL_DEFAULT_LIT, SHADING_MODEL_FOLIAGE, SHADING_MODEL_SUBSURFACE,
+  TEX_ARRAY_FORMAT_LINEAR, TEX_ARRAY_FORMAT_SRGB,
+  TEXTURE_ARRAY_ALBEDO, TEXTURE_ARRAY_MR, TEXTURE_ARRAY_NORMAL,
+} from './models';
+
+export { AudioSystem, Sound, StagedSound, Music, StagedMusic, SoundManager } from './audio';
 export type {
-  Rect, Camera2D, Camera3D,
-  Texture, Font, Sound, Music, Quat, Ray, BoundingBox, Model, Mat4,
-  RayHit, FrustumPlanes,
-} from './core/index';
-
-// Vec2, Vec3, Vec4 as types come from core, as values (constructors) from math
-export type { Vec2, Vec3, Vec4, Color } from './core/index';
+  SoundPlayOptions, SoundVoice, SpatialPlaybackOptions,
+  ManagedMusicOptions, ManagedSoundOptions, SpatialSoundOptions,
+} from './audio';
+export { BUS_SFX, BUS_MUSIC, BUS_UI } from './audio';
 
 export {
-  drawLine, drawRect, drawRectRec, drawRectLines,
-  drawCircle, drawCircleLines, drawTriangle, drawPoly, drawBezier,
-  checkCollisionRecs, checkCollisionCircles, checkCollisionCircleRec,
-  checkCollisionPointRec, checkCollisionPointCircle, getCollisionRec,
-} from './shapes/index';
-
-export {
-  drawText, measureText, loadFont, loadFontEx, unloadFont, drawTextEx, measureTextEx,
-} from './text/index';
-
-export {
-  initAudio, closeAudio, initAudioDevice, closeAudioDevice,
-  loadSound, playSound, stopSound,
-  setSoundVolume, setMasterVolume,
-  loadMusic, playMusic, stopMusic, updateMusicStream, updateMusic,
-  setMusicVolume, isMusicPlaying,
-  playSound3D, setListenerPosition,
-  loadSoundAsync, loadMusicAsync, stageSounds, commitSound, commitMusic,
-} from './audio/index';
-
-export {
-  loadTexture, unloadTexture, drawTexture, drawTexturePro, drawTextureRec,
-  getTextureWidth, getTextureHeight, loadImage,
-  imageResize, imageCrop, imageFlipH, imageFlipV, loadTextureFromImage,
-  genTextureMipmaps, setTextureFilter, FILTER_LINEAR, FILTER_NEAREST,
-  loadTextureAsync, stageTextures, commitTexture,
-  loadRenderTexture, unloadRenderTexture, beginTextureMode, endTextureMode, getRenderTextureTexture,
-} from './textures/index';
-
-export {
-  loadModel, drawModel, drawModelRotated, drawModelTransform, unloadModel, getModelBounds, genMeshSplineRibbon,
-  setModelFoliageWind, setFoliageShadowMotion,
-  drawCube, drawCubeWires, drawSphere, drawSphereWires,
-  drawCylinder, drawPlane, drawGrid, drawRay, genMeshCube, genMeshHeightmap,
-  loadShader, compileMaterial, drawMeshWithMaterial,
-  compileRefractiveMaterial, compileTransparentMaterial, compileAdditiveMaterial,
-  compileMaterialCutout,
-  compileMaterialInstanced, createInstanceBuffer,
-  drawMeshWithMaterialInstanced, destroyInstanceBuffer,
-  createPlanarReflection, setMaterialReflectionProbe, setMaterialProbeVisible,
-  compileMaterialFromFile, loadMaterial,
-  createMeshExplicit,
-  loadModelAnimation, instantiateAnimation, updateModelAnimation, createMesh,
-  setAmbientLight, setDirectionalLight, setJointTest,
-  setProceduralSky, setSunDirection,
-  loadModelAsync, stageModels, stageModelsSync, commitModel,
-} from './models/index';
-
-export type { DrawCubeOpts, ProceduralSkyOptions } from './models/index';
-
-export {
-  vec2, vec2Add, vec2Sub, vec2Scale, vec2Length, vec2LengthSq,
-  vec2Normalize, vec2Dot, vec2Distance, vec2Lerp,
-  vec3, vec3Add, vec3Sub, vec3Scale, vec3Length, vec3LengthSq,
-  vec3Normalize, vec3Dot, vec3Cross, vec3Distance, vec3Lerp,
-  vec4, vec4Add, vec4Scale, vec4Length, vec4Normalize,
-  Vec2, Vec3, Vec4,
-  lerp, clamp, remap, randomFloat, randomInt,
-  easeInQuad, easeOutQuad, easeInOutQuad, easeInCubic, easeOutCubic,
-  easeInOutCubic, easeInElastic, easeOutElastic, easeBounce,
-  mat4Identity, mat4Multiply, mat4Translate, mat4Scale,
-  mat4RotateX, mat4RotateY, mat4RotateZ,
-  mat4Perspective, mat4Ortho, mat4LookAt, mat4Invert,
-  quatIdentity, quatFromEuler, quatToMat4, quatSlerp,
-  quatNormalize, quatMultiply,
-  rayIntersectsBox, rayIntersectsSphere, checkCollisionBoxes, checkCollisionSpheres,
-  extractFrustumPlanes, isBoxInFrustum,
-  rayIntersectsTriangle, getRayCollisionBox, getRayCollisionMesh,
-} from './math/index';
-
-export {
-  createVirtualJoystick, updateVirtualJoystick, drawVirtualJoystick,
-  createVirtualButton, updateVirtualButton, drawVirtualButton,
-  getMovementInput, resetTouchClaims,
-} from './mobile/index';
-
-export type { VirtualJoystick, VirtualButton } from './mobile/index';
-
-export {
-  createSceneNode, destroySceneNode,
-  setSceneNodeVisible, setSceneNodeCastShadow, setSceneNodeReceiveShadow,
-  setSceneNodeGiOnly,
-  setSceneNodeParent, setSceneNodeTransform,
-  updateSceneNodeGeometry,
-  setSceneNodeColor, setSceneNodePbr, setSceneNodeTexture, setSceneNodeWaterMaterial, pickSceneAll,
-  getSceneNodeTransform, getSceneNodeBounds,
-  setSceneNodeUserData, getSceneNodeUserData,
-  getSceneNodeCount,
-  registerFrameCallback, unregisterFrameCallback,
-  addDirectionalLight, addPointLight,
-  extrudePolygon, subtractBox,
-  pickScene,
-  enableShadows, disableShadows, dumpShadowMap,
-  attachModelToNode,
-  enablePostFx, disablePostFx,
-  setPostFxSelected, setPostFxHovered,
-  setOutlineColor, setOutlineThickness,
-  projectToScreen,
-} from './scene/index';
-
-export type { SceneNodeHandle, PbrMaterial, PickHit } from './scene/index';
-
-export {
-  createPhysicsWorld, setGravity, setPhysicsTimestep,
-  createRigidBody, destroyRigidBody,
-  setBodyEnabled, setBodyCcd, setBodyGravityScale,
-  setKinematicTarget, lockRotations,
-  addBoxCollider, addSphereCollider, addCapsuleCollider, addCylinderCollider,
-  setColliderProperties,
-  applyForce, applyImpulse, applyTorque, applyTorqueImpulse,
-  setLinearVelocity, setAngularVelocity,
-  stepPhysics, syncPhysicsTransforms,
-  getBodyPosition, getBodyRotation, getLinearVelocity, getAngularVelocity,
-  physicsRaycast, getCollisions,
-  attachPhysicsBody,
-  createFixedJoint, createRevoluteJoint, createPrismaticJoint, destroyJoint,
-  BodyType,
-} from './physics/index';
-
+  GameComponent, GameObject, GameScene, Scene, SceneManager, Transform,
+  SceneNodeComponent, RigidBodyComponent, AudioSourceComponent,
+} from './game';
 export type {
-  RigidBodyHandle, ColliderHandle, JointHandle,
-  PhysicsRayHit, CollisionInfo,
-} from './physics/index';
-
-export {
-  AudioSourceComponent,
-  GameComponent,
-  GameObject,
-  GameScene,
-  RigidBodyComponent,
-  SceneNodeComponent,
-  Transform,
-} from './game/index';
-
-export type {
+  GameComponentType, GameObjectOptions, ParentOptions,
+  SceneState, SceneOptions, SceneOwnedResource,
+  TransformOptions, TransformTRS,
+  SceneNodeComponentOptions, RigidBodyMotionType, RigidBodyComponentOptions,
   AudioSourceComponentOptions,
-  GameComponentType,
-  GameObjectOptions,
-  ParentOptions,
-  RigidBodyComponentOptions,
-  RigidBodyMotionType,
-  SceneNodeComponentOptions,
-  TransformOptions,
-} from './game/index';
+} from './game';
+export { SceneGraph, SceneNode, FrameSubscription } from './scene';
+export type { ScenePickEntry, ScenePickHit, SceneNodeOptions } from './scene';
 
-export { ui } from './ui/index';
-export type { UiApi, UiId, UiResponse, UiColor } from './ui/index';
+export { InputSystem, InputActionMap } from './input';
+export type { ActionAxisBinding, ActionButtonBinding } from './input';
+export {
+  PhysicsWorld, Collider, BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
+  ConvexHullCollider, MeshCollider, HeightfieldCollider, CompoundCollider, ScaledCollider,
+  OffsetCollider, RigidBody, Joint, CharacterController, GroundState, SoftBody, Vehicle,
+  MotionType, ContactEvent, Layer, MAX_OBJECT_LAYERS, ALL_LAYERS_MASK,
+} from './physics';
+export type {
+  PhysicsWorldOptions, PhysicsStepHooks, PhysicsRayHit, PhysicsContact, PhysicsTransform,
+  CompoundColliderChild, RigidBodyOptions, JointKind, JointOptions,
+  CharacterControllerOptions, VehicleOptions, WorldConfig, BodyConfig, SoftBodyConfig,
+} from './physics';
 
-export { debugUi } from './debug-ui/index';
-export { ColyseusClient, Room as ColyseusRoom, pumpColyseusClients } from './colyseus/index';
-export type { RoomRequestOptions, ColyseusError } from './colyseus/index';
-export type { DebugUiApi } from './debug-ui/index';
+export { WorldData, WorldInstance, PrefabLibrary, WORLD_SCHEMA_VERSION } from './world';
+export type {
+  WorldInstantiateOptions, WorldEntityNode, WorldDocument, LightData, Bounds,
+  EnvironmentData, TerrainData, TerrainLayer, EntityData, TransformData, WaterVolume,
+  RiverSpline, PrefabData, PrefabChild, SaveResult, ValidationResult, TerrainRaycastHit,
+  PrefabLeaf, Vec3Lit, Vec4Lit, Mat4Lit,
+} from './world';
+
+export { TouchControls, VirtualJoystick, VirtualButton } from './mobile';
+export type { VirtualJoystickOptions, VirtualButtonOptions } from './mobile';
+export { ParticleSystem, DecalSystem } from './vfx';
+export type { ParticleConfig, ParticleEmitOptions, DecalStyle } from './vfx';
+export { Ui, UiBackend, UiOpcode } from './ui';
+export { DebugUi } from './debug-ui';
+export type { UiApi, UiId, UiResponse, UiColor } from './ui';
+export { ColyseusClient, Room } from './colyseus';
+export type { RoomRequestOptions, ColyseusError, RoomJoinCallbacks } from './colyseus';

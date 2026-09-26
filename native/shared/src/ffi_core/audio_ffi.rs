@@ -18,11 +18,27 @@ macro_rules! __bloom_ffi_audio_ffi {
         })
         }
 
+        // bloom_play_sound_ex — a non-spatial one-shot with a controllable voice id.
+        #[no_mangle]
+        pub extern "C" fn bloom_play_sound_ex(handle: f64) -> f64 {
+            $crate::ffi::guard("bloom_play_sound_ex", move || {
+                engine().audio.play_sound_ex(handle)
+        })
+        }
+
         // bloom_stop_sound  [source: macos]
         #[no_mangle]
         pub extern "C" fn bloom_stop_sound(handle: f64) {
             $crate::ffi::guard("bloom_stop_sound", move || {
                 engine().audio.stop_sound(handle);
+        })
+        }
+
+        // bloom_unload_sound
+        #[no_mangle]
+        pub extern "C" fn bloom_unload_sound(handle: f64) {
+            $crate::ffi::guard("bloom_unload_sound", move || {
+                engine().audio.unload_sound(handle);
         })
         }
 
@@ -47,6 +63,14 @@ macro_rules! __bloom_ffi_audio_ffi {
         pub extern "C" fn bloom_stop_music(handle: f64) {
             $crate::ffi::guard("bloom_stop_music", move || {
                 engine().audio.stop_music(handle);
+        })
+        }
+
+        // bloom_unload_music
+        #[no_mangle]
+        pub extern "C" fn bloom_unload_music(handle: f64) {
+            $crate::ffi::guard("bloom_unload_music", move || {
+                engine().audio.unload_music(handle);
         })
         }
 

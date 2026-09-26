@@ -1,3 +1,4 @@
+import { Game } from '../../src/core/game';
 import { GameComponent } from '../../src/game/game-component';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
@@ -23,6 +24,7 @@ class Armor extends Health {
   points = 50;
 }
 
+const game = new Game();
 const player = new Player('Player');
 const health = new Health();
 const secondHealth = new Health();
@@ -85,8 +87,8 @@ expect(localRoot.removeChild(localChild), 'removeChild detaches an owned child')
 expect(localChild.parent === null && localChild.transform.worldPosition.x === 12,
   'removeChild preserves world transform by default');
 
-const scene = new GameScene();
-const otherScene = new GameScene();
+const scene = new GameScene(game);
+const otherScene = new GameScene(game);
 const left = new GameObject({ position: { x: 5, y: 0, z: 0 } });
 const right = new GameObject({ position: { x: 20, y: 0, z: 0 } });
 const sceneChild = new GameObject({ position: { x: 2, y: 0, z: 0 } });
@@ -242,7 +244,7 @@ class LifecycleComponent extends GameComponent {
 }
 
 const lifecycleEvents: string[] = [];
-const lifecycleScene = new GameScene();
+const lifecycleScene = new GameScene(game);
 const lifecycleParent = new LifecycleObject('parent', lifecycleEvents);
 const lifecycleParentComponent = new LifecycleComponent('parent-component', lifecycleEvents);
 const lifecycleChild = new LifecycleObject('child', lifecycleEvents);
@@ -257,7 +259,7 @@ expectEvents(lifecycleEvents, [
 ], 'scene attachment awakens parent before components and children');
 
 const childAwakeEvents: string[] = [];
-const childAwakeScene = new GameScene();
+const childAwakeScene = new GameScene(game);
 const childAwakeRoot = new LifecycleObject('awake-root', childAwakeEvents);
 const firstAwakeChild = new LifecycleObject('first-child', childAwakeEvents);
 const secondAwakeChild = new LifecycleObject('second-child', childAwakeEvents);
@@ -274,7 +276,7 @@ expectEvents(childAwakeEvents, [
 ], 'children added during onAwake awaken in child attachment order');
 
 const componentAwakeEvents: string[] = [];
-const componentAwakeScene = new GameScene();
+const componentAwakeScene = new GameScene(game);
 const componentAwakeObject = new LifecycleObject('component-owner', componentAwakeEvents);
 const firstAwakeComponent = new LifecycleComponent('first-component', componentAwakeEvents);
 const secondAwakeComponent = new LifecycleComponent('second-component', componentAwakeEvents);
@@ -318,7 +320,7 @@ expectEvents(lifecycleEvents, [
 ], 'late component starts immediately before its first eligible update');
 
 const activationEvents: string[] = [];
-const activationScene = new GameScene();
+const activationScene = new GameScene(game);
 const inactiveObject = new LifecycleObject('inactive', activationEvents);
 const disabledComponent = new LifecycleComponent('disabled-component', activationEvents);
 inactiveObject.active = false;
@@ -343,7 +345,7 @@ expectEvents(activationEvents, [
 ], 'enabled component starts when it first becomes eligible');
 
 const addedDuringUpdateEvents: string[] = [];
-const addedDuringUpdateScene = new GameScene();
+const addedDuringUpdateScene = new GameScene(game);
 const addingObject = new LifecycleObject('adding', addedDuringUpdateEvents);
 let addedObject: LifecycleObject | null = null;
 addingObject.action = () => {
@@ -362,7 +364,7 @@ expect(hasEvent(addedDuringUpdateEvents, 'added.update'),
   'object added during a phase updates on the next phase');
 
 const lateComponentEvents: string[] = [];
-const lateComponentScene = new GameScene();
+const lateComponentScene = new GameScene(game);
 const componentAddingObject = new LifecycleObject('component-adder', lateComponentEvents);
 const componentLaterObject = new LifecycleObject('component-later', lateComponentEvents);
 let componentAddedDuringUpdate: LifecycleComponent | null = null;
@@ -383,7 +385,7 @@ expect(hasEvent(lateComponentEvents, 'added-component.update'),
   'late component updates on the following phase');
 
 const removalEvents: string[] = [];
-const removalScene = new GameScene();
+const removalScene = new GameScene(game);
 const removingObject = new LifecycleObject('remover', removalEvents);
 const removedLaterObject = new LifecycleObject('removed-later', removalEvents);
 removingObject.action = () => { removalScene.remove(removedLaterObject); };
@@ -395,7 +397,7 @@ expect(!hasEvent(removalEvents, 'removed-later.update'),
   'removed later object is skipped from the active update snapshot');
 
 const selfDestroyEvents: string[] = [];
-const selfDestroyScene = new GameScene();
+const selfDestroyScene = new GameScene(game);
 const selfDestroying = new LifecycleObject('self-destroying', selfDestroyEvents);
 const selfDestroyingComponent = new LifecycleComponent('self-component', selfDestroyEvents);
 selfDestroying.addComponent(selfDestroyingComponent);
@@ -412,7 +414,7 @@ expectEvents(selfDestroyEvents, [
 ], 'self destruction suppresses later component callbacks in the phase');
 
 const ancestorDestroyEvents: string[] = [];
-const ancestorDestroyScene = new GameScene();
+const ancestorDestroyScene = new GameScene(game);
 const destroyingParent = new LifecycleObject('destroying-parent', ancestorDestroyEvents);
 const destroyedChild = new LifecycleObject('destroyed-child', ancestorDestroyEvents);
 destroyingParent.addChild(destroyedChild, { preserveWorldTransform: false });
@@ -426,7 +428,7 @@ expectEvents(ancestorDestroyEvents, [
 ], 'destroying a parent suppresses later child callbacks in the phase');
 
 const readdEvents: string[] = [];
-const readdScene = new GameScene();
+const readdScene = new GameScene(game);
 const readdingObject = new LifecycleObject('readding', readdEvents);
 const readdedLaterObject = new LifecycleObject('readded-later', readdEvents);
 readdingObject.action = () => {
@@ -446,7 +448,7 @@ expect(hasEvent(readdEvents, 'readded-later.update'),
   're-added object updates in the next phase');
 
 const disableEvents: string[] = [];
-const disableScene = new GameScene();
+const disableScene = new GameScene(game);
 const disablingParent = new LifecycleObject('disabling-parent', disableEvents);
 const disabledChild = new LifecycleObject('disabled-child', disableEvents);
 const disabledDuringPhase = new LifecycleComponent('disabled-during-phase', disableEvents);
@@ -463,7 +465,7 @@ expectEvents(disableEvents, ['disabling-parent.start', 'disabling-parent.update'
   'activation and enabled state are rechecked before each callback');
 
 const destructionEvents: string[] = [];
-const destructionScene = new GameScene();
+const destructionScene = new GameScene(game);
 class DestructionOrderComponent extends GameComponent {
   readonly label: string;
   readonly expectedOwner: GameObject;
@@ -540,7 +542,7 @@ expect(destructionParent.getComponents(DestructionOrderComponent).length === 0 &
   'destroyed components detach and scene membership is removed');
 
 const sceneDestroyEvents: string[] = [];
-const sceneToDestroy = new GameScene();
+const sceneToDestroy = new GameScene(game);
 const firstDestroyRoot = new LifecycleObject('first-root', sceneDestroyEvents);
 const destroyRootChild = new LifecycleObject('root-child', sceneDestroyEvents);
 const secondDestroyRoot = new LifecycleObject('second-root', sceneDestroyEvents);
@@ -558,7 +560,7 @@ expect(firstDestroyRoot.destroyed && destroyRootChild.destroyed &&
   'destroyed scene destroys its roots and rejects future additions');
 sceneToDestroy.destroy();
 
-const shearRemovalScene = new GameScene();
+const shearRemovalScene = new GameScene(game);
 const shearRemovalParent = new GameObject({ scale: { x: 2, y: 1, z: 1 } });
 const shearRemovalChild = new GameObject({
   rotation: { x: 0, y: 0, z: 0.38268343, w: 0.9238795 },
@@ -570,3 +572,5 @@ expect(!shearRemovalScene.remove(shearRemovalChild) &&
   shearRemovalChild.parent === shearRemovalParent &&
   shearRemovalParent.children[0] === shearRemovalChild,
   'scene removal preserves ownership when world transform cannot become local TRS');
+
+game.dispose();

@@ -1,7 +1,7 @@
 {
-  "name": "bloom-pbr-spheres",
+  "name": "bornengine-pbr-spheres",
   "version": "0.1.0",
   "dependencies": {
-    "bloom": "file:../../"
+    "@bornengine/engine": "file:../../"
   }
 }

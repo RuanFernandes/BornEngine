@@ -1,16 +1,5 @@
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, getDeltaTime, isKeyDown,
-  getScreenWidth, getScreenHeight, closeWindow,
-} from "bloom/core";
-import { Color, Key } from "bloom/core";
-import { drawRect, drawCircle, checkCollisionRecs } from "bloom/shapes";
-import { drawText, measureText } from "bloom/text";
-import { initAudioDevice, loadSound, playSound, closeAudioDevice } from "bloom/audio";
-import { clamp } from "bloom/math";
-import { Rect } from "bloom/core";
+import { Collision, Colors, Game, Key, Mathf } from '@bornengine/engine';
 
-// Constants
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
 const PADDLE_WIDTH = 15;
@@ -20,7 +9,13 @@ const BALL_RADIUS = 8;
 const BALL_SPEED = 250;
 const PADDLE_MARGIN = 30;
 
-// Game state
+const game = new Game({
+  window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: 'Pong' },
+  targetFps: 60,
+});
+const controls = game.input.createActionMap();
+controls.bindAction('pause', { kind: 'key', key: Key.P });
+
 let leftPaddleY = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2;
 let rightPaddleY = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2;
 let ballX = SCREEN_WIDTH / 2;
@@ -38,134 +33,76 @@ function resetBall(direction: number): void {
   ballVelY = BALL_SPEED * 0.5 * (Math.random() > 0.5 ? 1 : -1);
 }
 
-// Initialize
-initWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Pong");
-setTargetFPS(60);
-initAudioDevice();
+function update(deltaTime: number): void {
+  if (controls.wasPressed('pause')) paused = !paused;
+  if (paused) return;
 
-// Main game loop
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
+  if (game.input.isKeyDown(Key.W)) leftPaddleY -= PADDLE_SPEED * deltaTime;
+  if (game.input.isKeyDown(Key.S)) leftPaddleY += PADDLE_SPEED * deltaTime;
+  leftPaddleY = Mathf.clamp(leftPaddleY, 0, SCREEN_HEIGHT - PADDLE_HEIGHT);
 
-  // Pause toggle
-  if (isKeyDown(Key.P)) {
-    paused = !paused;
+  if (game.input.isKeyDown(Key.UP)) rightPaddleY -= PADDLE_SPEED * deltaTime;
+  if (game.input.isKeyDown(Key.DOWN)) rightPaddleY += PADDLE_SPEED * deltaTime;
+  rightPaddleY = Mathf.clamp(rightPaddleY, 0, SCREEN_HEIGHT - PADDLE_HEIGHT);
+
+  ballX += ballVelX * deltaTime;
+  ballY += ballVelY * deltaTime;
+  if (ballY - BALL_RADIUS <= 0) { ballY = BALL_RADIUS; ballVelY = -ballVelY; }
+  if (ballY + BALL_RADIUS >= SCREEN_HEIGHT) {
+    ballY = SCREEN_HEIGHT - BALL_RADIUS;
+    ballVelY = -ballVelY;
   }
 
-  if (!paused) {
-    // Left paddle (W/S)
-    if (isKeyDown(Key.W)) {
-      leftPaddleY = leftPaddleY - PADDLE_SPEED * dt;
-    }
-    if (isKeyDown(Key.S)) {
-      leftPaddleY = leftPaddleY + PADDLE_SPEED * dt;
-    }
-    leftPaddleY = clamp(leftPaddleY, 0, SCREEN_HEIGHT - PADDLE_HEIGHT);
+  const leftPaddle = { x: PADDLE_MARGIN, y: leftPaddleY, width: PADDLE_WIDTH, height: PADDLE_HEIGHT };
+  const rightPaddle = {
+    x: SCREEN_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH,
+    y: rightPaddleY,
+    width: PADDLE_WIDTH,
+    height: PADDLE_HEIGHT,
+  };
+  const ballBounds = { x: ballX - BALL_RADIUS, y: ballY - BALL_RADIUS, width: BALL_RADIUS * 2, height: BALL_RADIUS * 2 };
 
-    // Right paddle (Up/Down)
-    if (isKeyDown(Key.UP)) {
-      rightPaddleY = rightPaddleY - PADDLE_SPEED * dt;
-    }
-    if (isKeyDown(Key.DOWN)) {
-      rightPaddleY = rightPaddleY + PADDLE_SPEED * dt;
-    }
-    rightPaddleY = clamp(rightPaddleY, 0, SCREEN_HEIGHT - PADDLE_HEIGHT);
-
-    // Ball movement
-    ballX = ballX + ballVelX * dt;
-    ballY = ballY + ballVelY * dt;
-
-    // Ball collision with top/bottom walls
-    if (ballY - BALL_RADIUS <= 0) {
-      ballY = BALL_RADIUS;
-      ballVelY = -ballVelY;
-    }
-    if (ballY + BALL_RADIUS >= SCREEN_HEIGHT) {
-      ballY = SCREEN_HEIGHT - BALL_RADIUS;
-      ballVelY = -ballVelY;
-    }
-
-    // Ball collision with paddles
-    const leftPaddle: Rect = {
-      x: PADDLE_MARGIN,
-      y: leftPaddleY,
-      width: PADDLE_WIDTH,
-      height: PADDLE_HEIGHT,
-    };
-    const rightPaddle: Rect = {
-      x: SCREEN_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH,
-      y: rightPaddleY,
-      width: PADDLE_WIDTH,
-      height: PADDLE_HEIGHT,
-    };
-    const ballRect: Rect = {
-      x: ballX - BALL_RADIUS,
-      y: ballY - BALL_RADIUS,
-      width: BALL_RADIUS * 2,
-      height: BALL_RADIUS * 2,
-    };
-
-    if (checkCollisionRecs(ballRect, leftPaddle) && ballVelX < 0) {
-      ballVelX = -ballVelX;
-      // Adjust vertical velocity based on where ball hit paddle
-      const hitPos = (ballY - leftPaddleY) / PADDLE_HEIGHT;
-      ballVelY = BALL_SPEED * (hitPos - 0.5) * 2;
-    }
-    if (checkCollisionRecs(ballRect, rightPaddle) && ballVelX > 0) {
-      ballVelX = -ballVelX;
-      const hitPos = (ballY - rightPaddleY) / PADDLE_HEIGHT;
-      ballVelY = BALL_SPEED * (hitPos - 0.5) * 2;
-    }
-
-    // Scoring
-    if (ballX < 0) {
-      rightScore = rightScore + 1;
-      resetBall(1);
-    }
-    if (ballX > SCREEN_WIDTH) {
-      leftScore = leftScore + 1;
-      resetBall(-1);
-    }
+  if (Collision.checkRectangles(ballBounds, leftPaddle) && ballVelX < 0) {
+    ballVelX = -ballVelX;
+    ballVelY = BALL_SPEED * ((ballY - leftPaddleY) / PADDLE_HEIGHT - 0.5) * 2;
+  }
+  if (Collision.checkRectangles(ballBounds, rightPaddle) && ballVelX > 0) {
+    ballVelX = -ballVelX;
+    ballVelY = BALL_SPEED * ((ballY - rightPaddleY) / PADDLE_HEIGHT - 0.5) * 2;
   }
 
-  // Drawing
-  beginDrawing();
-  clearBackground(Color.Black);
-
-  // Center line
-  const segments = 20;
-  const segHeight = SCREEN_HEIGHT / (segments * 2);
-  for (let i = 0; i < segments; i = i + 1) {
-    drawRect(
-      SCREEN_WIDTH / 2 - 1,
-      i * segHeight * 2,
-      2,
-      segHeight,
-      Color.DarkGray,
-    );
-  }
-
-  // Paddles
-  drawRect(PADDLE_MARGIN, leftPaddleY, PADDLE_WIDTH, PADDLE_HEIGHT, Color.White);
-  drawRect(SCREEN_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH, rightPaddleY, PADDLE_WIDTH, PADDLE_HEIGHT, Color.White);
-
-  // Ball
-  drawCircle(ballX, ballY, BALL_RADIUS, Color.White);
-
-  // Scores
-  const leftScoreText = leftScore.toString();
-  const rightScoreText = rightScore.toString();
-  drawText(leftScoreText, SCREEN_WIDTH / 4 - measureText(leftScoreText, 40) / 2, 20, 40, Color.White);
-  drawText(rightScoreText, 3 * SCREEN_WIDTH / 4 - measureText(rightScoreText, 40) / 2, 20, 40, Color.White);
-
-  // Pause text
-  if (paused) {
-    const pauseText = "PAUSED";
-    drawText(pauseText, SCREEN_WIDTH / 2 - measureText(pauseText, 30) / 2, SCREEN_HEIGHT / 2 - 15, 30, Color.LightGray);
-  }
-
-  endDrawing();
+  if (ballX < 0) { rightScore += 1; resetBall(1); }
+  if (ballX > SCREEN_WIDTH) { leftScore += 1; resetBall(-1); }
 }
 
-closeAudioDevice();
-closeWindow();
+function render(): void {
+  const renderer = game.renderer;
+  renderer.clear(Colors.BLACK);
+  const segments = 20;
+  const segmentHeight = SCREEN_HEIGHT / (segments * 2);
+  for (let index = 0; index < segments; index += 1) {
+    renderer.drawRectangle({
+      x: SCREEN_WIDTH / 2 - 1,
+      y: index * segmentHeight * 2,
+      width: 2,
+      height: segmentHeight,
+    }, Colors.DARKGRAY);
+  }
+
+  renderer.drawRectangle({ x: PADDLE_MARGIN, y: leftPaddleY, width: PADDLE_WIDTH, height: PADDLE_HEIGHT }, Colors.WHITE);
+  renderer.drawRectangle({
+    x: SCREEN_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH,
+    y: rightPaddleY,
+    width: PADDLE_WIDTH,
+    height: PADDLE_HEIGHT,
+  }, Colors.WHITE);
+  renderer.drawCircle({ x: ballX, y: ballY }, BALL_RADIUS, Colors.WHITE);
+
+  const leftText = leftScore.toString();
+  const rightText = rightScore.toString();
+  renderer.drawText(leftText, { x: SCREEN_WIDTH / 4 - renderer.measureText(leftText, 40) / 2, y: 20 }, 40, Colors.WHITE);
+  renderer.drawText(rightText, { x: 3 * SCREEN_WIDTH / 4 - renderer.measureText(rightText, 40) / 2, y: 20 }, 40, Colors.WHITE);
+  if (paused) renderer.drawText('PAUSED', { x: SCREEN_WIDTH / 2 - 55, y: SCREEN_HEIGHT / 2 - 15 }, 30, Colors.LIGHTGRAY);
+}
+
+game.run({ update, render, onStop: () => game.dispose() });

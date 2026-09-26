@@ -1,14 +1,5 @@
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, getDeltaTime, isKeyDown, isKeyPressed,
-  getScreenWidth, getScreenHeight, closeWindow,
-} from "bloom/core";
-import { Color, Key } from "bloom/core";
-import { drawRect, drawCircle, drawTriangle, checkCollisionRecs, checkCollisionCircleRec } from "bloom/shapes";
-import { drawText, measureText } from "bloom/text";
-import { initAudioDevice, closeAudioDevice } from "bloom/audio";
-import { clamp, randomFloat, randomInt } from "bloom/math";
-import { Rect } from "bloom/core";
+import { Collision, Colors, Game, Key, Mathf } from '@bornengine/engine';
+import type { Color, Rect } from '@bornengine/engine';
 
 // Constants
 const SCREEN_WIDTH = 800;
@@ -86,17 +77,17 @@ for (let i = 0; i < MAX_ENEMIES; i++) {
 
 const particles: Particle[] = [];
 for (let i = 0; i < MAX_PARTICLES; i++) {
-  particles.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, color: Color.White, active: false });
+  particles.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, color: Colors.WHITE, active: false });
 }
 
 // Scrolling star background
 const stars: Star[] = [];
 for (let i = 0; i < MAX_STARS; i++) {
   stars.push({
-    x: randomFloat(0, SCREEN_WIDTH),
-    y: randomFloat(0, SCREEN_HEIGHT),
-    speed: randomFloat(30, 150),
-    brightness: randomFloat(0.2, 1.0),
+    x: Mathf.randomFloat(0, SCREEN_WIDTH),
+    y: Mathf.randomFloat(0, SCREEN_HEIGHT),
+    speed: Mathf.randomFloat(30, 150),
+    brightness: Mathf.randomFloat(0.2, 1.0),
   });
 }
 
@@ -114,19 +105,19 @@ function spawnBullet(x: number, y: number): void {
 function spawnEnemy(): void {
   for (let i = 0; i < MAX_ENEMIES; i++) {
     if (!enemies[i].active) {
-      const kind = wave >= 3 ? randomInt(0, 2) : (wave >= 2 ? randomInt(0, 1) : 0);
-      enemies[i].x = randomFloat(ENEMY_WIDTH, SCREEN_WIDTH - ENEMY_WIDTH);
+      const kind = wave >= 3 ? Mathf.randomInt(0, 2) : (wave >= 2 ? Mathf.randomInt(0, 1) : 0);
+      enemies[i].x = Mathf.randomFloat(ENEMY_WIDTH, SCREEN_WIDTH - ENEMY_WIDTH);
       enemies[i].y = -ENEMY_HEIGHT;
       enemies[i].kind = kind;
       if (kind === 0) {
         enemies[i].hp = 1;
-        enemies[i].speed = randomFloat(80, 150);
+        enemies[i].speed = Mathf.randomFloat(80, 150);
       } else if (kind === 1) {
         enemies[i].hp = 1;
-        enemies[i].speed = randomFloat(150, 250);
+        enemies[i].speed = Mathf.randomFloat(150, 250);
       } else {
         enemies[i].hp = 3;
-        enemies[i].speed = randomFloat(50, 100);
+        enemies[i].speed = Mathf.randomFloat(50, 100);
       }
       enemies[i].active = true;
       return;
@@ -138,13 +129,13 @@ function spawnExplosion(x: number, y: number, count: number, color: Color): void
   for (let n = 0; n < count; n++) {
     for (let i = 0; i < MAX_PARTICLES; i++) {
       if (!particles[i].active) {
-        const angle = randomFloat(0, Math.PI * 2);
-        const speed = randomFloat(50, 200);
+        const angle = Mathf.randomFloat(0, Math.PI * 2);
+        const speed = Mathf.randomFloat(50, 200);
         particles[i].x = x;
         particles[i].y = y;
         particles[i].vx = Math.cos(angle) * speed;
         particles[i].vy = Math.sin(angle) * speed;
-        particles[i].life = randomFloat(0.3, 0.8);
+        particles[i].life = Mathf.randomFloat(0.3, 0.8);
         particles[i].maxLife = particles[i].life;
         particles[i].color = color;
         particles[i].active = true;
@@ -175,39 +166,36 @@ function resetGame(): void {
   for (let i = 0; i < MAX_PARTICLES; i++) particles[i].active = false;
 }
 
-// Initialize
-initWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Space Blaster");
-setTargetFPS(60);
-initAudioDevice();
+const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Space Blaster" }, targetFps: 60 });
 
 // Main game loop
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
+game.run({
+  update(dt) {
 
   if (gameOver) {
-    if (isKeyPressed(Key.ENTER)) {
+    if (game.input.isKeyPressed(Key.ENTER)) {
       resetGame();
     }
   } else {
     // Player movement
-    if (isKeyDown(Key.LEFT) || isKeyDown(Key.A)) {
+    if (game.input.isKeyDown(Key.LEFT) || game.input.isKeyDown(Key.A)) {
       playerX = playerX - PLAYER_SPEED * dt;
     }
-    if (isKeyDown(Key.RIGHT) || isKeyDown(Key.D)) {
+    if (game.input.isKeyDown(Key.RIGHT) || game.input.isKeyDown(Key.D)) {
       playerX = playerX + PLAYER_SPEED * dt;
     }
-    if (isKeyDown(Key.UP) || isKeyDown(Key.W)) {
+    if (game.input.isKeyDown(Key.UP) || game.input.isKeyDown(Key.W)) {
       playerY = playerY - PLAYER_SPEED * dt;
     }
-    if (isKeyDown(Key.DOWN) || isKeyDown(Key.S)) {
+    if (game.input.isKeyDown(Key.DOWN) || game.input.isKeyDown(Key.S)) {
       playerY = playerY + PLAYER_SPEED * dt;
     }
-    playerX = clamp(playerX, PLAYER_WIDTH / 2, SCREEN_WIDTH - PLAYER_WIDTH / 2);
-    playerY = clamp(playerY, PLAYER_HEIGHT / 2, SCREEN_HEIGHT - PLAYER_HEIGHT / 2);
+    playerX = Mathf.clamp(playerX, PLAYER_WIDTH / 2, SCREEN_WIDTH - PLAYER_WIDTH / 2);
+    playerY = Mathf.clamp(playerY, PLAYER_HEIGHT / 2, SCREEN_HEIGHT - PLAYER_HEIGHT / 2);
 
     // Shooting
     bulletCooldown = bulletCooldown - dt;
-    if (isKeyDown(Key.SPACE) && bulletCooldown <= 0) {
+    if (game.input.isKeyDown(Key.SPACE) && bulletCooldown <= 0) {
       spawnBullet(playerX - 2, playerY - PLAYER_HEIGHT / 2);
       bulletCooldown = BULLET_COOLDOWN;
     }
@@ -267,7 +255,7 @@ while (!windowShouldClose()) {
         width: ENEMY_WIDTH,
         height: ENEMY_HEIGHT,
       };
-      if (checkCollisionRecs(playerRect, enemyRect)) {
+      if (Collision.checkRectangles(playerRect, enemyRect)) {
         spawnExplosion(enemies[i].x, enemies[i].y, 15, getEnemyColor(enemies[i].kind));
         enemies[i].active = false;
         lives = lives - 1;
@@ -284,7 +272,7 @@ while (!windowShouldClose()) {
           width: BULLET_WIDTH,
           height: BULLET_HEIGHT,
         };
-        if (checkCollisionRecs(bulletRect, enemyRect)) {
+        if (Collision.checkRectangles(bulletRect, enemyRect)) {
           bullets[j].active = false;
           enemies[i].hp = enemies[i].hp - 1;
           if (enemies[i].hp <= 0) {
@@ -316,59 +304,40 @@ while (!windowShouldClose()) {
     stars[i].y = stars[i].y + stars[i].speed * dt;
     if (stars[i].y > SCREEN_HEIGHT) {
       stars[i].y = 0;
-      stars[i].x = randomFloat(0, SCREEN_WIDTH);
+      stars[i].x = Mathf.randomFloat(0, SCREEN_WIDTH);
     }
   }
 
   // Drawing
-  beginDrawing();
-  clearBackground({ r: 5, g: 5, b: 15, a: 255 });
+  },
+  render() {
+  game.renderer.clear({ r: 5, g: 5, b: 15, a: 255 });
 
   // Stars
   for (let i = 0; i < MAX_STARS; i++) {
     const b = Math.floor(stars[i].brightness * 255);
-    drawRect(stars[i].x, stars[i].y, 2, 2, { r: b, g: b, b: b, a: 255 });
+    game.renderer.drawRectangle({ x: stars[i].x, y: stars[i].y, width: 2, height: 2 }, { r: b, g: b, b: b, a: 255 });
   }
 
   if (!gameOver) {
     // Player ship (triangle)
-    drawTriangle(
-      playerX, playerY - PLAYER_HEIGHT / 2,
-      playerX - PLAYER_WIDTH / 2, playerY + PLAYER_HEIGHT / 2,
-      playerX + PLAYER_WIDTH / 2, playerY + PLAYER_HEIGHT / 2,
-      { r: 50, g: 200, b: 255, a: 255 },
-    );
+    game.renderer.drawTriangle({ x: playerX, y: playerY - PLAYER_HEIGHT / 2 }, { x: playerX - PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { x: playerX + PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { r: 50, g: 200, b: 255, a: 255 });
     // Engine glow
-    drawRect(playerX - 4, playerY + PLAYER_HEIGHT / 2, 8, 6, { r: 255, g: 150, b: 0, a: 200 });
+    game.renderer.drawRectangle({ x: playerX - 4, y: playerY + PLAYER_HEIGHT / 2, width: 8, height: 6 }, { r: 255, g: 150, b: 0, a: 200 });
 
     // Bullets
     for (let i = 0; i < MAX_BULLETS; i++) {
       if (!bullets[i].active) continue;
-      drawRect(
-        bullets[i].x - BULLET_WIDTH / 2,
-        bullets[i].y - BULLET_HEIGHT / 2,
-        BULLET_WIDTH, BULLET_HEIGHT,
-        { r: 255, g: 255, b: 100, a: 255 },
-      );
+      game.renderer.drawRectangle({ x: bullets[i].x - BULLET_WIDTH / 2, y: bullets[i].y - BULLET_HEIGHT / 2, width: BULLET_WIDTH, height: BULLET_HEIGHT }, { r: 255, g: 255, b: 100, a: 255 });
     }
 
     // Enemies
     for (let i = 0; i < MAX_ENEMIES; i++) {
       if (!enemies[i].active) continue;
       const color = getEnemyColor(enemies[i].kind);
-      drawRect(
-        enemies[i].x - ENEMY_WIDTH / 2,
-        enemies[i].y - ENEMY_HEIGHT / 2,
-        ENEMY_WIDTH, ENEMY_HEIGHT,
-        color,
-      );
+      game.renderer.drawRectangle({ x: enemies[i].x - ENEMY_WIDTH / 2, y: enemies[i].y - ENEMY_HEIGHT / 2, width: ENEMY_WIDTH, height: ENEMY_HEIGHT }, color);
       // Cockpit
-      drawRect(
-        enemies[i].x - 4,
-        enemies[i].y - 4,
-        8, 8,
-        { r: 200, g: 200, b: 200, a: 255 },
-      );
+      game.renderer.drawRectangle({ x: enemies[i].x - 4, y: enemies[i].y - 4, width: 8, height: 8 }, { r: 200, g: 200, b: 200, a: 255 });
     }
   }
 
@@ -377,40 +346,33 @@ while (!windowShouldClose()) {
     if (!particles[i].active) continue;
     const alpha = Math.floor((particles[i].life / particles[i].maxLife) * 255);
     const c = particles[i].color;
-    drawRect(particles[i].x - 2, particles[i].y - 2, 4, 4, { r: c.r, g: c.g, b: c.b, a: alpha });
+    game.renderer.drawRectangle({ x: particles[i].x - 2, y: particles[i].y - 2, width: 4, height: 4 }, { r: c.r, g: c.g, b: c.b, a: alpha });
   }
 
   // HUD
-  drawText("SCORE: " + score.toString(), 10, 10, 20, Color.White);
-  drawText("WAVE: " + wave.toString(), SCREEN_WIDTH / 2 - 40, 10, 20, Color.White);
+  game.renderer.drawText("SCORE: " + score.toString(), { x: 10, y: 10 }, 20, Colors.WHITE);
+  game.renderer.drawText("WAVE: " + wave.toString(), { x: SCREEN_WIDTH / 2 - 40, y: 10 }, 20, Colors.WHITE);
 
   // Lives
   for (let i = 0; i < lives; i++) {
-    drawTriangle(
-      SCREEN_WIDTH - 30 - i * 25, 12,
-      SCREEN_WIDTH - 40 - i * 25, 28,
-      SCREEN_WIDTH - 20 - i * 25, 28,
-      { r: 50, g: 200, b: 255, a: 255 },
-    );
+    game.renderer.drawTriangle({ x: SCREEN_WIDTH - 30 - i * 25, y: 12 }, { x: SCREEN_WIDTH - 40 - i * 25, y: 28 }, { x: SCREEN_WIDTH - 20 - i * 25, y: 28 }, { r: 50, g: 200, b: 255, a: 255 });
   }
 
   // Wave announcement
   if (waveTimer < 0) {
     const waveText = "WAVE " + wave.toString();
-    drawText(waveText, SCREEN_WIDTH / 2 - measureText(waveText, 40) / 2, SCREEN_HEIGHT / 2 - 20, 40, Color.Yellow);
+    game.renderer.drawText(waveText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(waveText, 40) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 40, Colors.YELLOW);
   }
 
   // Game over screen
   if (gameOver) {
-    drawText("GAME OVER", SCREEN_WIDTH / 2 - measureText("GAME OVER", 60) / 2, SCREEN_HEIGHT / 2 - 60, 60, Color.Red);
+    game.renderer.drawText("GAME OVER", { x: SCREEN_WIDTH / 2 - game.renderer.measureText("GAME OVER", 60) / 2, y: SCREEN_HEIGHT / 2 - 60 }, 60, Colors.RED);
     const finalScore = "Score: " + score.toString();
-    drawText(finalScore, SCREEN_WIDTH / 2 - measureText(finalScore, 30) / 2, SCREEN_HEIGHT / 2 + 10, 30, Color.White);
+    game.renderer.drawText(finalScore, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(finalScore, 30) / 2, y: SCREEN_HEIGHT / 2 + 10 }, 30, Colors.WHITE);
     const restartText = "Press ENTER to restart";
-    drawText(restartText, SCREEN_WIDTH / 2 - measureText(restartText, 20) / 2, SCREEN_HEIGHT / 2 + 60, 20, Color.LightGray);
+    game.renderer.drawText(restartText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(restartText, 20) / 2, y: SCREEN_HEIGHT / 2 + 60 }, 20, Colors.LIGHTGRAY);
   }
 
-  endDrawing();
-}
-
-closeAudioDevice();
-closeWindow();
+  },
+  onStop: () => game.dispose(),
+});

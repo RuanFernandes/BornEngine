@@ -1,4 +1,20 @@
-import { GameComponent, GameObject, GameScene } from '@bornengine/engine/game';
+import { Game } from '@bornengine/engine';
+import {
+  GameComponent,
+  GameObject,
+  GameScene,
+  Scene,
+  SceneNodeComponent,
+} from '@bornengine/engine/game';
+import type { SoundManager as AudioManager } from '@bornengine/engine/audio';
+import type { InputActionMap } from '@bornengine/engine/input';
+import type { ManagedSoundOptions as RootManagedSoundOptions } from '@bornengine/engine';
+import type { SoundManager as RootSoundManager } from '@bornengine/engine';
+import type { ManagedSoundOptions, SpatialSoundOptions } from '@bornengine/engine/audio';
+
+declare const process: { exit(code: number): never };
+
+const game = new Game();
 
 class Base {
   readonly baseValue: number;
@@ -91,7 +107,7 @@ class PublicHealth extends GameComponent {
   value = 100;
 }
 
-const gameScene = new GameScene();
+const gameScene = new GameScene(game);
 const publicPlayer = new PublicPlayer();
 const attachedPlayer: PublicPlayer | null = gameScene.add(publicPlayer);
 requireTrue(attachedPlayer === publicPlayer, 'GameScene.add preserves subclass type');
@@ -110,4 +126,64 @@ requireTrue(attachedHealth === publicHealth && foundHealth === publicHealth &&
   allPublicHealth.length === 1 && allPublicHealth[0] === publicHealth,
   'public GameObject component API preserves concrete types');
 
+class ScenePlayer extends GameObject {}
+const oopScene = new Scene(game, { name: 'compatibility-scene' });
+const oopManager = game.scenes;
+const scenePlayer = oopScene.addNode(new ScenePlayer());
+const rendererNode = game.sceneGraph.createNode();
+const rendererComponent: SceneNodeComponent | null = rendererNode.isLoaded
+  ? new SceneNodeComponent(rendererNode, { ownership: 'owned' })
+  : null;
+if (scenePlayer !== null && rendererComponent !== null) {
+  const configuredRenderer: SceneNodeComponent = rendererComponent
+    .setVisible(true)
+    .setColor({ r: 255, g: 255, b: 255, a: 255 })
+    .setPbr(0.5, 0.1)
+    .setTextureSlot(0);
+  scenePlayer.addComponent(configuredRenderer);
+}
+oopManager.changeTo(oopScene);
+
+const compatibilityInput: InputActionMap = game.input.createActionMap();
+compatibilityInput.bindAction('jump', { kind: 'key', key: 32 });
+compatibilityInput.bindAction('confirm', [
+  { kind: 'key', key: 13 },
+  { kind: 'gamepad', button: 0 },
+]);
+compatibilityInput.bindAxis('move-x', {
+  negative: [{ kind: 'key', key: 65 }],
+  positive: [{ kind: 'key', key: 68 }],
+  gamepadAxis: { axis: 0, deadzone: 0.15 },
+});
+compatibilityInput.update();
+const compatibilityVector = compatibilityInput.readVector2('move-x', 'move-y');
+requireTrue(typeof compatibilityInput.isDown('jump') === 'boolean' &&
+  typeof compatibilityInput.wasPressed('jump') === 'boolean' &&
+  typeof compatibilityInput.wasReleased('jump') === 'boolean' &&
+  typeof compatibilityInput.readAxis('move-x') === 'number' &&
+  typeof compatibilityVector.x === 'number' && typeof compatibilityVector.y === 'number',
+  'InputActionMap public query surface');
+compatibilityInput.clear();
+
+const compatibilityAudio: AudioManager = game.audio.createSoundManager();
+const managedSoundOptions: ManagedSoundOptions = {
+  bus: 2,
+  cooldownSeconds: 0.1,
+  volumeRange: [0.9, 1.1],
+  pitchRange: [0.95, 1.05],
+};
+const managedSpatialOptions: SpatialSoundOptions = { looping: true, refDist: 1, maxDist: 20, rolloff: 1 };
+compatibilityAudio.loadSound('compatibility', 'assets/tone.wav', managedSoundOptions);
+compatibilityAudio.playSound('compatibility');
+compatibilityAudio.play3D('compatibility', { x: 0, y: 0, z: -1 }, managedSpatialOptions);
+compatibilityAudio.update(0.016);
+compatibilityAudio.dispose();
+const rootAudioManager: RootSoundManager = game.audio.createSoundManager();
+const rootManagedOptions: RootManagedSoundOptions = { volumeRange: [1, 1] };
+rootAudioManager.loadSound('root-compatibility', 'assets/tone.wav', rootManagedOptions);
+const rootSound = game.audio.loadSound('assets/tone.wav');
+rootSound.play();
+rootSound.dispose();
+rootAudioManager.dispose();
+game.dispose();
 console.log('Perry compatibility fixture passed');

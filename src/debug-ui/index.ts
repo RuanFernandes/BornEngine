@@ -1,4 +1,11 @@
-import { createUiApi } from '../ui/api';
+import { UiSurface } from '../ui/surface';
+import { UiBackend } from '../ui/opcodes';
+import type { Game } from '../core/game';
+import type { UiApi, UiColor, UiId, UiResponse } from '../ui/types';
 
-export const debugUi = createUiApi(1);
-export type { DebugUiApi, UiId, UiResponse, UiColor } from './types';
+export class DebugUi extends UiSurface {
+  constructor(owner: Game) { super(owner, UiBackend.DearImGui); }
+}
+
+export interface DebugUi extends UiApi {}
+export type { UiId, UiResponse, UiColor };

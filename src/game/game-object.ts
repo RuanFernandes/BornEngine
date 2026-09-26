@@ -1,5 +1,5 @@
 import { Vec3, Quat } from '../core/types';
-import { mat4Multiply } from '../math';
+import { mat4Multiply } from '../math/internal';
 import { GameComponent, GameComponentType } from './game-component';
 import {
   decomposeTransformMatrix,
@@ -170,6 +170,7 @@ export class GameObject {
 
   addComponent<T extends GameComponent>(component: T): T | null {
     if (this.destroyed || component.destroyed || component.gameObject !== null) return null;
+    if (this.ownerScene !== null && !component._canAttachTo(this.ownerScene.context)) return null;
     if (!component._setGameObject(this)) return null;
     this.components.push(component);
     if (this.wasAwake && this.awakeningDepth === 0 && component._markAwake()) {

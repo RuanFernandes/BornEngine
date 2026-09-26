@@ -5,13 +5,13 @@
 // migration step here. `migrateWorldData` and `migratePrefabData` are called
 // by the loader before handing data to the rest of the pipeline.
 
-import { WORLD_SCHEMA_VERSION, WorldData, PrefabData, LightData, Vec3Lit } from './types';
+import { WORLD_SCHEMA_VERSION, WorldDocument, PrefabData, LightData, Vec3Lit } from './types';
 
 // Migrate a parsed world document to the current schema version. Returns the
 // same object (mutated in place) for convenience. Logs a warning when the
 // input is from a future version — in that case we proceed anyway and hope
 // the extra fields are ignored, since we can't forward-migrate.
-export function migrateWorldData(raw: WorldData): WorldData {
+export function migrateWorldData(raw: WorldDocument): WorldDocument {
   const from = raw.schemaVersion | 0;
 
   if (from === WORLD_SCHEMA_VERSION) {
@@ -40,7 +40,7 @@ export function migrateWorldData(raw: WorldData): WorldData {
 // game had to know about. Lift those entities into `world.lights` and drop them
 // from `entities`, so the editor (and any other consumer) sees a light as a
 // light. Worlds with no such entities just gain an empty array.
-function migrateV1ToV2(raw: WorldData): void {
+function migrateV1ToV2(raw: WorldDocument): void {
   if (!raw.lights) raw.lights = [];
 
   const kept: typeof raw.entities = [];

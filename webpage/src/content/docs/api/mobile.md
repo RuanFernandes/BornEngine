@@ -1,115 +1,43 @@
 ---
-title: Mobile input
-description: Add virtual joysticks and buttons while keeping multitouch claims and gameplay input explicit.
+title: Mobile
+description: Add touch-friendly virtual joysticks and buttons to a Game.
 section: API / Mobile
-order: 43
+order: 44
 ---
 
-The mobile module turns touch contacts into the same keyboard/gamepad signals that the rest of the engine reads. Virtual controls are plain state objects: update them during the input phase, read gameplay values, then draw their overlays during the UI phase.
+`game.mobile` owns virtual touch controls and maps their input into the Game's InputSystem. Create controls once and draw them during the render callback after the game world.
 
 ## Joystick
 
-`createVirtualJoystick()` supports a left or right screen zone, a radius, a deadzone, and the injected gamepad axes. The origin appears at the first touch in its zone, so the control works with both fixed and floating joystick layouts. `valueX` and `valueY` are normalized to roughly `-1..1`.
-
 ```ts
-import { runGame } from '@bornengine/engine/core';
-import {
-  createVirtualJoystick,
-  drawVirtualJoystick,
-  getMovementInput,
-  resetTouchClaims,
-  updateVirtualJoystick,
-} from '@bornengine/engine/mobile';
+import { Game } from '@bornengine/engine';
+const game = new Game();
+const stick = game.mobile.createJoystick({ zone: 'left', radius: 64, deadzone: 0.16 });
 
-const moveStick = createVirtualJoystick({
-  zone: 'left',
-  radius: 72,
-  deadzone: 0.16,
+game.run({
+  update() {
+    const movement = game.mobile.movementInput();
+    movePlayer(movement.x, movement.y);
+  },
+  render() {
+    game.renderer.clear({ r: 12, g: 16, b: 24, a: 255 });
+    game.mobile.draw();
+  },
+  onStop: () => game.dispose(),
 });
-
-runGame((dt) => {
-  resetTouchClaims();
-  updateVirtualJoystick(moveStick);
-
-  const movement = getMovementInput();
-  updatePlayer(movement.x, movement.y, dt);
-
-  drawVirtualJoystick(moveStick);
-});
-
-function updatePlayer(x: number, y: number, dt: number) {
-  console.log('move', x, y, 'for', dt);
-}
 ```
 
-`updateVirtualJoystick()` injects the current values into the configured axes. `getMovementInput()` also merges WASD, arrow keys, and gamepad axes, then clamps the vector; that makes it a convenient cross-platform movement read even when the touch joystick is absent.
+The joystick injects its axis values into the Game-owned input layer. `movementInput()` combines keyboard and primary gamepad movement with touch controls.
 
 ## Buttons
 
-`createVirtualButton(x, y, opts)` creates a circular action control. Give it a label for the overlay and optionally map it to a core key or gamepad button. Call `updateVirtualButton()` before reading the resulting key/gameplay state and `drawVirtualButton()` after the scene pass.
-
 ```ts
-import { Key } from '@bornengine/engine/core';
-import {
-  createVirtualButton,
-  drawVirtualButton,
-  updateVirtualButton,
-} from '@bornengine/engine/mobile';
-
-const jump = createVirtualButton(920, 560, {
-  radius: 38,
-  label: 'JUMP',
-  key: Key.SPACE,
-});
-
-function updateTouchActions() {
-  updateVirtualButton(jump);
-  if (jump.active) startJump();
-}
-
-function drawTouchActions() {
-  drawVirtualButton(jump);
-}
-
-function startJump() {
-  console.log('jump pressed');
-}
+import { Key } from '@bornengine/engine';
+const fire = game.mobile.createButton(860, 450, { radius: 36, label: 'Fire', key: Key.SPACE });
 ```
 
-Buttons and joysticks claim a touch slot when they consume it. Put larger controls later in the update order only when they should lose to a smaller, more specific control. A button emits key/gamepad down and up injections for its configured mapping; its `active` flag is useful for analog-style actions that remain held.
+A VirtualButton may inject a key and/or gamepad button. Keep its position in the same logical screen coordinates used by the window.
 
 ## Touch claims
 
-Call `resetTouchClaims()` once at the beginning of every frame, then update all controls in deterministic order. Do not reset claims between the joystick and button updates or two controls can consume the same finger. Resetting is a per-frame bookkeeping operation, not a device reset.
-
-```ts
-import {
-  createVirtualButton,
-  createVirtualJoystick,
-  drawVirtualButton,
-  drawVirtualJoystick,
-  resetTouchClaims,
-  updateVirtualButton,
-  updateVirtualJoystick,
-} from '@bornengine/engine/mobile';
-
-const stick = createVirtualJoystick({ zone: 'left' });
-const fire = createVirtualButton(980, 500, { radius: 34, label: 'FIRE' });
-
-export function updateMobileInput() {
-  resetTouchClaims();
-  updateVirtualJoystick(stick);
-  updateVirtualButton(fire);
-}
-
-export function drawMobileInput() {
-  drawVirtualJoystick(stick);
-  drawVirtualButton(fire);
-}
-```
-
-Touch slots are sparse when fingers lift out of order. Treat `getTouchCount()` as a scan bound, not as proof that every index is a live contact; use `getTouchX()`, `getTouchY()`, and `isTouchActive()` from the core input API when implementing custom controls. The built-in controls skip empty `(0, 0)` slots, remember their claimed index, and release their state when that touch disappears.
-
-Keep input updates before gameplay and draw calls after the world. For device layouts, derive button positions from `getScreenWidth()`/`getScreenHeight()` instead of hard-coding one resolution. The [mobile platform guide](../../platforms/mobile/) covers packaging and target-specific input setup.
-
-The [audio and UI recipe](../../guides/audio-and-ui/) is a useful desktop baseline before adding these touch controls to the same HUD.
+Each active touch is claimed by at most one virtual control for a frame. This prevents an on-screen button and joystick from consuming the same finger. Dispose individual controls when removing them or let Game shutdown dispose the entire control service.

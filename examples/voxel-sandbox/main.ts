@@ -1,16 +1,5 @@
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, getDeltaTime, isKeyDown, isKeyPressed,
-  isMouseButtonPressed, closeWindow, beginMode3D, endMode3D,
-  disableCursor, getMouseDeltaX, getMouseDeltaY,
-} from "bloom/core";
-import { Color, Key, Camera3D, MouseButton } from "bloom/core";
-import { drawCube, drawCubeWires } from "bloom/models";
-import { drawText } from "bloom/text";
-import { drawRect } from "bloom/shapes";
-import {
-  clamp, randomInt,
-} from "bloom/math";
+import { Colors, Game, Key, Mathf, MouseButton } from '@bornengine/engine';
+import type { Camera3D, Color } from '@bornengine/engine';
 
 // Constants
 const SCREEN_WIDTH = 960;
@@ -93,8 +82,8 @@ function generateTerrain(): void {
 
   // Generate some trees
   for (let t = 0; t < 20; t++) {
-    const tx = randomInt(3, worldSizeX - 4);
-    const tz = randomInt(3, worldSizeZ - 4);
+    const tx = Mathf.randomInt(3, worldSizeX - 4);
+    const tz = Mathf.randomInt(3, worldSizeZ - 4);
     // Find surface height
     let surfaceY = 0;
     for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
@@ -102,7 +91,7 @@ function generateTerrain(): void {
     }
     if (surfaceY < 7) continue;
 
-    const trunkHeight = randomInt(4, 6);
+    const trunkHeight = Mathf.randomInt(4, 6);
     for (let y = 1; y <= trunkHeight; y++) {
       setBlock(tx, surfaceY + y, tz, BLOCK_WOOD);
     }
@@ -174,10 +163,8 @@ function raycastBlock(): void {
   }
 }
 
-// Initialize
-initWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Voxel Sandbox");
-setTargetFPS(60);
-disableCursor();
+const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Voxel Sandbox" }, targetFps: 60 });
+game.input.disableCursor();
 generateTerrain();
 
 const camera: Camera3D = {
@@ -189,8 +176,8 @@ const camera: Camera3D = {
 };
 
 function handleInput(dt: number): void {
-  camYaw = camYaw + getMouseDeltaX() * MOUSE_SENS;
-  camPitch = clamp(camPitch - getMouseDeltaY() * MOUSE_SENS, -1.4, 1.4);
+  camYaw = camYaw + game.input.getMouseDeltaX() * MOUSE_SENS;
+  camPitch = Mathf.clamp(camPitch - game.input.getMouseDeltaY() * MOUSE_SENS, -1.4, 1.4);
 
   const forward = getCamForward();
   const right = getCamRight();
@@ -198,12 +185,12 @@ function handleInput(dt: number): void {
   let moveZ = 0;
   let moveY = 0;
 
-  if (isKeyDown(Key.W)) { moveX = moveX + forward.x; moveZ = moveZ + forward.z; }
-  if (isKeyDown(Key.S)) { moveX = moveX - forward.x; moveZ = moveZ - forward.z; }
-  if (isKeyDown(Key.A)) { moveX = moveX - right.x; moveZ = moveZ - right.z; }
-  if (isKeyDown(Key.D)) { moveX = moveX + right.x; moveZ = moveZ + right.z; }
-  if (isKeyDown(Key.SPACE)) moveY = 1;
-  if (isKeyDown(Key.LEFT_SHIFT)) moveY = -1;
+  if (game.input.isKeyDown(Key.W)) { moveX = moveX + forward.x; moveZ = moveZ + forward.z; }
+  if (game.input.isKeyDown(Key.S)) { moveX = moveX - forward.x; moveZ = moveZ - forward.z; }
+  if (game.input.isKeyDown(Key.A)) { moveX = moveX - right.x; moveZ = moveZ - right.z; }
+  if (game.input.isKeyDown(Key.D)) { moveX = moveX + right.x; moveZ = moveZ + right.z; }
+  if (game.input.isKeyDown(Key.SPACE)) moveY = 1;
+  if (game.input.isKeyDown(Key.LEFT_SHIFT)) moveY = -1;
 
   const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
   if (len > 0) { moveX = moveX / len; moveZ = moveZ / len; }
@@ -212,21 +199,21 @@ function handleInput(dt: number): void {
   camY = camY + moveY * MOVE_SPEED * dt;
   camZ = camZ + moveZ * MOVE_SPEED * dt;
 
-  if (isKeyPressed(Key.ONE)) selectedBlock = BLOCK_GRASS;
-  if (isKeyPressed(Key.TWO)) selectedBlock = BLOCK_DIRT;
-  if (isKeyPressed(Key.THREE)) selectedBlock = BLOCK_STONE;
-  if (isKeyPressed(Key.FOUR)) selectedBlock = BLOCK_WOOD;
-  if (isKeyPressed(Key.FIVE)) selectedBlock = BLOCK_LEAVES;
-  if (isKeyPressed(Key.SIX)) selectedBlock = BLOCK_SAND;
-  if (isKeyPressed(Key.SEVEN)) selectedBlock = BLOCK_WATER;
+  if (game.input.isKeyPressed(Key.ONE)) selectedBlock = BLOCK_GRASS;
+  if (game.input.isKeyPressed(Key.TWO)) selectedBlock = BLOCK_DIRT;
+  if (game.input.isKeyPressed(Key.THREE)) selectedBlock = BLOCK_STONE;
+  if (game.input.isKeyPressed(Key.FOUR)) selectedBlock = BLOCK_WOOD;
+  if (game.input.isKeyPressed(Key.FIVE)) selectedBlock = BLOCK_LEAVES;
+  if (game.input.isKeyPressed(Key.SIX)) selectedBlock = BLOCK_SAND;
+  if (game.input.isKeyPressed(Key.SEVEN)) selectedBlock = BLOCK_WATER;
 
   raycastBlock();
 
-  if (isMouseButtonPressed(MouseButton.LEFT) && highlightX >= 0) {
+  if (game.input.isMouseButtonPressed(MouseButton.LEFT) && highlightX >= 0) {
     setBlock(highlightX, highlightY, highlightZ, BLOCK_AIR);
   }
 
-  if (isMouseButtonPressed(MouseButton.RIGHT) && highlightX >= 0) {
+  if (game.input.isMouseButtonPressed(MouseButton.RIGHT) && highlightX >= 0) {
     const dir = getCamForward();
     let rx = camX;
     let ry = camY;
@@ -275,7 +262,7 @@ function renderBlocks(): void {
           getBlock(x, y, z-1) !== BLOCK_AIR && getBlock(x, y, z+1) !== BLOCK_AIR
         ) continue;
         renderPos.x = x + 0.5; renderPos.y = y + 0.5; renderPos.z = z + 0.5;
-        drawCube(renderPos, 1, 1, 1, BLOCK_COLORS[block]);
+        game.renderer.drawCube(renderPos, { x: 1, y: 1, z: 1 }, BLOCK_COLORS[block]);
       }
     }
   }
@@ -284,37 +271,30 @@ function renderBlocks(): void {
 function drawHUD(): void {
   const cx = SCREEN_WIDTH / 2;
   const cy = SCREEN_HEIGHT / 2;
-  drawRect(cx - 10, cy - 1, 20, 2, Color.White);
-  drawRect(cx - 1, cy - 10, 2, 20, Color.White);
+  game.renderer.drawRectangle({ x: cx - 10, y: cy - 1, width: 20, height: 2 }, Colors.WHITE);
+  game.renderer.drawRectangle({ x: cx - 1, y: cy - 10, width: 2, height: 20 }, Colors.WHITE);
 
   const blockNames = ["", "Grass", "Dirt", "Stone", "Wood", "Leaves", "Sand", "Water"];
-  drawRect(5, SCREEN_HEIGHT - 35, 200, 30, { r: 0, g: 0, b: 0, a: 150 });
-  drawText("Block: " + blockNames[selectedBlock] + " [1-7]", 10, SCREEN_HEIGHT - 30, 18, Color.White);
-  drawText(
-    "Pos: " + Math.floor(camX).toString() + ", " + Math.floor(camY).toString() + ", " + Math.floor(camZ).toString(),
-    10, 10, 16, Color.White,
-  );
+  game.renderer.drawRectangle({ x: 5, y: SCREEN_HEIGHT - 35, width: 200, height: 30 }, { r: 0, g: 0, b: 0, a: 150 });
+  game.renderer.drawText("Block: " + blockNames[selectedBlock] + " [1-7]", { x: 10, y: SCREEN_HEIGHT - 30 }, 18, Colors.WHITE);
+  game.renderer.drawText("Pos: " + Math.floor(camX).toString() + ", " + Math.floor(camY).toString() + ", " + Math.floor(camZ).toString(), { x: 10, y: 10 }, 16, Colors.WHITE);
 }
 
-while (!windowShouldClose()) {
-  handleInput(getDeltaTime());
+game.run({
+  update(deltaTime) { handleInput(deltaTime); },
+  render() {
 
-  beginDrawing();
-  clearBackground({ r: 130, g: 200, b: 255, a: 255 });
+  game.renderer.clear({ r: 130, g: 200, b: 255, a: 255 });
 
-  beginMode3D(camera);
+  game.renderer.begin3D(camera);
   renderBlocks();
 
   if (highlightX >= 0) {
-    drawCubeWires(
-      { x: highlightX + 0.5, y: highlightY + 0.5, z: highlightZ + 0.5 },
-      1.02, 1.02, 1.02, Color.White,
-    );
+    game.renderer.drawCubeOutline({ x: highlightX + 0.5, y: highlightY + 0.5, z: highlightZ + 0.5 }, { x: 1.02, y: 1.02, z: 1.02 }, Colors.WHITE);
   }
-  endMode3D();
+  game.renderer.end3D();
 
   drawHUD();
-  endDrawing();
-}
-
-closeWindow();
+  },
+  onStop: () => game.dispose(),
+});

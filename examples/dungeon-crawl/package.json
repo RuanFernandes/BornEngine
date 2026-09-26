@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "main": "main.ts",
   "dependencies": {
-    "bloom": "file:../../"
+    "@bornengine/engine": "file:../../"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "bloom-gltf-watch-test",
+  "name": "bornengine-gltf-watch-test",
   "version": "0.1.0",
-  "dependencies": { "bloom": "file:../../" }
+  "dependencies": { "@bornengine/engine": "file:../../" }
 }

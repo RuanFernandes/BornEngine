@@ -1,4 +1,4 @@
-// Hand-written JSON emitter for WorldData / PrefabData.
+// Hand-written JSON emitter for WorldDocument / PrefabData.
 //
 // WHY THIS EXISTS, AND WHY IT IS NOT `JSON.stringify`.
 //
@@ -33,7 +33,7 @@
 // and the writer change together, or validation fails.
 
 import {
-  WorldData, PrefabData, PrefabChild, EntityData, LightData,
+  WorldDocument, PrefabData, PrefabChild, EntityData, LightData,
   WaterVolume, RiverSpline, TerrainData, TerrainLayer, EnvironmentData,
   TransformData, Vec3Lit, Vec4Lit,
 } from './types';
@@ -253,7 +253,7 @@ function arr<T>(items: T[], d: number, fn: (x: T, d: number) => string): string 
 
 // --- entry points ------------------------------------------------------------
 
-export function serializeWorld(w: WorldData): string {
+export function serializeWorld(w: WorldDocument): string {
   let s = '{\n';
   s = s + ind(1) + '"schemaVersion": ' + num(w.schemaVersion) + ',\n';
   s = s + ind(1) + '"name": ' + str(w.name) + ',\n';

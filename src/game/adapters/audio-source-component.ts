@@ -1,5 +1,6 @@
-import { playSound3DEx, voiceSetPosition, voiceStop } from '../../audio';
-import type { Sound } from '../../core/types';
+import type { Vec3 } from '../../core/types';
+import type { Sound, SoundVoice } from '../../audio/sound';
+import type { GameContext } from '../../core/context';
 import { GameComponent } from '../game-component';
 import type { GameObject } from '../game-object';
 
@@ -17,7 +18,7 @@ export class AudioSourceComponent extends GameComponent {
   readonly refDist: number;
   readonly maxDist: number;
   readonly rolloff: number;
-  private voice = 0;
+  private voice: SoundVoice | null = null;
 
   constructor(sound: Sound, options: AudioSourceComponentOptions = {}) {
     super();
@@ -28,40 +29,36 @@ export class AudioSourceComponent extends GameComponent {
     this.rolloff = options.rolloff === undefined ? 1 : options.rolloff;
   }
 
+  _canAttachTo(context: GameContext): boolean { return this.sound._belongsToContext(context); }
+
   play(): boolean {
     this.stop();
-    if (this.destroyed) return false;
+    if (this.destroyed || !this.sound.isLoaded) return false;
     const owner: GameObject | null = this.gameObject;
     if (owner === null || owner.destroyed) return false;
-    const position = owner.transform.worldPosition;
-    this.voice = playSound3DEx(
-      this.sound,
-      position.x,
-      position.y,
-      position.z,
-      this.looping,
-      this.refDist,
-      this.maxDist,
-      this.rolloff,
-    );
-    return this.voice !== 0;
+    const position: Vec3 = owner.transform.worldPosition;
+    this.voice = this.sound.play3D(position, {
+      looping: this.looping,
+      refDist: this.refDist,
+      maxDist: this.maxDist,
+      rolloff: this.rolloff,
+    });
+    // A null voice means the backend used its fire-and-forget fallback.
+    return this.sound.isLoaded;
   }
 
   stop(): void {
-    if (this.voice === 0) return;
-    voiceStop(this.voice);
-    this.voice = 0;
+    if (this.voice === null) return;
+    this.voice.stop();
+    this.voice = null;
   }
 
   _syncRuntimeAfterPhase(): void {
-    if (this.voice === 0 || this.destroyed) return;
+    if (this.voice === null || !this.voice.isActive || this.destroyed) return;
     const owner: GameObject | null = this.gameObject;
     if (owner === null || owner.destroyed) return;
-    const position = owner.transform.worldPosition;
-    voiceSetPosition(this.voice, position.x, position.y, position.z);
+    this.voice.setPosition(owner.transform.worldPosition);
   }
 
-  onDestroy(): void {
-    this.stop();
-  }
+  onDestroy(): void { this.stop(); }
 }

@@ -1,15 +1,26 @@
-import { initWindow, windowShouldClose, beginDrawing, endDrawing, clearBackground, setTargetFPS, drawText, drawCube, drawGrid, beginMode3D, endMode3D, Colors } from 'bloom';
+import { Colors, Game } from '@bornengine/engine';
 
-initWindow(800, 600, "Bloom 3D Test");
-setTargetFPS(60);
+const game = new Game({
+  window: { width: 800, height: 600, title: 'BornEngine 3D Test' },
+  targetFps: 60,
+});
+const camera = {
+  position: { x: 10, y: 10, z: 10 },
+  target: { x: 0, y: 0, z: 0 },
+  up: { x: 0, y: 1, z: 0 },
+  fovy: 45,
+  projection: 'perspective' as const,
+};
 
-while (!windowShouldClose()) {
-  beginDrawing();
-  clearBackground(Colors.SNOW);
-  beginMode3D({ position: { x: 10, y: 10, z: 10 }, target: { x: 0, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, fovy: 45, projection: "perspective" });
-  drawCube({ x: 0, y: 1, z: 0 }, 2, 2, 2, { r: 200, g: 50, b: 50, a: 255 });
-  drawGrid(10, 1.0);
-  endMode3D();
-  drawText("Bloom 3D Test", 10, 10, 20, Colors.BLACK);
-  endDrawing();
-}
+game.run({
+  update() {},
+  render() {
+    game.renderer.clear(Colors.SNOW);
+    if (!game.renderer.begin3D(camera)) return;
+    game.renderer.drawCube({ x: 0, y: 1, z: 0 }, { x: 2, y: 2, z: 2 }, { r: 200, g: 50, b: 50, a: 255 });
+    game.renderer.drawGrid(10, 1);
+    game.renderer.end3D();
+    game.renderer.drawText('BornEngine 3D Test', { x: 10, y: 10 }, 20, Colors.BLACK);
+  },
+  onStop: () => game.dispose(),
+});

@@ -1,12 +1,12 @@
 {
-  "name": "bloom-perry-embed",
+  "name": "bornengine-perry-embed",
   "version": "0.1.0",
   "dependencies": {
-    "bloom": "file:../../"
+    "@bornengine/engine": "file:../../"
   },
   "perry": {
     "allow": {
-      "nativeLibrary": ["bloom", "bloom/core"]
+      "nativeLibrary": ["@bornengine/engine"]
     }
   }
 }

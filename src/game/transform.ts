@@ -4,7 +4,7 @@ import {
   quatMultiply,
   quatNormalize,
   quatToMat4,
-} from '../math';
+} from '../math/internal';
 
 export interface TransformOptions {
   position?: Vec3;

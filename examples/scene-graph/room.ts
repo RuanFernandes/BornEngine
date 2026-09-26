@@ -3,31 +3,17 @@
  *
  * Demonstrates the Pascal Editor's architecture compiled natively:
  * - Zustand-like store (flat node dictionary + dirty tracking)
- * - sceneRegistry (Map<nodeId, BloomHandle>)
+ * - sceneRegistry (Map<nodeId, SceneNode>)
  * - System pattern (frame callbacks with priority ordering)
- * - Polygon extrusion (walls and slabs via Bloom's earcut-based extrusion)
+ * - Polygon extrusion (walls and slabs via BornEngine's earcut-based extrusion)
  * - CSG box subtraction (door cutout in wall)
  * - Multiple lights (3 directional + point lights)
  */
 
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing,
-  clearBackground, setTargetFPS, drawText,
-  beginMode3D, endMode3D, drawGrid,
-  isKeyPressed, Key, Colors, getDeltaTime,
-  setAmbientLight, setDirectionalLight,
-} from 'bloom';
+import { Colors, Game, Key } from '@bornengine/engine';
+import type { SceneNode } from '@bornengine/engine';
 
-import {
-  createSceneNode, destroySceneNode,
-  setSceneNodeTransform, updateSceneNodeGeometry,
-  setSceneNodeColor, setSceneNodePbr, setSceneNodeVisible,
-  getSceneNodeCount,
-  registerFrameCallback, addDirectionalLight, addPointLight,
-  extrudePolygon, subtractBox,
-} from 'bloom/scene';
-
-import { mat4Identity } from 'bloom';
+const game = new Game({ window: { width: 1280, height: 720, title: "BornEngine — Room Scene" }, targetFps: 60 });
 
 // ============================================================
 // Zustand-like store (simplified useScene)
@@ -78,15 +64,15 @@ function clearDirty(id: string): void {
 }
 
 // ============================================================
-// Scene Registry (Map<nodeId, BloomHandle>)
+// Scene Registry (Map<nodeId, SceneNode>)
 // ============================================================
 
-const sceneRegistry: Map<string, number> = new Map();
+const sceneRegistry: Map<string, SceneNode> = new Map();
 
-function ensureSceneNode(id: string): number {
+function ensureSceneNode(id: string): SceneNode {
   let handle = sceneRegistry.get(id);
   if (handle === undefined) {
-    handle = createSceneNode();
+    handle = game.sceneGraph.createNode();
     sceneRegistry.set(id, handle);
   }
   return handle;
@@ -148,11 +134,11 @@ function slabSystem(dt: number): void {
     }
 
     // Extrude polygon to create slab
-    extrudePolygon(handle, flat, slab.elevation);
+    extrudeFlatXZ(handle, flat, slab.elevation);
 
     // Gray floor material
-    setSceneNodeColor(handle, 191, 191, 179, 255);
-    setSceneNodePbr(handle, 0.6, 0.0);
+    handle.setColor({ r: 191, g: 191, b: 179, a: 255 });
+    handle.setPbr(0.6, 0.0);
 
     clearDirty(id);
   }
@@ -172,7 +158,7 @@ function wallSystem(dt: number): void {
     if (polygon.length === 0) continue;
 
     // Extrude wall polygon
-    extrudePolygon(handle, polygon, wall.height);
+    extrudeFlatXZ(handle, polygon, wall.height);
 
     // Apply door cutouts via CSG box subtraction
     for (const childId of wall.children) {
@@ -196,40 +182,48 @@ function wallSystem(dt: number): void {
       // Cutout box (slightly wider than wall thickness for clean cut)
       const halfW = door.width * 0.5;
       const wt = wall.thickness * 1.5;
-      subtractBox(handle,
-        cx - halfW * (dx / len) - nx * wt, 0.0, cz - halfW * (dz / len) - nz * wt,
-        cx + halfW * (dx / len) + nx * wt, door.height, cz + halfW * (dz / len) + nz * wt,
-      );
+      handle.subtractBox({
+        min: {
+          x: cx - halfW * (dx / len) - nx * wt,
+          y: 0,
+          z: cz - halfW * (dz / len) - nz * wt,
+        },
+        max: {
+          x: cx + halfW * (dx / len) + nx * wt,
+          y: door.height,
+          z: cz + halfW * (dz / len) + nz * wt,
+        },
+      });
     }
 
     // White wall material
-    setSceneNodeColor(handle, 242, 242, 235, 255);
-    setSceneNodePbr(handle, 0.8, 0.0);
+    handle.setColor({ r: 242, g: 242, b: 235, a: 255 });
+    handle.setPbr(0.8, 0.0);
 
     clearDirty(id);
   }
 }
 
 // LightSystem (priority 5) — sets up lighting each frame
-function lightSystem(dt: number): void {
-  // Main directional light (sun-like)
-  addDirectionalLight(0.5, 1.0, 0.3, 1.0, 0.95, 0.9, 0.7);
-  // Fill light
-  addDirectionalLight(-0.3, 0.5, -0.7, 0.8, 0.85, 0.95, 0.3);
-  // Rim light
-  addDirectionalLight(0.0, -0.2, 1.0, 0.9, 0.9, 1.0, 0.15);
+function lightSystem(): void {
+  game.sceneGraph.setAmbientLight({ r: 255, g: 255, b: 255, a: 255 }, 0.25);
+  game.sceneGraph.addDirectionalLight({ x: 0.5, y: 1.0, z: 0.3 }, { r: 255, g: 242, b: 230, a: 255 }, 0.7);
+  game.sceneGraph.addDirectionalLight({ x: -0.3, y: 0.5, z: -0.7 }, { r: 204, g: 217, b: 242, a: 255 }, 0.3);
+  game.sceneGraph.addDirectionalLight({ x: 0.0, y: -0.2, z: 1.0 }, { r: 230, g: 230, b: 255, a: 255 }, 0.15);
+}
+
+function extrudeFlatXZ(node: SceneNode, flat: number[], depth: number): void {
+  const points: { x: number; y: number; z: number }[] = [];
+  for (let index = 0; index + 1 < flat.length; index += 2) {
+    points.push({ x: flat[index], y: 0, z: flat[index + 1] });
+  }
+  node.extrudePolygon(points, depth);
 }
 
 // ============================================================
 // Scene setup
 // ============================================================
 
-initWindow(1280, 720, "Bloom — Room Scene (Phase 2)");
-setTargetFPS(60);
-
-// Set ambient light
-setAmbientLight(255, 255, 255, 0.25);
-setDirectionalLight(0.5, 1.0, 0.3, 255, 240, 230, 0.6);
 
 // Create scene nodes (like Pascal Editor's createNode)
 const ROOM_W = 6;
@@ -300,9 +294,9 @@ createNode({
 });
 
 // Register systems as frame callbacks (priority-ordered, like useFrame)
-registerFrameCallback(1, slabSystem);
-registerFrameCallback(4, wallSystem);
-registerFrameCallback(5, lightSystem);
+game.sceneGraph.onFrame(slabSystem, 1);
+game.sceneGraph.onFrame(wallSystem, 4);
+game.sceneGraph.onFrame(lightSystem, 5);
 
 // ============================================================
 // Main loop
@@ -310,27 +304,28 @@ registerFrameCallback(5, lightSystem);
 
 let angle = 0;
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
-  angle += dt * 0.2;
+game.run({
+  update(dt) {
+    angle += dt * 0.2;
 
   // Toggle wall visibility with 1-4 keys
-  if (isKeyPressed(Key.ONE)) {
+  if (game.input.isKeyPressed(Key.ONE)) {
     const node = nodes.get('wall_1') as WallNode;
     if (node) {
       const handle = sceneRegistry.get('wall_1');
       if (handle !== undefined) {
-        setSceneNodeVisible(handle, false);
+        handle.setVisible(false);
       }
     }
   }
 
-  beginDrawing();
-  clearBackground(Colors.SNOW);
+  },
+  render() {
+    game.renderer.clear(Colors.SNOW);
 
   const camX = 3 + Math.cos(angle) * 12;
   const camZ = 2.5 + Math.sin(angle) * 12;
-  beginMode3D({
+  game.renderer.begin3D({
     position: { x: camX, y: 5, z: camZ },
     target: { x: 3, y: 1.5, z: 2.5 },
     up: { x: 0, y: 1, z: 0 },
@@ -339,16 +334,17 @@ while (!windowShouldClose()) {
   });
 
   // Grid (immediate mode, drawn alongside scene graph nodes)
-  drawGrid(20, 1.0);
+  game.renderer.drawGrid(20, 1.0);
 
-  endMode3D();
+  game.renderer.end3D();
 
   // HUD
-  drawText("Bloom — Multi-Object Room (Phase 2)", 10, 10, 20, Colors.DARKGRAY);
-  drawText("Scene nodes: " + String(getSceneNodeCount()), 10, 35, 16, Colors.GRAY);
-  drawText("4 walls + 1 slab + 1 door cutout", 10, 55, 16, Colors.GRAY);
-  drawText("3 directional lights (sun + fill + rim)", 10, 75, 16, Colors.GRAY);
-  drawText("Frame callbacks: slab@1, wall@4, light@5", 10, 95, 16, Colors.GRAY);
+  game.renderer.drawText("BornEngine — Multi-Object Room", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+  game.renderer.drawText("Scene nodes: " + String(game.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
+  game.renderer.drawText("4 walls + 1 slab + 1 door cutout", { x: 10, y: 55 }, 16, Colors.GRAY);
+  game.renderer.drawText("3 directional lights (sun + fill + rim)", { x: 10, y: 75 }, 16, Colors.GRAY);
+  game.renderer.drawText("Frame callbacks: slab@1, wall@4, light@5", { x: 10, y: 95 }, 16, Colors.GRAY);
 
-  endDrawing();
-}
+  },
+  onStop: () => game.dispose(),
+});
