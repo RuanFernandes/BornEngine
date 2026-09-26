@@ -1,4 +1,5 @@
 import { GameContext } from './context';
+import type { ContextResource } from './context';
 import { Colors } from './colors';
 import type { Texture } from '../textures/texture';
 import type { RenderTexture } from '../textures/render-texture';
@@ -6,13 +7,18 @@ import type { Font } from '../text/font';
 import type { Model, Mesh } from '../models/model';
 import type { Material } from '../models/material';
 import * as native from './internal';
-import { drawBezier, drawCircle, drawCircleLines, drawLine, drawPoly, drawRect, drawRectLines, drawTriangle } from '../shapes';
+import { drawBezier, drawCircle, drawCircleLines, drawLine, drawPoly, drawRect, drawRectLines, drawTriangle } from '../shapes/internal';
 import { drawText as drawPlainText, measureText as measurePlainText } from '../text/internal';
 import {
   drawCube, drawCubeWires, drawCylinder, drawGrid, drawPlane, drawRay,
   drawSphere, drawSphereWires,
 } from '../models/internal';
 import type { Camera2D, Camera3D, Color, Rect, Vec2, Vec3 } from './types';
+
+export interface InstancedDrawSource extends ContextResource {
+  readonly isLoaded: boolean;
+  drawNative(material: Material, model: Model | Mesh, meshIndex: number): boolean;
+}
 
 type RenderMode = 'none' | '2d' | '3d';
 
@@ -155,6 +161,12 @@ export class Renderer {
     if (!this.isReady || !this.context.owns(material) || !material.isLoaded ||
         !this.context.owns(model) || !model.isLoaded) return false;
     return material.drawNative(model, position, scale, tint, meshIndex);
+  }
+
+  drawInstanced(material: Material, model: Model | Mesh, source: InstancedDrawSource, meshIndex = 0): boolean {
+    if (!this.isReady || !this.context.owns(material) || !material.isLoaded ||
+        !this.context.owns(model) || !model.isLoaded || !this.context.owns(source) || !source.isLoaded) return false;
+    return source.drawNative(material, model, meshIndex);
   }
 
   beginRenderTexture(target: RenderTexture): boolean {

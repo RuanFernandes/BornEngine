@@ -259,15 +259,15 @@ Use `feat: add game-owned scene and physics APIs`.
 - Produces context-bound `VirtualJoystick`, `VirtualButton`, `TouchControls`, VFX resource classes, `game.ui`, and `game.debugUi`.
 - Produces `new ColyseusClient(game, serverUrl)`, which registers its polling update with its owning `Game`; `dispose()` unregisters it. `Room` stays a client-owned class, and `pumpColyseusClients` is removed from public exports.
 
-- [ ] **Step 1: Convert math data and pure calculations to value classes/static helpers**
+- [x] **Step 1: Convert math data and pure calculations to value classes/static helpers**
 
 Ensure adapters flatten values to primitive numbers before calling internal FFI and retain documented coordinate conventions.
 
-- [ ] **Step 2: Convert shapes and collision operations**
+- [x] **Step 2: Convert shapes and collision operations**
 
 Move drawing methods to `Renderer` and pure collision queries to `Collision` static methods.
 
-- [ ] **Step 3: Convert mobile, VFX, UI, and debug UI state to game-owned instances**
+- [x] **Step 3: Convert mobile, VFX, UI, and debug UI state to game-owned instances**
 
 Remove module-level mutable command/state objects from the package surface.
 
@@ -275,7 +275,7 @@ Remove module-level mutable command/state objects from the package surface.
 
 Preserve join/leave/reconnect/state callbacks and explicit client disposal. Avoid a global polling function.
 
-- [ ] **Step 5: Commit remaining class services**
+- [x] **Step 5: Commit remaining class services**
 
 Use `feat: convert remaining engine services to classes`.
 

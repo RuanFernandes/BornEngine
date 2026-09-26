@@ -19,7 +19,7 @@ import {
   genMeshCube, genMeshSplineRibbon, setAmbientLight, setDirectionalLight,
 } from '../models/internal';
 import { setFog } from '../core/internal';
-import { vec3 } from '../math/index';
+import { vec3 } from '../math/internal';
 import { setSceneNodeTransform } from '../scene/internal';
 import { WorldDocument, WaterVolume, RiverSpline } from './types';
 

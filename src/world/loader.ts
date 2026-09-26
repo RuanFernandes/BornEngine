@@ -36,7 +36,7 @@ import {
   mat4RotateY,
   mat4RotateZ,
   mat4Scale,
-} from '../math/index';
+} from '../math/internal';
 import { Mat4, Vec3 } from '../core/types';
 import { spawnWaterVolume, spawnRiver } from './render';
 import {

@@ -2,7 +2,7 @@ import type { Vec3 } from '../core/types';
 import type { Music } from './music';
 import type { Sound, SoundVoice } from './sound';
 import type { AudioSystem } from './audio-system';
-import { randomFloat } from '../math';
+import { randomFloat } from '../math/internal';
 import { BUS_MUSIC, BUS_SFX, BUS_UI } from './internal';
 
 export interface ManagedSoundOptions {

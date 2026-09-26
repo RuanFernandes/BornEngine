@@ -3,6 +3,10 @@ export interface ContextResource {
   dispose(): void;
 }
 
+export interface ContextFrameService extends ContextResource {
+  updateFrame(deltaTime: number): void;
+}
+
 export interface ContextDrawable extends ContextResource {
   isLoaded: boolean;
   drawNative(position: { x: number; y: number }, tint: { r: number; g: number; b: number; a: number }): boolean;
@@ -38,6 +42,8 @@ export class GameContext {
   error: string | null = null;
 
   private resources: ContextResource[] = [];
+  private frameServices: ContextFrameService[] = [];
+  private services = new Map<object, unknown>();
   private drawHandler: ContextDrawHandler | null = null;
   private renderTargetHandler: ContextRenderTargetHandler | null = null;
 
@@ -76,9 +82,43 @@ export class GameContext {
     return true;
   }
 
+  getOrCreateService<T>(key: object, create: () => T): T {
+    const current = this.services.get(key);
+    if (current !== undefined) return current as T;
+    const service = create();
+    this.services.set(key, service);
+    return service;
+  }
+
+  removeService(key: object, service: unknown): void {
+    if (this.services.get(key) === service) this.services.delete(key);
+  }
+
+  registerFrameService(service: ContextFrameService): boolean {
+    if (!this.register(service)) return false;
+    if (this.frameServices.indexOf(service) < 0) this.frameServices.push(service);
+    return true;
+  }
+
+  unregisterFrameService(service: ContextFrameService): void {
+    const index = this.frameServices.lastIndexOf(service);
+    if (index >= 0) this.frameServices.splice(index, 1);
+    this.unregister(service);
+  }
+
+  updateFrameServices(deltaTime: number): void {
+    if (!this.isReady || this.isDisposed) return;
+    const services = this.frameServices.slice();
+    for (const service of services) {
+      if (this.owns(service)) service.updateFrame(deltaTime);
+    }
+  }
+
   unregister(resource: ContextResource): void {
     const index = this.resources.lastIndexOf(resource);
     if (index >= 0) this.resources.splice(index, 1);
+    const serviceIndex = this.frameServices.indexOf(resource as ContextFrameService);
+    if (serviceIndex >= 0) this.frameServices.splice(serviceIndex, 1);
   }
 
   disposeResources(): void {
@@ -114,6 +154,8 @@ export class GameContext {
     this.disposeResources();
     this.isReady = false;
     this.isDisposed = true;
+    this.frameServices.length = 0;
+    this.services.clear();
     this.drawHandler = null;
     this.renderTargetHandler = null;
     if (activeContext === this) activeContext = null;

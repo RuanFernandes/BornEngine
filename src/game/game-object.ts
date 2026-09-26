@@ -1,5 +1,5 @@
 import { Vec3, Quat } from '../core/types';
-import { mat4Multiply } from '../math';
+import { mat4Multiply } from '../math/internal';
 import { GameComponent, GameComponentType } from './game-component';
 import {
   decomposeTransformMatrix,

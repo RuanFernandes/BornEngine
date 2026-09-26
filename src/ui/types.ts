@@ -48,8 +48,8 @@ export interface UiApi {
   beginTabItem(id: UiId, label: string): boolean;
   endTabItem(id?: UiId): void;
   progressBar(id: UiId, fraction: number, label?: string): void;
-  registerTexture(texture: Texture): number;
-  image(id: UiId, texture: Texture | number, width?: number, height?: number): void;
+  registerTexture(texture: Texture): void;
+  image(id: UiId, texture: Texture, width?: number, height?: number): void;
   paintLine(id: UiId, x1: number, y1: number, x2: number, y2: number, color: Color, thickness?: number): void;
   paintRect(id: UiId, x: number, y: number, width: number, height: number, color: Color): void;
   paintCircle(id: UiId, x: number, y: number, radius: number, color: Color, thickness?: number): void;

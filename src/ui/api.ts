@@ -1,4 +1,5 @@
 import type { Color, Texture } from '../core/types';
+import type { GameContext } from '../core/context';
 import { UiOpcode, type UiBackendId } from './opcodes';
 import type { UiApi, UiId, UiResponse } from './types';
 
@@ -69,17 +70,19 @@ function injectUiText(text: string): void {
   bloom_ui_inject_text(text as any);
 }
 
-export function createUiApi(backend: UiBackendId): UiApi {
+export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTextureAvailable: (texture: Texture) => boolean, nativeTextureHandle: (texture: Texture) => number): UiApi {
   function command(opcode: number, id: UiId, args: number[] = [], text?: string): void {
+    if (!isActive()) return;
     sendUiCommand(backend, opcode, id, args, text ?? '');
   }
 
   function scratchCommand(opcode: number, id: UiId, values: number[], text?: string): void {
+    if (!isActive()) return;
     sendUiScratchCommand(backend, opcode, id, values, text ?? '');
   }
 
   function response(id: UiId): UiResponse {
-    if (bloom_ui_response(backend, id, 6) < 0.5) return { ...EMPTY_RESPONSE };
+    if (!isActive() || bloom_ui_response(backend, id, 6) < 0.5) return { ...EMPTY_RESPONSE };
     return {
       present: true,
       clicked: bloom_ui_response(backend, id, 0) > 0.5,
@@ -173,14 +176,15 @@ export function createUiApi(backend: UiBackendId): UiApi {
     endTabItem(id = 0) { command(UiOpcode.EndTabItem, id); },
     progressBar(id, fraction, label = '') { command(UiOpcode.ProgressBar, id, [fraction], label); },
     registerTexture(texture) {
-      command(UiOpcode.RegisterTexture, textureRegistrationId(texture.handle), [texture.handle]);
-      return texture.handle;
+      if (!isTextureAvailable(texture)) return;
+      const handle = nativeTextureHandle(texture);
+      command(UiOpcode.RegisterTexture, textureRegistrationId(handle), [handle]);
     },
     image(id, texture, width, height) {
-      const handle = typeof texture === 'number' ? texture : api.registerTexture(texture);
-      const imageWidth = width ?? (typeof texture === 'number' ? 0 : texture.width);
-      const imageHeight = height ?? (typeof texture === 'number' ? 0 : texture.height);
-      command(UiOpcode.Image, id, [handle, imageWidth, imageHeight]);
+      if (!isTextureAvailable(texture)) return;
+      const handle = nativeTextureHandle(texture);
+      api.registerTexture(texture);
+      command(UiOpcode.Image, id, [handle, width ?? texture.width, height ?? texture.height]);
     },
     paintLine(id, x1, y1, x2, y2, color, thickness = 1) {
       scratchCommand(UiOpcode.PaintLine, id, [x1, y1, x2, y2, ...colorValues(color), thickness]);
@@ -231,10 +235,10 @@ export function createUiApi(backend: UiBackendId): UiApi {
     demoWindow(id = 0) { command(UiOpcode.DemoWindow, id); },
     metricsWindow(id = 0) { command(UiOpcode.MetricsWindow, id); },
     response,
-    isAvailable() { return bloom_ui_is_available(backend) > 0.5; },
-    wantsPointerInput() { return bloom_ui_wants_input(backend, 0) > 0.5; },
-    wantsKeyboardInput() { return bloom_ui_wants_input(backend, 1) > 0.5; },
-    injectText(text) { injectUiText(text); },
+    isAvailable() { return isActive() && bloom_ui_is_available(backend) > 0.5; },
+    wantsPointerInput() { return isActive() && bloom_ui_wants_input(backend, 0) > 0.5; },
+    wantsKeyboardInput() { return isActive() && bloom_ui_wants_input(backend, 1) > 0.5; },
+    injectText(text) { if (isActive()) injectUiText(text); },
   };
   return api;
 }
