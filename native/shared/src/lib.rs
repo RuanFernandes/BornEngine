@@ -37,6 +37,7 @@ pub mod physics_jolt;
 pub mod engine;
 pub mod drs;
 pub mod ui;
+pub mod colyseus_targets;
 // Host-surface attach path (PerryTS/perry#5519). Pulls in wgpu's
 // raw-surface API; web builds its surface from a canvas id instead, so
 // this is native-only.
