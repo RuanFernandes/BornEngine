@@ -8,7 +8,7 @@ const command = passedCommand[0] === '--'
   ? passedCommand.slice(1)
     : passedCommand.length > 0
       ? passedCommand
-      : ['cargo', 'test', '--release', '--locked', '--manifest-path', smokeManifest, '--', '--nocapture'];
+      : ['cargo', 'test', '--release', '--locked', '--manifest-path', smokeManifest, '--', '--ignored', '--nocapture'];
 
 if (command.length === 0) {
   console.error('Pass a smoke command after --, or use the default native contract test.');

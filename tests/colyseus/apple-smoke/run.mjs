@@ -43,7 +43,9 @@ const appPath = join(tempRoot, appName);
 const executable = buildSmokeExecutable(target, { nightly: platform === 'watchos' });
 const executableName = basename(executable);
 const executablePath = join(appPath, executableName);
-const bundleId = `io.bornengine.colyseus.smoke.${platform}`;
+const bundleId = platform === 'watchos'
+  ? 'io.bornengine.colyseus.smoke.watchkitapp'
+  : `io.bornengine.colyseus.smoke.${platform}`;
 
 function escapeXml(value) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -54,7 +56,9 @@ try {
   await copyFile(executable, executablePath);
   await chmod(executablePath, 0o755);
   const watchKitEntry = platform === 'watchos'
-    ? '<key>WKWatchKitApp</key><true/>'
+    ? `<key>WKWatchKitApp</key><true/>
+<key>WKCompanionAppBundleIdentifier</key><string>io.bornengine.colyseus.smoke</string>
+<key>WKRunsIndependentlyOfCompanionApp</key><true/>`
     : '';
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -80,7 +84,7 @@ ${watchKitEntry}
   run('xcrun', ['simctl', 'install', device.udid, appPath]);
   const output = capture('xcrun', [
     'simctl', 'launch', '--console', '--terminate-running-process',
-    device.udid, bundleId, '--nocapture',
+    device.udid, bundleId, '--ignored', '--nocapture',
   ]);
   process.stdout.write(output);
   if (!output.includes('COLYSEUS_NATIVE_SMOKE_OK')) {

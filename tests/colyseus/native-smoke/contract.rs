@@ -60,6 +60,7 @@ fn collect_events_for(timeout: Duration) -> Vec<Value> {
 }
 
 #[test]
+#[ignore = "requires the repository Colyseus fixture; run through tests/colyseus/run-native-smoke.mjs"]
 fn native_sdk_matches_the_repository_fixture_contract() {
     let endpoint =
         std::env::var("COLYSEUS_URL").unwrap_or_else(|_| "ws://127.0.0.1:2567".to_string());

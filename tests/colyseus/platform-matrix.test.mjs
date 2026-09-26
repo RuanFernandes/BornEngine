@@ -5,6 +5,8 @@ import test from 'node:test';
 const repoRoot = new URL('../../', import.meta.url);
 const sdkWorkflow = await readFile(new URL('.github/workflows/build-colyseus-sdk.yml', repoRoot), 'utf8');
 const testWorkflow = await readFile(new URL('.github/workflows/test.yml', repoRoot), 'utf8');
+const androidSmoke = await readFile(new URL('./android-smoke/run.mjs', import.meta.url), 'utf8');
+const appleSmoke = await readFile(new URL('./apple-smoke/run.mjs', import.meta.url), 'utf8');
 
 const targets = [
   'x86_64-unknown-linux-gnu',
@@ -29,6 +31,8 @@ test('every declared Colyseus native target has a build runner', () => {
   for (const target of targets) {
     assert.ok(sdkWorkflow.includes(`rust_target: ${target}`), `missing build runner for ${target}`);
   }
+  assert.ok(sdkWorkflow.includes('AR_aarch64_linux_android='), 'Android ARM64 C builds must use the NDK archiver');
+  assert.ok(sdkWorkflow.includes('AR_x86_64_linux_android='), 'Android x86_64 C builds must use the NDK archiver');
 });
 
 test('runtime smoke jobs cover every runtime-capable BornEngine platform', () => {
@@ -49,6 +53,9 @@ test('runtime smoke jobs cover every runtime-capable BornEngine platform', () =>
 
   const appleStep = sdkWorkflow.match(/- name: Run Apple simulator Colyseus runtime smoke([\s\S]*?)(?=\n      - name:|\n      - uses:)/)?.[1] ?? '';
   assert.ok(appleStep.includes('apple-smoke/run.mjs'), 'Apple targets have no simulator runtime harness');
+  assert.ok(androidSmoke.includes('--ignored'), 'Android smoke must execute the ignored fixture integration test');
+  assert.ok(appleSmoke.includes("'--ignored'"), 'Apple smoke must execute the ignored fixture integration test');
+  assert.ok(appleSmoke.includes('WKCompanionAppBundleIdentifier'), 'watchOS simulator app must identify its companion app');
   for (const [platform, target] of [
     ['iOS', 'aarch64-apple-ios-sim'],
     ['tvOS', 'aarch64-apple-tvos-sim'],

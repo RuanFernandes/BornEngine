@@ -17,7 +17,7 @@ try {
     'shell',
     'sh',
     '-c',
-    `COLYSEUS_URL=ws://127.0.0.1:2567 ${remoteExecutable} --nocapture`,
+    `COLYSEUS_URL=ws://127.0.0.1:2567 ${remoteExecutable} --ignored --nocapture`,
   ]);
 } finally {
   const result = run('adb', ['reverse', '--remove', 'tcp:2567'], { stdio: 'pipe' });
