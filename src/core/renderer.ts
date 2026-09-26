@@ -1,11 +1,17 @@
 import { GameContext } from './context';
+import { Colors } from './colors';
+import type { Texture } from '../textures/texture';
+import type { RenderTexture } from '../textures/render-texture';
+import type { Font } from '../text/font';
+import type { Model, Mesh } from '../models/model';
+import type { Material } from '../models/material';
 import * as native from './internal';
 import { drawBezier, drawCircle, drawCircleLines, drawLine, drawPoly, drawRect, drawRectLines, drawTriangle } from '../shapes';
-import { drawText as drawPlainText, measureText as measurePlainText } from '../text';
+import { drawText as drawPlainText, measureText as measurePlainText } from '../text/internal';
 import {
   drawCube, drawCubeWires, drawCylinder, drawGrid, drawPlane, drawRay,
   drawSphere, drawSphereWires,
-} from '../models';
+} from '../models/internal';
 import type { Camera2D, Camera3D, Color, Rect, Vec2, Vec3 } from './types';
 
 type RenderMode = 'none' | '2d' | '3d';
@@ -14,8 +20,16 @@ type RenderMode = 'none' | '2d' | '3d';
 export class Renderer {
   private mode: RenderMode = 'none';
   private disposed = false;
+  private activeRenderTexture: RenderTexture | null = null;
 
-  constructor(private readonly context: GameContext) {}
+  constructor(private readonly context: GameContext) {
+    this.context.setDrawHandler((resource, position, tint) =>
+      this.drawTexture(resource as Texture | RenderTexture, position, tint));
+    this.context.setRenderTargetHandler((resource, action) => {
+      const target = resource as RenderTexture;
+      return action === 'begin' ? this.beginRenderTexture(target) : this.endRenderTexture(target);
+    });
+  }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
 
@@ -26,7 +40,7 @@ export class Renderer {
   }
 
   begin2D(camera: Camera2D): boolean {
-    if (!this.isReady || this.mode !== 'none') return false;
+    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null) return false;
     native.beginMode2D(camera);
     this.mode = '2d';
     return true;
@@ -40,7 +54,7 @@ export class Renderer {
   }
 
   begin3D(camera: Camera3D): boolean {
-    if (!this.isReady || this.mode !== 'none') return false;
+    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null) return false;
     native.beginMode3D(camera);
     this.mode = '3d';
     return true;
@@ -104,14 +118,59 @@ export class Renderer {
     return true;
   }
 
-  drawText(text: string, position: Vec2, size: number, color: Color): boolean {
+  drawText(text: string, position: Vec2, size: number, color: Color, font?: Font, spacing = 0): boolean {
     if (!this.isReady) return false;
+    if (font !== undefined) {
+      if (!this.context.owns(font) || !font.isLoaded) return false;
+      return font.drawNative(text, position, size, spacing, color);
+    }
     drawPlainText(text, position.x, position.y, size, color);
     return true;
   }
 
-  measureText(text: string, size: number): number {
-    return this.isReady ? measurePlainText(text, size) : 0;
+  measureText(text: string, size: number, font?: Font, spacing = 0): number {
+    if (!this.isReady) return 0;
+    if (font === undefined) return measurePlainText(text, size);
+    if (!this.context.owns(font) || !font.isLoaded) return 0;
+    return font.measureText(text, size, spacing).x;
+  }
+
+  drawTexture(texture: Texture | RenderTexture, position: Vec2, tint: Color = Colors.WHITE): boolean {
+    if (!this.isReady || !this.context.owns(texture) || !texture.isLoaded) return false;
+    return texture.drawNative(position, tint);
+  }
+
+  drawModel(model: Model | Mesh, position: Vec3, scale = 1, tint: Color = Colors.WHITE, rotationY?: number): boolean {
+    if (!this.isReady || !this.context.owns(model) || !model.isLoaded) return false;
+    return model.drawNative(position, scale, tint, rotationY);
+  }
+
+  drawModelTransform(model: Model | Mesh, transform: number[], tint: Color = Colors.WHITE): boolean {
+    if (!this.isReady || !this.context.owns(model) || !model.isLoaded || transform.length !== 16) return false;
+    return model.drawTransformNative(transform, tint);
+  }
+
+  drawMaterial(material: Material, model: Model | Mesh, position: Vec3, scale = 1,
+    tint: Color = Colors.WHITE, meshIndex?: number): boolean {
+    if (!this.isReady || !this.context.owns(material) || !material.isLoaded ||
+        !this.context.owns(model) || !model.isLoaded) return false;
+    return material.drawNative(model, position, scale, tint, meshIndex);
+  }
+
+  beginRenderTexture(target: RenderTexture): boolean {
+    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null ||
+        !this.context.owns(target) || !target.isLoaded) return false;
+    if (!target.beginNative()) return false;
+    this.activeRenderTexture = target;
+    return true;
+  }
+
+  endRenderTexture(target?: RenderTexture): boolean {
+    if (!this.isReady || this.activeRenderTexture === null) return false;
+    if (target !== undefined && target !== this.activeRenderTexture) return false;
+    this.activeRenderTexture.endNative();
+    this.activeRenderTexture = null;
+    return true;
   }
 
   drawCube(position: Vec3, size: Vec3, color: Color): boolean {
@@ -255,9 +314,12 @@ export class Renderer {
 
   dispose(): void {
     if (this.disposed) return;
+    if (this.activeRenderTexture !== null) this.endRenderTexture(this.activeRenderTexture);
     if (this.mode === '2d') native.endMode2D();
     if (this.mode === '3d') native.endMode3D();
     this.mode = 'none';
     this.disposed = true;
+    this.context.setDrawHandler(null);
+    this.context.setRenderTargetHandler(null);
   }
 }

@@ -14,13 +14,13 @@ import {
   createSceneNode, setSceneNodeVisible, setSceneNodeWaterMaterial,
   attachModelToNode, setSceneNodeColor, addPointLight,
   SceneNodeHandle,
-} from '../scene/index';
+} from '../scene/internal';
 import {
   genMeshCube, genMeshSplineRibbon, setAmbientLight, setDirectionalLight,
-} from '../models/index';
+} from '../models/internal';
 import { setFog } from '../core/internal';
 import { vec3 } from '../math/index';
-import { setSceneNodeTransform } from '../scene/index';
+import { setSceneNodeTransform } from '../scene/internal';
 import { WorldData, WaterVolume, RiverSpline } from './types';
 
 // Re-submit the world's point lights.

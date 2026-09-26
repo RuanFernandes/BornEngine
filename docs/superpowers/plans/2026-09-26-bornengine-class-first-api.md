@@ -163,23 +163,23 @@ Use `feat: add renderer and input services`.
 - Produces `SceneGraph` and `SceneNode` instance methods for node hierarchy, transforms, materials, lighting, visibility, picking, post-processing, and disposal.
 - Consumes `GameContext`, `Renderer`, and private per-module native adapters. Public resource constructors are narrowed to `Game` in Task 8.
 
-- [ ] **Step 1: Extract resource loaders and handle operations into private module adapters**
+- [x] **Step 1: Extract resource loaders and handle operations into private module adapters**
 
 Keep each resource module's native calls adjacent to that module and inaccessible through `package.json` exports.
 
-- [ ] **Step 2: Implement texture, image, render-texture, font, and model ownership**
+- [x] **Step 2: Implement texture, image, render-texture, font, and model ownership**
 
 Construct with the owning `Game`; expose dimensions/metadata as properties, `isLoaded`/`error`, and safe idempotent `dispose()`.
 
-- [ ] **Step 3: Implement materials, meshes, animations, and renderer scene nodes**
+- [x] **Step 3: Implement materials, meshes, animations, and renderer scene nodes**
 
 Move compile/load/configure/draw/update/destroy operations onto their instances or `Renderer`. Keep raw numeric handles private.
 
-- [ ] **Step 4: Route scene components through resource instances**
+- [x] **Step 4: Route scene components through resource instances**
 
 Update `SceneNodeComponent` and related adapters to hold typed resources, not a public handle. Preserve borrowed/owned semantics and transform synchronization.
 
-- [ ] **Step 5: Commit graphics resource classes**
+- [x] **Step 5: Commit graphics resource classes**
 
 Use `feat: add context-owned graphics resources`.
 

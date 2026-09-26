@@ -54,7 +54,7 @@ export {
 
 export {
   drawText, measureText, loadFont, loadFontEx, unloadFont, drawTextEx, measureTextEx,
-} from './text/index';
+} from './text/internal';
 
 export {
   initAudio, closeAudio, initAudioDevice, closeAudioDevice,
@@ -78,7 +78,7 @@ export {
   genTextureMipmaps, setTextureFilter, FILTER_LINEAR, FILTER_NEAREST,
   loadTextureAsync, stageTextures, commitTexture,
   loadRenderTexture, unloadRenderTexture, beginTextureMode, endTextureMode, getRenderTextureTexture,
-} from './textures/index';
+} from './textures/internal';
 
 export {
   loadModel, drawModel, drawModelRotated, drawModelTransform, unloadModel, getModelBounds, genMeshSplineRibbon,
@@ -97,9 +97,9 @@ export {
   setAmbientLight, setDirectionalLight, setJointTest,
   setProceduralSky, setSunDirection,
   loadModelAsync, stageModels, stageModelsSync, commitModel,
-} from './models/index';
+} from './models/internal';
 
-export type { DrawCubeOpts, ProceduralSkyOptions } from './models/index';
+export type { DrawCubeOpts, ProceduralSkyOptions } from './models/internal';
 
 export {
   vec2, vec2Add, vec2Sub, vec2Scale, vec2Length, vec2LengthSq,
@@ -152,9 +152,9 @@ export {
   setPostFxSelected, setPostFxHovered,
   setOutlineColor, setOutlineThickness,
   projectToScreen,
-} from './scene/index';
+} from './scene/internal';
 
-export type { SceneNodeHandle, PbrMaterial, PickHit } from './scene/index';
+export type { SceneNodeHandle, PbrMaterial, PickHit } from './scene/internal';
 
 export {
   createPhysicsWorld, setGravity, setPhysicsTimestep,

@@ -28,7 +28,7 @@ import {
   enableShadows,
   disableShadows,
   addDirectionalLight,
-} from '../scene/index';
+} from '../scene/internal';
 import {
   mat4Identity,
   mat4Translate,

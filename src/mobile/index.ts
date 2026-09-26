@@ -8,7 +8,7 @@ import {
   getGamepadAxis,
 } from '../core/internal';
 import { drawCircle, drawCircleLines } from '../shapes/index';
-import { drawText, measureText } from '../text/index';
+import { drawText, measureText } from '../text/internal';
 import { Key } from '../core/keys';
 
 // ============================================================
