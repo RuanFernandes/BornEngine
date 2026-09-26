@@ -1,3 +1,4 @@
+import type { Game } from '../core/game';
 import { GameContext } from '../core/context';
 import * as operations from './internal';
 import type { Rect } from '../core/types';
@@ -9,8 +10,11 @@ export class ImageData {
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, readonly path: string) {
+  constructor(private readonly game: Game, readonly path: string) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before loading image data.';
       return;
@@ -37,7 +41,7 @@ export class ImageData {
 
   flipHorizontal(): boolean { if (!this.isLoaded) return false; operations.imageFlipH(this.handleValue); return true; }
   flipVertical(): boolean { if (!this.isLoaded) return false; operations.imageFlipV(this.handleValue); return true; }
-  createTexture(): Texture { return new Texture(this.context, this); }
+  createTexture(): Texture { return new Texture(this.game, this); }
 
   dispose(): void {
     if (this.disposed) return;

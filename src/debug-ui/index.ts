@@ -1,10 +1,10 @@
 import { UiSurface } from '../ui/surface';
 import { UiBackend } from '../ui/opcodes';
-import type { ContextReference } from '../core/context';
+import type { Game } from '../core/game';
 import type { UiApi, UiColor, UiId, UiResponse } from '../ui/types';
 
 export class DebugUi extends UiSurface {
-  constructor(owner: ContextReference) { super(owner, UiBackend.DearImGui); }
+  constructor(owner: Game) { super(owner, UiBackend.DearImGui); }
 }
 
 export interface DebugUi extends UiApi {}

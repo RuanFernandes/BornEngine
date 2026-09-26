@@ -1,4 +1,5 @@
 import { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
 import * as operations from './internal';
 import type { Vec3 } from '../core/types';
 
@@ -30,32 +31,36 @@ export class StagedSound implements ContextResource {
   private consumed = false;
 
   private constructor(
-    private readonly context: GameContext,
+    private readonly game: Game,
     readonly path: string,
     private handleValue: number,
   ) {
-    context.register(this);
+    game.context.register(this);
   }
 
-  static async stage(context: GameContext, path: string): Promise<StagedSound> {
+  static async stage(game: Game, path: string): Promise<StagedSound> {
+    const context = game.context;
     const handle = !context.isReady || context.isDisposed ? 0 : await operations.stageSoundAsync(path);
-    return new StagedSound(context, path, handle);
+    return new StagedSound(game, path, handle);
   }
 
-  static stageMany(context: GameContext, paths: string[]): StagedSound[] {
+  static stageMany(game: Game, paths: string[]): StagedSound[] {
+    const context = game.context;
     const handles = !context.isReady || context.isDisposed
       ? []
       : operations.stageSounds(paths);
     const staged: StagedSound[] = [];
     for (let index = 0; index < paths.length; index++) {
-      staged.push(new StagedSound(context, paths[index], handles[index] || 0));
+      staged.push(new StagedSound(game, paths[index], handles[index] || 0));
     }
     return staged;
   }
 
   get isReady(): boolean { return !this.consumed && this.handleValue !== 0 && this.context.isReady; }
 
-  commit(): Sound { return new Sound(this.context, this); }
+  commit(): Sound { return new Sound(this.game, this); }
+
+  private get context(): GameContext { return this.game.context; }
 
   private takeForCommit(context: GameContext): number {
     if (this.consumed || context !== this.context || !context.isReady) return 0;
@@ -82,8 +87,11 @@ export class Sound implements ContextResource {
   private handleValue = 0;
   private disposed = false;
   private voices: AudioVoice[] = [];
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, source: string | StagedSound) {
+  constructor(private readonly game: Game, source: string | StagedSound) {
+    this.context = game.context;
+    const context = this.context;
     let loaded: { handle: number } = { handle: 0 };
     if (!context.isReady || context.isDisposed) {
       this.path = typeof source === 'string' ? source : source.path;

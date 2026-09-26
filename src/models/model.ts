@@ -1,3 +1,4 @@
+import type { Game } from '../core/game';
 import { GameContext, ContextResource } from '../core/context';
 import * as operations from './internal';
 import type { Renderer } from '../core/renderer';
@@ -13,8 +14,11 @@ export class Model implements ContextResource {
   readonly transform: Mat4;
   private handleValue = 0;
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, readonly path: string) {
+  constructor(game: Game, readonly path: string) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before loading a model.';
       this.meshCount = 0;
@@ -89,8 +93,11 @@ export class Mesh implements ContextResource {
   private materialCount = 0;
   private transform = identityTransform();
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, vertices: number[], indices: number[]) {
+  constructor(game: Game, vertices: number[], indices: number[]) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed || vertices.length === 0 || indices.length === 0) {
       this.error = 'A ready Game and non-empty mesh buffers are required.';
       return;

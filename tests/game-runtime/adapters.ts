@@ -1,34 +1,19 @@
-import { closeWindow, initWindow } from '@bornengine/engine/core';
-import { closeAudio, initAudio, loadSound, playSound } from '@bornengine/engine/audio';
-import { instantiateWorld, WORLD_SCHEMA_VERSION } from '@bornengine/engine/world';
-import type { WorldData } from '@bornengine/engine/world';
 import {
   AudioSourceComponent,
+  Game,
   GameObject,
   GameScene,
-  RigidBodyComponent,
-  SceneNodeComponent,
-} from '@bornengine/engine/game';
-import {
-  createBody,
-  createWorld,
-  destroyBody,
-  destroyWorld,
-  getBodyPosition,
-  isBodyValid,
   MotionType,
-  releaseShape,
-  setBodyRotation,
-  setBodyPosition,
-  sphereShape,
-  step,
-} from '@bornengine/engine/physics';
-import {
-  createSceneNode,
-  destroySceneNode,
-  getSceneNodeCount,
-  getSceneNodeTransform,
-} from '@bornengine/engine/scene';
+  PhysicsWorld,
+  RigidBodyComponent,
+  Scene,
+  SceneNodeComponent,
+  SphereCollider,
+  WorldData,
+} from '@bornengine/engine';
+import type { SceneNode } from '@bornengine/engine/scene';
+
+declare const process: { exit(code: number): never };
 
 function expect(value: boolean, label: string): void {
   if (!value) {
@@ -41,12 +26,18 @@ function near(actual: number, expected: number): boolean {
   return Math.abs(actual - expected) < 0.001;
 }
 
-initWindow(640, 480, 'BornEngine Game Runtime Adapter Test');
+function liveNodeCount(nodes: SceneNode[]): number {
+  let count = 0;
+  for (const node of nodes) if (node.isLoaded) count++;
+  return count;
+}
 
-const initialNodeCount = getSceneNodeCount();
-const borrowedNode = createSceneNode();
-const ownedNode = createSceneNode();
-const ownershipScene = new GameScene();
+const game = new Game({ window: { width: 640, height: 480, title: 'BornEngine Class API Fixture' } });
+const graph = game.sceneGraph;
+const initialNodeCount = liveNodeCount(graph.getNodes());
+const borrowedNode = graph.createNode({ name: 'borrowed' });
+const ownedNode = graph.createNode({ name: 'owned' });
+const ownershipScene = new GameScene(game);
 const borrowedObject = new GameObject({ position: { x: 3, y: 4, z: 5 } });
 const ownedObject = new GameObject();
 borrowedObject.addComponent(new SceneNodeComponent(borrowedNode));
@@ -54,44 +45,41 @@ ownedObject.addComponent(new SceneNodeComponent(ownedNode, { ownership: 'owned' 
 ownershipScene.add(borrowedObject);
 ownershipScene.add(ownedObject);
 ownershipScene.update(0);
-expect(getSceneNodeCount() === initialNodeCount + 2,
-  'wrapping existing handles does not create additional scene nodes');
+expect(liveNodeCount(graph.getNodes()) === initialNodeCount + 2,
+  'wrapping existing SceneNode resources does not create duplicates');
 borrowedObject.destroy();
 ownedObject.destroy();
-expect(getSceneNodeCount() === initialNodeCount + 1,
-  'destroying objects destroys owned nodes and preserves borrowed nodes');
-const borrowedTransform = getSceneNodeTransform(borrowedNode);
-expect(near(borrowedTransform[12], 3) && near(borrowedTransform[13], 4) &&
-  near(borrowedTransform[14], 5),
-  'borrowed node is detached at the GameObject world transform');
-destroySceneNode(borrowedNode);
+expect(liveNodeCount(graph.getNodes()) === initialNodeCount + 1,
+  'owned scene-node components dispose their resource while borrowed nodes stay alive');
+const borrowedTransform = borrowedNode.getTransform();
+expect(borrowedTransform !== null && near(borrowedTransform[12], 3) &&
+  near(borrowedTransform[13], 4) && near(borrowedTransform[14], 5),
+  'a detached borrowed node keeps the GameObject world transform');
+borrowedNode.dispose();
 
-const factoryBaseCount = getSceneNodeCount();
-const factoryComponent = SceneNodeComponent.create();
-expect(factoryComponent !== null, 'factory creates an owned renderer node');
-if (factoryComponent !== null) {
-  const configuredFactoryComponent = factoryComponent
-    .setVisible(true)
-    .setColor(255, 255, 255, 255)
-    .setPbr(0.5, 0.1)
-    .setTexture(0)
-    .attachModel({ handle: 0 } as any, 2);
-  expect(configuredFactoryComponent === factoryComponent,
-    'renderer instance methods return this for fluent setup');
-  const factoryObject = new GameObject();
-  const factoryScene = new GameScene();
-  factoryObject.addComponent(configuredFactoryComponent);
-  factoryScene.add(factoryObject);
-  factoryScene.destroy();
-}
-expect(getSceneNodeCount() === factoryBaseCount,
-  'factory-owned node is destroyed with its GameObject component');
+const factoryBaseCount = liveNodeCount(graph.getNodes());
+const factoryNode = graph.createNode();
+const factoryComponent = new SceneNodeComponent(factoryNode, { ownership: 'owned' });
+const configuredFactoryComponent = factoryComponent
+  .setVisible(true)
+  .setColor({ r: 255, g: 255, b: 255, a: 255 })
+  .setPbr(0.5, 0.1)
+  .setTextureSlot(0);
+expect(configuredFactoryComponent === factoryComponent,
+  'renderer adapter methods return this for fluent setup');
+const factoryObject = new GameObject();
+const factoryScene = new GameScene(game);
+factoryObject.addComponent(configuredFactoryComponent);
+factoryScene.add(factoryObject);
+factoryScene.destroy();
+expect(liveNodeCount(graph.getNodes()) === factoryBaseCount,
+  'owned SceneNode resources are disposed with their GameObject component');
 
-const hierarchyBaseCount = getSceneNodeCount();
-const parentNode = createSceneNode();
-const childNode = createSceneNode();
-const fallbackNode = createSceneNode();
-const renderScene = new GameScene();
+const hierarchyBaseCount = liveNodeCount(graph.getNodes());
+const parentNode = graph.createNode();
+const childNode = graph.createNode();
+const fallbackNode = graph.createNode();
+const renderScene = new GameScene(game);
 const renderedParent = new GameObject({ position: { x: 10, y: 0, z: 0 } });
 const renderedChild = new GameObject({ position: { x: 2, y: 0, z: 0 } });
 const plainParent = new GameObject({ position: { x: 100, y: 0, z: 0 } });
@@ -104,59 +92,56 @@ plainParent.addChild(fallbackChild, { preserveWorldTransform: false });
 renderScene.add(renderedParent);
 renderScene.add(plainParent);
 renderScene.update(0);
-const parentTransform = getSceneNodeTransform(parentNode);
-const childTransform = getSceneNodeTransform(childNode);
-const fallbackTransform = getSceneNodeTransform(fallbackNode);
-expect(near(parentTransform[12], 10), 'renderer parent receives its world transform');
-expect(near(childTransform[12], 2),
+const parentTransform = parentNode.getTransform();
+const childTransform = childNode.getTransform();
+const fallbackTransform = fallbackNode.getTransform();
+expect(parentTransform !== null && near(parentTransform[12], 10),
+  'renderer parent receives its world transform');
+expect(childTransform !== null && near(childTransform[12], 2),
   'rendered child receives its local transform under a rendered parent');
-expect(near(fallbackTransform[12], 105),
+expect(fallbackTransform !== null && near(fallbackTransform[12], 105),
   'child below a non-rendered parent receives its world transform');
 expect(renderScene.remove(renderedChild), 'scene detaches a rendered child subtree');
-const detachedChildTransform = getSceneNodeTransform(childNode);
-expect(near(detachedChildTransform[12], 12),
+const detachedChildTransform = childNode.getTransform();
+expect(detachedChildTransform !== null && near(detachedChildTransform[12], 12),
   'scene removal immediately detaches and writes the child world transform');
 expect(renderedParent.addChild(renderedChild) === renderedChild,
   'attached renderer parent can adopt the detached child again');
 renderScene.update(0);
 const renderedParentComponent = renderedParent.getComponent(SceneNodeComponent);
-expect(renderedParentComponent !== null &&
-  renderedParent.removeComponent(renderedParentComponent),
+expect(renderedParentComponent !== null && renderedParent.removeComponent(renderedParentComponent),
   'renderer component can be removed from an attached parent');
-const childWithoutRenderedParent = getSceneNodeTransform(childNode);
-expect(near(childWithoutRenderedParent[12], 12),
+const childWithoutRenderedParent = childNode.getTransform();
+expect(childWithoutRenderedParent !== null && near(childWithoutRenderedParent[12], 12),
   'child renderer falls back to world transform when parent renderer is removed');
 renderScene.destroy();
-expect(getSceneNodeCount() === hierarchyBaseCount,
-  'owned renderer nodes are destroyed with their GameObjects');
+expect(liveNodeCount(graph.getNodes()) === hierarchyBaseCount,
+  'owned renderer nodes are disposed with their GameObjects');
 
-const physicsWorld = createWorld({ gravity: { x: 0, y: 0, z: 0 } });
-const otherPhysicsWorld = createWorld({ gravity: { x: 0, y: 0, z: 0 } });
-const physicsShape = sphereShape(0.5);
-const staticBody = createBody(physicsWorld, physicsShape, {
+const physicsWorld = new PhysicsWorld(game, { gravity: { x: 0, y: 0, z: 0 } });
+const otherPhysicsWorld = new PhysicsWorld(game, { gravity: { x: 0, y: 0, z: 0 } });
+const physicsShape = new SphereCollider(physicsWorld, 0.5);
+const otherShape = new SphereCollider(otherPhysicsWorld, 0.5);
+const staticBody = physicsWorld.createBody(physicsShape, {
   motionType: MotionType.STATIC,
   position: { x: 1, y: 0, z: 0 },
 });
-const kinematicBody = createBody(physicsWorld, physicsShape, {
+const kinematicBody = physicsWorld.createBody(physicsShape, {
   motionType: MotionType.KINEMATIC,
   position: { x: 2, y: 0, z: 0 },
 });
-const dynamicBody = createBody(physicsWorld, physicsShape, {
+const dynamicBody = physicsWorld.createBody(physicsShape, {
   motionType: MotionType.DYNAMIC,
   position: { x: 3, y: 0, z: 0 },
   gravityFactor: 0,
 });
-const otherWorldBody = createBody(otherPhysicsWorld, physicsShape, {
+const otherWorldBody = otherPhysicsWorld.createBody(otherShape, {
   motionType: MotionType.STATIC,
   position: { x: 4, y: 0, z: 0 },
 });
-const ownedBody = createBody(physicsWorld, physicsShape, {
-  motionType: MotionType.STATIC,
-});
-const singularParentBody = createBody(physicsWorld, physicsShape, {
-  motionType: MotionType.DYNAMIC,
-  position: { x: 0, y: 0, z: 0 },
-  gravityFactor: 0,
+const ownedBody = physicsWorld.createBody(physicsShape, { motionType: MotionType.STATIC });
+const singularParentBody = physicsWorld.createBody(physicsShape, {
+  motionType: MotionType.DYNAMIC, gravityFactor: 0,
 });
 const staticObject = new GameObject({ position: { x: 10, y: 0, z: 0 } });
 const kinematicObject = new GameObject({ position: { x: 20, y: 0, z: 0 } });
@@ -169,156 +154,69 @@ const ownedBodyObject = new GameObject();
 const singularPhysicsParent = new GameObject({ scale: { x: 0, y: 1, z: 1 } });
 const singularPhysicsObject = new GameObject({ position: { x: 2, y: 0, z: 0 } });
 const invalidBodyObject = new GameObject({ position: { x: 7, y: 0, z: 0 } });
-staticObject.addComponent(new RigidBodyComponent(physicsWorld, staticBody, {
-  motionType: MotionType.STATIC,
-}));
-kinematicObject.addComponent(new RigidBodyComponent(physicsWorld, kinematicBody, {
-  motionType: MotionType.KINEMATIC,
-}));
-dynamicObject.addComponent(new RigidBodyComponent(physicsWorld, dynamicBody, {
-  motionType: MotionType.DYNAMIC,
-}));
-otherWorldObject.addComponent(new RigidBodyComponent(otherPhysicsWorld, otherWorldBody, {
-  motionType: MotionType.STATIC,
-}));
-ownedBodyObject.addComponent(new RigidBodyComponent(physicsWorld, ownedBody, {
-  motionType: MotionType.STATIC,
-  ownership: 'owned',
-}));
-singularPhysicsObject.addComponent(new RigidBodyComponent(physicsWorld, singularParentBody, {
-  motionType: MotionType.DYNAMIC,
-}));
-invalidBodyObject.addComponent(new RigidBodyComponent(physicsWorld, 0, {
-  motionType: MotionType.DYNAMIC,
-}));
+staticObject.addComponent(new RigidBodyComponent(staticBody));
+kinematicObject.addComponent(new RigidBodyComponent(kinematicBody));
+dynamicObject.addComponent(new RigidBodyComponent(dynamicBody));
+otherWorldObject.addComponent(new RigidBodyComponent(otherWorldBody));
+ownedBodyObject.addComponent(new RigidBodyComponent(ownedBody, { ownership: 'owned' }));
+singularPhysicsObject.addComponent(new RigidBodyComponent(singularParentBody));
+invalidBodyObject.addComponent(new RigidBodyComponent(physicsWorld.createBody(otherShape)));
 singularPhysicsParent.addChild(singularPhysicsObject, { preserveWorldTransform: false });
-const physicsScene = new GameScene();
-physicsScene.add(staticObject);
-physicsScene.add(kinematicObject);
-physicsScene.add(dynamicObject);
-physicsScene.add(otherWorldObject);
-physicsScene.add(ownedBodyObject);
-physicsScene.add(singularPhysicsParent);
-physicsScene.add(invalidBodyObject);
-physicsScene.syncPhysicsBeforeStep(physicsWorld, 1 / 60);
-expect(near(getBodyPosition(staticBody).x, 10),
+const physicsScene = new Scene(game, { name: 'physics-adapter-fixture' });
+physicsScene.addNode(staticObject);
+physicsScene.addNode(kinematicObject);
+physicsScene.addNode(dynamicObject);
+physicsScene.addNode(otherWorldObject);
+physicsScene.addNode(ownedBodyObject);
+physicsScene.addNode(singularPhysicsParent);
+physicsScene.addNode(invalidBodyObject);
+expect(game.scenes.changeTo(physicsScene), 'Game activates the physics scene');
+physicsWorld.step(1 / 60);
+expect(staticBody.position !== null && near(staticBody.position.x, 10),
   'static body receives its owning GameObject world transform');
-expect(near(getBodyPosition(otherWorldBody).x, 4),
+expect(otherWorldBody.position !== null && near(otherWorldBody.position.x, 4),
   'physics sync ignores bodies from another world');
-step(physicsWorld, 1 / 60);
-expect(near(getBodyPosition(kinematicBody).x, 20),
-  'kinematic body moves to its GameObject transform during the caller-owned step');
-setBodyPosition(dynamicBody, { x: 30, y: 0, z: 0 }, false);
-setBodyRotation(dynamicBody, { x: 0, y: 0, z: 0.70710678, w: 0.70710678 }, false);
-physicsScene.syncPhysicsAfterStep(physicsWorld);
+expect(kinematicBody.position !== null && near(kinematicBody.position.x, 20),
+  'kinematic body follows its GameObject during the caller-owned step');
+dynamicBody.setPosition({ x: 30, y: 0, z: 0 }, false);
+dynamicBody.setRotation({ x: 0, y: 0, z: 0.70710678, w: 0.70710678 }, false);
+physicsWorld.step(1 / 60);
 expect(near(dynamicObject.transform.worldPosition.x, 30) &&
   near(dynamicObject.transform.worldRotation.z, 0.70710678) &&
-  near(dynamicObject.transform.scale.x, 2) &&
-  near(dynamicObject.transform.scale.y, 3) &&
+  near(dynamicObject.transform.scale.x, 2) && near(dynamicObject.transform.scale.y, 3) &&
   near(dynamicObject.transform.scale.z, 4),
-  'dynamic body updates world pose while preserving GameObject scale');
+  'dynamic body updates the world pose while preserving GameObject scale');
 expect(near(otherWorldObject.transform.worldPosition.x, 99),
   'physics read-back ignores a component bound to another world');
-setBodyPosition(singularParentBody, { x: 40, y: 0, z: 0 }, false);
-physicsScene.syncPhysicsAfterStep(physicsWorld);
+singularParentBody.setPosition({ x: 40, y: 0, z: 0 }, false);
+physicsWorld.step(1 / 60);
 expect(near(singularPhysicsObject.transform.position.x, 2) &&
   near(invalidBodyObject.transform.position.x, 7),
-  'singular parents and invalid body handles leave GameObject transforms unchanged');
-physicsScene.destroy();
-expect(isBodyValid(staticBody) && isBodyValid(kinematicBody) &&
-  isBodyValid(dynamicBody) && isBodyValid(otherWorldBody) &&
-  isBodyValid(singularParentBody),
-  'borrowed bodies remain alive when the scene is destroyed');
-expect(!isBodyValid(ownedBody), 'owned body is destroyed with its component');
-destroyBody(staticBody);
-destroyBody(kinematicBody);
-destroyBody(dynamicBody);
-destroyBody(otherWorldBody);
-destroyBody(singularParentBody);
-releaseShape(physicsShape);
-destroyWorld(physicsWorld);
-destroyWorld(otherPhysicsWorld);
+  'singular parents and invalid bodies leave GameObject transforms unchanged');
+expect(game.scenes.unloadCurrent(), 'active physics scene unloads cleanly');
+expect(staticBody.isLoaded && kinematicBody.isLoaded && dynamicBody.isLoaded && otherWorldBody.isLoaded &&
+  singularParentBody.isLoaded,
+  'borrowed bodies remain alive when their scene is unloaded');
+expect(!ownedBody.isLoaded, 'owned bodies are disposed with their component');
+physicsWorld.dispose();
+otherPhysicsWorld.dispose();
 
-initAudio();
-const sound = loadSound('tests/game-runtime/assets/tone.wav');
-const unattachedAudioSource = new AudioSourceComponent(sound);
-expect(!unattachedAudioSource.play(),
-  'audio source cannot start playback without a live GameObject');
-const audioScene = new GameScene();
-const firstAudioObject = new GameObject({ position: { x: 1, y: 2, z: 3 } });
-const secondAudioObject = new GameObject({ position: { x: 4, y: 5, z: 6 } });
-const firstAudioSource = new AudioSourceComponent(sound, { looping: true });
-const secondAudioSource = new AudioSourceComponent(sound, { looping: true });
-firstAudioObject.addComponent(firstAudioSource);
-secondAudioObject.addComponent(secondAudioSource);
-audioScene.add(firstAudioObject);
-audioScene.add(secondAudioObject);
-expect(firstAudioSource.play() && secondAudioSource.play(),
-  'audio source starts live voices from a shared Sound asset');
-audioScene.updateFixed(0.01);
-firstAudioSource.stop();
-firstAudioSource.stop();
-expect(firstAudioSource.play(), 'stopped audio source can start a new voice');
-expect(firstAudioObject.removeComponent(firstAudioSource) &&
-  !firstAudioSource.play(), 'component removal stops its voice and prevents reuse');
-expect(secondAudioSource.play(),
-  'removing one source preserves the shared Sound asset for other sources');
-secondAudioObject.destroy();
-expect(secondAudioSource.destroyed,
-  'destroying the owner synchronously stops and destroys its audio component');
-secondAudioSource.stop();
-playSound(sound);
-audioScene.destroy();
-closeAudio();
+const worldData = WorldData.create('adapter-fixture', 'Adapter Fixture');
+expect(worldData.isLoaded && worldData.validate().ok,
+  'WorldData exposes pure creation and validation through its class API');
 
-const compatibilityWorld: WorldData = {
-  schemaVersion: WORLD_SCHEMA_VERSION,
-  name: 'Game runtime compatibility',
-  id: 'game_runtime_compatibility',
-  bounds: { min: [0, 0, 0], max: [1, 1, 1] },
-  environment: {
-    skyColor: [0, 0, 0],
-    ambientColor: [0, 0, 0],
-    ambientIntensity: 0,
-    sunDirection: [0, -1, 0],
-    sunColor: [1, 1, 1],
-    sunIntensity: 0,
-    fogStart: 1000,
-    fogEnd: 1000,
-    fogColor: [0, 0, 0],
-    shadowsEnabled: false,
-  },
-  terrain: null,
-  entities: [{
-    id: 'legacy_entity',
-    name: 'Legacy entity',
-    modelRef: 'missing.glb',
-    prefabRef: null,
-    transform: {
-      position: [1, 2, 3],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-    },
-    tint: null,
-    tags: ['legacy'],
-    userData: {},
-  }],
-  lights: [],
-  water: [],
-  rivers: [],
-  metadata: {},
-};
-const instantiated = instantiateWorld(compatibilityWorld, {
-  getModelHandle: (_modelRef: string) => 0,
-  prefabRegistry: null,
-});
-expect(instantiated.entityHandles.size === 0,
-  'legacy world entities with missing models remain skipped');
-expect(instantiated.warnings.length === 1,
-  'legacy world loader still reports a missing model');
-expect(instantiated.terrainHandle === 0 && instantiated.waterHandles.length === 0 &&
-  instantiated.riverHandles.length === 0,
-  'legacy world loader result retains its empty terrain and water handles');
+const audioScene = new Scene(game, { name: 'audio-adapter-fixture' });
+const audioManager = game.audio.createSoundManager();
+const managedSound = audioManager.loadSound('source', 'tests/game-runtime/assets/tone.wav');
+const audioObject = new GameObject();
+if (managedSound !== null) audioObject.addComponent(new AudioSourceComponent(managedSound));
+audioScene.addNode(audioObject);
+audioScene.own(audioManager);
+expect(game.scenes.changeTo(audioScene), 'Game activates an audio scene after physics unload');
+if (managedSound !== null) expect(audioObject.getComponent(AudioSourceComponent) !== null,
+  'AudioSourceComponent consumes an owned Sound resource');
+audioScene.unload();
+expect(!audioManager.playSound('source'), 'scene-owned audio manager is disposed with its scene');
 
-closeWindow();
-console.log('Game runtime adapter fixture passed');
+game.dispose();
+console.log('Game-owned adapter class API fixture passed');

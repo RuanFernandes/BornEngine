@@ -1,7 +1,7 @@
 import { GameComponent } from './game-component';
 import { GameObject } from './game-object';
-import type { ContextReference, GameContext, ContextResource } from '../core/context';
-import { resolveContext } from '../core/context';
+import type { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 
 function removeAt<T>(values: T[], index: number): void {
@@ -19,8 +19,8 @@ export class GameScene implements ContextResource {
   private nextAttachmentGeneration = 1;
   private wasDestroyed = false;
 
-  constructor(owner: ContextReference) {
-    this.context = resolveContext(owner);
+  constructor(owner: Game) {
+    this.context = owner.context;
     this.context.register(this);
   }
 

@@ -1,5 +1,6 @@
 import * as native from './internal';
 import { GameContext } from './context';
+import type { Game } from './game';
 
 export type WindowMode = 'windowed' | 'embedded';
 
@@ -22,6 +23,7 @@ function isPositiveFinite(value: number): boolean {
 /** Context-owned facade over BornEngine's native window or host surface. */
 export class Window {
   readonly mode: WindowMode;
+  private readonly owner: Game;
   private context: GameContext;
   private widthValue: number;
   private heightValue: number;
@@ -30,12 +32,15 @@ export class Window {
   private initialized = false;
   private closeCalled = false;
 
-  constructor(context: GameContext, options: WindowOptions = {}) {
-    this.context = context;
+  constructor(owner: Game, options: WindowOptions = {}) {
+    this.owner = owner;
+    this.context = owner.context;
     this.mode = options.mode || 'windowed';
     this.widthValue = options.width === undefined ? DEFAULT_WIDTH : options.width;
     this.heightValue = options.height === undefined ? DEFAULT_HEIGHT : options.height;
     this.titleValue = options.title || DEFAULT_TITLE;
+
+    if (this.context.error !== null) return;
 
     if (!isPositiveFinite(this.widthValue) || !isPositiveFinite(this.heightValue)) {
       this.context.markFailed('Window width and height must be greater than zero.');
@@ -68,7 +73,7 @@ export class Window {
 
   /** Attach to a host-owned native view/window/surface and let the host drive frames. */
   attachNativeSurface(handle: number, width: number, height: number): boolean {
-    if (this.mode !== 'embedded' || this.context.isDisposed || !isPositiveFinite(handle) ||
+    if (this.mode !== 'embedded' || !this.owner.canActivateServices() || this.context.isDisposed || !isPositiveFinite(handle) ||
         !isPositiveFinite(width) || !isPositiveFinite(height)) return false;
     if (this.initialized) return true;
 
@@ -83,6 +88,7 @@ export class Window {
     this.initialized = true;
     this.openValue = true;
     this.context.markReady();
+    this.owner.activateServices();
     return true;
   }
 

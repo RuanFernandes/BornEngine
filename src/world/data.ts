@@ -1,4 +1,4 @@
-import type { ContextReference } from '../core/context';
+import type { Game } from '../core/game';
 import * as loader from './loader';
 import * as saver from './saver';
 import * as validator from './validate';
@@ -64,8 +64,8 @@ export class WorldData {
     return result;
   }
 
-  instantiate(owner: ContextReference, options: WorldInstantiateOptions): WorldInstance {
-    return new WorldInstance(owner, this, options);
+  instantiate(game: Game, options: WorldInstantiateOptions): WorldInstance {
+    return new WorldInstance(game, this, options);
   }
 
   /** Pure constructors and transforms remain static because they own no runtime state. */

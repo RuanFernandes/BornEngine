@@ -1,2 +1,2 @@
-export { Ui, UiSurface, UiBackend, UiOpcode } from './surface';
+export { Ui, UiBackend, UiOpcode } from './surface';
 export type { UiApi, UiId, UiResponse, UiColor } from './types';

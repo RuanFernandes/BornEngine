@@ -1,5 +1,5 @@
-import { resolveContext } from '../core/context';
-import type { GameContext, ContextResource, ContextReference } from '../core/context';
+import type { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
 import type { Quat, Vec3 } from '../core/types';
 import * as native from './internal';
 import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './handles';
@@ -58,10 +58,9 @@ export class PhysicsWorld implements ContextResource {
   private sceneManager: PhysicsStepHooks | null;
   private disposed = false;
 
-  constructor(owner: ContextReference, options: PhysicsWorldOptions = {}) {
-    this.context = resolveContext(owner);
-    const ownerServices = owner as ContextReference & { scenes?: PhysicsStepHooks };
-    this.sceneManager = options.sceneManager || ownerServices.scenes || null;
+  constructor(owner: Game, options: PhysicsWorldOptions = {}) {
+    this.context = owner.context;
+    this.sceneManager = options.sceneManager || owner.scenes || null;
     let handle = 0;
     if (this.context.isReady && !this.context.isDisposed) {
       handle = native.createWorld({

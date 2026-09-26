@@ -1,5 +1,5 @@
-import type { ContextOwner, ContextResource, GameContext } from '../core/context';
-import { resolveContext } from '../core/context';
+import type { ContextResource, GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import type { Renderer, InstancedDrawSource } from '../core/renderer';
 import type { Material } from '../models/material';
 import type { Mesh, Model } from '../models/model';
@@ -60,8 +60,11 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
   private disposed = false;
   private liveCountValue = 0;
 
-  constructor(private readonly owner: ContextOwner, readonly capacity: number, config: ParticleConfig = {}) {
-    const context = resolveContext(owner);
+  private readonly context: GameContext;
+
+  constructor(owner: Game, readonly capacity: number, config: ParticleConfig = {}) {
+    const context = owner.context;
+    this.context = context;
     if (!context.isReady || context.isDisposed || capacity <= 0) {
       this.error = 'A ready Game and positive particle capacity are required.';
       return;
@@ -74,7 +77,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     }
   }
 
-  get isLoaded(): boolean { const context = resolveContext(this.owner); return !this.disposed && context.isReady && !context.isDisposed && context.owns(this) && this.handleValue !== 0; }
+  get isLoaded(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed && this.context.owns(this) && this.handleValue !== 0; }
   get liveCount(): number { return this.isLoaded ? bloom_particles_live(this.handleValue) : 0; }
 
   configure(config: ParticleConfig): boolean {
@@ -132,7 +135,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     this.bufferValue = 0;
     this.liveCountValue = 0;
     this.disposed = true;
-    resolveContext(this.owner).unregister(this);
+    this.context.unregister(this);
   }
 }
 
@@ -155,8 +158,8 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
   private readonly context: GameContext;
   private readonly ownsRuntimeSlot: boolean;
 
-  constructor(owner: ContextOwner, readonly capacity: number) {
-    this.context = resolveContext(owner);
+  constructor(owner: Game, readonly capacity: number) {
+    this.context = owner.context;
     const registered = this.context.getOrCreateService(DECAL_RUNTIME_SLOT, () => this);
     this.ownsRuntimeSlot = registered === this;
     if (!this.ownsRuntimeSlot || !this.context.isReady || this.context.isDisposed || capacity <= 0) {

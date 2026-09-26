@@ -1,6 +1,7 @@
 import { GameObject } from './game-object';
 import { GameScene } from './game-scene';
-import type { ContextReference, GameContext } from '../core/context';
+import type { GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 
 export type SceneState = 'ready' | 'active' | 'paused' | 'unloaded';
@@ -39,7 +40,7 @@ export class Scene extends GameScene {
   private hasEntered = false;
   private hasExited = false;
 
-  constructor(owner: ContextReference, options: SceneOptions = {}) {
+  constructor(owner: Game, options: SceneOptions = {}) {
     super(owner);
     this.name = options.name === undefined ? '' : options.name;
   }

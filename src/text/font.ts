@@ -1,3 +1,4 @@
+import type { Game } from '../core/game';
 import { GameContext, ContextResource } from '../core/context';
 import * as operations from './internal';
 import type { Renderer } from '../core/renderer';
@@ -8,8 +9,11 @@ export class Font implements ContextResource {
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, readonly path: string, readonly size: number) {
+  constructor(game: Game, readonly path: string, readonly size: number) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed || size <= 0) {
       this.error = 'A ready Game and positive font size are required.';
       return;

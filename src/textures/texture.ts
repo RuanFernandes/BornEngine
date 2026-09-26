@@ -1,3 +1,4 @@
+import type { Game } from '../core/game';
 import { GameContext, ContextDrawable } from '../core/context';
 import { Colors } from '../core/colors';
 import * as operations from './internal';
@@ -17,8 +18,11 @@ export class Texture implements ContextDrawable {
   private disposed = false;
   private ownsHandle = true;
   private renderTextureSource: RenderTexture | null = null;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, source: TextureSource) {
+  constructor(private readonly game: Game, source: TextureSource) {
+    this.context = game.context;
+    const context = this.context;
     let loaded: { handle: number; width: number; height: number } | null = null;
     let sourceName = '';
 

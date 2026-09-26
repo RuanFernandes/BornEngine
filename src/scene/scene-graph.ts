@@ -1,6 +1,8 @@
 import { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
 import * as operations from './internal';
 import { SceneNode, SceneNodeOptions } from './scene-node';
+import { matchesSceneNodeHandle } from './ownership';
 import type { Color, Vec2, Vec3 } from '../core/types';
 
 export interface ScenePickHit {
@@ -17,19 +19,23 @@ export interface ScenePickEntry {
 }
 
 /** Retained 3D scene graph service owned by a Game. */
-export class SceneGraph {
+export class SceneGraph implements ContextResource {
   private nodes: SceneNode[] = [];
   private frameSubscriptions: FrameSubscription[] = [];
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext) {}
+  constructor(private readonly game: Game) {
+    this.context = game.context;
+    this.context.register(this);
+  }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
   get nodeCount(): number { return this.nodes.length; }
   getNodes(): SceneNode[] { return this.nodes.slice(); }
 
   createNode(options: SceneNodeOptions = {}): SceneNode {
-    const node = new SceneNode(this.context, options);
+    const node = new SceneNode(this.game, options);
     this.nodes.push(node);
     return node;
   }
@@ -139,7 +145,7 @@ export class SceneGraph {
 
   onFrame(callback: (deltaTime: number) => void, priority = 0): FrameSubscription | null {
     if (!this.isReady) return null;
-    const subscription = new FrameSubscription(this.context, priority, callback);
+    const subscription = new FrameSubscription(this.game, priority, callback);
     if (!subscription.isActive) return null;
     this.frameSubscriptions.push(subscription);
     return subscription;
@@ -147,7 +153,7 @@ export class SceneGraph {
 
   private findByNativeHandle(handle: number): SceneNode | null {
     for (let index = 0; index < this.nodes.length; index++) {
-      if (this.nodes[index].matchesNativeHandle(handle)) return this.nodes[index];
+      if (matchesSceneNodeHandle(this.nodes[index], handle)) return this.nodes[index];
     }
     return null;
   }
@@ -159,6 +165,7 @@ export class SceneGraph {
     for (let index = this.nodes.length - 1; index >= 0; index--) this.nodes[index].dispose();
     this.nodes.length = 0;
     this.disposed = true;
+    this.context.unregister(this);
   }
 }
 
@@ -166,8 +173,11 @@ export class SceneGraph {
 export class FrameSubscription implements ContextResource {
   private callbackId = 0;
   private active = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, priority: number, callback: (deltaTime: number) => void) {
+  constructor(game: Game, priority: number, callback: (deltaTime: number) => void) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed) return;
     this.callbackId = operations.registerFrameCallback(priority, callback);
     this.active = true;

@@ -1,4 +1,5 @@
 import { GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import * as native from '../core/internal';
 import type { Camera2D } from '../core/types';
 import { InputActionMap } from './input-action-map';
@@ -6,8 +7,9 @@ import { InputActionMap } from './input-action-map';
 export class InputSystem {
   private actionMaps: InputActionMap[] = [];
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext) {}
+  constructor(owner: Game) { this.context = owner.context; }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
 

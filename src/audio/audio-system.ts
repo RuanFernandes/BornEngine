@@ -1,4 +1,5 @@
 import { GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import type { Vec3 } from '../core/types';
 import * as operations from './internal';
 import { Sound, StagedSound } from './sound';
@@ -14,48 +15,53 @@ export class AudioSystem {
   private managers: SoundManager[] = [];
   private deviceOpen = false;
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext) {
-    if (!context.isDisposed) {
-      operations.initAudioDevice();
-      this.deviceOpen = true;
-    }
+  constructor(private readonly game: Game) {
+    this.context = game.context;
+    this.ensureDevice();
   }
 
-  get isReady(): boolean { return this.deviceOpen && this.context.isReady && !this.context.isDisposed && !this.disposed; }
+  get isReady(): boolean {
+    this.ensureDevice();
+    return this.deviceOpen && this.context.isReady && !this.context.isDisposed && !this.disposed;
+  }
+
+  /** @internal Opens the shared device after an embedded Game attaches its surface. */
+  activate(): void { this.ensureDevice(); }
 
   loadSound(path: string): Sound {
-    const sound = new Sound(this.context, path);
+    const sound = new Sound(this.game, path);
     this.sounds.push(sound);
     return sound;
   }
 
   async loadSoundAsync(path: string): Promise<Sound> {
-    const staged = await StagedSound.stage(this.context, path);
+    const staged = await StagedSound.stage(this.game, path);
     this.stagedSounds.push(staged);
     return this.trackSound(staged.commit());
   }
 
   stageSounds(paths: string[]): StagedSound[] {
-    const staged = StagedSound.stageMany(this.context, paths);
+    const staged = StagedSound.stageMany(this.game, paths);
     this.stagedSounds = this.stagedSounds.concat(staged);
     return staged;
   }
 
   loadMusic(path: string): Music {
-    const music = new Music(this.context, path);
+    const music = new Music(this.game, path);
     this.musics.push(music);
     return music;
   }
 
   async loadMusicAsync(path: string): Promise<Music> {
-    const staged = await StagedMusic.stage(this.context, path);
+    const staged = await StagedMusic.stage(this.game, path);
     this.stagedMusics.push(staged);
     return this.trackMusic(staged.commit());
   }
 
   stageMusic(paths: string[]): StagedMusic[] {
-    const staged = StagedMusic.stageMany(this.context, paths);
+    const staged = StagedMusic.stageMany(this.game, paths);
     this.stagedMusics = this.stagedMusics.concat(staged);
     return staged;
   }
@@ -137,5 +143,11 @@ export class AudioSystem {
     if (this.deviceOpen) operations.closeAudioDevice();
     this.deviceOpen = false;
     this.disposed = true;
+  }
+
+  private ensureDevice(): void {
+    if (this.deviceOpen || this.disposed || !this.context.isReady || this.context.isDisposed) return;
+    operations.initAudioDevice();
+    this.deviceOpen = true;
   }
 }

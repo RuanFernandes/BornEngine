@@ -1,4 +1,5 @@
 import { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
 import * as operations from './internal';
 import type { Model } from '../models/model';
 import type { BoundingBox, Color, Mat4, Vec3 } from '../core/types';
@@ -16,7 +17,12 @@ export class SceneNode implements ContextResource {
   private parentValue: SceneNode | null = null;
   private childrenValue: SceneNode[] = [];
 
-  constructor(private readonly context: GameContext, options: SceneNodeOptions = {}, adoptedHandle?: number) {
+  private readonly context: GameContext;
+
+  constructor(owner: Game, options?: SceneNodeOptions);
+  constructor(owner: Game, options: SceneNodeOptions = {}, adoptedHandle?: number) {
+    this.context = owner.context;
+    const context = this.context;
     this.name = options.name || '';
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before creating scene nodes.';
@@ -28,12 +34,12 @@ export class SceneNode implements ContextResource {
   }
 
   /** @internal Wraps a node created by the world loader without exposing its identity. */
-  static adoptNative(context: GameContext, handle: number, name = ''): SceneNode {
-    return new SceneNode(context, { name }, handle);
+  private static adoptNative(owner: Game, handle: number, name = ''): SceneNode {
+    return new SceneNode(owner, { name }, handle);
   }
 
   /** @internal Restores a parent relationship already established by native operations. */
-  static adoptParentLink(child: SceneNode, parent: SceneNode): void {
+  private static adoptParentLink(child: SceneNode, parent: SceneNode): void {
     if (child.parentValue !== null) child.parentValue.removeChild(child);
     child.parentValue = parent;
     if (parent.childrenValue.indexOf(child) < 0) parent.childrenValue.push(child);
@@ -169,7 +175,7 @@ export class SceneNode implements ContextResource {
   getUserData(): number { return this.isLoaded ? operations.getSceneNodeUserData(this.handleValue) : 0; }
 
   /** @internal Used to map a native pick result back to a class instance. */
-  matchesNativeHandle(handle: number): boolean { return this.isLoaded && this.handleValue === handle; }
+  private matchesNativeHandle(handle: number): boolean { return this.isLoaded && this.handleValue === handle; }
 
   dispose(): void {
     if (this.disposed) return;

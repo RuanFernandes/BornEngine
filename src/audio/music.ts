@@ -1,4 +1,5 @@
 import { GameContext, ContextResource } from '../core/context';
+import type { Game } from '../core/game';
 import * as operations from './internal';
 
 /** Opaque staged music load. Commit it to a context-owned Music when ready. */
@@ -7,31 +8,35 @@ export class StagedMusic implements ContextResource {
   private consumed = false;
 
   private constructor(
-    private readonly context: GameContext,
+    private readonly game: Game,
     readonly path: string,
     private handleValue: number,
   ) {
-    context.register(this);
+    game.context.register(this);
   }
 
-  static async stage(context: GameContext, path: string): Promise<StagedMusic> {
+  static async stage(game: Game, path: string): Promise<StagedMusic> {
+    const context = game.context;
     const handle = !context.isReady || context.isDisposed ? 0 : await operations.stageMusicAsync(path);
-    return new StagedMusic(context, path, handle);
+    return new StagedMusic(game, path, handle);
   }
 
-  static stageMany(context: GameContext, paths: string[]): StagedMusic[] {
+  static stageMany(game: Game, paths: string[]): StagedMusic[] {
+    const context = game.context;
     const handles = !context.isReady || context.isDisposed
       ? []
       : operations.stageSounds(paths);
     const staged: StagedMusic[] = [];
     for (let index = 0; index < paths.length; index++) {
-      staged.push(new StagedMusic(context, paths[index], handles[index] || 0));
+      staged.push(new StagedMusic(game, paths[index], handles[index] || 0));
     }
     return staged;
   }
 
   get isReady(): boolean { return !this.consumed && this.handleValue !== 0 && this.context.isReady; }
-  commit(): Music { return new Music(this.context, this); }
+  commit(): Music { return new Music(this.game, this); }
+
+  private get context(): GameContext { return this.game.context; }
 
   private takeForCommit(context: GameContext): number {
     if (this.consumed || context !== this.context || !context.isReady) return 0;
@@ -57,8 +62,11 @@ export class Music implements ContextResource {
   readonly path: string;
   private handleValue = 0;
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, source: string | StagedMusic) {
+  constructor(private readonly game: Game, source: string | StagedMusic) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed) {
       this.path = typeof source === 'string' ? source : source.path;
       this.error = 'The Game must be ready before loading music.';

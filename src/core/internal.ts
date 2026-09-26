@@ -1144,7 +1144,7 @@ export function isAnyInputPressed(): boolean {
  *     // game logic + draw calls
  *   });
  */
-export function runGame(update: (dt: number) => void): void {
+export function runGame(update: (dt: number) => void, shouldContinue?: () => boolean): void {
   const platform = bloom_get_platform();
   if (platform === 7) {
     // Web: delegate to JS glue layer via FFI.
@@ -1152,7 +1152,7 @@ export function runGame(update: (dt: number) => void): void {
     bloom_run_game(update as any);
   } else {
     // Native: blocking game loop
-    while (!windowShouldClose()) {
+    while ((shouldContinue === undefined || shouldContinue()) && !windowShouldClose()) {
       beginDrawing();
       update(getDeltaTime());
       endDrawing();

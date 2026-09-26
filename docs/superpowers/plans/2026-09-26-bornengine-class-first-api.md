@@ -271,7 +271,7 @@ Move drawing methods to `Renderer` and pure collision queries to `Collision` sta
 
 Remove module-level mutable command/state objects from the package surface.
 
-- [ ] **Step 4: Integrate multiplayer client pumping with Game lifecycle**
+- [x] **Step 4: Integrate multiplayer client pumping with Game lifecycle**
 
 Preserve join/leave/reconnect/state callbacks and explicit client disposal. Avoid a global polling function.
 
@@ -294,35 +294,35 @@ Use `feat: convert remaining engine services to classes`.
 - Produces package version `0.6.0`.
 - Keeps `perry.nativeLibrary.functions` as implementation metadata; it is not a TypeScript runtime export.
 
-- [ ] **Step 1: Assemble the public `Game` facade**
+- [x] **Step 1: Assemble the public `Game` facade**
 
 Construct `Window`, `Renderer`, `InputSystem`, `AudioSystem`, and `SceneManager` on the same context; implement `run`, `stop`, and idempotent `dispose` as specified.
 
-- [ ] **Step 2: Narrow context-bound constructors to `Game`**
+- [x] **Step 2: Narrow context-bound constructors to `Game`**
 
 Keep `GameContext` internal. Ensure application-facing resource, scene, physics-world, and service constructors receive the concrete `Game` instance.
 
-- [ ] **Step 3: Audit every public export and import path**
+- [x] **Step 3: Audit every public export and import path**
 
 Search package root exports, package `exports`, subpath barrels, and internal imports for function-shaped operations or public raw handles.
 
-- [ ] **Step 4: Replace barrels and export-map targets with class facades**
+- [x] **Step 4: Replace barrels and export-map targets with class facades**
 
 Keep the existing module subpath names while ensuring each resolves only to its class/type/constant barrel. Do not expose `src/internal` paths.
 
-- [ ] **Step 5: Update package metadata to `0.6.0`**
+- [x] **Step 5: Update package metadata to `0.6.0`**
 
 Preserve the native-function manifest and dependency declarations unless a class facade requires a named FFI addition.
 
-- [ ] **Step 6: Adapt existing test/source fixtures to new imports without adding cases**
+- [x] **Step 6: Adapt existing test/source fixtures to new imports without adding cases**
 
 Keep feature-branch test behavior intact; migrate imports, constructors, and cleanup calls to the class surface.
 
-- [ ] **Step 7: Review public exports and private FFI reachability**
+- [x] **Step 7: Review public exports and private FFI reachability**
 
 Use source searches and `package.json` inspection; do not run tests or add new tests.
 
-- [ ] **Step 8: Commit class-only export boundary**
+- [x] **Step 8: Commit class-only export boundary**
 
 Use `refactor: publish class-first TypeScript API`.
 

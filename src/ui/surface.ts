@@ -1,5 +1,5 @@
-import type { ContextReference, ContextResource, GameContext } from '../core/context';
-import { resolveContext } from '../core/context';
+import type { ContextResource, GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import type { Texture } from '../core/types';
 import { createUiApi } from './api';
 import { UiBackend, type UiBackendId } from './opcodes';
@@ -10,8 +10,8 @@ export class UiSurface implements ContextResource {
   readonly context: GameContext;
   private disposed = false;
 
-  constructor(owner: ContextReference, backend: UiBackendId) {
-    this.context = resolveContext(owner);
+  constructor(owner: Game, backend: UiBackendId) {
+    this.context = owner.context;
     const api = createUiApi(
       backend,
       () => this.isReady,
@@ -32,7 +32,7 @@ export class UiSurface implements ContextResource {
 }
 
 export class Ui extends UiSurface {
-  constructor(owner: ContextReference) { super(owner, UiBackend.Egui); }
+  constructor(owner: Game) { super(owner, UiBackend.Egui); }
 }
 
 export interface Ui extends UiApi {}

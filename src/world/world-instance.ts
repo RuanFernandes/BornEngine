@@ -1,6 +1,7 @@
-import type { ContextResource, ContextReference, GameContext } from '../core/context';
-import { resolveContext } from '../core/context';
+import type { ContextResource, GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import { SceneNode } from '../scene/scene-node';
+import { adoptSceneNode, adoptSceneNodeParent } from '../scene/ownership';
 import type { Model } from '../models/model';
 import type { WorldData } from './data';
 import { instantiateWorld } from './loader';
@@ -33,8 +34,8 @@ export class WorldInstance implements ContextResource {
   private worldDocument: WorldDocument | null;
   private disposed = false;
 
-  constructor(owner: ContextReference, data: WorldData, options: WorldInstantiateOptions) {
-    this.context = resolveContext(owner);
+  constructor(owner: Game, data: WorldData, options: WorldInstantiateOptions) {
+    this.context = owner.context;
     this.worldDocument = data.document;
     this.warnings = [];
     if (!this.context.isReady || this.context.isDisposed || this.worldDocument === null) {
@@ -58,7 +59,7 @@ export class WorldInstance implements ContextResource {
 
     for (let index = 0; index < result.ownedNodeHandles.length; index++) {
       const handle = result.ownedNodeHandles[index];
-      const wrapper = SceneNode.adoptNative(this.context, handle);
+      const wrapper = adoptSceneNode(owner, handle);
       this.nodeHandles.push(handle);
       this.nodes.push(wrapper);
     }
@@ -66,7 +67,7 @@ export class WorldInstance implements ContextResource {
       const link = result.nodeParents[index];
       const child = this._nodeForHandle(link.child);
       const parent = this._nodeForHandle(link.parent);
-      if (child !== null && parent !== null) SceneNode.adoptParentLink(child, parent);
+      if (child !== null && parent !== null) adoptSceneNodeParent(child, parent);
     }
     for (let index = 0; index < document.entities.length; index++) {
       const id = document.entities[index].id;

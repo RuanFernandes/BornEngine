@@ -1,3 +1,4 @@
+import type { Game } from '../core/game';
 import { GameContext, ContextResource } from '../core/context';
 import * as nativeCore from '../core/internal';
 import * as operations from './internal';
@@ -12,8 +13,11 @@ export class Material implements ContextResource {
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, readonly source: string, readonly kind: MaterialKind = 'opaque') {
+  constructor(game: Game, readonly source: string, readonly kind: MaterialKind = 'opaque') {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed || source.length === 0) {
       this.error = 'A ready Game and non-empty material source are required.';
       return;

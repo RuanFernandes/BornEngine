@@ -1,3 +1,4 @@
+import type { Game } from '../core/game';
 import { GameContext, ContextDrawable } from '../core/context';
 import * as operations from './internal';
 import { Colors } from '../core/colors';
@@ -11,8 +12,11 @@ export class RenderTexture implements ContextDrawable {
   private handleValue = 0;
   private disposed = false;
   private textureValue: Texture | null = null;
+  private readonly context: GameContext;
 
-  constructor(private readonly context: GameContext, readonly width: number, readonly height: number) {
+  constructor(private readonly game: Game, readonly width: number, readonly height: number) {
+    this.context = game.context;
+    const context = this.context;
     if (!context.isReady || context.isDisposed || width <= 0 || height <= 0) {
       this.error = 'A ready Game and positive render target dimensions are required.';
       return;
@@ -26,7 +30,7 @@ export class RenderTexture implements ContextDrawable {
   get isDisposed(): boolean { return this.disposed; }
 
   get texture(): Texture {
-    if (this.textureValue === null) this.textureValue = new Texture(this.context, this);
+    if (this.textureValue === null) this.textureValue = new Texture(this.game, this);
     return this.textureValue;
   }
 

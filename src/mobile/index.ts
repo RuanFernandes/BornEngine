@@ -1,14 +1,9 @@
-import type { ContextOwner, ContextResource, GameContext } from '../core/context';
-import { resolveContext } from '../core/context';
+import type { ContextResource, GameContext } from '../core/context';
+import type { Game } from '../core/game';
 import type { InputSystem } from '../input/input-system';
 import type { Renderer } from '../core/renderer';
 import type { Color } from '../core/types';
 import { Key } from '../core/keys';
-
-export interface MobileHost extends ContextOwner {
-  readonly input: InputSystem;
-  readonly renderer: Renderer;
-}
 
 export interface VirtualJoystickOptions {
   zone?: 'left' | 'right';
@@ -33,8 +28,8 @@ export class TouchControls implements ContextResource {
   private readonly claimedTouches = new Set<number>();
   private disposed = false;
 
-  constructor(private readonly host: MobileHost) {
-    this.context = resolveContext(host);
+  constructor(private readonly host: Game) {
+    this.context = host.context;
     this.context.register(this);
   }
 

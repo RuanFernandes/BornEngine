@@ -1,7 +1,6 @@
 import { Scene } from './scene';
 import type { GameContext, ContextResource } from '../core/context';
-import type { ContextReference } from '../core/context';
-import { resolveContext } from '../core/context';
+import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 
 export class SceneManager implements ContextResource {
@@ -9,8 +8,8 @@ export class SceneManager implements ContextResource {
   private scene: Scene | null = null;
   private transitioning = false;
 
-  constructor(owner: ContextReference) {
-    this.context = resolveContext(owner);
+  constructor(owner: Game) {
+    this.context = owner.context;
     this.context.register(this);
   }
 
