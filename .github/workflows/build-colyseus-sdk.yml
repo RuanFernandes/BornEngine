@@ -7,6 +7,7 @@ on:
       - 'native/third_party/colyseus-sdk-src'
       - 'native/third_party/colyseus/VERSION.md'
       - 'tools/build-colyseus-sdk.sh'
+      - 'tools/patches/colyseus-native-sdk-windows-msvc.patch'
   workflow_dispatch:
 
 permissions:

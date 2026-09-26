@@ -32,3 +32,21 @@ test("SDK builder carries the Windows ssize_t fix for the pinned Wslay source", 
   assert.match(builder, /git -C "\$SDK_SOURCE" apply/);
   assert.match(builder, /chmod u\+rw/);
 });
+
+test("SDK builder selects a compatible CPU for Apple Silicon iOS simulators", () => {
+  const builder = readFileSync(script, "utf8");
+
+  assert.match(builder, /ZIG_CPU=apple_m1/);
+  assert.match(builder, /-Dcpu=\$ZIG_CPU/);
+});
+
+test("Windows SDK patch uses native locks and avoids Winsock 1", () => {
+  const patchFile = resolve(repoRoot, "tools/patches/colyseus-native-sdk-windows-msvc.patch");
+  const patch = readFileSync(patchFile, "utf8");
+
+  assert.match(patch, /WIN32_LEAN_AND_MEAN/);
+  assert.match(patch, /SRWLOCK/);
+  assert.match(patch, /AcquireSRWLockExclusive/);
+  assert.match(patch, /ReleaseSRWLockExclusive/);
+  assert.match(patch, /-Wno-newline-eof/);
+});

@@ -29,6 +29,7 @@ ZIG_TARGET=
 ARTIFACT=
 APPLE_SDK=
 TARGET_OS=
+ZIG_CPU=
 
 case "$RUST_TARGET" in
   x86_64-unknown-linux-gnu|x86_64-linux-gnu)
@@ -44,7 +45,7 @@ case "$RUST_TARGET" in
   aarch64-apple-ios)
     ZIG_TARGET=aarch64-ios; ARTIFACT=ios-aarch64; TARGET_OS=ios; APPLE_SDK=iphoneos ;;
   aarch64-apple-ios-sim)
-    ZIG_TARGET=aarch64-ios-simulator; ARTIFACT=ios-aarch64-sim; TARGET_OS=ios; APPLE_SDK=iphonesimulator ;;
+    ZIG_TARGET=aarch64-ios-simulator; ARTIFACT=ios-aarch64-sim; TARGET_OS=ios; APPLE_SDK=iphonesimulator; ZIG_CPU=apple_m1 ;;
   x86_64-apple-ios)
     ZIG_TARGET=x86_64-ios-simulator; ARTIFACT=ios-x86_64-sim; TARGET_OS=ios; APPLE_SDK=iphonesimulator ;;
   aarch64-apple-tvos)
@@ -144,6 +145,9 @@ trap cleanup EXIT
 GLOBAL_CACHE=${COLYSEUS_ZIG_GLOBAL_CACHE_DIR:-"${TMPDIR:-/tmp}/colyseus-zig-global-$PINNED_COMMIT"}
 rm -rf "$SDK_SOURCE/zig-out"
 BUILD_ARGS=(build "-Dtarget=$ZIG_TARGET" -Doptimize=ReleaseFast -Dexamples=false -Dskip-integration=true --global-cache-dir "$GLOBAL_CACHE")
+if [[ -n "$ZIG_CPU" ]]; then
+  BUILD_ARGS+=("-Dcpu=$ZIG_CPU")
+fi
 if [[ -n "$APPLE_SDK" ]]; then
   BUILD_ARGS+=("-Dapple-sdk=$APPLE_SDK_PATH")
 fi
