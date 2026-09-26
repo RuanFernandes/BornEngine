@@ -1,6 +1,7 @@
 import { GameObject } from './game-object';
 import { GameScene } from './game-scene';
-import type { WorldHandle } from '../physics';
+import type { ContextReference, GameContext } from '../core/context';
+import type { PhysicsWorld } from '../physics';
 
 export type SceneState = 'ready' | 'active' | 'paused' | 'unloaded';
 
@@ -38,8 +39,8 @@ export class Scene extends GameScene {
   private hasEntered = false;
   private hasExited = false;
 
-  constructor(options: SceneOptions = {}) {
-    super();
+  constructor(owner: ContextReference, options: SceneOptions = {}) {
+    super(owner);
     this.name = options.name === undefined ? '' : options.name;
   }
 
@@ -54,6 +55,9 @@ export class Scene extends GameScene {
 
   own<T extends SceneOwnedResource>(resource: T): T | null {
     if (this.unloading || this.currentState === 'unloaded') return null;
+    const boundResource: any = resource;
+    if (boundResource.context !== undefined && boundResource.context !== this.context) return null;
+    if (boundResource._canAttachTo !== undefined && !boundResource._canAttachTo(this.context)) return null;
     for (let index = 0; index < resourceOwners.length; index++) {
       if (resourceOwners[index].resource === resource) return null;
     }
@@ -148,13 +152,13 @@ export class Scene extends GameScene {
   }
 
   /** @internal Delegates physics synchronization without stepping the world. */
-  _syncPhysicsBeforeStep(manager: object, world: WorldHandle, fixedDt: number): void {
+  _syncPhysicsBeforeStep(manager: object, world: PhysicsWorld, fixedDt: number): void {
     if (this.managerOwner !== manager || this.currentState !== 'active') return;
     super.syncPhysicsBeforeStep(world, fixedDt);
   }
 
   /** @internal Delegates physics synchronization without stepping the world. */
-  _syncPhysicsAfterStep(manager: object, world: WorldHandle): void {
+  _syncPhysicsAfterStep(manager: object, world: PhysicsWorld): void {
     if (this.managerOwner !== manager || this.currentState !== 'active') return;
     super.syncPhysicsAfterStep(world);
   }

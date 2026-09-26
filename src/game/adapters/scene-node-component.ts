@@ -3,6 +3,7 @@ import type { GameObject } from '../game-object';
 import type { SceneNode } from '../../scene/scene-node';
 import type { Model } from '../../models/model';
 import type { Color } from '../../core/types';
+import type { GameContext } from '../../core/context';
 
 export interface SceneNodeComponentOptions {
   ownership?: 'borrowed' | 'owned';
@@ -43,6 +44,8 @@ export class SceneNodeComponent extends GameComponent {
     if (!this.destroyed) this.node.attachModel(model, meshIndex);
     return this;
   }
+
+  _canAttachTo(context: GameContext): boolean { return context.owns(this.node); }
 
   _syncRuntimeAfterPhase(): void {
     const owner: GameObject | null = this.gameObject;

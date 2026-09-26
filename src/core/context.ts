@@ -15,6 +15,17 @@ export type ContextDrawHandler = (
 ) => boolean;
 export type ContextRenderTargetHandler = (resource: ContextResource, action: 'begin' | 'end') => boolean;
 
+/** Owner reference accepted by game-scoped service constructors. */
+export interface ContextOwner {
+  readonly context: GameContext;
+}
+
+export type ContextReference = GameContext | ContextOwner;
+
+export function resolveContext(owner: ContextReference): GameContext {
+  return owner instanceof GameContext ? owner : owner.context;
+}
+
 let nextContextId = 1;
 let activeContext: GameContext | null = null;
 

@@ -115,6 +115,7 @@ export class Sound implements ContextResource {
 
   get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
   get isDisposed(): boolean { return this.disposed; }
+  _belongsToContext(context: GameContext): boolean { return this.context === context; }
 
   play(options: SoundPlayOptions = {}): boolean {
     if (!this.isLoaded) return false;

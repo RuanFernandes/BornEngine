@@ -1,5 +1,6 @@
 import type { Vec3 } from '../../core/types';
 import type { Sound, SoundVoice } from '../../audio/sound';
+import type { GameContext } from '../../core/context';
 import { GameComponent } from '../game-component';
 import type { GameObject } from '../game-object';
 
@@ -27,6 +28,8 @@ export class AudioSourceComponent extends GameComponent {
     this.maxDist = options.maxDist === undefined ? 0 : options.maxDist;
     this.rolloff = options.rolloff === undefined ? 1 : options.rolloff;
   }
+
+  _canAttachTo(context: GameContext): boolean { return this.sound._belongsToContext(context); }
 
   play(): boolean {
     this.stop();

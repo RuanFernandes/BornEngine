@@ -23,7 +23,7 @@ export type Vec4Lit = [number, number, number, number];
 export type Mat4Lit = number[];
 
 // Top-level world document. One `*.world.json` file holds exactly one of these.
-export interface WorldData {
+export interface WorldDocument {
   schemaVersion: number;            // Must equal WORLD_SCHEMA_VERSION on save.
   name: string;                     // Human-readable display name.
   id: string;                       // Stable slug, e.g. "garden_main".

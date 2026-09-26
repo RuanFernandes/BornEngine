@@ -1,9 +1,18 @@
 import { Scene } from './scene';
-import type { WorldHandle } from '../physics';
+import type { GameContext, ContextResource } from '../core/context';
+import type { ContextReference } from '../core/context';
+import { resolveContext } from '../core/context';
+import type { PhysicsWorld } from '../physics';
 
-export class SceneManager {
+export class SceneManager implements ContextResource {
+  readonly context: GameContext;
   private scene: Scene | null = null;
   private transitioning = false;
+
+  constructor(owner: ContextReference) {
+    this.context = resolveContext(owner);
+    this.context.register(this);
+  }
 
   get currentScene(): Scene | null {
     if (this.scene === null || this.scene.state === 'unloaded') return null;
@@ -14,7 +23,7 @@ export class SceneManager {
     if (this.transitioning) return false;
     const previous = this.currentScene;
     if (replacement === previous) return true;
-    if (!replacement._canActivate()) return false;
+    if (replacement.context !== this.context || !replacement._canActivate()) return false;
 
     this.transitioning = true;
     if (previous !== null && !previous.unload()) {
@@ -66,14 +75,14 @@ export class SceneManager {
     scene.updateFixed(fixedDt);
   }
 
-  syncPhysicsBeforeStep(world: WorldHandle, fixedDt: number): void {
+  syncPhysicsBeforeStep(world: PhysicsWorld, fixedDt: number): void {
     if (this.transitioning) return;
     const scene = this.currentScene;
     if (scene === null || scene.state !== 'active') return;
     scene._syncPhysicsBeforeStep(this, world, fixedDt);
   }
 
-  syncPhysicsAfterStep(world: WorldHandle): void {
+  syncPhysicsAfterStep(world: PhysicsWorld): void {
     if (this.transitioning) return;
     const scene = this.currentScene;
     if (scene === null || scene.state !== 'active') return;
@@ -93,5 +102,10 @@ export class SceneManager {
     if (unloaded) this.scene = null;
     this.transitioning = false;
     return unloaded;
+  }
+
+  dispose(): void {
+    this.unloadCurrent();
+    this.context.unregister(this);
   }
 }

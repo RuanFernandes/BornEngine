@@ -228,23 +228,23 @@ Use `feat: add game-owned audio resources`.
 - Produces `WorldData` and `WorldInstance` classes for load/validate/instantiate/save operations; static methods are reserved for pure-data transforms.
 - Consumes `GameContext`, resource classes, `GameObject`, and adapters from earlier tasks. Public scene/physics constructors are narrowed to `Game` in Task 8.
 
-- [ ] **Step 1: Bind GameScene, Scene, and SceneManager to one Game**
+- [x] **Step 1: Bind GameScene, Scene, and SceneManager to one Game**
 
 Reject foreign-game attachment; keep the current lifecycle callback order, stable snapshots, scene-scoped disposal, and explicit update sequence.
 
-- [ ] **Step 2: Implement PhysicsWorld/body/collider/joint ownership**
+- [x] **Step 2: Implement PhysicsWorld/body/collider/joint ownership**
 
 Keep `step`, queries, collider operations, and joint operations on the owning class instances. Keep world/body/collider/joint handles private.
 
-- [ ] **Step 3: Adapt physics components and document synchronization order in code API**
+- [x] **Step 3: Adapt physics components and document synchronization order in code API**
 
 Ensure static/kinematic transforms sync before the caller's `PhysicsWorld.step(dt)` and dynamic transforms sync back afterward; preserve caller-controlled stepping.
 
-- [ ] **Step 4: Bind serialized world and prefab operations to objects**
+- [x] **Step 4: Bind serialized world and prefab operations to objects**
 
 Keep serialized data interoperable as DTOs; `WorldInstance.dispose()` releases runtime resources without changing the on-disk format.
 
-- [ ] **Step 5: Commit scene, physics, and world classes**
+- [x] **Step 5: Commit scene, physics, and world classes**
 
 Use `feat: add game-owned scene and physics APIs`.
 

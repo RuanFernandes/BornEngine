@@ -16,15 +16,27 @@ export class SceneNode implements ContextResource {
   private parentValue: SceneNode | null = null;
   private childrenValue: SceneNode[] = [];
 
-  constructor(private readonly context: GameContext, options: SceneNodeOptions = {}) {
+  constructor(private readonly context: GameContext, options: SceneNodeOptions = {}, adoptedHandle?: number) {
     this.name = options.name || '';
     if (!context.isReady || context.isDisposed) {
       this.error = 'The Game must be ready before creating scene nodes.';
       return;
     }
-    this.handleValue = operations.createSceneNode();
+    this.handleValue = adoptedHandle === undefined ? operations.createSceneNode() : adoptedHandle;
     this.error = this.handleValue === 0 ? 'Unable to create scene node.' : null;
     if (this.handleValue !== 0) context.register(this);
+  }
+
+  /** @internal Wraps a node created by the world loader without exposing its identity. */
+  static adoptNative(context: GameContext, handle: number, name = ''): SceneNode {
+    return new SceneNode(context, { name }, handle);
+  }
+
+  /** @internal Restores a parent relationship already established by native operations. */
+  static adoptParentLink(child: SceneNode, parent: SceneNode): void {
+    if (child.parentValue !== null) child.parentValue.removeChild(child);
+    child.parentValue = parent;
+    if (parent.childrenValue.indexOf(child) < 0) parent.childrenValue.push(child);
   }
 
   get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }

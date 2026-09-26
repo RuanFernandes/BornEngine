@@ -1,6 +1,6 @@
 // Terrain helpers for the shared world module.
 //
-// Terrain in a `WorldData` is a uniform grid heightmap: `width * depth` float
+// Terrain in a `WorldDocument` is a uniform grid heightmap: `width * depth` float
 // heights, row-major with `z*width + x`. This file provides the operations
 // that both the editor (to sculpt / display) and games (to render / sample)
 // need:

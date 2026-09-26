@@ -5,14 +5,14 @@
 // The loader has two entry points:
 //
 //   loadWorld(path)          — pure: reads + parses + migrates + validates.
-//                              Returns a WorldData object. No scene side-effects.
+//                              Returns a WorldDocument object. No scene side-effects.
 //
 //   instantiateWorld(w, ctx) — creates scene nodes, applies lighting, and
 //                              returns a map of entity id -> scene node handle.
 //                              The caller provides a context that resolves
 //                              model references to loaded model handles.
 //
-// Splitting parse from instantiate lets the editor hold a `WorldData` in memory
+// Splitting parse from instantiate lets the editor hold a `WorldDocument` in memory
 // and re-sync scene nodes on edits, without re-reading the file every frame.
 
 import { readFile } from '../core/internal';
@@ -41,7 +41,7 @@ import { Mat4, Vec3 } from '../core/types';
 import { spawnWaterVolume, spawnRiver } from './render';
 import {
   WORLD_SCHEMA_VERSION,
-  WorldData,
+  WorldDocument,
   EntityData,
   TransformData,
   Vec3Lit,
@@ -97,19 +97,24 @@ export interface InstantiateResult {
   // unresolved prefab references, cycles. The world still instantiates,
   // with the offending entities skipped.
   warnings: string[];
+
+  /** Every runtime scene node created during this load, including prefab leaves. */
+  ownedNodeHandles: SceneNodeHandle[];
+  /** Native node parent links restored by class wrappers after loading. */
+  nodeParents: Array<{ child: SceneNodeHandle; parent: SceneNodeHandle }>;
 }
 
 // Read, parse, migrate, and validate a world file. Throws on parse error or
 // validation failure — the caller can catch and present the error message.
-export function loadWorld(path: string): WorldData {
+export function loadWorld(path: string): WorldDocument {
   const text = readFile(path);
   if (!text || text.length === 0) {
     throw new Error('loadWorld: file is empty or missing: ' + path);
   }
 
-  let raw: WorldData;
+  let raw: WorldDocument;
   try {
-    raw = JSON.parse(text) as WorldData;
+    raw = JSON.parse(text) as WorldDocument;
   } catch (e) {
     throw new Error('loadWorld: invalid JSON in ' + path + ': ' + (e as Error).message);
   }
@@ -141,13 +146,15 @@ export function loadWorld(path: string): WorldData {
 // settings (lighting, shadows). Terrain, water volumes, and rivers are spawned
 // when present — water and rivers via the shared helpers in ./render.ts, which
 // the editor uses too so the two never diverge.
-export function instantiateWorld(world: WorldData, ctx: InstantiateContext): InstantiateResult {
+export function instantiateWorld(world: WorldDocument, ctx: InstantiateContext): InstantiateResult {
   const result: InstantiateResult = {
     entityHandles: new Map<string, SceneNodeHandle>(),
     terrainHandle: 0,
     waterHandles: [],
     riverHandles: [],
     warnings: [],
+    ownedNodeHandles: [],
+    nodeParents: [],
   };
 
   // Apply environment first so the first frame renders with correct lighting.
@@ -156,6 +163,7 @@ export function instantiateWorld(world: WorldData, ctx: InstantiateContext): Ins
   // Terrain before entities so entities can drop onto it visually.
   if (world.terrain) {
     result.terrainHandle = spawnTerrain(world);
+    if (result.terrainHandle !== 0) result.ownedNodeHandles.push(result.terrainHandle);
     if (result.terrainHandle !== 0 && ctx.onTerrainSpawned) {
       ctx.onTerrainSpawned(result.terrainHandle);
     }
@@ -165,7 +173,7 @@ export function instantiateWorld(world: WorldData, ctx: InstantiateContext): Ins
   // with one child per leaf glb.
   for (let i = 0; i < world.entities.length; i++) {
     const entity = world.entities[i];
-    const handle = spawnEntity(entity, ctx, result.warnings);
+    const handle = spawnEntity(entity, ctx, result.warnings, result.ownedNodeHandles, result.nodeParents);
     if (handle !== 0) {
       result.entityHandles.set(entity.id, handle);
       if (ctx.onEntitySpawned) {
@@ -179,6 +187,7 @@ export function instantiateWorld(world: WorldData, ctx: InstantiateContext): Ins
   for (let i = 0; i < world.water.length; i++) {
     const handle = spawnWaterVolume(world.water[i]);
     result.waterHandles.push(handle);
+    if (handle !== 0) result.ownedNodeHandles.push(handle);
     if (handle === 0) {
       result.warnings.push('water volume "' + world.water[i].id + '" failed to spawn');
     }
@@ -188,6 +197,7 @@ export function instantiateWorld(world: WorldData, ctx: InstantiateContext): Ins
     const river = world.rivers[i];
     const handle = spawnRiver(river);
     result.riverHandles.push(handle);
+    if (handle !== 0) result.ownedNodeHandles.push(handle);
     if (handle === 0) {
       result.warnings.push(
         'river "' + river.id + '" failed to spawn (needs at least 2 control points)',
@@ -201,7 +211,7 @@ export function instantiateWorld(world: WorldData, ctx: InstantiateContext): Ins
 // Build the terrain mesh from the heightmap grid and upload it to a dedicated
 // scene node. Called once per world load; the editor's brush tool re-uploads
 // the mesh on each stroke via `updateSceneNodeGeometry` directly.
-function spawnTerrain(world: WorldData): SceneNodeHandle {
+function spawnTerrain(world: WorldDocument): SceneNodeHandle {
   if (!world.terrain) return 0;
   const mesh = buildHeightmapMesh(world.terrain);
   const node = createSceneNode();
@@ -217,13 +227,15 @@ function spawnEntity(
   entity: EntityData,
   ctx: InstantiateContext,
   warnings: string[],
+  ownedNodes: SceneNodeHandle[],
+  nodeParents: Array<{ child: SceneNodeHandle; parent: SceneNodeHandle }>,
 ): SceneNodeHandle {
   if (entity.modelRef !== null && entity.modelRef.length > 0) {
-    return spawnModelEntity(entity, ctx, warnings);
+    return spawnModelEntity(entity, ctx, warnings, ownedNodes);
   }
 
   if (entity.prefabRef !== null && entity.prefabRef.length > 0) {
-    return spawnPrefabEntity(entity, ctx, warnings);
+    return spawnPrefabEntity(entity, ctx, warnings, ownedNodes, nodeParents);
   }
 
   warnings.push('entity ' + entity.id + ' has neither modelRef nor prefabRef — skipped');
@@ -234,6 +246,7 @@ function spawnModelEntity(
   entity: EntityData,
   ctx: InstantiateContext,
   warnings: string[],
+  ownedNodes: SceneNodeHandle[],
 ): SceneNodeHandle {
   const modelRef = entity.modelRef as string;
   const modelHandle = ctx.getModelHandle(modelRef);
@@ -243,6 +256,7 @@ function spawnModelEntity(
   }
 
   const node = createSceneNode();
+  ownedNodes.push(node);
   attachModelToNode(node, modelHandle, 0);
   setSceneNodeTransform(node, trsToMat4(entity.transform));
 
@@ -258,6 +272,8 @@ function spawnPrefabEntity(
   entity: EntityData,
   ctx: InstantiateContext,
   warnings: string[],
+  ownedNodes: SceneNodeHandle[],
+  nodeParents: Array<{ child: SceneNodeHandle; parent: SceneNodeHandle }>,
 ): SceneNodeHandle {
   if (!ctx.prefabRegistry) {
     warnings.push(
@@ -270,6 +286,7 @@ function spawnPrefabEntity(
   // parented to this root so the editor gizmo can move the whole prefab as
   // one unit.
   const root = createSceneNode();
+  ownedNodes.push(root);
   const rootMatrix = trsToMat4(entity.transform);
   setSceneNodeTransform(root, rootMatrix);
   setSceneNodeVisible(root, true);
@@ -304,10 +321,12 @@ function spawnPrefabEntity(
       continue;
     }
     const leafNode = createSceneNode();
+    ownedNodes.push(leafNode);
     attachModelToNode(leafNode, modelHandle, 0);
     setSceneNodeTransform(leafNode, leaf.worldMatrix);
     if (leaf.tint !== null) applyTint(leafNode, leaf.tint);
     setSceneNodeParent(leafNode, root);
+    nodeParents.push({ child: leafNode, parent: root });
     setSceneNodeVisible(leafNode, true);
   }
 
@@ -316,7 +335,7 @@ function spawnPrefabEntity(
 
 // ---- environment -----------------------------------------------------------
 
-function applyEnvironment(world: WorldData): void {
+function applyEnvironment(world: WorldDocument): void {
   const env = world.environment;
   if (!env) return;
 
@@ -368,7 +387,7 @@ function applyTint(node: SceneNodeHandle, tint: Vec4Lit): void {
 
 // Build an empty world with sensible defaults. The editor calls this from
 // File -> New. Games should prefer `loadWorld` from a file on disk.
-export function createEmptyWorld(id: string, name: string): WorldData {
+export function createEmptyWorld(id: string, name: string): WorldDocument {
   return {
     schemaVersion: WORLD_SCHEMA_VERSION,
     name: name,
