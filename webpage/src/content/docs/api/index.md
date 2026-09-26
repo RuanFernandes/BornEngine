@@ -39,6 +39,7 @@ Public examples in this reference import from `@bornengine/engine`, either from 
 | --- | --- | --- |
 | Game | `@bornengine/engine/game` | Subclassable gameplay objects, components, transforms, scenes, and adapters |
 | Core | `@bornengine/engine/core` | Windows, frame timing, input, cameras, files, profiling |
+| Input | `@bornengine/engine/input` | Named actions, digital/analog axes, and stable per-frame input snapshots |
 | Shapes | `@bornengine/engine/shapes` | Immediate 2D primitives and collision helpers |
 | Textures | `@bornengine/engine/textures` | Images, sprites, filtering, render targets |
 | Text | `@bornengine/engine/text` | Fonts, text drawing, measurement |
@@ -78,6 +79,7 @@ Resources are not garbage-collected engine objects. A `Texture`, `Font`, `Sound`
 ## Where to go next
 
 - Start with [Core](core/) for the frame and input contract.
+- Use [Input](input/) for named actions, axes, and rebinding across devices.
 - Read the [Game API](game/) to build class-based gameplay objects and scenes.
 - Read [Textures](textures/) and [Text](text/) before building a HUD.
 - Build menus and settings with the [UI API](ui/); add optional developer tools with its `debugUi` subpath.

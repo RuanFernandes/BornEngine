@@ -45,6 +45,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'API overview', href: '/docs/api/' },
       { title: 'Game objects', href: '/docs/api/game/' },
       { title: 'Core', href: '/docs/api/core/' },
+      { title: 'Input', href: '/docs/api/input/' },
       { title: 'Shapes', href: '/docs/api/shapes/' },
       { title: 'Textures', href: '/docs/api/textures/' },
       { title: 'Text', href: '/docs/api/text/' },

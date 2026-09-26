@@ -94,9 +94,11 @@ export function readInput() {
 | --- | --- | --- |
 | Keyboard | `Key`, `isKeyPressed`, `isKeyRepeated`, `isKeyDown`, `isKeyReleased` | `Key` contains portable numeric values such as `LEFT`, `RIGHT`, `SPACE`, and `ESCAPE`. |
 | Mouse | `MouseButton`, `getMousePosition`, `isMouseButtonPressed`, `isMouseButtonDown`, `isMouseButtonReleased`, `getMouseDeltaX`, `getMouseDeltaY`, `getMouseWheel` | Coordinates are in the current screen space. |
-| Touch | `getTouchCount`, `getTouchPosition`, `getTouchX`, `getTouchY`, `isTouchActive`, `getMaxTouchPoints` | Touch slots are sparse; check the count or active flag before reading a slot. |
-| Gamepad | `isGamepadAvailable`, `getGamepadAxisValue`, `getGamepadAxis`, `isGamepadButtonPressed`, `isGamepadButtonDown`, `isGamepadButtonReleased` | The overload with an `id` targets a specific controller. |
+| Touch | `getTouchCount`, `getTouchPosition`, `getTouchX`, `getTouchY`, `isTouchActive`, `getMaxTouchPoints` | Touch slots are sparse; scan the maximum slots and check `isTouchActive(slot)`. |
+| Gamepad | `isGamepadAvailable`, `getGamepadAxisValue`, `getGamepadAxis`, `isGamepadButtonPressed`, `isGamepadButtonDown`, `isGamepadButtonReleased` | These wrappers currently read the primary controller. |
 | Platform | `getPlatform`, `isMobile`, `isTV`, `isWatch`, `getLanguage`, `isAnyInputPressed` | Use platform checks to select an input or asset policy, not to fork all gameplay code. |
+
+For named cross-device actions, stable per-frame snapshots, and combined digital/analog axes, see the [Input API](../input/).
 
 ## Cameras and coordinates
 
