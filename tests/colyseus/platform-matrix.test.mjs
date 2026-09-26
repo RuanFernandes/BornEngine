@@ -8,6 +8,7 @@ const testWorkflow = await readFile(new URL('.github/workflows/test.yml', repoRo
 const androidManifest = await readFile(new URL('native/android/Cargo.toml', repoRoot), 'utf8');
 const androidSmoke = await readFile(new URL('./android-smoke/run.mjs', import.meta.url), 'utf8');
 const appleSmoke = await readFile(new URL('./apple-smoke/run.mjs', import.meta.url), 'utf8');
+const sdkBuilder = await readFile(new URL('tools/build-colyseus-sdk.sh', repoRoot), 'utf8');
 
 const targets = [
   'x86_64-unknown-linux-gnu',
@@ -37,6 +38,8 @@ test('every declared Colyseus native target has a build runner', () => {
   assert.ok(sdkWorkflow.includes('CXX_aarch64_linux_android='), 'Android ARM64 C++ builds must use the NDK compiler');
   assert.ok(sdkWorkflow.includes('CXX_x86_64_linux_android='), 'Android x86_64 C++ builds must use the NDK compiler');
   assert.match(androidManifest, /^image\s*=\s*\{.*\}$/m, 'Android FFI macro expansion must resolve image as a direct dependency');
+  assert.match(sdkBuilder, /ZIG_TARGET=aarch64-linux-android\.21/, 'Android ARM64 SDK must target API 21');
+  assert.match(sdkBuilder, /ZIG_TARGET=x86_64-linux-android\.21/, 'Android x86_64 SDK must target API 21');
 });
 
 test('runtime smoke jobs cover every runtime-capable BornEngine platform', () => {

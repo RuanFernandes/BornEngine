@@ -61,9 +61,9 @@ case "$RUST_TARGET" in
   aarch64-apple-watchos-sim)
     ZIG_TARGET=aarch64-watchos-simulator; ARTIFACT=watchos-aarch64-sim; TARGET_OS=watchos; APPLE_SDK=watchsimulator; ZIG_CPU=apple_m1 ;;
   aarch64-linux-android)
-    ZIG_TARGET=aarch64-linux-android; ARTIFACT=android-aarch64; TARGET_OS=android ;;
+    ZIG_TARGET=aarch64-linux-android.21; ARTIFACT=android-aarch64; TARGET_OS=android ;;
   x86_64-linux-android)
-    ZIG_TARGET=x86_64-linux-android; ARTIFACT=android-x86_64; TARGET_OS=android ;;
+    ZIG_TARGET=x86_64-linux-android.21; ARTIFACT=android-x86_64; TARGET_OS=android ;;
   *)
     printf 'Unsupported Rust target for Colyseus SDK build: %s\n' "$RUST_TARGET" >&2
     exit 2
