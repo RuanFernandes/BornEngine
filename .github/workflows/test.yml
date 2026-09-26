@@ -198,7 +198,9 @@ jobs:
         run: cargo build --release
 
   build-linux:
-    runs-on: ubuntu-22.04
+    # Perry's Linux compiler binary requires glibc 2.39. Release artifacts
+    # remain built on Ubuntu 22.04 in release.yml for broader compatibility.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
