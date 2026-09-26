@@ -64,6 +64,10 @@ test('runtime smoke jobs cover every runtime-capable BornEngine platform', () =>
   const androidStep = sdkWorkflow.match(/- name: Run Android emulator Colyseus runtime smoke([\s\S]*?)(?=\n      - name:|\n      - uses:)/)?.[1] ?? '';
   assert.ok(androidStep.includes('android-smoke/run.mjs'), 'Android emulator has no Colyseus runtime smoke');
   assert.ok(androidStep.includes('reactivecircus/android-emulator-runner'), 'Android smoke must execute on an emulator runner');
+  assert.match(androidStep, /if: matrix\.rust_target == 'x86_64-linux-android'/, 'Android emulator smoke must run only on the supported x86_64 runner');
+  const androidArmNotice = sdkWorkflow.match(/- name: Explain Android ARM64 runtime smoke limitation([\s\S]*?)(?=\n      - name:|\n      - uses:)/)?.[1] ?? '';
+  assert.ok(androidArmNotice.includes("matrix.rust_target == 'aarch64-linux-android'"), 'Android ARM64 runtime limitation must be reported for that target');
+  assert.ok(androidArmNotice.includes('HVF_UNSUPPORTED'), 'Android ARM64 runtime limitation must identify the hosted macOS hypervisor failure');
 
   const appleStep = sdkWorkflow.match(/- name: Run Apple simulator Colyseus runtime smoke([\s\S]*?)(?=\n      - name:|\n      - uses:)/)?.[1] ?? '';
   assert.ok(appleStep.includes('apple-smoke/run.mjs'), 'Apple targets have no simulator runtime harness');
