@@ -18,14 +18,14 @@ The table distinguishes SDK archive creation and engine linking from running the
 | Linux | `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` | Native SDK C | Passed | Passed on x86_64 and ARM64 | No extra app permission |
 | macOS | `x86_64-apple-darwin`, `aarch64-apple-darwin` | Native SDK C | Passed | Passed on Apple Silicon; Intel runtime not tested | App Sandbox requires outgoing network client entitlement |
 | Windows | `x86_64-pc-windows-msvc` | Native SDK C | Passed | Passed on x86_64 | No extra app permission |
-| Android | `aarch64-linux-android`, `x86_64-linux-android` | Native SDK C | Passed on both ABIs | Passed on x86_64 API 35 emulator; ARM64 runtime Pending (`HVF_UNSUPPORTED` on GitHub macOS) | Add `android.permission.INTERNET` to the final app manifest |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | Native SDK C | Passed: archive build and engine link for both ABIs | Passed on x86_64 API 35 emulator; ARM64 emulator smoke unavailable (`HVF_UNSUPPORTED`); physical-device runtime not tested | Add `android.permission.INTERNET` to the final app manifest |
 | iOS | `aarch64-apple-ios`, `aarch64-apple-ios-sim`, `x86_64-apple-ios` | Native SDK C | Passed | Passed on ARM64 simulator; device and Intel simulator runtime not tested | Local-LAN access requires `NSLocalNetworkUsageDescription` and user approval |
 | tvOS | `aarch64-apple-tvos`, `aarch64-apple-tvos-sim` | Native SDK C | Passed | Passed on simulator | No local-network privacy prompt on tvOS |
 | visionOS | `aarch64-apple-visionos`, `aarch64-apple-visionos-sim` | Native SDK C | Passed | Passed on simulator | Local-LAN access requires `NSLocalNetworkUsageDescription` and user approval |
 | watchOS | `aarch64-apple-watchos`, `aarch64-apple-watchos-sim` | Native SDK C with target-local FFI | Passed | Passed on watchOS simulator; device runtime not tested | Device runtime checks are pending |
 | Web/WASM | `wasm32-unknown-unknown` | Official TypeScript SDK bundle | Passed | Passed against the fixture under Node.js; browser UI runtime not tested | Serve the generated package over HTTP or HTTPS |
 
-For Android manifest, Apple sandbox, and Apple Local Network privacy details, see the [mobile](../../platforms/mobile/) and [Apple platform](../../platforms/apple/) guides. Runtime results cover the listed simulator or emulator smoke environment; a device build is not the same as a physical-device runtime test.
+For Android manifest, Apple sandbox, and Apple Local Network privacy details, see the [mobile](../../platforms/mobile/) and [Apple platform](../../platforms/apple/) guides. The Android ARM64 SDK archive builds and links successfully. CI skips its emulator smoke because the current GitHub-hosted macOS runner cannot initialize the ARM64 Android emulator (`HVF_UNSUPPORTED`); runtime on a physical Android ARM64 device remains unverified. Runtime results apply to the listed simulator, emulator, or host smoke environment and do not imply physical-device testing.
 
 ## Connect and join
 

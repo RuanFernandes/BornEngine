@@ -23,7 +23,9 @@ test('Colyseus docs report build and runtime status for every BornEngine platfor
 
   const androidRow = matrix.split('\n').find((line) => line.startsWith('| Android |')) ?? '';
   assert.match(androidRow, /Passed on x86_64 API 35 emulator/);
-  assert.match(androidRow, /ARM64 runtime Pending.*HVF_UNSUPPORTED/);
+  assert.match(androidRow, /ARM64 emulator smoke unavailable.*HVF_UNSUPPORTED/);
+  assert.match(androidRow, /physical-device runtime not tested/);
+  assert.match(apiDocs, /runtime on a physical Android ARM64 device remains unverified/);
 
   const watchosRow = matrix.split('\n').find((line) => line.startsWith('| watchOS |')) ?? '';
   assert.match(watchosRow, /Passed on watchOS simulator/);
