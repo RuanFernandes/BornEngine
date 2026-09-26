@@ -41,7 +41,7 @@ test('every declared Colyseus native target has a build runner', () => {
   assert.match(sdkBuilder, /ZIG_TARGET=aarch64-linux-android\.21/, 'Android ARM64 SDK must target API 21');
   assert.match(sdkBuilder, /ZIG_TARGET=x86_64-linux-android\.21/, 'Android x86_64 SDK must target API 21');
   assert.ok(sdkBuilder.includes('android-preadv-compat.c'), 'Android SDK bundle must provide API 21 vectored I/O compatibility');
-  assert.ok(sdkBuilder.includes('ANDROID_NDK_SYSROOT'), 'Android compatibility shim must compile against the NDK sysroot');
+  assert.ok(sdkBuilder.includes('ANDROID_NDK_CLANG'), 'Android compatibility shim must compile with the NDK target clang');
   const androidArmTarget = sdkWorkflow.match(/- rust_target: aarch64-linux-android([\s\S]*?)(?=\n          - rust_target:)/)?.[1] ?? '';
   assert.ok(androidArmTarget.includes('runner: macos-14'), 'ARM64 Android emulator smoke must run on an ARM64 host');
   const androidX86Target = sdkWorkflow.match(/- rust_target: x86_64-linux-android([\s\S]*?)(?=\n          - rust_target:)/)?.[1] ?? '';

@@ -30,6 +30,7 @@ ARTIFACT=
 APPLE_SDK=
 TARGET_OS=
 ZIG_CPU=
+ANDROID_NDK_TRIPLE=
 
 case "$RUST_TARGET" in
   x86_64-unknown-linux-gnu|x86_64-linux-gnu)
@@ -61,9 +62,9 @@ case "$RUST_TARGET" in
   aarch64-apple-watchos-sim)
     ZIG_TARGET=aarch64-watchos-simulator; ARTIFACT=watchos-aarch64-sim; TARGET_OS=watchos; APPLE_SDK=watchsimulator; ZIG_CPU=apple_m1 ;;
   aarch64-linux-android)
-    ZIG_TARGET=aarch64-linux-android.21; ARTIFACT=android-aarch64; TARGET_OS=android ;;
+    ZIG_TARGET=aarch64-linux-android.21; ANDROID_NDK_TRIPLE=aarch64-linux-android; ARTIFACT=android-aarch64; TARGET_OS=android ;;
   x86_64-linux-android)
-    ZIG_TARGET=x86_64-linux-android.21; ARTIFACT=android-x86_64; TARGET_OS=android ;;
+    ZIG_TARGET=x86_64-linux-android.21; ANDROID_NDK_TRIPLE=x86_64-linux-android; ARTIFACT=android-x86_64; TARGET_OS=android ;;
   *)
     printf 'Unsupported Rust target for Colyseus SDK build: %s\n' "$RUST_TARGET" >&2
     exit 2
@@ -110,6 +111,7 @@ if [[ -n "$APPLE_SDK" ]]; then
 fi
 
 ANDROID_NDK=${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}
+ANDROID_NDK_CLANG=
 ANDROID_NDK_SYSROOT=
 if [[ "$TARGET_OS" == "android" && -z "$ANDROID_NDK" ]]; then
   printf 'Building %s requires ANDROID_NDK_HOME or ANDROID_NDK_ROOT\n' "$RUST_TARGET" >&2
@@ -126,8 +128,13 @@ if [[ "$TARGET_OS" == "android" ]]; then
       ;;
   esac
   ANDROID_NDK_SYSROOT="$ANDROID_NDK/toolchains/llvm/prebuilt/$ANDROID_NDK_HOST/sysroot"
+  ANDROID_NDK_CLANG="$ANDROID_NDK/toolchains/llvm/prebuilt/$ANDROID_NDK_HOST/bin/${ANDROID_NDK_TRIPLE}21-clang"
   if [[ ! -d "$ANDROID_NDK_SYSROOT" ]]; then
     printf 'Android NDK sysroot not found: %s\n' "$ANDROID_NDK_SYSROOT" >&2
+    exit 1
+  fi
+  if [[ "$ANDROID_NDK_HOST" != "windows-x86_64" && ! -x "$ANDROID_NDK_CLANG" ]]; then
+    printf 'Android NDK target compiler not found: %s\n' "$ANDROID_NDK_CLANG" >&2
     exit 1
   fi
 fi
@@ -222,9 +229,17 @@ fi
 
 if [[ "$TARGET_OS" == "android" ]]; then
   ANDROID_PREADV_SHIM_OBJECT="$BUILD_TMP/objects/android-preadv-compat.o"
-  "$ZIG_BIN" cc -target "$ZIG_TARGET" --sysroot "$ANDROID_NDK_SYSROOT" -fPIC -c \
-    "$REPO_ROOT/native/third_party/colyseus/android-preadv-compat.c" \
-    -o "$ANDROID_PREADV_SHIM_OBJECT"
+  if [[ "$ANDROID_NDK_HOST" == "windows-x86_64" ]]; then
+    "$ZIG_BIN" cc -target "$ZIG_TARGET" \
+      -isystem "$ANDROID_NDK_SYSROOT/usr/include" \
+      -isystem "$ANDROID_NDK_SYSROOT/usr/include/$ANDROID_NDK_TRIPLE" \
+      -fPIC -c "$REPO_ROOT/native/third_party/colyseus/android-preadv-compat.c" \
+      -o "$ANDROID_PREADV_SHIM_OBJECT"
+  else
+    "$ANDROID_NDK_CLANG" -fPIC -c \
+      "$REPO_ROOT/native/third_party/colyseus/android-preadv-compat.c" \
+      -o "$ANDROID_PREADV_SHIM_OBJECT"
+  fi
   OBJECTS+=("$ANDROID_PREADV_SHIM_OBJECT")
 fi
 
