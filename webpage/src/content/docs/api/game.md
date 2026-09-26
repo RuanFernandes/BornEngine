@@ -72,6 +72,48 @@ Each update phase uses a stable snapshot. Objects or components added during an 
 
 Destruction is synchronous and idempotent. Children are destroyed before their parent; an object's `onDestroy` runs before its components in reverse attachment order. `scene.remove(object)` detaches a live subtree. `scene.destroy()` destroys remaining roots and prevents future additions.
 
+## Scene manager
+
+Use `Scene` when you want a gameplay scene with its own lifecycle and resource ownership. It extends `GameScene`, so it keeps the existing object hierarchy, update callbacks, and physics-sync methods. `addNode` is the typed alias for `add`, preserving the concrete type of a `GameObject` subclass:
+
+```ts
+import { GameObject, Scene, SceneManager } from '@bornengine/engine/game';
+import { runGame } from '@bornengine/engine/core';
+
+class Player extends GameObject {}
+
+class LevelOne extends Scene {
+  onEnter(): void {
+    this.addNode(new Player({ name: 'Player' }));
+  }
+}
+
+const scenes = new SceneManager();
+scenes.changeTo(new LevelOne({ name: 'Level One' }));
+runGame((dt) => scenes.update(dt));
+```
+
+`SceneManager` runs one scene at a time. `changeTo` unloads the current scene and activates a ready replacement; passing the current scene again is a no-op. `pause` and `resume` preserve the scene and renderer nodes. While paused, manager updates continue for owned resources but skip GameObjects and physics-sync delegates. `SceneManager` does not own `runGame`, open render passes, or step physics. Keep those operations in your loop, and skip your own physics step while the scene is paused.
+
+Lifecycle hooks run in this order when switching away from an active scene: `onExit`, `onUnload`, GameObject and component destruction, then owned-resource disposal. `onExit` runs only for a scene that entered; `onUnload` also runs when unloading a scene that was never activated. Transitions requested from a lifecycle hook return `false` so callbacks stay ordered. `unload()` and `destroy()` share the same idempotent cleanup path.
+
+Use `own` for resources that should follow the scene lifetime:
+
+```ts
+import { Scene } from '@bornengine/engine/game';
+import type { SceneOwnedResource } from '@bornengine/engine/game';
+
+class LevelCache implements SceneOwnedResource {
+  update(_dt: number): void {}
+  dispose(): void {}
+}
+
+const level = new Scene({ name: 'Level One' });
+level.own(new LevelCache());
+```
+
+The manager calls `update(dt)` on owned resources while the scene is active or paused. Resources are disposed once, in reverse registration order, after the scene's objects and components. One resource instance can belong to only one scene at a time.
+
 ## Native adapters
 
 Adapters connect runtime objects to resources created through existing engine modules. Their constructors do not create renderer nodes, physics worlds, bodies, shapes, sounds, or assets.
@@ -91,6 +133,33 @@ import { SceneNodeComponent } from '@bornengine/engine/game';
 const node = createSceneNode();
 player.addComponent(new SceneNodeComponent(node, { ownership: 'owned' }));
 ```
+
+## OOP renderer nodes
+
+For a node created and owned by the component, use `SceneNodeComponent.create()`. It returns `null` if the renderer cannot create a node. The instance methods configure visibility and material, then return the same component for chaining:
+
+```ts
+import { GameObject, SceneNodeComponent } from '@bornengine/engine/game';
+import { loadModel, unloadModel } from '@bornengine/engine/models';
+
+const player = new GameObject({ name: 'Player' });
+const renderer = SceneNodeComponent.create();
+const model = loadModel('assets/player.glb');
+
+if (renderer !== null) {
+  player.addComponent(
+    renderer
+      .setVisible(true)
+      .setColor(255, 255, 255, 255)
+      .setPbr(0.5, 0.1)
+      .setTexture(0)
+      .attachModel(model),
+  );
+}
+unloadModel(model);
+```
+
+Color channels use the engine's 0–255 range; texture index `0` selects the default white texture. `attachModel` defaults to mesh `0`. The component follows its owning GameObject's transform and parent. It does not create a second transform. The existing constructor remains available for a handle from `@bornengine/engine/scene`; ownership defaults to `borrowed`, while `{ ownership: 'owned' }` destroys that node with the component. Direct scene-node functions remain public for code that manages handles itself.
 
 ## Physics step
 

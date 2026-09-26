@@ -7,7 +7,9 @@ export const apiCoverage = [
       'Game objects and components',
       'Transforms and hierarchy',
       'Scenes and lifecycle',
+      'Scene manager',
       'Native adapters',
+      'OOP renderer nodes',
       'Physics step',
       'Serialized worlds',
     ],
@@ -17,6 +19,12 @@ export const apiCoverage = [
     file: 'api/core.md',
     href: '/docs/api/core/',
     sections: ['Frame lifecycle', 'Input', 'Cameras and coordinates', 'Files and profiling'],
+  },
+  {
+    slug: 'input',
+    file: 'api/input.md',
+    href: '/docs/api/input/',
+    sections: ['Actions and bindings', 'Snapshots and edges', 'Axes and rebinding', 'Frame loop', 'Device behavior'],
   },
   {
     slug: 'shapes',
@@ -40,7 +48,7 @@ export const apiCoverage = [
     slug: 'audio',
     file: 'api/audio.md',
     href: '/docs/api/audio/',
-    sections: ['Device lifecycle', 'Sound', 'Music and spatial audio'],
+    sections: ['Device lifecycle', 'Sound', 'Sound manager', 'Music and spatial audio'],
   },
   {
     slug: 'models',
