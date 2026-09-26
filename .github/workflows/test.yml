@@ -5,6 +5,7 @@ name: Tests
 # being released). Mirrors the gating pattern from the Perry compiler repo.
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     tags: ['v*']
@@ -115,6 +116,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: validate-ffi
         run: node tools/validate-ffi.js
+      - name: validate Colyseus runtime matrix
+        run: node --test tests/colyseus/platform-matrix.test.mjs
       - name: file line limit (2000, ratcheting baseline)
         run: node tools/check-file-lines.js
 
@@ -317,8 +320,8 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm-pack 0.15.0
+        run: curl https://wasm-bindgen.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- --version 0.15.0
 
       - name: Install Web and Colyseus fixture dependencies
         run: |
@@ -347,6 +350,8 @@ jobs:
         run: node --test native/web/tests/colyseus_bridge.test.mjs
 
       - name: Run Web Colyseus runtime smoke
+        env:
+          COLYSEUS_BRIDGE_MODULE: ${{ runner.temp }}/bornengine-web/colyseus_bridge.bundle.js
         run: node tests/colyseus/run-server-smoke.mjs tests/colyseus/web-bridge-smoke.mjs
 
       - name: Verify bundled Web Colyseus SDK

@@ -167,7 +167,10 @@ echo ""
 # 1. Build Bloom WASM via wasm-pack
 echo "[1/3] Building bloom_web.wasm..."
 cd "$WEB_CRATE"
-wasm-pack build --target web --out-dir pkg --no-typescript "$BUILD_PROFILE" 2>&1 | tail -3
+# wasm-bindgen emits a valid npm package.json with nested dependencies, but
+# wasm-pack's package merge currently expects every top-level value to be a
+# string. Keep the generated manifest and skip that incompatible merge step.
+wasm-pack build --target web --out-dir pkg --no-typescript --no-pack "$BUILD_PROFILE" 2>&1 | tail -3
 echo "  Output: $WEB_CRATE/pkg/"
 
 # 2. Compile game (if provided)

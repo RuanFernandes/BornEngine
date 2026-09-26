@@ -37,6 +37,11 @@ export class TestRoom extends Room {
       client.leave(4010);
     },
     request_sum: (_client: Client, message: { a: number; b: number }) => message.a + message.b,
+    request_delay: async (_client: Client, message: { delayMs?: number } = {}) => {
+      const delayMs = Math.max(0, Math.min(message.delayMs ?? 1_000, 3_000));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return { completed: true };
+    },
   };
 
   onCreate() {

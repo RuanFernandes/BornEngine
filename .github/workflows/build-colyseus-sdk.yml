@@ -49,7 +49,18 @@ permissions:
   contents: read
 
 jobs:
+  matrix-validation:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate Colyseus target and runtime matrix
+        run: node --test tests/colyseus/platform-matrix.test.mjs
+
   build:
+    needs: matrix-validation
     strategy:
       fail-fast: false
       matrix:
@@ -184,6 +195,8 @@ jobs:
           TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
           echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android21-clang" >> "$GITHUB_ENV"
           echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$TOOLCHAIN/x86_64-linux-android21-clang" >> "$GITHUB_ENV"
+          echo "CC_aarch64_linux_android=$TOOLCHAIN/aarch64-linux-android21-clang" >> "$GITHUB_ENV"
+          echo "CC_x86_64_linux_android=$TOOLCHAIN/x86_64-linux-android21-clang" >> "$GITHUB_ENV"
 
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
@@ -218,13 +231,13 @@ jobs:
             libasound2-dev libpulse-dev pkg-config cmake build-essential
 
       - name: Set up Node for native runtime smoke
-        if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
+        if: contains(fromJSON('["x86_64-unknown-linux-gnu","aarch64-unknown-linux-gnu","x86_64-pc-windows-msvc","aarch64-apple-darwin","aarch64-apple-ios-sim","aarch64-apple-tvos-sim","aarch64-apple-visionos-sim","aarch64-apple-watchos-sim","aarch64-linux-android","x86_64-linux-android"]'), matrix.rust_target)
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Install Colyseus fixture dependencies
-        if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
+        if: contains(fromJSON('["x86_64-unknown-linux-gnu","aarch64-unknown-linux-gnu","x86_64-pc-windows-msvc","aarch64-apple-darwin","aarch64-apple-ios-sim","aarch64-apple-tvos-sim","aarch64-apple-visionos-sim","aarch64-apple-watchos-sim","aarch64-linux-android","x86_64-linux-android"]'), matrix.rust_target)
         run: npm ci --prefix tests/colyseus/server
 
       - name: Install Web Colyseus SDK dependencies
@@ -266,7 +279,20 @@ jobs:
 
       - name: Run native Colyseus runtime smoke
         if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
-        run: node tests/colyseus/run-server-smoke.mjs -- cargo test --release --manifest-path native/shared/Cargo.toml --no-default-features --features models3d,image-extras --test colyseus_integration -- --nocapture
+        run: node tests/colyseus/run-native-smoke.mjs
+
+      - name: Run Apple simulator Colyseus runtime smoke
+        if: contains(fromJSON('["aarch64-apple-ios-sim","aarch64-apple-tvos-sim","aarch64-apple-visionos-sim","aarch64-apple-watchos-sim"]'), matrix.rust_target)
+        run: node tests/colyseus/run-native-smoke.mjs -- node tests/colyseus/apple-smoke/run.mjs --platform "${{ matrix.target_os }}" --target "${{ matrix.rust_target }}"
+
+      - name: Run Android emulator Colyseus runtime smoke
+        if: matrix.target_os == 'android'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.rust_target == 'aarch64-linux-android' && '30' || '35' }}
+          arch: ${{ matrix.rust_target == 'aarch64-linux-android' && 'arm64-v8a' || 'x86_64' }}
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-metrics
+          script: node tests/colyseus/run-native-smoke.mjs -- node tests/colyseus/android-smoke/run.mjs --target "${{ matrix.rust_target }}"
 
       - name: Run Web SDK runtime smoke
         if: matrix.rust_target == 'x86_64-unknown-linux-gnu'

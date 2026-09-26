@@ -58,8 +58,8 @@ if [ "$INCLUDE_WASM" -eq 1 ]; then
   if ! command -v wasm-pack >/dev/null 2>&1; then
     echo "wasm-pack not installed — skipping wasm-pack build" >&2
   else
-    hr "bloom-web: wasm-pack build --release --target web"
-    ( cd native/web && wasm-pack build --release --target web )
+    hr "bloom-web: wasm-pack build --release --target web --no-pack"
+    ( cd native/web && wasm-pack build --release --target web --no-pack )
   fi
 fi
 

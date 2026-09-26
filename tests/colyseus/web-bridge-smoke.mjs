@@ -1,10 +1,31 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { createColyseusBridge } from '../../native/web/colyseus_bridge.js';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 const requireWebDependencies = createRequire(new URL('../../native/web/package.json', import.meta.url));
-const { Client } = requireWebDependencies('@colyseus/sdk');
-const ffi = createColyseusBridge({ Client });
+let sdkModule;
+if (process.env.COLYSEUS_BRIDGE_MODULE) {
+  const bundle = await readFile(resolve(process.env.COLYSEUS_BRIDGE_MODULE));
+  const bundleUrl = `data:text/javascript;base64,${bundle.toString('base64')}`;
+  sdkModule = await import(bundleUrl);
+} else {
+  const bridge = await import(new URL('../../native/web/colyseus_bridge.js', import.meta.url));
+  sdkModule = {
+    ...bridge,
+    Client: requireWebDependencies('@colyseus/sdk').Client,
+  };
+}
+const { Client, createColyseusBridge } = sdkModule;
+class ManualReconnectClient extends Client {
+  joinOrCreate(...args) {
+    return super.joinOrCreate(...args).then((room) => {
+      room.reconnection.enabled = false;
+      return room;
+    });
+  }
+}
+const ffi = createColyseusBridge({ Client: ManualReconnectClient });
 const endpoint = process.env.COLYSEUS_URL ?? 'ws://127.0.0.1:2567';
 const client = ffi.bloom_colyseus_client_create(endpoint);
 assert.ok(client > 0, 'bridge should create a client using the official SDK');
@@ -30,6 +51,17 @@ async function waitFor(label, predicate, timeoutMs = 10_000) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
   throw new Error(`Timed out waiting for ${label}`);
+}
+
+async function collectFor(timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  const collected = [];
+  while (Date.now() < deadline) {
+    collectEvents();
+    collected.push(...eventQueue.splice(0));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  return collected;
 }
 
 async function main() {
@@ -65,9 +97,34 @@ async function main() {
     assert.equal(reply.outcome, 0);
     assert.equal(reply.data, 42);
 
-    ffi.bloom_colyseus_room_leave(roomHandle, 1);
-    await waitFor('room leave', (event) => event.kind === 'leave' && event.room === roomHandle);
-    assert.equal(ffi.bloom_colyseus_room_is_connected(roomHandle), 0);
+    const token = ffi.bloom_colyseus_room_reconnection_token(roomHandle);
+    assert.ok(token, 'joined room should provide a reconnection token');
+    ffi.bloom_colyseus_room_leave(roomHandle, 0);
+    await waitFor('unconsented room drop', (event) => event.kind === 'drop' && event.room === roomHandle);
+
+    const reconnectedRoom = ffi.bloom_colyseus_client_join(client, 4, token, '{}');
+    assert.ok(reconnectedRoom > 0, 'bridge should start token-based reconnection');
+    const reconnected = await waitFor('manual room reconnect', (event) => event.kind === 'join' && event.room === reconnectedRoom);
+    assert.ok(reconnected.roomId);
+    const pendingRequest = ffi.bloom_colyseus_room_request(reconnectedRoom, 'request_delay', '{"delayMs":1200}');
+    assert.ok(pendingRequest > 0, 'bridge should start an in-flight request before disposal');
+    ffi.bloom_colyseus_client_dispose(client);
+    const lateEvents = await collectFor(1_500);
+    assert.equal(
+      lateEvents.some((event) => event.kind === 'request' && event.request === pendingRequest),
+      false,
+      'disposing a client should cancel its in-flight request callback',
+    );
+
+    const pendingClient = ffi.bloom_colyseus_client_create(endpoint);
+    const pendingJoin = ffi.bloom_colyseus_client_join(pendingClient, 0, 'test_room', '{}');
+    ffi.bloom_colyseus_client_dispose(pendingClient);
+    const pendingEvents = await collectFor(600);
+    assert.equal(
+      pendingEvents.some((event) => event.room === pendingJoin && ['join', 'error'].includes(event.kind)),
+      false,
+      'disposing a client should discard late pending-join callbacks',
+    );
     console.log('Colyseus Web FFI bridge smoke test passed');
   } finally {
     ffi.bloom_colyseus_client_dispose(client);
