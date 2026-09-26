@@ -3,6 +3,7 @@ Zig version: 0.15.2
 Rust target: x86_64-unknown-linux-gnu
 Zig target: x86_64-linux-gnu
 Bundled archive: libcolyseus_bundled.a
+Build patches: colyseus-native-sdk-windows-msvc.patch
 Input archives:
   libcolyseus.a
   libhttp_zig.a

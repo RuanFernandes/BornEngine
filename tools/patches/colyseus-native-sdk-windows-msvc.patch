@@ -1,0 +1,49 @@
+diff --git a/build.zig b/build.zig
+--- a/build.zig
++++ b/build.zig
+@@ -183,10 +183,8 @@
+                 "third_party/wslay/lib/wslay_queue.c",
+             },
+-            .flags = &.{
+-                "-Wall",
+-                "-Wextra",
+-                c_std,
+-                "-DHAVE_CONFIG_H",
+-            },
++            .flags = if (is_windows)
++                &.{ "-Wall", "-Wextra", c_std, "-DHAVE_CONFIG_H", "-Dssize_t=intptr_t" }
++            else
++                &.{ "-Wall", "-Wextra", c_std, "-DHAVE_CONFIG_H" },
+         });
+     }
+@@ -556,5 +559,8 @@
+     // C flags
+     const base_flags = [_][]const u8{ "-Wall", "-Wextra", "-pedantic", c_std };
++    const windows_base_flags = base_flags ++ [_][]const u8{"-Dssize_t=intptr_t"};
+     const base_flags_hidden_cjson =
+         base_flags ++ [_][]const u8{cjson_hide_symbols_flag};
++    const windows_base_flags_hidden_cjson =
++        windows_base_flags ++ [_][]const u8{cjson_hide_symbols_flag};
+     const web_flags = [_][]const u8{ "-Wall", "-Wextra", "-pedantic", "-Wno-newline-eof", c_std, "-DPLATFORM_WEB" };
+@@ -564,7 +565,11 @@
+         .files = &common_sources,
+         .flags = if (is_emscripten)
+             &web_flags
++        else if (hide_cjson_exports and is_windows)
++            &windows_base_flags_hidden_cjson
+         else if (hide_cjson_exports)
+             &base_flags_hidden_cjson
++        else if (is_windows)
++            &windows_base_flags
+         else
+             &base_flags,
+@@ -588,5 +593,8 @@
+         colyseus.addCSourceFiles(.{
+             .files = &native_network_sources,
+-            .flags = &base_flags,
++            .flags = if (is_windows)
++                &windows_base_flags
++            else
++                &base_flags,
+         });
+     }

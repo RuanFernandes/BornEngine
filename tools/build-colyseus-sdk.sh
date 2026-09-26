@@ -116,6 +116,31 @@ fi
 
 git -C "$SDK_SOURCE" submodule update --init --recursive
 
+WINDOWS_PATCH="$REPO_ROOT/tools/patches/colyseus-native-sdk-windows-msvc.patch"
+if [[ ! -f "$WINDOWS_PATCH" ]]; then
+  printf 'Required SDK compatibility patch is missing: %s\n' "$WINDOWS_PATCH" >&2
+  exit 1
+fi
+PATCH_APPLIED_BY_SCRIPT=0
+if git -C "$SDK_SOURCE" apply --check "$WINDOWS_PATCH"; then
+  git -C "$SDK_SOURCE" apply "$WINDOWS_PATCH"
+  PATCH_APPLIED_BY_SCRIPT=1
+elif ! git -C "$SDK_SOURCE" apply --reverse --check "$WINDOWS_PATCH"; then
+  printf 'Pinned SDK source does not match the compatibility patch: %s\n' "$WINDOWS_PATCH" >&2
+  exit 1
+fi
+
+BUILD_TMP=
+cleanup() {
+  if [[ -n "$BUILD_TMP" && -d "$BUILD_TMP" ]]; then
+    rm -rf "$BUILD_TMP"
+  fi
+  if [[ "$PATCH_APPLIED_BY_SCRIPT" == "1" ]]; then
+    git -C "$SDK_SOURCE" apply --reverse "$WINDOWS_PATCH"
+  fi
+}
+trap cleanup EXIT
+
 GLOBAL_CACHE=${COLYSEUS_ZIG_GLOBAL_CACHE_DIR:-"${TMPDIR:-/tmp}/colyseus-zig-global-$PINNED_COMMIT"}
 rm -rf "$SDK_SOURCE/zig-out"
 BUILD_ARGS=(build "-Dtarget=$ZIG_TARGET" -Doptimize=ReleaseFast -Dexamples=false -Dskip-integration=true --global-cache-dir "$GLOBAL_CACHE")
@@ -148,7 +173,6 @@ if [[ ! -f "$CORE_ARCHIVE" || ${#SDK_ARCHIVES[@]} -lt 2 ]]; then
 fi
 
 BUILD_TMP=$(mktemp -d "${TMPDIR:-/tmp}/colyseus-sdk-build.XXXXXX")
-trap 'rm -rf "$BUILD_TMP"' EXIT
 mkdir -p "$BUILD_TMP/objects"
 OBJECTS=()
 for archive in "${SDK_ARCHIVES[@]}"; do
@@ -158,6 +182,7 @@ for archive in "${SDK_ARCHIVES[@]}"; do
   (cd "$extraction" && "$ZIG_BIN" ar x "$archive")
   for member in "$extraction"/*; do
     [[ -f "$member" ]] || continue
+    chmod u+rw "$member"
     object="$BUILD_TMP/objects/${archive_tag}$(basename "$member")"
     cp "$member" "$object"
     OBJECTS+=("$object")
@@ -207,6 +232,7 @@ MANIFEST="$ARTIFACT_ROOT/$ARTIFACT/BUILD-MANIFEST.txt"
   printf 'Rust target: %s\n' "$RUST_TARGET"
   printf 'Zig target: %s\n' "$ZIG_TARGET"
   printf 'Bundled archive: %s\n' "$BUNDLED_NAME"
+  printf 'Build patches: %s\n' "$(basename "$WINDOWS_PATCH")"
   printf 'Input archives:\n'
   for archive in "${SDK_ARCHIVES[@]}"; do printf '  %s\n' "$(basename "$archive")"; done
 } > "$MANIFEST"
