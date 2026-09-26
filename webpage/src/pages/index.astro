@@ -6,13 +6,22 @@ import SiteLayout from '../layouts/SiteLayout.astro';
 import { cliRepoUrl, repoUrl, withBase } from '../data/site';
 import '../styles/homepage.css';
 
-const heroCode = `import { initWindow, runGame, clearBackground, drawText, Colors } from '@bornengine/engine';
+const heroCode = `import { Colors, Game, Texture } from '@bornengine/engine';
 
-initWindow(800, 450, 'My Game');
+const game = new Game({
+  window: { title: 'My Game', width: 800, height: 450 },
+});
+const player = new Texture(game, 'assets/player.png');
 
-runGame(() => {
-  clearBackground(Colors.SNOW);
-  drawText('Hello, BornEngine!', 190, 200, 20, Colors.DARKGRAY);
+game.run({
+  update(deltaTime) {
+    // Update gameplay state in seconds.
+  },
+  render() {
+    game.renderer.clear(Colors.SNOW);
+    if (player.isLoaded) player.draw({ x: 190, y: 200 });
+  },
+  onStop: () => game.dispose(),
 });`;
 
 const homeJsonLd = {
@@ -28,7 +37,7 @@ const homeJsonLd = {
 
 <SiteLayout
   title="Native games from TypeScript"
-  description="BornEngine combines a direct TypeScript engine API with an optional class-based gameplay runtime for native platforms and Web/WASM."
+  description="BornEngine is a class-first TypeScript game engine with native and Web/WASM support."
   canonicalPath="/"
   theme="ink"
   jsonLd={homeJsonLd}
@@ -39,7 +48,7 @@ const homeJsonLd = {
         <div class="home-hero__copy" data-reveal>
           <p class="eyebrow eyebrow--acid">BornEngine / engine surface</p>
           <h1>Native games from <em>TypeScript.</em></h1>
-          <p class="home-hero__lede">A TypeScript game engine with a direct function-and-handle API and an optional class-based runtime for gameplay objects.</p>
+          <p class="home-hero__lede">A class-first TypeScript game engine built around owned services, explicit resource lifetimes, and native performance—with Web/WASM support.</p>
           <div class="home-hero__actions">
             <a class="button button--acid" href={withBase('/docs/getting-started/')}>Start building <span aria-hidden="true">↗</span></a>
             <a class="text-link text-link--light" href={withBase('/docs/cli/')}>Read the CLI reference <span aria-hidden="true">→</span></a>
@@ -58,7 +67,7 @@ const homeJsonLd = {
         <div class="section-index">01 / The short path</div>
         <div>
           <h2 id="story-heading">From an empty folder to a running game, without a framework maze.</h2>
-          <p>The native-facing API uses plain data, free functions, and explicit resource handles. For gameplay, an optional GameObject runtime adds subclassable entities, components, transforms, and scenes. Perry compiles the TypeScript side, and the engine owns the native renderer.</p>
+          <p>Create a <code>Game</code> to own the window and engine services. Its frame loop calls your update and render methods, while resource classes keep their native state tied to that game. Perry compiles the TypeScript side, and the engine owns the native renderer.</p>
           <a class="text-link text-link--acid" href={withBase('/docs/concepts/api-shape/')}>How the API fits your game <span aria-hidden="true">→</span></a>
         </div>
         <div class="home-story__terminal">
@@ -76,8 +85,8 @@ const homeJsonLd = {
         <div class="home-api__grid">
           <div>
             <p class="eyebrow eyebrow--acid">One code shape, many targets</p>
-            <h2 id="api-heading">Learn the loop. Keep the rest close to the metal.</h2>
-            <p>Use direct engine functions for explicit resource control, or build gameplay entities with GameObject subclasses and components. Both styles work with the same engine modules across native and browser targets.</p>
+            <h2 id="api-heading">One Game instance keeps the API together.</h2>
+            <p>Access rendering through <code>game.renderer</code> and create owned resources such as <code>new Texture(game, path)</code>. Add <code>GameObject</code> subclasses and components when your gameplay needs a scene and entity model.</p>
             <a class="text-link text-link--acid" href={withBase('/docs/api/')}>Browse the API <span aria-hidden="true">→</span></a>
             {' '}
             <a class="text-link text-link--acid" href={withBase('/docs/api/game/')}>Build with GameObjects <span aria-hidden="true">→</span></a>
