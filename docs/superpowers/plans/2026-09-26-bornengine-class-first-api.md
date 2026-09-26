@@ -98,23 +98,23 @@ Use a technical message such as `feat: integrate scenes audio and input services
 - Produces `Window` operations for close, resize, title, fullscreen, platform-native attachment, and open/size queries. The concrete `Game` facade is assembled in Task 8 after its services exist.
 - Consumes existing `bloom_*` operations through `src/core/internal.ts`; does not add new native FFI symbols.
 
-- [ ] **Step 1: Move core native operations behind `src/core/internal.ts`**
+- [x] **Step 1: Move core native operations behind `src/core/internal.ts`**
 
 Keep internal names/types private to package exports. Update internal engine imports from the public core barrel to this adapter before replacing that barrel.
 
-- [ ] **Step 2: Implement the internal one-runtime context contract**
+- [x] **Step 2: Implement the internal one-runtime context contract**
 
 Track one active native context, an inspectable ready/error state, a stable identity, and owned resources. Reject a second active runtime through a false readiness result and error text; do not throw.
 
-- [ ] **Step 3: Implement `Window` as a context-owned facade**
+- [x] **Step 3: Implement `Window` as a context-owned facade**
 
 Delegate operations to the core adapter. Return `false` on failed surface attachment, and keep externally driven rendering bound to the same `Game` services.
 
-- [ ] **Step 4: Review startup failure, context identity, and repeated window close**
+- [x] **Step 4: Review startup failure, context identity, and repeated window close**
 
 Confirm each case by tracing the state transitions in `GameContext` and `Window`; do not add or run tests.
 
-- [ ] **Step 5: Commit the context and window facade**
+- [x] **Step 5: Commit the context and window facade**
 
 Use `feat: add game context and window facade`.
 

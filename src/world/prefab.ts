@@ -11,7 +11,7 @@
 // are detected at expansion time (A -> B -> A) and reported as errors; the
 // offending child is treated as empty so the rest of the world still loads.
 
-import { readFile } from '../core/index';
+import { readFile } from '../core/internal';
 import {
   mat4Identity,
   mat4Multiply,

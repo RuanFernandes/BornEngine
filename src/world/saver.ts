@@ -21,7 +21,7 @@
 // fail three times in a row. The `.tmp`/`.bak` siblings are cheap litter;
 // gitignore them in game repos.
 
-import { readFile, writeFile, fileExists } from '../core/index';
+import { readFile, writeFile, fileExists } from '../core/internal';
 import { WORLD_SCHEMA_VERSION, WorldData, PrefabData } from './types';
 import { validateWorld, validatePrefab, formatValidationErrors } from './validate';
 import { serializeWorld, serializePrefab } from './serialize';

@@ -6,7 +6,7 @@ import {
   getScreenWidth, getScreenHeight,
   isKeyDown,
   getGamepadAxis,
-} from '../core/index';
+} from '../core/internal';
 import { drawCircle, drawCircleLines } from '../shapes/index';
 import { drawText, measureText } from '../text/index';
 import { Key } from '../core/keys';

@@ -6,7 +6,7 @@ import {
   isKeyDown,
   isMouseButtonDown,
   isTouchActive,
-} from '../core/index';
+} from '../core/internal';
 import type { Rect, Vec2 } from '../core/types';
 import {
   advanceActionState,

@@ -15,7 +15,7 @@
 // Splitting parse from instantiate lets the editor hold a `WorldData` in memory
 // and re-sync scene nodes on edits, without re-reading the file every frame.
 
-import { readFile } from '../core/index';
+import { readFile } from '../core/internal';
 import {
   createSceneNode,
   attachModelToNode,
