@@ -50,3 +50,20 @@ test("Windows SDK patch uses native locks and avoids Winsock 1", () => {
   assert.match(patch, /ReleaseSRWLockExclusive/);
   assert.match(patch, /-Wno-newline-eof/);
 });
+
+test("native SDK runner links the engine crate for every artifact target", () => {
+  const workflowFile = resolve(repoRoot, ".github/workflows/build-colyseus-sdk.yml");
+  const workflow = readFileSync(workflowFile, "utf8");
+
+  for (const manifest of [
+    "native/linux/Cargo.toml",
+    "native/macos/Cargo.toml",
+    "native/windows/Cargo.toml",
+    "native/ios/Cargo.toml",
+  ]) {
+    assert.ok(workflow.includes(`cargo_manifest: ${manifest}`), `missing Cargo link check for ${manifest}`);
+  }
+  assert.match(workflow, /Install Rust toolchain/);
+  assert.match(workflow, /Link engine static library against Colyseus SDK/);
+  assert.match(workflow, /cargo build --release --manifest-path.*--no-default-features --target/);
+});
