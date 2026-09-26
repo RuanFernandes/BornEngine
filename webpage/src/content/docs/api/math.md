@@ -29,7 +29,11 @@ import { Matrix4, Quat, Vec3 } from '@bornengine/engine';
 const rotation = Quat.fromEuler(0, 45, 0);
 const modelMatrix = rotation.toMatrix().translated(new Vec3(2, 0, -4));
 const view = Matrix4.lookAt(new Vec3(0, 2, 5), new Vec3(0, 0, 0), new Vec3(0, 1, 0));
+const combined = view.multiply(modelMatrix);
+const anotherCombination = Matrix4.multiplyMatrices(view, modelMatrix);
 ```
+
+Use `matrix.multiply(other)` when composing from an existing matrix, or `Matrix4.multiplyMatrices(a, b)` when calling the operation without a receiver.
 
 ## Intersections
 

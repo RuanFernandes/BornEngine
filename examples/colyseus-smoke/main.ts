@@ -1,6 +1,13 @@
-import { ColyseusClient, Game } from "@bornengine/engine";
+import { ColyseusClient, Game, Matrix4 } from "@bornengine/engine";
 
 async function main(): Promise<void> {
+  const identity = Matrix4.identity();
+  const staticProduct = Matrix4.multiplyMatrices(identity, identity);
+  const instanceProduct = identity.multiply(identity);
+  if (staticProduct.elements[0] !== 1 || instanceProduct.elements[0] !== 1) {
+    throw new Error("Matrix4 multiplication smoke test failed");
+  }
+
   const game = new Game({
     window: { width: 320, height: 180, title: "BornEngine Colyseus Smoke Test" },
   });

@@ -54,6 +54,22 @@ declare function bloom_scene_update_geometry(
   indices: number,
   indexCount: number,
 ): void;
+declare function bloom_scene_set_lod(
+  handle: number,
+  lodIndex: number,
+  vertices: number,
+  vertexCount: number,
+  indices: number,
+  indexCount: number,
+  maxCoverage: number,
+): void;
+declare function bloom_scene_attach_model_lod(
+  node: number,
+  model: number,
+  meshIndex: number,
+  lodIndex: number,
+  maxCoverage: number,
+): void;
 declare function bloom_scene_set_material_color(handle: number, r: number, g: number, b: number, a: number): void;
 declare function bloom_scene_set_material_pbr(handle: number, roughness: number, metalness: number): void;
 declare function bloom_scene_set_material_texture(handle: number, textureIdx: number): void;

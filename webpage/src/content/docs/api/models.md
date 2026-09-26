@@ -50,4 +50,4 @@ if (animation.isLoaded) {
 }
 ```
 
-Dispose model and animation resources when finished. The [skeletal animation guide](../guides/skeletal-animation/) describes asset export and update order.
+Dispose model and animation resources when finished. The [skeletal animation guide](../../guides/skeletal-animation/) describes asset export and update order.

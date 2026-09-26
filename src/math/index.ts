@@ -56,13 +56,21 @@ export class Quat implements QuatLike {
 
 export class Matrix4 {
   readonly elements: Mat4;
-  constructor(elements?: Mat4) { this.elements = elements === undefined ? nativeMath.mat4Identity() : elements.slice(); }
+  constructor(elements?: Mat4) {
+    if (!Array.isArray(elements) || elements.length === 0) {
+      this.elements = nativeMath.mat4Identity();
+    } else if (elements.length !== 16) {
+      throw new Error('Matrix4 expects exactly 16 elements');
+    } else {
+      this.elements = elements.slice();
+    }
+  }
   static identity(): Matrix4 { return new Matrix4(); }
-  static multiply(a: Matrix4 | Mat4, b: Matrix4 | Mat4): Matrix4 { return new Matrix4(nativeMath.mat4Multiply(unwrapMatrix(a), unwrapMatrix(b))); }
+  static multiplyMatrices(a: Matrix4 | Mat4, b: Matrix4 | Mat4): Matrix4 { return new Matrix4(nativeMath.mat4Multiply(unwrapMatrix(a), unwrapMatrix(b))); }
   static perspective(fovY: number, aspect: number, near: number, far: number): Matrix4 { return new Matrix4(nativeMath.mat4Perspective(fovY, aspect, near, far)); }
   static orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 { return new Matrix4(nativeMath.mat4Ortho(left, right, bottom, top, near, far)); }
   static lookAt(eye: Vec3Like, center: Vec3Like, up: Vec3Like): Matrix4 { return new Matrix4(nativeMath.mat4LookAt(eye, center, up)); }
-  multiply(value: Matrix4 | Mat4): Matrix4 { return Matrix4.multiply(this, value); }
+  multiply(value: Matrix4 | Mat4): Matrix4 { return Matrix4.multiplyMatrices(this, value); }
   translated(offset: Vec3Like): Matrix4 { return new Matrix4(nativeMath.mat4Translate(this.elements, offset)); }
   scaled(factor: Vec3Like): Matrix4 { return new Matrix4(nativeMath.mat4Scale(this.elements, factor)); }
   rotatedX(angle: number): Matrix4 { return new Matrix4(nativeMath.mat4RotateX(this.elements, angle)); }

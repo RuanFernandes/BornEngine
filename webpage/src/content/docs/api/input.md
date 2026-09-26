@@ -28,7 +28,7 @@ Bindings combine with OR. Invalid names, indices, rectangles, scales, or deadzon
 
 ## Snapshots and edges
 
-`isDown`, `wasPressed`, `wasReleased`, and axis reads use the map's latest snapshot. Game advances each map before update, so edge values remain stable throughout that callback.
+`isDown`, `wasPressed`, `wasReleased`, and axis reads use the map's latest snapshot. Game advances each map once per frame before update, so edge values remain stable throughout that callback.
 
 ```ts
 if (controls.wasPressed('fire')) fireWeapon();

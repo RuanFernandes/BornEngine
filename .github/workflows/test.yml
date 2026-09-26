@@ -246,6 +246,24 @@ jobs:
         working-directory: native/linux
         run: cargo build --release
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Perry
+        run: npm install --global @perryts/perry@0.5.1022
+
+      - name: Install native TypeScript smoke dependencies
+        run: npm install --prefix examples/colyseus-smoke --no-package-lock
+
+      - name: Compile class-first TypeScript API to native
+        working-directory: examples/colyseus-smoke
+        run: npm run build
+
+      - name: Run native Matrix4 smoke test
+        working-directory: examples/colyseus-smoke
+        run: npm run test:math
+
   build-windows:
     runs-on: windows-latest
     steps:
