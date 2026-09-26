@@ -40,6 +40,13 @@ test('every declared Colyseus native target has a build runner', () => {
   assert.match(androidManifest, /^image\s*=\s*\{.*\}$/m, 'Android FFI macro expansion must resolve image as a direct dependency');
   assert.match(sdkBuilder, /ZIG_TARGET=aarch64-linux-android\.21/, 'Android ARM64 SDK must target API 21');
   assert.match(sdkBuilder, /ZIG_TARGET=x86_64-linux-android\.21/, 'Android x86_64 SDK must target API 21');
+  assert.ok(sdkBuilder.includes('android-preadv-compat.c'), 'Android SDK bundle must provide API 21 vectored I/O compatibility');
+  assert.ok(sdkBuilder.includes('ANDROID_NDK_SYSROOT'), 'Android compatibility shim must compile against the NDK sysroot');
+  const androidArmTarget = sdkWorkflow.match(/- rust_target: aarch64-linux-android([\s\S]*?)(?=\n          - rust_target:)/)?.[1] ?? '';
+  assert.ok(androidArmTarget.includes('runner: macos-14'), 'ARM64 Android emulator smoke must run on an ARM64 host');
+  const androidX86Target = sdkWorkflow.match(/- rust_target: x86_64-linux-android([\s\S]*?)(?=\n          - rust_target:)/)?.[1] ?? '';
+  assert.ok(androidX86Target.includes('runner: ubuntu-22.04'), 'x86_64 Android emulator smoke must run on an x86_64 host');
+  assert.ok(sdkWorkflow.includes('Darwin-arm64'), 'Android NDK setup must support the Apple Silicon runner');
 });
 
 test('runtime smoke jobs cover every runtime-capable BornEngine platform', () => {

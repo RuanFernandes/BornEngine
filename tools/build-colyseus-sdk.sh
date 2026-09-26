@@ -110,9 +110,26 @@ if [[ -n "$APPLE_SDK" ]]; then
 fi
 
 ANDROID_NDK=${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}
+ANDROID_NDK_SYSROOT=
 if [[ "$TARGET_OS" == "android" && -z "$ANDROID_NDK" ]]; then
   printf 'Building %s requires ANDROID_NDK_HOME or ANDROID_NDK_ROOT\n' "$RUST_TARGET" >&2
   exit 1
+fi
+if [[ "$TARGET_OS" == "android" ]]; then
+  case "$(uname -s)-$(uname -m)" in
+    Linux-x86_64) ANDROID_NDK_HOST=linux-x86_64 ;;
+    Darwin-x86_64|Darwin-arm64) ANDROID_NDK_HOST=darwin-x86_64 ;;
+    MINGW64_NT*-x86_64|MSYS_NT*-x86_64|CYGWIN_NT*-x86_64) ANDROID_NDK_HOST=windows-x86_64 ;;
+    *)
+      printf 'Unsupported host for Android NDK SDK build: %s-%s\n' "$(uname -s)" "$(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+  ANDROID_NDK_SYSROOT="$ANDROID_NDK/toolchains/llvm/prebuilt/$ANDROID_NDK_HOST/sysroot"
+  if [[ ! -d "$ANDROID_NDK_SYSROOT" ]]; then
+    printf 'Android NDK sysroot not found: %s\n' "$ANDROID_NDK_SYSROOT" >&2
+    exit 1
+  fi
 fi
 
 git -C "$SDK_SOURCE" submodule update --init --recursive
@@ -203,6 +220,14 @@ if [[ ${#OBJECTS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+if [[ "$TARGET_OS" == "android" ]]; then
+  ANDROID_PREADV_SHIM_OBJECT="$BUILD_TMP/objects/android-preadv-compat.o"
+  "$ZIG_BIN" cc -target "$ZIG_TARGET" --sysroot "$ANDROID_NDK_SYSROOT" -fPIC -c \
+    "$REPO_ROOT/native/third_party/colyseus/android-preadv-compat.c" \
+    -o "$ANDROID_PREADV_SHIM_OBJECT"
+  OBJECTS+=("$ANDROID_PREADV_SHIM_OBJECT")
+fi
+
 mkdir -p "$ARTIFACT_ROOT/$ARTIFACT"
 OUTPUT_ARCHIVE="$ARTIFACT_ROOT/$ARTIFACT/$BUNDLED_NAME"
 rm -f "$OUTPUT_ARCHIVE"
@@ -243,6 +268,9 @@ MANIFEST="$ARTIFACT_ROOT/$ARTIFACT/BUILD-MANIFEST.txt"
   printf 'Zig CPU: %s\n' "${ZIG_CPU:-baseline}"
   printf 'Bundled archive: %s\n' "$BUNDLED_NAME"
   printf 'Build patches: %s\n' "$(basename "$WINDOWS_PATCH")"
+  if [[ "$TARGET_OS" == "android" ]]; then
+    printf 'Android compatibility: android-preadv-compat.c (API 21)\n'
+  fi
   printf 'Input archives:\n'
   for archive in "${SDK_ARCHIVES[@]}"; do printf '  %s\n' "$(basename "$archive")"; done
 } > "$MANIFEST"

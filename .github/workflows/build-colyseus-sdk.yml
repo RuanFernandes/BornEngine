@@ -6,6 +6,7 @@ on:
       - '.github/workflows/build-colyseus-sdk.yml'
       - 'native/third_party/colyseus-sdk-src'
       - 'native/third_party/colyseus/VERSION.md'
+      - 'native/third_party/colyseus/android-preadv-compat.c'
       - 'native/third_party/colyseus/lib/**'
       - 'native/shared/Cargo.toml'
       - 'native/shared/Cargo.lock'
@@ -57,7 +58,7 @@ jobs:
         with:
           node-version: 22
       - name: Validate Colyseus target and runtime matrix
-        run: node --test tests/colyseus/platform-matrix.test.mjs
+        run: node --test tests/colyseus/platform-matrix.test.mjs tests/colyseus/android-preadv-compat.test.mjs
 
   build:
     needs: matrix-validation
@@ -116,7 +117,7 @@ jobs:
           - rust_target: aarch64-linux-android
             artifact: android-aarch64
             cargo_manifest: native/android/Cargo.toml
-            runner: ubuntu-22.04
+            runner: macos-14
             target_os: android
             toolchain: stable
           - rust_target: x86_64-linux-android
@@ -192,7 +193,12 @@ jobs:
           fi
           NDK="$SDK_ROOT/ndk/27.2.12479018"
           echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
-          TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64) NDK_HOST=linux-x86_64 ;;
+            Darwin-x86_64|Darwin-arm64) NDK_HOST=darwin-x86_64 ;;
+            *) echo "Unsupported Android NDK host: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+          esac
+          TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/$NDK_HOST/bin"
           echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android21-clang" >> "$GITHUB_ENV"
           echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$TOOLCHAIN/x86_64-linux-android21-clang" >> "$GITHUB_ENV"
           echo "AR_aarch64_linux_android=$TOOLCHAIN/llvm-ar" >> "$GITHUB_ENV"
