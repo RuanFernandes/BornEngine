@@ -1,12 +1,4 @@
-import {
-  getGamepadAxis,
-  getMaxTouchPoints,
-  getTouchPosition,
-  isGamepadButtonDown,
-  isKeyDown,
-  isMouseButtonDown,
-  isTouchActive,
-} from '../core/internal';
+import type { InputSystem } from './input-system';
 import type { Rect, Vec2 } from '../core/types';
 import {
   advanceActionState,
@@ -198,6 +190,8 @@ export class InputActionMap {
   private actions: ActionEntry[] = [];
   private axes: AxisEntry[] = [];
 
+  constructor(private readonly input: InputSystem) {}
+
   /** Add one or more physical bindings to a named action. */
   bindAction(name: string, bindings: ActionButtonBinding | ActionButtonBinding[]): boolean {
     if (!validName(name)) return false;
@@ -303,29 +297,29 @@ export class InputActionMap {
       touches: [],
     };
     for (let index = 0; index < keys.length; index++) {
-      if (isKeyDown(keys[index])) snapshot.keys.push(keys[index]);
+      if (this.input.isKeyDown(keys[index])) snapshot.keys.push(keys[index]);
     }
     for (let index = 0; index < mouseButtons.length; index++) {
-      if (isMouseButtonDown(mouseButtons[index])) snapshot.mouseButtons.push(mouseButtons[index]);
+      if (this.input.isMouseButtonDown(mouseButtons[index])) snapshot.mouseButtons.push(mouseButtons[index]);
     }
     for (let index = 0; index < gamepadButtons.length; index++) {
-      if (isGamepadButtonDown(gamepadButtons[index])) snapshot.gamepadButtons.push(gamepadButtons[index]);
+      if (this.input.isGamepadButtonDown(gamepadButtons[index])) snapshot.gamepadButtons.push(gamepadButtons[index]);
     }
 
     for (let index = 0; index < gamepadAxisIndices.length; index++) {
-      snapshot.gamepadAxes.push(getGamepadAxis(gamepadAxisIndices[index]));
+      snapshot.gamepadAxes.push(this.input.getGamepadAxis(gamepadAxisIndices[index]));
     }
 
     if (hasTouchBindings) {
-      const reportedTouchCount = getMaxTouchPoints();
+      const reportedTouchCount = this.input.getMaxTouchPoints();
       const touchCount = finiteNumber(reportedTouchCount) && reportedTouchCount >= 0
         ? Math.floor(reportedTouchCount)
         : 0;
       for (let slot = 0; slot < touchCount; slot++) {
-        if (!isTouchActive(slot)) {
+        if (!this.input.isTouchActive(slot)) {
           snapshot.touches.push(null);
         } else {
-          const position = getTouchPosition(slot);
+          const position = this.input.getTouchPosition(slot);
           snapshot.touches.push({ active: true, x: position.x, y: position.y });
         }
       }

@@ -130,23 +130,23 @@ Use `feat: add game context and window facade`.
 - Produces `InputSystem` polling, character/text, gamepad, touch, injected-input, clipboard, dialogs, platform capability methods, and `createActionMap(options?)`.
 - Consumes `GameContext` ownership checks and private internal operation modules from Task 2. Public service constructors are narrowed to `Game` in Task 8.
 
-- [ ] **Step 1: Extract frame and renderer operations from the public core module**
+- [x] **Step 1: Extract frame and renderer operations from the public core module**
 
 Keep `beginDrawing/endDrawing` under `Game.run`; expose camera/render-mode and draw operations only through `Renderer` methods.
 
-- [ ] **Step 2: Implement `Renderer` methods with `Game` ownership checks**
+- [x] **Step 2: Implement `Renderer` methods with `Game` ownership checks**
 
 For resource arguments, reject disposed or foreign-game instances without issuing native calls. Keep the `renderer` as the source of render-pass state.
 
-- [ ] **Step 3: Move input and host-injection methods to `InputSystem`**
+- [x] **Step 3: Move input and host-injection methods to `InputSystem`**
 
 Bind `InputActionMap` to the same system; preserve mapping, edge detection, dead zones, and injected-input semantics from the integrated branch.
 
-- [ ] **Step 4: Replace public core/input exports with class/type/enum barrels**
+- [x] **Step 4: Replace public core/input exports with class/type/enum barrels**
 
 Retain `Key`, `MouseButton`, `Platform`, `Colors`, and public option/result types as values/types. Do not re-export operation functions.
 
-- [ ] **Step 5: Commit renderer and input services**
+- [x] **Step 5: Commit renderer and input services**
 
 Use `feat: add renderer and input services`.
 

@@ -34,16 +34,16 @@ export {
   setProfilerEnabled, getProfilerFrameCpuUs, getProfilerFrameGpuUs,
   printProfilerSummary, getProfilerOverlay, getProfilerFrameHistory,
   splatImpulse, setMaterialParams,
-} from './core/index';
+} from './core/internal';
 
 export type {
   Rect, Camera2D, Camera3D,
   Texture, Font, Sound, Music, Quat, Ray, BoundingBox, Model, Mat4,
   RayHit, FrustumPlanes,
-} from './core/index';
+} from './core/types';
 
 // Vec2, Vec3, Vec4 as types come from core, as values (constructors) from math
-export type { Vec2, Vec3, Vec4, Color } from './core/index';
+export type { Vec2, Vec3, Vec4, Color } from './core/types';
 
 export {
   drawLine, drawRect, drawRectRec, drawRectLines,
