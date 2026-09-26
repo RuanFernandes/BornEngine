@@ -83,6 +83,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Physics gameplay', href: '/docs/guides/physics-gameplay/' },
       { title: 'Assets and worlds', href: '/docs/guides/assets-and-worlds/' },
       { title: 'Audio and UI', href: '/docs/guides/audio-and-ui/' },
+      { title: 'Multiplayer with Colyseus', href: '/docs/guides/multiplayer/' },
     ],
   },
   {

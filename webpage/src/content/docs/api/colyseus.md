@@ -9,6 +9,8 @@ BornEngine's `@bornengine/engine/colyseus` module gives TypeScript games one Col
 
 The BornEngine API is a focused cross-platform façade, not a method-for-method implementation of every Colyseus SDK. It covers matchmaking, room state snapshots, string/numeric and binary messages, request/reply, lifecycle events, polling, explicit reconnection, and cleanup.
 
+For a server-to-client walkthrough with a runnable arena example, see the [multiplayer game guide](../../guides/multiplayer/).
+
 ## Verified platform matrix
 
 The table distinguishes SDK archive creation and engine linking from running the protocol smoke test against the repository's Colyseus server fixture. `Pending` means the available GitHub-hosted runner cannot execute that runtime target; it is not a support claim.
