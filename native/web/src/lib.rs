@@ -916,8 +916,18 @@ pub fn bloom_play_sound(handle: f64) {
 }
 
 #[wasm_bindgen]
+pub fn bloom_play_sound_ex(handle: f64) -> f64 {
+    engine().audio.play_sound_ex(handle)
+}
+
+#[wasm_bindgen]
 pub fn bloom_stop_sound(handle: f64) {
     engine().audio.stop_sound(handle);
+}
+
+#[wasm_bindgen]
+pub fn bloom_unload_sound(handle: f64) {
+    engine().audio.unload_sound(handle);
 }
 
 #[wasm_bindgen]
@@ -1007,6 +1017,11 @@ pub fn bloom_play_music(handle: f64) {
 #[wasm_bindgen]
 pub fn bloom_stop_music(handle: f64) {
     engine().audio.stop_music(handle);
+}
+
+#[wasm_bindgen]
+pub fn bloom_unload_music(handle: f64) {
+    engine().audio.unload_music(handle);
 }
 
 #[wasm_bindgen]

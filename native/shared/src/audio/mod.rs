@@ -178,6 +178,12 @@ impl AudioMixer {
         self.send_play(handle, None, false, 1.0, 1.0e9, 1.0);
     }
 
+    /// Play a non-spatial one-shot and return its voice id for live controls.
+    /// Returns 0.0 when `handle` does not identify a loaded sound.
+    pub fn play_sound_ex(&mut self, handle: f64) -> f64 {
+        self.send_play(handle, None, false, 1.0, 1.0e9, 1.0)
+    }
+
     pub fn play_sound_3d(&mut self, handle: f64, x: f32, y: f32, z: f32) {
         self.send_play(handle, Some([x, y, z]), false, 1.0, 1.0e9, 1.0);
     }
@@ -308,6 +314,7 @@ impl AudioMixer {
         // Voices already playing hold their own Arc and finish gracefully.
         self.sounds.free(handle);
         self.sound_volumes.retain(|e| e.0 != handle);
+        self.routes.remove(&handle.to_bits());
     }
 
     // ------------------------------------------------------------ music
@@ -397,6 +404,14 @@ impl AudioMixer {
         self.send(Cmd::StopMusic { music_id: handle.to_bits() });
     }
 
+    pub fn unload_music(&mut self, handle: f64) {
+        if let Some(m) = self.music.get(handle) {
+            m.shared.playing.store(false, Ordering::Relaxed);
+        }
+        self.send(Cmd::StopMusic { music_id: handle.to_bits() });
+        self.music.free(handle);
+    }
+
     pub fn set_music_volume(&mut self, handle: f64, volume: f32) {
         if let Some(m) = self.music.get_mut(handle) {
             m.volume = volume;
@@ -462,6 +477,44 @@ mod tests {
             sample_rate: 44_100,
             channels: 1,
         }
+    }
+
+    #[test]
+    fn unload_music_stops_and_invalidates_the_handle() {
+        let mut audio = AudioMixer::new();
+        let old = audio.load_music(tone(64));
+        audio.play_music(old);
+        assert!(audio.is_music_playing(old));
+        audio.unload_music(old);
+        assert!(!audio.is_music_playing(old));
+        let new = audio.load_music(tone(64));
+        assert_ne!(old, new);
+        audio.play_music(old);
+        assert!(!audio.is_music_playing(old));
+    }
+
+    #[test]
+    fn non_spatial_voice_returns_a_controllable_voice_id() {
+        let mut audio = AudioMixer::new();
+        let sound = audio.load_sound(tone(4096));
+        let voice = audio.play_sound_ex(sound);
+        assert_ne!(voice, 0.0);
+        audio.set_voice_pitch(voice, 1.25);
+        audio.set_voice_volume(voice, 0.5);
+        let mut output = [0.0f32; 256];
+        audio.mix_output(&mut output);
+        assert!(output.iter().any(|sample| *sample != 0.0));
+    }
+
+    #[test]
+    fn unload_sound_clears_routing_and_volume_state() {
+        let mut audio = AudioMixer::new();
+        let sound = audio.load_sound(tone(64));
+        audio.set_sound_bus(sound, render::bus::UI);
+        audio.set_sound_volume(sound, 0.25);
+        audio.unload_sound(sound);
+        assert!(!audio.routes.contains_key(&sound.to_bits()));
+        assert!(!audio.sound_volumes.iter().any(|entry| entry.0 == sound));
     }
 
     #[test]

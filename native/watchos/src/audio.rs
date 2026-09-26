@@ -15,11 +15,13 @@ extern "C" {
     fn bloom_watchos_sound_load(path: *const c_char) -> u32;
     fn bloom_watchos_sound_play(handle: u32);
     fn bloom_watchos_sound_stop(handle: u32);
+    fn bloom_watchos_sound_unload(handle: u32);
     fn bloom_watchos_sound_volume(handle: u32, volume: f32);
     fn bloom_watchos_master_volume(volume: f32);
     fn bloom_watchos_music_load(path: *const c_char) -> u32;
     fn bloom_watchos_music_play(handle: u32);
     fn bloom_watchos_music_stop(handle: u32);
+    fn bloom_watchos_music_unload(handle: u32);
     fn bloom_watchos_music_volume(handle: u32, volume: f32);
     fn bloom_watchos_music_is_playing(handle: u32) -> u32;
 }
@@ -41,6 +43,7 @@ pub fn load_sound(path: &str) -> u32 {
 }
 pub fn play_sound(handle: u32) { unsafe { bloom_watchos_sound_play(handle); } }
 pub fn stop_sound(handle: u32) { unsafe { bloom_watchos_sound_stop(handle); } }
+pub fn unload_sound(handle: u32) { unsafe { bloom_watchos_sound_unload(handle); } }
 pub fn set_sound_volume(handle: u32, v: f32) { unsafe { bloom_watchos_sound_volume(handle, v); } }
 pub fn set_master_volume(v: f32) { unsafe { bloom_watchos_master_volume(v); } }
 
@@ -49,6 +52,7 @@ pub fn load_music(path: &str) -> u32 {
 }
 pub fn play_music(handle: u32) { unsafe { bloom_watchos_music_play(handle); } }
 pub fn stop_music(handle: u32) { unsafe { bloom_watchos_music_stop(handle); } }
+pub fn unload_music(handle: u32) { unsafe { bloom_watchos_music_unload(handle); } }
 pub fn set_music_volume(handle: u32, v: f32) { unsafe { bloom_watchos_music_volume(handle, v); } }
 pub fn is_music_playing(handle: u32) -> bool {
     unsafe { bloom_watchos_music_is_playing(handle) != 0 }

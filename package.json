@@ -19,6 +19,7 @@
     "./world": "./src/world/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
+    "./input": "./src/input/index.ts",
     "./ui": "./src/ui/index.ts",
     "./debug-ui": "./src/debug-ui/index.ts",
     "./colyseus": "./src/colyseus/index.ts"
@@ -560,7 +561,21 @@
           "returns": "void"
         },
         {
+          "name": "bloom_play_sound_ex",
+          "params": [
+            "f64"
+          ],
+          "returns": "f64"
+        },
+        {
           "name": "bloom_stop_sound",
+          "params": [
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_unload_sound",
           "params": [
             "f64"
           ],
@@ -2149,6 +2164,13 @@
         },
         {
           "name": "bloom_stop_music",
+          "params": [
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_unload_music",
           "params": [
             "f64"
           ],
