@@ -391,6 +391,7 @@ dependencies = [
  "minimp3",
  "notify",
  "raw-window-handle",
+ "serde_json",
  "web-sys",
  "wgpu",
 ]

@@ -124,6 +124,7 @@ cleaned_paths = [
     os.path.join(output_dir, "index.html"),
     os.path.join(output_dir, "bloom_glue.js"),
     os.path.join(output_dir, "jolt_bridge.js"),
+    os.path.join(output_dir, "colyseus_bridge.bundle.js"),
 ]
 source_paths = [game_file_input, game_file_target]
 for game_assets in (game_assets_input, game_assets_target):
@@ -204,7 +205,7 @@ mkdir -p "$OUTPUT_DIR"
 # Replace artifacts owned by this build so repeated builds never nest pkg or
 # assets directories, or leave stale files from the previous game/profile.
 rm -rf "$OUTPUT_DIR/pkg" "$OUTPUT_DIR/assets"
-rm -f "$OUTPUT_DIR/index.html" "$OUTPUT_DIR/bloom_glue.js" "$OUTPUT_DIR/jolt_bridge.js"
+rm -f "$OUTPUT_DIR/index.html" "$OUTPUT_DIR/bloom_glue.js" "$OUTPUT_DIR/jolt_bridge.js" "$OUTPUT_DIR/colyseus_bridge.bundle.js"
 
 # Copy Bloom WASM package
 cp -r "$WEB_CRATE/pkg" "$OUTPUT_DIR/pkg"
@@ -212,6 +213,16 @@ cp -r "$WEB_CRATE/pkg" "$OUTPUT_DIR/pkg"
 # Engine bootstrap + Jolt bridge are needed by both the game and engine-only pages.
 cp "$WEB_CRATE/bloom_glue.js" "$OUTPUT_DIR/bloom_glue.js"
 cp "$WEB_CRATE/jolt_bridge.js" "$OUTPUT_DIR/jolt_bridge.js"
+
+# Bundle the official TypeScript SDK behind the same bloom_colyseus_* FFI
+# consumed by native builds. The adapter itself stays dependency-free so its
+# event and payload contract can be unit-tested with an injected fake client.
+if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ]]; then
+  npm ci --prefix "$WEB_CRATE"
+fi
+"$WEB_CRATE/node_modules/.bin/esbuild" "$WEB_CRATE/colyseus_bridge.entry.js" \
+  --bundle --format=esm --platform=browser --target=es2022 \
+  --outfile="$OUTPUT_DIR/colyseus_bridge.bundle.js"
 
 if [ -n "$PERRY_HTML" ]; then
   # Game build: splice the Bloom bootstrap into Perry's HTML and gate the game's

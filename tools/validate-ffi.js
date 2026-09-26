@@ -144,6 +144,24 @@ for (const platform of PLATFORMS) {
     }
   }
 
+  if (platform === 'watchos') {
+    const watchosStubFile = path.join(dir, 'ffi_stubs.rs');
+    const watchosBridgeFile = path.join(dir, 'colyseus.rs');
+    const watchosStubs = fs.readFileSync(watchosStubFile, 'utf8');
+    const watchosBridge = fs.existsSync(watchosBridgeFile)
+      ? fs.readFileSync(watchosBridgeFile, 'utf8')
+      : '';
+    for (const name of manifest.keys()) {
+      if (!name.startsWith('bloom_colyseus_')) continue;
+      if (watchosStubs.includes(`fn ${name}(`)) {
+        fail(`watchos: ${name} remains a no-op stub`);
+      }
+      if (!watchosBridge.includes(`fn ${name}(`)) {
+        fail(`watchos: ${name} has no native Colyseus bridge implementation`);
+      }
+    }
+  }
+
   // exports not in manifest
   for (const name of effective.keys()) {
     if (!manifest.has(name) && !NOT_IN_MANIFEST_ALLOWLIST.has(name)
@@ -220,6 +238,25 @@ if (!NATIVE_ONLY) {
     // Scene-node setters (round-2) — same Perry-WASM linear-memory bridge
     // TODO as bloom_scene_set_lod above.
     'bloom_scene_set_trs',
+    // Colyseus currently links the official C SDK on supported native targets.
+    // Web uses wasm32-unknown-unknown, while the SDK's WASM archive is built
+    // for Emscripten; bloom_glue.js provides explicit unsupported stubs until
+    // a browser backend is added.
+    'bloom_colyseus_client_create',
+    'bloom_colyseus_client_join',
+    'bloom_colyseus_client_dispose',
+    'bloom_colyseus_poll',
+    'bloom_colyseus_next_event',
+    'bloom_colyseus_room_send',
+    'bloom_colyseus_room_send_bytes',
+    'bloom_colyseus_room_request',
+    'bloom_colyseus_room_cancel_request',
+    'bloom_colyseus_room_leave',
+    'bloom_colyseus_room_is_connected',
+    'bloom_colyseus_room_is_reconnecting',
+    'bloom_colyseus_room_id',
+    'bloom_colyseus_room_session_id',
+    'bloom_colyseus_room_reconnection_token',
     // Pointer-taking scratch buffers (round-2) — same cross-module WASM
     // linear-memory bridge TODO as the mesh scratch group above.
     // Water-ripple impulse (round-2 splat compute) — not yet wired on web.

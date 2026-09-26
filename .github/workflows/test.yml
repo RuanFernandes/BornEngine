@@ -305,6 +305,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Check web build output safety
         run: bash native/web/tests/build-output-safety.sh
 
@@ -315,6 +319,11 @@ jobs:
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install Web and Colyseus fixture dependencies
+        run: |
+          npm ci --prefix native/web
+          npm ci --prefix tests/colyseus/server
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -331,6 +340,14 @@ jobs:
         working-directory: native/shared
         run: cargo check --target wasm32-unknown-unknown --no-default-features --features web
 
-      - name: wasm-pack build (bloom-web)
-        working-directory: native/web
-        run: wasm-pack build --release --target web
+      - name: Build assembled Web package
+        run: bash native/web/build.sh --dev --output "$RUNNER_TEMP/bornengine-web"
+
+      - name: Test Web Colyseus bridge adapter
+        run: node --test native/web/tests/colyseus_bridge.test.mjs
+
+      - name: Run Web Colyseus runtime smoke
+        run: node tests/colyseus/run-server-smoke.mjs tests/colyseus/web-bridge-smoke.mjs
+
+      - name: Verify bundled Web Colyseus SDK
+        run: test -s "$RUNNER_TEMP/bornengine-web/colyseus_bridge.bundle.js"

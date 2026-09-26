@@ -12,6 +12,7 @@ on:
       - 'native/shared/build.rs'
       - 'native/shared/src/colyseus.rs'
       - 'native/shared/src/colyseus_targets.rs'
+      - 'native/shared/tests/**'
       - 'native/linux/Cargo.toml'
       - 'native/linux/Cargo.lock'
       - 'native/macos/Cargo.toml'
@@ -20,6 +21,26 @@ on:
       - 'native/windows/Cargo.lock'
       - 'native/ios/Cargo.toml'
       - 'native/ios/Cargo.lock'
+      - 'native/android/Cargo.toml'
+      - 'native/android/Cargo.lock'
+      - 'native/tvos/Cargo.toml'
+      - 'native/tvos/Cargo.lock'
+      - 'native/visionos/Cargo.toml'
+      - 'native/visionos/Cargo.lock'
+      - 'native/watchos/Cargo.toml'
+      - 'native/watchos/Cargo.lock'
+      - 'native/watchos/build.rs'
+      - 'native/watchos/src/**'
+      - 'native/watchos/gen_stubs.js'
+      - 'native/linux/src/lib.rs'
+      - 'native/web/colyseus_bridge.js'
+      - 'native/web/colyseus_bridge.entry.js'
+      - 'native/web/package.json'
+      - 'native/web/package-lock.json'
+      - 'native/web/build.sh'
+      - 'native/web/tests/**'
+      - 'tests/colyseus/**'
+      - 'package.json'
       - 'tools/build-colyseus-sdk.sh'
       - 'tools/patches/colyseus-native-sdk-windows-msvc.patch'
   workflow_dispatch:
@@ -37,40 +58,125 @@ jobs:
             artifact: linux-x86_64
             cargo_manifest: native/linux/Cargo.toml
             runner: ubuntu-22.04
+            target_os: linux
+            toolchain: stable
           - rust_target: aarch64-unknown-linux-gnu
             artifact: linux-aarch64
             cargo_manifest: native/linux/Cargo.toml
             runner: ubuntu-22.04-arm
+            target_os: linux
+            toolchain: stable
           - rust_target: x86_64-apple-darwin
             artifact: macos-x86_64
             cargo_manifest: native/macos/Cargo.toml
             runner: macos-14
+            target_os: macos
+            toolchain: stable
           - rust_target: aarch64-apple-darwin
             artifact: macos-aarch64
             cargo_manifest: native/macos/Cargo.toml
             runner: macos-14
+            target_os: macos
+            toolchain: stable
           - rust_target: x86_64-pc-windows-msvc
             artifact: windows-x86_64
             cargo_manifest: native/windows/Cargo.toml
             runner: windows-latest
+            target_os: windows
+            toolchain: stable
           - rust_target: aarch64-apple-ios
             artifact: ios-aarch64
             cargo_manifest: native/ios/Cargo.toml
             runner: macos-14
+            target_os: ios
+            toolchain: stable
           - rust_target: aarch64-apple-ios-sim
             artifact: ios-aarch64-sim
             cargo_manifest: native/ios/Cargo.toml
             runner: macos-14
+            target_os: ios
+            toolchain: stable
           - rust_target: x86_64-apple-ios
             artifact: ios-x86_64-sim
             cargo_manifest: native/ios/Cargo.toml
             runner: macos-14
+            target_os: ios
+            toolchain: stable
+          - rust_target: aarch64-linux-android
+            artifact: android-aarch64
+            cargo_manifest: native/android/Cargo.toml
+            runner: ubuntu-22.04
+            target_os: android
+            toolchain: stable
+          - rust_target: x86_64-linux-android
+            artifact: android-x86_64
+            cargo_manifest: native/android/Cargo.toml
+            runner: ubuntu-22.04
+            target_os: android
+            toolchain: stable
+          - rust_target: aarch64-apple-tvos
+            artifact: tvos-aarch64
+            cargo_manifest: native/tvos/Cargo.toml
+            runner: macos-14
+            target_os: tvos
+            toolchain: stable
+          - rust_target: aarch64-apple-tvos-sim
+            artifact: tvos-aarch64-sim
+            cargo_manifest: native/tvos/Cargo.toml
+            runner: macos-14
+            target_os: tvos
+            toolchain: stable
+          - rust_target: aarch64-apple-visionos
+            artifact: visionos-aarch64
+            cargo_manifest: native/visionos/Cargo.toml
+            runner: macos-14
+            target_os: visionos
+            toolchain: stable
+          - rust_target: aarch64-apple-visionos-sim
+            artifact: visionos-aarch64-sim
+            cargo_manifest: native/visionos/Cargo.toml
+            runner: macos-14
+            target_os: visionos
+            toolchain: stable
+          - rust_target: aarch64-apple-watchos
+            artifact: watchos-aarch64
+            cargo_manifest: native/watchos/Cargo.toml
+            runner: macos-14
+            target_os: watchos
+            toolchain: nightly
+          - rust_target: aarch64-apple-watchos-sim
+            artifact: watchos-aarch64-sim
+            cargo_manifest: native/watchos/Cargo.toml
+            runner: macos-14
+            target_os: watchos
+            toolchain: nightly
 
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Set up Android NDK
+        if: matrix.target_os == 'android'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'ndk;27.2.12479018'
+
+      - name: Configure Android native toolchain
+        if: matrix.target_os == 'android'
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [[ -z "$SDK_ROOT" ]]; then
+            echo "Android SDK root was not set by setup-android" >&2
+            exit 1
+          fi
+          NDK="$SDK_ROOT/ndk/27.2.12479018"
+          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+          TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android21-clang" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$TOOLCHAIN/x86_64-linux-android21-clang" >> "$GITHUB_ENV"
 
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
@@ -83,10 +189,18 @@ jobs:
           version: 0.15.2
           cache-key: ${{ matrix.artifact }}
 
-      - name: Install Rust toolchain
+      - name: Install stable Rust toolchain
+        if: matrix.toolchain == 'stable'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_target }}
+
+      - name: Install nightly Rust toolchain
+        if: matrix.toolchain == 'nightly'
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.rust_target }}
+          components: rust-src
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -95,6 +209,20 @@ jobs:
           sudo apt-get install -y \
             libx11-dev libxcb1-dev libxrandr-dev libxi-dev libxcursor-dev \
             libasound2-dev libpulse-dev pkg-config cmake build-essential
+
+      - name: Set up Node for native runtime smoke
+        if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Colyseus fixture dependencies
+        if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
+        run: npm ci --prefix tests/colyseus/server
+
+      - name: Install Web Colyseus SDK dependencies
+        if: matrix.rust_target == 'x86_64-unknown-linux-gnu'
+        run: npm ci --prefix native/web
 
       - name: Cache Cargo build
         uses: actions/cache@v4
@@ -106,7 +234,12 @@ jobs:
             native/macos/target
             native/windows/target
             native/ios/target
-          key: ${{ runner.os }}-${{ runner.arch }}-colyseus-${{ matrix.rust_target }}-${{ hashFiles('native/shared/Cargo.lock', 'native/linux/Cargo.lock', 'native/macos/Cargo.lock', 'native/windows/Cargo.lock', 'native/ios/Cargo.lock') }}
+            native/android/target
+            native/tvos/target
+            native/visionos/target
+            native/watchos/target
+            native/shared/target
+          key: ${{ runner.os }}-${{ runner.arch }}-colyseus-${{ matrix.rust_target }}-${{ hashFiles('native/shared/Cargo.lock', 'native/linux/Cargo.lock', 'native/macos/Cargo.lock', 'native/windows/Cargo.lock', 'native/ios/Cargo.lock', 'native/android/Cargo.lock', 'native/tvos/Cargo.lock', 'native/visionos/Cargo.lock', 'native/watchos/Cargo.lock') }}
 
       - name: Build static SDK closure
         shell: bash
@@ -116,7 +249,21 @@ jobs:
         run: bash tools/build-colyseus-sdk.sh "${{ matrix.rust_target }}"
 
       - name: Link engine static library against Colyseus SDK
+        if: matrix.toolchain == 'stable'
         run: cargo build --release --manifest-path "${{ matrix.cargo_manifest }}" --no-default-features --features models3d,image-extras --target "${{ matrix.rust_target }}"
+
+      - name: Link watchOS engine static library against Colyseus SDK
+        if: matrix.toolchain == 'nightly'
+        shell: bash
+        run: cargo +nightly build -Z build-std=std,panic_abort --release --manifest-path "${{ matrix.cargo_manifest }}" --target "${{ matrix.rust_target }}"
+
+      - name: Run native Colyseus runtime smoke
+        if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
+        run: node tests/colyseus/run-server-smoke.mjs -- cargo test --release --manifest-path native/shared/Cargo.toml --no-default-features --features models3d,image-extras --test colyseus_integration -- --nocapture
+
+      - name: Run Web SDK runtime smoke
+        if: matrix.rust_target == 'x86_64-unknown-linux-gnu'
+        run: node tests/colyseus/run-server-smoke.mjs tests/colyseus/web-bridge-smoke.mjs
 
       - uses: actions/upload-artifact@v4
         with:

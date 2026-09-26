@@ -17,6 +17,10 @@ mod audio;
 mod scene;
 mod models;
 mod postfx;
+#[path = "../../shared/src/colyseus.rs"]
+mod colyseus;
+#[path = "colyseus.rs"]
+mod colyseus_ffi;
 
 /// Perry StringHeader layout — mirrors bloom-shared's copy. Inlined here
 /// because we don't depend on bloom-shared (keeps the watchos crate

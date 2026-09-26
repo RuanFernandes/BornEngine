@@ -434,7 +434,7 @@ mod x11_impl {
                         let mut ks: x11::xlib::KeySym = 0;
                         let len = x11::xlib::XLookupString(
                             &mut event.key as *mut _,
-                            buf.as_mut_ptr() as *mut i8,
+                            buf.as_mut_ptr().cast(),
                             buf.len() as i32,
                             &mut ks,
                             std::ptr::null_mut(),
