@@ -23,10 +23,11 @@ index d3a1714..70da11c 100644
 +            else
 +                &.{ "-Wall", "-Wextra", c_std, "-DHAVE_CONFIG_H" },
          });
-@@ -557,4 +563,11 @@ fn buildSdk(b: *std.Build) void {
+@@ -557,4 +563,12 @@ fn buildSdk(b: *std.Build) void {
      const base_flags = [_][]const u8{ "-Wall", "-Wextra", "-pedantic", c_std };
 +    const windows_base_flags = base_flags ++ [_][]const u8{
 +        "-Dssize_t=intptr_t",
++        "-Dstrdup=_strdup",
 +        "-DWIN32_LEAN_AND_MEAN",
 +        "-Wno-newline-eof",
 +    };
@@ -35,7 +36,7 @@ index d3a1714..70da11c 100644
 +    const windows_base_flags_hidden_cjson =
 +        windows_base_flags ++ [_][]const u8{cjson_hide_symbols_flag};
      const web_flags = [_][]const u8{ "-Wall", "-Wextra", "-pedantic", "-Wno-newline-eof", c_std, "-DPLATFORM_WEB" };
-@@ -566,4 +579,8 @@ fn buildSdk(b: *std.Build) void {
+@@ -566,4 +580,8 @@ fn buildSdk(b: *std.Build) void {
              &web_flags
 +        else if (hide_cjson_exports and is_windows)
 +            &windows_base_flags_hidden_cjson
@@ -44,7 +45,7 @@ index d3a1714..70da11c 100644
 +        else if (is_windows)
 +            &windows_base_flags
          else
-@@ -589,3 +606,6 @@ fn buildSdk(b: *std.Build) void {
+@@ -589,3 +607,6 @@ fn buildSdk(b: *std.Build) void {
              .files = &native_network_sources,
 -            .flags = &base_flags,
 +            .flags = if (is_windows)

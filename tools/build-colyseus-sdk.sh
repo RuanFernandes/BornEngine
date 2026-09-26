@@ -51,7 +51,7 @@ case "$RUST_TARGET" in
   aarch64-apple-tvos)
     ZIG_TARGET=aarch64-tvos; ARTIFACT=tvos-aarch64; TARGET_OS=tvos; APPLE_SDK=appletvos ;;
   aarch64-apple-tvos-sim)
-    ZIG_TARGET=aarch64-tvos-simulator; ARTIFACT=tvos-aarch64-sim; TARGET_OS=tvos; APPLE_SDK=appletvsimulator ;;
+    ZIG_TARGET=aarch64-tvos-simulator; ARTIFACT=tvos-aarch64-sim; TARGET_OS=tvos; APPLE_SDK=appletvsimulator; ZIG_CPU=apple_m1 ;;
   aarch64-apple-visionos)
     ZIG_TARGET=aarch64-visionos; ARTIFACT=visionos-aarch64; TARGET_OS=visionos; APPLE_SDK=xros ;;
   aarch64-apple-visionos-sim)
@@ -59,7 +59,7 @@ case "$RUST_TARGET" in
   aarch64-apple-watchos)
     ZIG_TARGET=aarch64-watchos; ARTIFACT=watchos-aarch64; TARGET_OS=watchos; APPLE_SDK=watchos ;;
   aarch64-apple-watchos-sim)
-    ZIG_TARGET=aarch64-watchos-simulator; ARTIFACT=watchos-aarch64-sim; TARGET_OS=watchos; APPLE_SDK=watchsimulator ;;
+    ZIG_TARGET=aarch64-watchos-simulator; ARTIFACT=watchos-aarch64-sim; TARGET_OS=watchos; APPLE_SDK=watchsimulator; ZIG_CPU=apple_m1 ;;
   aarch64-linux-android)
     ZIG_TARGET=aarch64-linux-android; ARTIFACT=android-aarch64; TARGET_OS=android ;;
   x86_64-linux-android)
@@ -151,6 +151,11 @@ fi
 if [[ -n "$APPLE_SDK" ]]; then
   BUILD_ARGS+=("-Dapple-sdk=$APPLE_SDK_PATH")
 fi
+if [[ "$TARGET_OS" == "visionos" ]]; then
+  # Zig 0.15.2's Darwin unwinder does not model visionOS ucontext; stripping
+  # debug info avoids compiling the unsupported DWARF register lookup.
+  BUILD_ARGS+=("-Dstrip=true")
+fi
 if [[ "$TARGET_OS" == "android" ]]; then
   BUILD_ARGS+=("-Dandroid-ndk=$ANDROID_NDK")
 fi
@@ -235,6 +240,7 @@ MANIFEST="$ARTIFACT_ROOT/$ARTIFACT/BUILD-MANIFEST.txt"
   printf 'Zig version: %s\n' "$ZIG_VERSION"
   printf 'Rust target: %s\n' "$RUST_TARGET"
   printf 'Zig target: %s\n' "$ZIG_TARGET"
+  printf 'Zig CPU: %s\n' "${ZIG_CPU:-baseline}"
   printf 'Bundled archive: %s\n' "$BUNDLED_NAME"
   printf 'Build patches: %s\n' "$(basename "$WINDOWS_PATCH")"
   printf 'Input archives:\n'

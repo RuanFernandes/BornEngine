@@ -157,6 +157,13 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up Java 17 for Android SDK tools
+        if: matrix.target_os == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Set up Android NDK
         if: matrix.target_os == 'android'
         uses: android-actions/setup-android@v4
@@ -214,7 +221,7 @@ jobs:
         if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Colyseus fixture dependencies
         if: matrix.rust_target == 'x86_64-unknown-linux-gnu' || matrix.rust_target == 'aarch64-unknown-linux-gnu' || matrix.rust_target == 'x86_64-pc-windows-msvc' || matrix.rust_target == 'aarch64-apple-darwin'
