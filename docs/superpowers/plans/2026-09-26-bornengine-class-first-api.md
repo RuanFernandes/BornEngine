@@ -195,23 +195,23 @@ Use `feat: add context-owned graphics resources`.
 - Produces `Sound.play/stop/dispose` and `Music.play/stop/update/dispose`; named `SoundManager` stays a class and receives the same owning context.
 - Consumes resource identity and ownership rules from Tasks 2 and 4. `Game` constructs the public audio facade in Task 8.
 
-- [ ] **Step 1: Move audio FFI operations behind `src/audio/internal.ts`**
+- [x] **Step 1: Move audio FFI operations behind `src/audio/internal.ts`**
 
 Preserve existing native/web/watchOS operations and feature-branch mixer behavior.
 
-- [ ] **Step 2: Implement `AudioSystem`, `Sound`, and `Music` methods**
+- [x] **Step 2: Implement `AudioSystem`, `Sound`, and `Music` methods**
 
 Bind every live handle to one `Game`; expose load errors and make stop/dispose idempotent.
 
-- [ ] **Step 3: Bind `SoundManager` and `AudioSourceComponent` to the audio context**
+- [x] **Step 3: Bind `SoundManager` and `AudioSourceComponent` to the audio context**
 
 Preserve buses, voice tracking, cooldown/randomization, staged loading, component ownership, and shared-device lifetime semantics.
 
-- [ ] **Step 4: Replace public audio function exports with class/type/constant barrels**
+- [x] **Step 4: Replace public audio function exports with class/type/constant barrels**
 
 Retain bus constants and public option types. No direct `loadSound`, `playSound`, or device function exports remain.
 
-- [ ] **Step 5: Commit audio classes**
+- [x] **Step 5: Commit audio classes**
 
 Use `feat: add game-owned audio resources`.
 

@@ -64,12 +64,13 @@ export {
   setMusicVolume, isMusicPlaying,
   playSound3D, setListenerPosition,
   loadSoundAsync, loadMusicAsync, stageSounds, commitSound, commitMusic,
-  SoundManager,
-} from './audio/index';
+} from './audio/internal';
+
+export { SoundManager } from './audio/sound-manager';
 
 export type {
   ManagedMusicOptions, ManagedSoundOptions, SpatialSoundOptions,
-} from './audio/index';
+} from './audio/sound-manager';
 
 export {
   loadTexture, unloadTexture, drawTexture, drawTexturePro, drawTextureRec,
