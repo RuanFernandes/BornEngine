@@ -56,8 +56,7 @@ try {
   await copyFile(executable, executablePath);
   await chmod(executablePath, 0o755);
   const watchKitEntry = platform === 'watchos'
-    ? `<key>WKWatchKitApp</key><true/>
-<key>WKApplication</key><true/>
+    ? `<key>WKApplication</key><true/>
 <key>WKCompanionAppBundleIdentifier</key><string>io.bornengine.colyseus.smoke</string>
 <key>WKRunsIndependentlyOfCompanionApp</key><true/>`
     : '';

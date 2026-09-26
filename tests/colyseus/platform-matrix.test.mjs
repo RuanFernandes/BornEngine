@@ -5,6 +5,7 @@ import test from 'node:test';
 const repoRoot = new URL('../../', import.meta.url);
 const sdkWorkflow = await readFile(new URL('.github/workflows/build-colyseus-sdk.yml', repoRoot), 'utf8');
 const testWorkflow = await readFile(new URL('.github/workflows/test.yml', repoRoot), 'utf8');
+const androidManifest = await readFile(new URL('native/android/Cargo.toml', repoRoot), 'utf8');
 const androidSmoke = await readFile(new URL('./android-smoke/run.mjs', import.meta.url), 'utf8');
 const appleSmoke = await readFile(new URL('./apple-smoke/run.mjs', import.meta.url), 'utf8');
 
@@ -35,6 +36,7 @@ test('every declared Colyseus native target has a build runner', () => {
   assert.ok(sdkWorkflow.includes('AR_x86_64_linux_android='), 'Android x86_64 C builds must use the NDK archiver');
   assert.ok(sdkWorkflow.includes('CXX_aarch64_linux_android='), 'Android ARM64 C++ builds must use the NDK compiler');
   assert.ok(sdkWorkflow.includes('CXX_x86_64_linux_android='), 'Android x86_64 C++ builds must use the NDK compiler');
+  assert.match(androidManifest, /^image\s*=\s*\{.*\}$/m, 'Android FFI macro expansion must resolve image as a direct dependency');
 });
 
 test('runtime smoke jobs cover every runtime-capable BornEngine platform', () => {
@@ -59,6 +61,7 @@ test('runtime smoke jobs cover every runtime-capable BornEngine platform', () =>
   assert.ok(appleSmoke.includes("'--ignored'"), 'Apple smoke must execute the ignored fixture integration test');
   assert.ok(appleSmoke.includes('WKCompanionAppBundleIdentifier'), 'watchOS simulator app must identify its companion app');
   assert.ok(appleSmoke.includes('WKApplication'), 'watchOS simulator app must use the single-target watchOS app marker');
+  assert.ok(!appleSmoke.includes('<key>WKWatchKitApp</key>'), 'watchOS simulator app must not also declare the legacy WatchKit app marker');
   for (const [platform, target] of [
     ['iOS', 'aarch64-apple-ios-sim'],
     ['tvOS', 'aarch64-apple-tvos-sim'],

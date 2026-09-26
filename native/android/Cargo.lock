@@ -118,6 +118,7 @@ name = "bloom-android"
 version = "0.1.0"
 dependencies = [
  "bloom-shared",
+ "image",
  "libc",
  "ndk",
  "oboe",
@@ -144,6 +145,7 @@ dependencies = [
  "minimp3",
  "notify",
  "raw-window-handle",
+ "serde_json",
  "web-sys",
  "wgpu",
 ]
