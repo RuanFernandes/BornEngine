@@ -66,4 +66,5 @@ test("native SDK runner links the engine crate for every artifact target", () =>
   assert.match(workflow, /Install Rust toolchain/);
   assert.match(workflow, /Link engine static library against Colyseus SDK/);
   assert.match(workflow, /cargo build --release --manifest-path.*--no-default-features --target/);
+  assert.doesNotMatch(workflow, /- name: Link engine static library against Colyseus SDK\n        shell: bash/);
 });
