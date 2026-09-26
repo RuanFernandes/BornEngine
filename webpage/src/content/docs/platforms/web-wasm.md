@@ -39,6 +39,8 @@ runGame((dt) => {
 
 Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. Game and engine rendering both run in WebAssembly, with a small JavaScript glue layer for DOM events, asset fetching, and audio output.
 
+Colyseus uses the bundled official TypeScript client behind the same `@bornengine/engine/colyseus` API. `native/web/build.sh` builds the SDK bundle together with the WebAssembly package; see the [Colyseus API guide](../../api/colyseus/) for supported operations and the runtime validation scope.
+
 ## Assets and support
 
 The served output contains project assets. Images support PNG, JPEG, BMP, and TGA; audio supports WAV and OGG; models use glTF/GLB; fonts use TTF/OTF. File helpers use `localStorage` on the web. Chrome 113+, Firefox 141+, and Edge 113+ have the documented WebGPU path; Safari uses its available WebGPU/WebGL support.

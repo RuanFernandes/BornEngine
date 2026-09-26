@@ -1,13 +1,31 @@
 ---
 title: Colyseus
-description: Connect BornEngine games to Colyseus multiplayer rooms through the native client SDK.
+description: Connect BornEngine games to Colyseus multiplayer rooms through native and Web client bridges.
 section: API / Networking
 order: 44
 ---
 
-BornEngine's `@bornengine/engine/colyseus` module wraps the [Colyseus Native SDK](https://github.com/colyseus/native-sdk) for matchmaking, room messages, state snapshots, and connection lifecycle events. It uses Colyseus' room protocol and MsgPack message encoding.
+BornEngine's `@bornengine/engine/colyseus` module gives TypeScript games one Colyseus room API across native targets and WebAssembly. Native builds link the [Colyseus Native SDK](https://github.com/colyseus/native-sdk); Web builds bundle the official `@colyseus/sdk` package. Both backends use the Colyseus room protocol and MsgPack message encoding.
 
-The Native SDK is currently bundled and tested on **Linux x86_64 with GNU libc**. Web/WASM and other native targets do not yet have a complete packaged SDK build. This TypeScript API is a native-client façade, not a promise of feature parity with every Colyseus SDK.
+The BornEngine API is a focused cross-platform façade, not a method-for-method implementation of every Colyseus SDK. It covers matchmaking, room state snapshots, string/numeric and binary messages, request/reply, lifecycle events, polling, explicit reconnection, and cleanup.
+
+## Verified platform matrix
+
+The table distinguishes SDK archive creation and engine linking from running the protocol smoke test against the repository's Colyseus server fixture. `Pending` means the available GitHub-hosted runner cannot execute that runtime target; it is not a support claim.
+
+| Platform | Rust target(s) | Backend | Build | Runtime smoke | Network setup |
+| --- | --- | --- | --- | --- | --- |
+| Linux | `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` | Native SDK C | Passed | Passed on x86_64 and ARM64 | No extra app permission |
+| macOS | `x86_64-apple-darwin`, `aarch64-apple-darwin` | Native SDK C | Passed | Passed on Apple Silicon; Intel runtime not tested | App Sandbox requires outgoing network client entitlement |
+| Windows | `x86_64-pc-windows-msvc` | Native SDK C | Passed | Passed on x86_64 | No extra app permission |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | Native SDK C | Passed on both ABIs | Passed on x86_64 API 35 emulator; ARM64 runtime Pending (`HVF_UNSUPPORTED` on GitHub macOS) | Add `android.permission.INTERNET` to the final app manifest |
+| iOS | `aarch64-apple-ios`, `aarch64-apple-ios-sim`, `x86_64-apple-ios` | Native SDK C | Passed | Passed on ARM64 simulator; device and Intel simulator runtime not tested | Local-LAN access requires `NSLocalNetworkUsageDescription` and user approval |
+| tvOS | `aarch64-apple-tvos`, `aarch64-apple-tvos-sim` | Native SDK C | Passed | Passed on simulator | No local-network privacy prompt on tvOS |
+| visionOS | `aarch64-apple-visionos`, `aarch64-apple-visionos-sim` | Native SDK C | Passed | Passed on simulator | Local-LAN access requires `NSLocalNetworkUsageDescription` and user approval |
+| watchOS | `aarch64-apple-watchos`, `aarch64-apple-watchos-sim` | Native SDK C with target-local FFI | Passed | Passed on watchOS simulator; device runtime not tested | Device runtime checks are pending |
+| Web/WASM | `wasm32-unknown-unknown` | Official TypeScript SDK bundle | Passed | Passed against the fixture under Node.js; browser UI runtime not tested | Serve the generated package over HTTP or HTTPS |
+
+For Android manifest, Apple sandbox, and Apple Local Network privacy details, see the [mobile](../../platforms/mobile/) and [Apple platform](../../platforms/apple/) guides. Runtime results cover the listed simulator or emulator smoke environment; a device build is not the same as a physical-device runtime test.
 
 ## Connect and join
 
@@ -108,4 +126,4 @@ Dispose each client when its owner is finished. A scene or game shutdown hook is
 
 The BornEngine façade exposes matchmaking, basic message send/receive, binary send, request/reply, room state snapshots, lifecycle events, polling, and explicit reconnection. It does not currently expose Colyseus Auth/HTTP utilities, schema change callbacks, input channels, prediction/reconciliation helpers, latency measurement, or every setting from the C SDK.
 
-The native integration has been exercised against a local Colyseus 0.18 server on Linux x86_64. For protocol details and the complete SDK reference, see the official [Client SDK](https://docs.colyseus.io/sdk), [State Synchronization](https://docs.colyseus.io/state), and [Connection Lifecycle](https://docs.colyseus.io/sdk/connection) documentation.
+For protocol details and the complete SDK reference, see the official [Client SDK](https://docs.colyseus.io/sdk), [State Synchronization](https://docs.colyseus.io/state), and [Connection Lifecycle](https://docs.colyseus.io/sdk/connection) documentation.

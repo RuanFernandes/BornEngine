@@ -11,6 +11,14 @@ Mobile outputs are build-only from the BornEngine CLI. Use `bornengine build` wi
 
 Install [Android Studio](https://developer.android.com/studio/install), the Android SDK, and the NDK version requested by the Perry target. Verify `adb --version`, install Perry's Android target, then inspect `perry compile --help` for the exact target name.
 
+### Colyseus networking
+
+The final Android app manifest must include `android.permission.INTERNET` so the game can open sockets. This is a normal install-time permission and does not show a runtime prompt. `ACCESS_NETWORK_STATE` is only needed if the game also reads connectivity status; Colyseus itself does not require it. See Android's [network connection requirements](https://developer.android.com/develop/connectivity/network-ops/connecting).
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
 ## Apple mobile input
 
 iOS has real multitouch and also synthesizes touch 0 as mouse button 0. Multi-touch games should read the touch API directly instead of treating mouse button 0 as a fire action. Touch slots become sparse when fingers lift out of order, so scan active slots with `isTouchActive()` rather than iterating only up to `getTouchCount()`.

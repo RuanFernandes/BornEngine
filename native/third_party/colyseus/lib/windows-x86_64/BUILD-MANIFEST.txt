@@ -2,6 +2,7 @@ Colyseus Native SDK commit: c009d7c6e45f2a3d08f78b30e022355ac873c3bc
 Zig version: 0.15.2
 Rust target: x86_64-pc-windows-msvc
 Zig target: x86_64-windows-msvc
+Zig CPU: baseline
 Bundled archive: colyseus_bundled.lib
 Build patches: colyseus-native-sdk-windows-msvc.patch
 Input archives:
