@@ -1,0 +1,83 @@
+diff --git a/build.zig b/build.zig
+index d3a1714..70da11c 100644
+--- a/build.zig
++++ b/build.zig
+@@ -184,8 +184,14 @@ fn buildSdk(b: *std.Build) void {
+             },
+-            .flags = &.{
+-                "-Wall",
+-                "-Wextra",
+-                c_std,
+-                "-DHAVE_CONFIG_H",
+-            },
++            .flags = if (is_windows)
++                &.{
++                    "-Wall",
++                    "-Wextra",
++                    c_std,
++                    "-DHAVE_CONFIG_H",
++                    "-Dssize_t=intptr_t",
++                    "-DWIN32_LEAN_AND_MEAN",
++                    "-Wno-newline-eof",
++                }
++            else
++                &.{ "-Wall", "-Wextra", c_std, "-DHAVE_CONFIG_H" },
+         });
+@@ -557,4 +563,12 @@ fn buildSdk(b: *std.Build) void {
+     const base_flags = [_][]const u8{ "-Wall", "-Wextra", "-pedantic", c_std };
++    const windows_base_flags = base_flags ++ [_][]const u8{
++        "-Dssize_t=intptr_t",
++        "-Dstrdup=_strdup",
++        "-DWIN32_LEAN_AND_MEAN",
++        "-Wno-newline-eof",
++    };
+     const base_flags_hidden_cjson =
+         base_flags ++ [_][]const u8{cjson_hide_symbols_flag};
++    const windows_base_flags_hidden_cjson =
++        windows_base_flags ++ [_][]const u8{cjson_hide_symbols_flag};
+     const web_flags = [_][]const u8{ "-Wall", "-Wextra", "-pedantic", "-Wno-newline-eof", c_std, "-DPLATFORM_WEB" };
+@@ -566,4 +580,8 @@ fn buildSdk(b: *std.Build) void {
+             &web_flags
++        else if (hide_cjson_exports and is_windows)
++            &windows_base_flags_hidden_cjson
+         else if (hide_cjson_exports)
+             &base_flags_hidden_cjson
++        else if (is_windows)
++            &windows_base_flags
+         else
+@@ -589,3 +607,6 @@ fn buildSdk(b: *std.Build) void {
+             .files = &native_network_sources,
+-            .flags = &base_flags,
++            .flags = if (is_windows)
++                &windows_base_flags
++            else
++                &base_flags,
+         });
+diff --git a/src/auth/auth.c b/src/auth/auth.c
+index f59f43b..2eb102a 100644
+--- a/src/auth/auth.c
++++ b/src/auth/auth.c
+@@ -35,3 +35,8 @@ typedef struct {
+  * thread. */
+-#ifdef __EMSCRIPTEN__
++#ifdef _WIN32
++#include <windows.h>
++static SRWLOCK g_auth_token_mu = SRWLOCK_INIT;
++#define AUTH_LOCK()   AcquireSRWLockExclusive(&g_auth_token_mu)
++#define AUTH_UNLOCK() ReleaseSRWLockExclusive(&g_auth_token_mu)
++#elif defined(__EMSCRIPTEN__)
+ #define AUTH_LOCK()   ((void)0)
+diff --git a/src/network/net_delay.c b/src/network/net_delay.c
+index fa2b080..cd11be2 100644
+--- a/src/network/net_delay.c
++++ b/src/network/net_delay.c
+@@ -15,3 +15,8 @@
+  * WS tick thread fills the inbound queue; pump drains it on main). */
+-#ifdef __EMSCRIPTEN__
++#ifdef _WIN32
++#include <windows.h>
++static SRWLOCK g_nd_in_mu = SRWLOCK_INIT;
++#define ND_LOCK()   AcquireSRWLockExclusive(&g_nd_in_mu)
++#define ND_UNLOCK() ReleaseSRWLockExclusive(&g_nd_in_mu)
++#elif defined(__EMSCRIPTEN__)
+ #define ND_LOCK()   ((void)0)

@@ -195,4 +195,6 @@ export { ui } from './ui/index';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui/index';
 
 export { debugUi } from './debug-ui/index';
+export { ColyseusClient, Room as ColyseusRoom, pumpColyseusClients } from './colyseus/index';
+export type { RoomRequestOptions, ColyseusError } from './colyseus/index';
 export type { DebugUiApi } from './debug-ui/index';

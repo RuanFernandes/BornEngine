@@ -20,7 +20,8 @@
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
     "./ui": "./src/ui/index.ts",
-    "./debug-ui": "./src/debug-ui/index.ts"
+    "./debug-ui": "./src/debug-ui/index.ts",
+    "./colyseus": "./src/colyseus/index.ts"
   },
   "files": [
     "src/",
@@ -28,6 +29,7 @@
     "native/shared/Cargo.toml",
     "native/shared/Cargo.lock",
     "native/shared/build.rs",
+    "native/third_party/colyseus/**",
     "native/shared/src/**",
     "native/shared/shaders/**",
     "native/shared/assets/**",
@@ -49,6 +51,7 @@
     "native/visionos/src/**",
     "native/watchos/Cargo.toml",
     "native/watchos/Cargo.lock",
+    "native/watchos/build.rs",
     "native/watchos/src/**",
     "native/watchos/shaders/**",
     "native/windows/Cargo.toml",
@@ -63,6 +66,11 @@
     "native/web/Cargo.toml",
     "native/web/Cargo.lock",
     "native/web/src/**",
+    "native/web/tests/**",
+    "native/web/package.json",
+    "native/web/package-lock.json",
+    "native/web/colyseus_bridge.js",
+    "native/web/colyseus_bridge.entry.js",
     "native/web/build.sh",
     "native/web/index.html",
     "native/web/bloom_glue.js",
@@ -4219,6 +4227,118 @@
             "f64"
           ],
           "returns": "f64"
+        },
+        {
+          "name": "bloom_colyseus_client_create",
+          "params": [
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_colyseus_client_join",
+          "params": [
+            "f64",
+            "f64",
+            "string",
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_colyseus_client_dispose",
+          "params": [
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_colyseus_poll",
+          "params": [],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_colyseus_next_event",
+          "params": [],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_colyseus_room_send",
+          "params": [
+            "f64",
+            "string",
+            "string"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_colyseus_room_send_bytes",
+          "params": [
+            "f64",
+            "string",
+            "string"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_colyseus_room_request",
+          "params": [
+            "f64",
+            "string",
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_colyseus_room_cancel_request",
+          "params": [
+            "f64",
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_colyseus_room_leave",
+          "params": [
+            "f64",
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_colyseus_room_is_connected",
+          "params": [
+            "f64"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_colyseus_room_is_reconnecting",
+          "params": [
+            "f64"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_colyseus_room_id",
+          "params": [
+            "f64"
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_colyseus_room_session_id",
+          "params": [
+            "f64"
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_colyseus_room_reconnection_token",
+          "params": [
+            "f64"
+          ],
+          "returns": "string"
         }
       ],
       "targets": {

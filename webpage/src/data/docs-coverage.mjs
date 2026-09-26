@@ -51,6 +51,12 @@ export const apiCoverage = [
     sections: ['Device lifecycle', 'Sound', 'Sound manager', 'Music and spatial audio'],
   },
   {
+    slug: 'colyseus',
+    file: 'api/colyseus.md',
+    href: '/docs/api/colyseus/',
+    sections: ['Connect and join', 'State and messages', 'Connection lifecycle and cleanup'],
+  },
+  {
     slug: 'models',
     file: 'api/models.md',
     href: '/docs/api/models/',

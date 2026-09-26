@@ -1,3 +1,6 @@
 [submodule "native/third_party/JoltPhysics"]
 	path = native/third_party/JoltPhysics
 	url = https://github.com/jrouwe/JoltPhysics.git
+[submodule "native/third_party/colyseus-sdk-src"]
+	path = native/third_party/colyseus-sdk-src
+	url = https://github.com/colyseus/native-sdk.git

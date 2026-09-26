@@ -4,10 +4,16 @@
 //! the `bloom_jolt` C++ shim (and JoltPhysics, via its own CMakeLists) via the
 //! `cmake` crate and emits link directives so rustc picks up both archives.
 
+#[path = "src/colyseus_targets.rs"]
+mod colyseus_targets;
+
 fn main() {
     // Always re-run when these change.
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_JOLT");
+    println!("cargo:rustc-check-cfg=cfg(colyseus_native_sdk)");
+
+    link_colyseus_sdk();
 
     if std::env::var_os("CARGO_FEATURE_JOLT").is_none() {
         return;
@@ -22,6 +28,82 @@ fn main() {
     }
 
     build_jolt();
+}
+
+/// Link the upstream Colyseus C SDK when a complete archive exists for the
+/// active Rust target. Missing artifacts retain the explicit FFI fallback.
+fn link_colyseus_sdk() {
+    use std::path::PathBuf;
+
+    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    let repo_root = manifest_dir.parent().unwrap().parent().unwrap();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let target_abi = std::env::var("CARGO_CFG_TARGET_ABI").unwrap_or_default();
+    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+
+    println!("cargo:rerun-if-changed=src/colyseus_targets.rs");
+    println!(
+        "cargo:rerun-if-changed={}",
+        repo_root
+            .join("native/third_party/colyseus/VERSION.md")
+            .display()
+    );
+    let Some(target) =
+        colyseus_targets::artifact_for(&target_os, &target_arch, &target_abi, &target_env)
+    else {
+        return;
+    };
+
+    let lib_dir = repo_root
+        .join("native/third_party/colyseus/lib")
+        .join(target);
+    let archive_name = if target_os == "windows" {
+        "colyseus_bundled.lib"
+    } else {
+        "libcolyseus_bundled.a"
+    };
+    let archive = lib_dir.join(archive_name);
+    let core_archive = if target_os == "windows" {
+        lib_dir.join("colyseus.lib")
+    } else {
+        lib_dir.join("libcolyseus.a")
+    };
+    println!("cargo:rerun-if-changed={}", archive.display());
+    println!("cargo:rerun-if-changed={}", core_archive.display());
+    if !archive.exists() || !core_archive.exists() {
+        return;
+    }
+
+    println!("cargo:rustc-cfg=colyseus_native_sdk");
+    println!("cargo:rustc-link-search=native={}", lib_dir.display());
+    println!("cargo:rustc-link-lib=static=colyseus_bundled");
+
+    match target_os.as_str() {
+        "linux" => {
+            for library in ["pthread", "m", "dl"] {
+                println!("cargo:rustc-link-lib=dylib={library}");
+            }
+        }
+        "macos" => {
+            println!("cargo:rustc-link-lib=dylib=pthread");
+            for framework in ["CoreFoundation", "Security"] {
+                println!("cargo:rustc-link-lib=framework={framework}");
+            }
+        }
+        "ios" | "tvos" | "visionos" | "watchos" => {
+            for framework in ["CoreFoundation", "Security"] {
+                println!("cargo:rustc-link-lib=framework={framework}");
+            }
+        }
+        "windows" => {
+            for library in ["ws2_32", "bcrypt", "crypt32", "secur32", "iphlpapi"] {
+                println!("cargo:rustc-link-lib=dylib={library}");
+            }
+        }
+        "android" => {}
+        _ => {}
+    }
 }
 
 #[cfg(not(feature = "jolt"))]

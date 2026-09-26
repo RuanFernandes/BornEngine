@@ -97,7 +97,9 @@ export async function bootBloomGame() {
   await prefetchAssets(setStatus);
 
   // 4. Publish the FFI surface for the Perry game WASM.
-  const ffi = buildFfiImports();
+  const colyseusModule = await import(new URL('./colyseus_bridge.bundle.js', import.meta.url));
+  const colyseusBridge = colyseusModule.createColyseusBridge({ Client: colyseusModule.Client });
+  const ffi = buildFfiImports(colyseusBridge);
   if (typeof globalThis.__ffiImports === 'undefined') {
     globalThis.__ffiImports = ffi;
   } else {
@@ -186,7 +188,7 @@ async function prefetchAssets(setStatus) {
  * functions); the overrides below handle string-in, file loading, the host
  * surfaces (window/title/audio/fullscreen/cursor/storage), and the game loop.
  */
-function buildFfiImports() {
+function buildFfiImports(colyseusBridge) {
   const imports = {};
 
   // Default: every bloom_* export, passed plain values by Perry's wrapFfiForI64.
@@ -348,6 +350,9 @@ function buildFfiImports() {
       startRafLoop();
     }
   };
+
+  Object.assign(imports, colyseusBridge);
+
   // Safety net for a game that still spins `while (!windowShouldClose())`:
   // report "should close" once the rAF loop owns frame pacing, so the stray
   // loop exits after one iteration instead of hanging the tab.

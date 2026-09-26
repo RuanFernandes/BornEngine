@@ -1,0 +1,23 @@
+{
+  "name": "bornengine-colyseus-test-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "test": "tsx src/smoke-test.ts"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.8",
+    "@colyseus/tools": "next",
+    "colyseus": "^0.18.1"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "0.18.4",
+    "tsx": "^4.10.2",
+    "typescript": "^5.0.4"
+  }
+}

@@ -70,6 +70,7 @@ mod visual;
 mod vfx;
 mod ragdoll_ffi;
 mod ui;
+mod colyseus;
 
 /// Expand the full shared (non-physics) FFI surface. Composed from the
 /// per-subsystem section macros in this directory; platform crates invoke
@@ -90,6 +91,7 @@ macro_rules! define_core_ffi {
         $crate::__bloom_ffi_vfx!();
         $crate::__bloom_ffi_ragdoll!();
         $crate::__bloom_ffi_ui!();
+        $crate::__bloom_ffi_colyseus!();
     };
 }
 

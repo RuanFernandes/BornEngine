@@ -21,5 +21,6 @@ These end-to-end paths show how the modules fit together in a real game loop:
 - [Add physics gameplay](physics-gameplay/) — fixed stepping, contacts, and render synchronization.
 - [Organize assets and worlds](assets-and-worlds/) — stable paths, prefabs, model caches, and world lighting.
 - [Add audio and UI](audio-and-ui/) — music streaming, sound effects, measured text, and input-driven panels.
+- [Build a multiplayer game with Colyseus](multiplayer/) — set up the server and connect BornEngine clients to authoritative shared state.
 
 Start with the recipe closest to the game you are building, then return to the [API map](../api/) when you need the complete function surface.

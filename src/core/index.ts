@@ -1,4 +1,5 @@
 import { Color, Camera2D, Camera3D } from './types';
+import { pumpColyseusClients } from '../colyseus';
 
 export type { Color, Vec2, Vec3, Vec4, Rect, Camera2D, Camera3D, Texture, Font, Sound, Music, Quat, Ray, BoundingBox, Model, Mat4, RayHit, FrustumPlanes } from './types';
 // GH #53 — `Color` is deliberately NOT re-exported from './colors' any more.
@@ -247,6 +248,7 @@ export function windowShouldClose(): boolean {
 // Drawing lifecycle
 
 export function beginDrawing(): void {
+  pumpColyseusClients();
   bloom_begin_drawing();
 }
 

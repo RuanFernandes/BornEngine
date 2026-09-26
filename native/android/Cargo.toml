@@ -13,12 +13,13 @@ jolt = ["bloom-shared/jolt"]
 # EN-014 — see native/shared/Cargo.toml. Default-on so existing games are
 # unaffected; pure-2D games opt out via Perry feature forwarding.
 models3d = ["bloom-shared/models3d"]
-image-extras = ["bloom-shared/image-extras"]
+image-extras = ["bloom-shared/image-extras", "image/hdr"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
 
 [dependencies]
 bloom-shared = { path = "../shared", default-features = false, features = ["mp3"] }
+image = { version = "0.25", default-features = false }
 raw-window-handle = "0.6"
 wgpu = "29"
 libc = "0.2"

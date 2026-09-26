@@ -135,6 +135,7 @@ dependencies = [
  "notify",
  "pollster",
  "raw-window-handle",
+ "serde_json",
  "web-sys",
  "web-time 0.2.4",
  "wgpu",

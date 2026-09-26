@@ -53,6 +53,7 @@ Public examples in this reference import from `@bornengine/engine`, either from 
 | Mobile | `@bornengine/engine/mobile` | Virtual joysticks, buttons, touch claims |
 | UI | `@bornengine/engine/ui` | Player-facing menus, HUDs, settings, and widgets |
 | Debug UI | `@bornengine/engine/debug-ui` | Optional Dear ImGui developer overlays on desktop |
+| Colyseus | `@bornengine/engine/colyseus` | Native multiplayer matchmaking, rooms, messages, and state snapshots |
 
 ## How the API fits together
 
@@ -81,6 +82,7 @@ Resources are not garbage-collected engine objects. A `Texture`, `Font`, `Sound`
 - Start with [Core](core/) for the frame and input contract.
 - Use [Input](input/) for named actions, axes, and rebinding across devices.
 - Read the [Game API](game/) to build class-based gameplay objects and scenes.
+- Read [Colyseus](colyseus/) to connect a native game client to multiplayer rooms.
 - Read [Textures](textures/) and [Text](text/) before building a HUD.
 - Build menus and settings with the [UI API](ui/); add optional developer tools with its `debugUi` subpath.
 - Combine the modules in the [2D game recipe](../guides/2d-game/) or [3D scene recipe](../guides/3d-scene/).
