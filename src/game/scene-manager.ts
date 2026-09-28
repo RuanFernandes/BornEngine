@@ -3,6 +3,7 @@ import { Scene } from './scene';
 import type { GameContext, ContextResource } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
+import type { Renderer } from '../core/renderer';
 
 export class SceneManager implements ContextResource {
   readonly context: GameContext;
@@ -66,6 +67,14 @@ export class SceneManager implements ContextResource {
     scene._updateOwnedResources(dt);
     if (this.currentScene !== scene || scene.state !== 'active') return;
     scene.update(dt);
+  }
+
+  /** Draws the current active or paused scene. */
+  render(renderer: Renderer): void {
+    if (this.transitioning) return;
+    const scene = this.currentScene;
+    if (scene === null) return;
+    scene.render(renderer, scene.camera2D);
   }
 
   updateFixed(fixedDt: number): void {

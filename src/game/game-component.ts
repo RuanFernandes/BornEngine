@@ -1,12 +1,14 @@
 import type { GameObject } from './game-object';
 import type { PhysicsWorld } from '../physics';
 import type { GameContext } from '../core/context';
+import type { Renderer } from '../core/renderer';
 
 export type GameComponentType<T extends GameComponent> =
   new (...args: any[]) => T;
 
 export class GameComponent {
   enabled = true;
+  renderOrder = 0;
   private owner: GameObject | null = null;
   private wasDestroyed = false;
   private isDestroying = false;
@@ -34,6 +36,8 @@ export class GameComponent {
   update(_dt: number): void {}
 
   fixedUpdate(_dt: number): void {}
+
+  render(_renderer: Renderer): void {}
 
   onDestroy(): void {}
 
