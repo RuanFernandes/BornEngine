@@ -16,7 +16,7 @@ bornengine create
 ## Scriptable projects
 
 ```sh
-bornengine new MyGame --package-manager npm --engine-version 0.7.0
+bornengine new MyGame --package-manager npm --engine-version 0.8.0
 ```
 
 Use `--pm` as the shorter package-manager flag, `-e` for `--engine-version`, and `--engine` for `--engine-path`. A local engine checkout is useful while developing BornEngine itself:

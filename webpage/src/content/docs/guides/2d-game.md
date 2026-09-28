@@ -1,97 +1,85 @@
 ---
 title: Build a 2D game
-description: Combine Game-owned input, sprites, collision values, and rendering in one small 2D game.
+description: Use Game subclasses, scene components, sprite animation, and marker-driven particle effects.
 section: Guides
 order: 70
 ---
 
-This recipe builds a small arena with a controllable sprite and one wall. It uses a Game-owned Texture, action map, and Renderer so every stateful object has a clear owner.
+This path builds a small 2D game around one `Game` subclass. A `Scene` owns gameplay objects, sprite components draw automatically, and animation markers can trigger effects at the right frame.
 
 ## Setup
 
-Create a project, install the engine package, and put the sprite at `assets/textures/player.png`:
+Create a project and install BornEngine:
 
 ```sh
 bornengine new TinyArena --package-manager npm
 cd TinyArena
 npm install @bornengine/engine
-mkdir -p assets/textures
-bornengine run main.ts
+mkdir -p assets/sprites
 ```
 
-Load long-lived assets once during startup, then check their loading state before use.
-
-```ts
-import { Collision, Colors, Game, Key, Texture } from '@bornengine/engine';
-
-const game = new Game({ window: { title: 'Tiny Arena', width: 960, height: 540 } });
-const playerTexture = new Texture(game, 'assets/textures/player.png');
-const controls = game.input.createActionMap();
-controls.bindAxis('move-x', {
-  negative: [{ kind: 'key', key: Key.LEFT }, { kind: 'key', key: Key.A }],
-  positive: [{ kind: 'key', key: Key.RIGHT }, { kind: 'key', key: Key.D }],
-});
-```
+Create `main.ts` and add your atlas at `assets/sprites/hero.png`. It can be a uniform grid or a set of named rectangles. Keep every frame used by one animation or emitter on the same `SpriteSheet` texture. Run the game with `bornengine run main.ts` when those files are in place.
 
 ## Game loop
 
-Game polls action maps once before calling update. Collision helpers operate on plain rectangles, and renderer calls submit visuals only inside the render callback.
+The game subclass owns startup, simulation, and rendering. Advance scene components explicitly in `loop`; the base `render()` draws the current scene, including its `SpriteRenderer` and `ParticleEmitter2D` components.
 
 ```ts
-let player = { x: 120, y: 220, width: 48, height: 48 };
-const wall = { x: 420, y: 180, width: 40, height: 180 };
+import { Colors, Game } from '@bornengine/engine';
 
-game.run({
-  update(deltaTime) {
-    const next = { ...player, x: player.x + controls.readAxis('move-x') * 220 * deltaTime };
-    if (!Collision.checkRectangles(next, wall)) player = next;
-  },
-  render() {
-    game.renderer.clear({ r: 14, g: 18, b: 24, a: 255 });
-    if (playerTexture.isLoaded) playerTexture.draw({ x: player.x, y: player.y });
-    game.renderer.drawRectangle(wall, { r: 184, g: 242, b: 61, a: 255 });
-    game.renderer.drawText('Arrow keys to move', { x: 24, y: 24 }, 22, Colors.WHITE);
-  },
-  onStop: () => game.dispose(),
-});
+class Arena extends Game {
+  protected override loop(deltaTime: number): void {
+    this.scenes.update(deltaTime);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SKYBLUE);
+    super.render();
+    this.renderer.drawText('WASD move · Space attack', { x: 18, y: 18 }, 18, Colors.WHITE);
+  }
+}
 ```
 
-Clamp or resolve each movement axis separately when sliding along obstacles is preferable to stopping on every diagonal collision.
+Set `scene.camera2D` to keep the camera attached to the playfield. The scene opens and closes the 2D camera pass around component rendering, so HUD drawing after `super.render()` stays in screen coordinates.
+
+`Game.input.update()` advances all action maps once per frame before `loop()` runs. Create an action map with `this.input.createActionMap()`, bind keys or axes during startup, and read its snapshot in `loop()`.
+
+Attach the animator and emitter beside the renderer on the player object. Keyframe markers then trigger effects at their authored frame:
+
+```ts
+import { GameObject, ParticleEmitter2D, SpriteAnimator, SpriteSheet } from '@bornengine/engine';
+
+function addImpactEffect(player: GameObject, animator: SpriteAnimator, sheet: SpriteSheet): void {
+  const spark = sheet.gridFrame(3, 0);
+  if (spark === null) return;
+
+  const impact = new ParticleEmitter2D({
+    frames: [spark],
+    capacity: 64,
+    lifetime: { min: 0.2, max: 0.5 },
+    speed: { min: 40, max: 100 },
+    startSize: { min: 4, max: 8 },
+    endSize: { min: 0, max: 2 },
+  });
+  player.addComponent(impact);
+  animator.onMarker = (marker) => {
+    if (marker === 'impact') impact.emitBurst(16);
+  };
+}
+```
 
 ## Complete example
 
-This assembled entry point includes initialization, failure checks, input, collision, drawing, and shutdown:
+The complete runnable project includes a pixel-art atlas, movement and attack controls, a camera, idle/walk/attack states, animation markers, and both burst and continuous particle emission. Browse the [sprite animation example on GitHub](https://github.com/RuanFernandes/BornEngine/tree/main/examples/sprite-animation/). After cloning BornEngine, run it with:
 
-```ts
-import { Collision, Colors, Game, Key, Texture } from '@bornengine/engine';
-
-const game = new Game({ window: { title: 'Tiny Arena', width: 960, height: 540 } });
-const playerTexture = new Texture(game, 'assets/textures/player.png');
-const controls = game.input.createActionMap();
-controls.bindAxis('move-x', {
-  negative: [{ kind: 'key', key: Key.LEFT }, { kind: 'key', key: Key.A }],
-  positive: [{ kind: 'key', key: Key.RIGHT }, { kind: 'key', key: Key.D }],
-});
-let player = { x: 120, y: 220, width: 48, height: 48 };
-const wall = { x: 420, y: 180, width: 40, height: 180 };
-
-if (!game.isReady) console.error(game.error || 'Game startup failed');
-
-game.run({
-  update(deltaTime) {
-    const next = { ...player, x: player.x + controls.readAxis('move-x') * 220 * deltaTime };
-    if (!Collision.checkRectangles(next, wall)) player = next;
-  },
-  render() {
-    game.renderer.clear(Colors.BLACK);
-    if (playerTexture.isLoaded) playerTexture.draw({ x: player.x, y: player.y });
-    game.renderer.drawRectangle(wall, Colors.LIME);
-    game.renderer.drawText('Tiny Arena', { x: 24, y: 24 }, 22, Colors.WHITE);
-  },
-  onStop: () => game.dispose(),
-});
+```sh
+cd examples/sprite-animation
+npm install
+bornengine run main.ts
 ```
+
+Use WASD or the arrow keys to move and Space to attack. See the [Sprites API](../../api/sprites/) for named atlas frames, crossfades, condition types, emitter shapes, and local/world particle space.
 
 ## Next steps
 
-Add a `GameScene` when the arena needs lifecycle hooks or multiple gameplay objects. See the [Input API](../../api/input/) for rebinding and gamepad axes, and the [asset guide](../assets-and-worlds/) for model and world ownership.
+Use the [Input API](../../api/input/) for action maps and gamepad bindings, the [Game API](../../api/game/) for object and scene lifecycles, and the [Textures API](../../api/textures/) for image ownership and filtering. The [VFX API](../../api/vfx/) covers the separate 3D particle and decal systems.

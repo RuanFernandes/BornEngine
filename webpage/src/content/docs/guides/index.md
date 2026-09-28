@@ -16,7 +16,7 @@ Use these guides when the API reference is not enough context for a complete sys
 
 These end-to-end paths show how the modules fit together in a real game loop:
 
-- [Build a 2D game](2d-game/) — input, sprites, collision helpers, and a HUD.
+- [Build a 2D game](2d-game/) — class-first scenes, sprite animation, marker-driven effects, and a HUD.
 - [Build a 3D scene](3d-scene/) — cameras, primitives, scene nodes, and cleanup.
 - [Add physics gameplay](physics-gameplay/) — fixed stepping, contacts, and render synchronization.
 - [Organize assets and worlds](assets-and-worlds/) — stable paths, prefabs, model caches, and world lighting.

@@ -48,6 +48,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Input', href: '/docs/api/input/' },
       { title: 'Shapes', href: '/docs/api/shapes/' },
       { title: 'Textures', href: '/docs/api/textures/' },
+      { title: 'Sprites and animation', href: '/docs/api/sprites/' },
       { title: 'Text', href: '/docs/api/text/' },
       { title: 'Audio', href: '/docs/api/audio/' },
       { title: 'Colyseus', href: '/docs/api/colyseus/' },
