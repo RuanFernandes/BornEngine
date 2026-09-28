@@ -31,28 +31,38 @@ bornengine build main.ts --name my-game --os linux
 
 ## The first source file
 
-A `Game` owns the window and frame boundary. Separate simulation from rendering, and dispose the game when its loop stops:
+A `Game` subclass owns the application lifecycle. Put startup, simulation, and rendering on the same class, then call `run()` to start the platform loop. The class-driven lifecycle disposes the Game after `onStop`:
 
 ```ts
-import { Colors, Game } from '@bornengine/engine';
+import { Colors, Game, Texture } from '@bornengine/engine';
 
-const game = new Game({
-  window: { title: 'My Game', width: 800, height: 450 },
-  targetFps: 60,
-});
+class MyGame extends Game {
+  private readonly player: Texture;
 
-if (!game.isReady) console.error(game.error || 'Engine startup failed');
+  constructor() {
+    super({
+      window: { title: 'My Game', width: 800, height: 450 },
+      targetFps: 60,
+    });
+    if (!this.isReady) console.error(this.error || 'Engine startup failed');
+    this.player = new Texture(this, 'assets/player.png');
+  }
 
-game.run({
-  update(deltaTime) {
+  protected override onStart(): void {
+    // Initialize game-specific systems.
+  }
+
+  protected override loop(deltaTime: number): void {
     // Update gameplay state in seconds.
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-    game.renderer.drawText('Hello, BornEngine!', { x: 190, y: 200 }, 20, Colors.DARKGRAY);
-  },
-  onStop: () => game.dispose(),
-});
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+    if (this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+  }
+}
+
+new MyGame().run();
 ```
 
-The engine opens and closes the drawing frame around the callbacks. The same pattern works on native and Web/WASM; the platform supplies the frame schedule.
+The engine opens and closes the drawing frame around your hooks. The same pattern works on native and Web/WASM; the platform supplies the frame schedule. Use `game.run({ update, render, onStop })` when callback composition is more useful than subclass hooks.

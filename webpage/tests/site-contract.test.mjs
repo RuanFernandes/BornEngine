@@ -45,3 +45,19 @@ test('shared layouts expose accessible metadata and navigation hooks', async () 
   assert.match(codeBlock, /data-monaco-fallback/);
   assert.match(homepageStyles, /line-height:\s*0\.96/);
 });
+
+test('homepage demonstrates subclass lifecycle and lets Monaco fill its panel', async () => {
+  const [homepage, homepageStyles] = await Promise.all([
+    readFile(new URL('../src/pages/index.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/styles/homepage.css', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(homepage, /class Undertale extends Game/);
+  assert.match(homepage, /new Texture\(this,/);
+  assert.match(homepage, /protected override onStart\(\)/);
+  assert.match(homepage, /protected override loop\(_dt: number\)/);
+  assert.match(homepage, /new Undertale\(\)\.run\(\)/);
+  assert.doesNotMatch(homepage, /game\.run\(\{/);
+  assert.match(homepageStyles, /\.home-api \.code-block\s*\{[^}]*display:\s*flex/s);
+  assert.match(homepageStyles, /\.home-api \.code-block__monaco\s*\{[^}]*flex:\s*1/s);
+});

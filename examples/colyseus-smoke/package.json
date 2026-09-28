@@ -6,7 +6,8 @@
   "scripts": {
     "build": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --no-cache -o colyseus-smoke",
     "test": "npm run build && ./colyseus-smoke",
-    "test:math": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile math-smoke.ts --no-cache -o math-smoke && ./math-smoke"
+    "test:math": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile math-smoke.ts --no-cache -o math-smoke && ./math-smoke",
+    "test:lifecycle": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile lifecycle-smoke.ts --target linux --no-cache -o lifecycle-smoke && ./lifecycle-smoke"
   },
   "dependencies": {
     "@bornengine/engine": "file:../../"

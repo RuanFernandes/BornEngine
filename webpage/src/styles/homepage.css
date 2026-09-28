@@ -380,7 +380,19 @@
 }
 
 .home-api .code-block__monaco {
-  height: clamp(19rem, 28vw, 23rem);
+  flex: 1 1 auto;
+  min-height: clamp(19rem, 28vw, 23rem);
+  height: auto;
+}
+
+.home-api .code-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-api .code-block pre {
+  flex: 1 1 auto;
+  min-height: clamp(19rem, 28vw, 23rem);
 }
 
 .capabilities__heading {

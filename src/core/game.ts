@@ -26,6 +26,13 @@ function validTargetFps(value: number): boolean {
   return value > 0 && value !== Infinity && value !== -Infinity && value === value;
 }
 
+// Consumer subclasses live in separate modules, so lifecycle calls must keep
+// a dynamic receiver for Perry's native method dispatcher.
+function dispatchGameStart(game: any): void { game.onStart(); }
+function dispatchGameLoop(game: any, deltaTime: number): void { game.loop(deltaTime); }
+function dispatchGameRender(game: any): void { game.render(); }
+function dispatchGameStop(game: any): void { game.onStop(); }
+
 /** Root owner for one BornEngine runtime and all of its services/resources. */
 export class Game {
   readonly window: Window;
@@ -83,14 +90,59 @@ export class Game {
   get isDisposed(): boolean { return this.disposed; }
   get error(): string | null { return getGameContext(this).error; }
 
-  /** Start the engine-owned native loop or the browser's animation-frame loop. */
-  run(callbacks: GameLoopCallbacks): void {
+  /** Called once before a subclass-driven run starts. */
+  protected onStart(): void {}
+
+  /** Advance subclass-owned gameplay state. Delta time is measured in seconds. */
+  protected loop(_deltaTime: number): void {}
+
+  /** Draw one frame when using the subclass-driven run lifecycle. */
+  protected render(): void {}
+
+  /** Called once when a subclass-driven run ends, before the Game is disposed. */
+  protected onStop(): void {}
+
+  /** Run subclass lifecycle hooks, or pass callbacks for an explicit frame loop. */
+  run(): void;
+  run(callbacks: GameLoopCallbacks): void;
+  run(callbacks?: GameLoopCallbacks): void {
     if (!this.isReady || !this.window.isOpen || this.hasRun || this.runCompleted || this.window.mode === 'embedded') return;
+    const usesSubclassLifecycle = callbacks === undefined;
+    const activeCallbacks = callbacks ?? {
+      update: (deltaTime: number) => dispatchGameLoop(this, deltaTime),
+      render: () => dispatchGameRender(this),
+      onStop: () => {
+        try {
+          dispatchGameStop(this);
+        } finally {
+          this.dispose();
+        }
+      },
+    };
     this.hasRun = true;
     this.stopRequested = false;
-    this.callbacks = callbacks;
+    this.callbacks = activeCallbacks;
     this.webRuntime = getPlatform() === Platform.WEB;
-    runGame((deltaTime) => this.dispatchFrame(deltaTime, callbacks), () => this.shouldContinue());
+    if (usesSubclassLifecycle) {
+      try {
+        dispatchGameStart(this);
+      } catch (error) {
+        this.failRun(error);
+      }
+    }
+    if (this.runCompleted) return;
+    try {
+      runGame((deltaTime) => {
+        try {
+          this.dispatchFrame(deltaTime, activeCallbacks);
+        } catch (error) {
+          if (!this.webRuntime) endDrawing();
+          throw error;
+        }
+      }, () => this.shouldContinue());
+    } catch (error) {
+      this.failRun(error);
+    }
     if (!this.webRuntime && !this.runCompleted) this.completeRun();
   }
 
@@ -105,9 +157,18 @@ export class Game {
       this.completeRun();
       return false;
     }
+    let frameError: unknown = undefined;
+    let didThrow = false;
     beginDrawing();
-    this.dispatchFrame(deltaTime, callbacks);
-    endDrawing();
+    try {
+      this.dispatchFrame(deltaTime, callbacks);
+    } catch (error) {
+      frameError = error;
+      didThrow = true;
+    } finally {
+      endDrawing();
+    }
+    if (didThrow) this.failRun(frameError);
     if (this.stopRequested) this.completeRun();
     return !this.runCompleted;
   }
@@ -157,14 +218,20 @@ export class Game {
   private dispatchFrame(deltaTime: number, callbacks: GameLoopCallbacks): void {
     if (!this.isReady || this.stopRequested) return;
     this.inFrame = true;
-    this.input.update();
-    getGameContext(this).updateFrameServices(deltaTime);
-    this.audio.update(deltaTime);
-    this.mobile.update();
-    callbacks.update(deltaTime);
-    callbacks.render();
-    this.inFrame = false;
-    if (this.webRuntime && this.stopRequested) this.scheduleCompleteRun();
+    try {
+      this.input.update();
+      getGameContext(this).updateFrameServices(deltaTime);
+      this.audio.update(deltaTime);
+      this.mobile.update();
+      callbacks.update(deltaTime);
+      callbacks.render();
+    } catch (error) {
+      this.stopRequested = true;
+      throw error;
+    } finally {
+      this.inFrame = false;
+      if (this.webRuntime && this.stopRequested) this.scheduleCompleteRun();
+    }
   }
 
   private shouldContinue(): boolean {
@@ -192,6 +259,18 @@ export class Game {
       this.completionScheduled = false;
       this.completeRun();
     });
+  }
+
+  private failRun(error: unknown): never {
+    this.stopRequested = true;
+    if (!this.runCompleted) {
+      try {
+        this.completeRun();
+      } catch (shutdownError) {
+        console.error('Game shutdown also failed while handling a lifecycle error.', shutdownError);
+      }
+    }
+    throw error;
   }
 
   private disposeInternal(): void {

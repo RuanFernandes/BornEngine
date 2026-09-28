@@ -5,29 +5,37 @@ section: Concepts
 order: 11
 ---
 
-BornEngine uses a class-first TypeScript API. Create one `Game` for a runtime, then reach services through that owner: `game.renderer`, `game.input`, `game.audio`, `game.scenes`, and `game.sceneGraph`. Resource constructors receive the same game so they can validate ownership and release native state safely.
+BornEngine uses a class-first TypeScript API. Extend `Game` to keep startup, simulation, and rendering with the services they use. The runtime exposes `renderer`, `input`, `audio`, `scenes`, and `sceneGraph` on the same instance. Resource constructors receive that owner so the engine can validate ownership and release native state safely.
 
 ```ts
 import { Colors, Game, Texture } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'Sprite demo' } });
-const player = new Texture(game, 'assets/player.png');
+class SpriteGame extends Game {
+  private readonly player: Texture;
 
-if (!player.isLoaded) {
-  console.error(player.error);
-} else {
-  game.run({
-    update(deltaTime) {
-      // Move the player by deltaTime.
-    },
-    render() {
-      game.renderer.clear(Colors.BLACK);
-      player.draw({ x: 100, y: 120 });
-    },
-    onStop: () => game.dispose(),
-  });
+  constructor() {
+    super({ window: { title: 'Sprite demo' } });
+    this.player = new Texture(this, 'assets/player.png');
+  }
+
+  protected override onStart(): void {
+    // Prepare game-specific systems here.
+  }
+
+  protected override loop(deltaTime: number): void {
+    // Move the player by deltaTime, measured in seconds.
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    if (this.player.isLoaded) this.player.draw({ x: 100, y: 120 });
+  }
 }
+
+new SpriteGame().run();
 ```
+
+`run()` calls `onStart` once, then `loop(deltaTime)` and `render()` for each frame. When the game stops, `onStop()` runs before the runtime disposes its owned resources. Use `run({ update, render, onStop })` when callback composition is a better fit; the callback form keeps the same owner and explicit resource lifetimes.
 
 ## Ownership
 
