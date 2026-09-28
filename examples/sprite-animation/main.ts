@@ -10,7 +10,6 @@ import {
   SpriteAnimator,
   SpriteRenderer,
   SpriteSheet,
-  Texture,
 } from '@bornengine/engine';
 import type { InputActionMap } from '@bornengine/engine/input';
 import type { SpriteFrame } from '@bornengine/engine/sprites';
@@ -140,9 +139,9 @@ class SpriteAnimationGame extends Game {
       return;
     }
 
-    const texture = new Texture(this, 'assets/atlas.png');
-    if (!texture.isLoaded) {
-      console.error(texture.error || 'Could not load assets/atlas.png.');
+    const texture = this.assets.loadTexture('assets/atlas.png');
+    if (texture === null || !texture.isLoaded) {
+      console.error(texture === null ? 'Could not access the Game asset manager.' : texture.error || 'Could not load assets/atlas.png.');
       this.dispose();
       return;
     }

@@ -12,19 +12,20 @@ The 2D sprite stack is made from reusable `SpriteSheet` frames and scene compone
 `SpriteSheet` references a loaded, Game-owned `Texture`. It does not dispose the texture. Use a regular grid when every cell has the same size, or define named rectangles when the atlas has trimmed or irregular frames.
 
 ```ts
-import { Game, SpriteSheet, Texture } from '@bornengine/engine';
+import { Game, SpriteSheet } from '@bornengine/engine';
 
 const game = new Game();
-const texture = new Texture(game, 'assets/hero-atlas.png');
-const sheet = new SpriteSheet(texture, {
-  frameWidth: 32,
-  frameHeight: 32,
-  margin: { x: 2, y: 2 },
-  spacing: { x: 1, y: 1 },
-});
-
-const idle = sheet.gridFrame(0, 0);
-const step = sheet.gridFrame(1, 0);
+const texture = game.assets.loadTexture('assets/hero-atlas.png');
+const sheet = texture !== null && texture.isLoaded
+  ? new SpriteSheet(texture, {
+    frameWidth: 32,
+    frameHeight: 32,
+    margin: { x: 2, y: 2 },
+    spacing: { x: 1, y: 1 },
+  })
+  : null;
+const idle = sheet === null ? null : sheet.gridFrame(0, 0);
+const step = sheet === null ? null : sheet.gridFrame(1, 0);
 ```
 
 `gridFrame(column, row)` returns a cached frame or `null` for an invalid cell. Named frames use `{ name, source, pivot?, trim? }`; `source` is a pixel rectangle inside the texture. `pivot` is normalized to the original frame size. Trim metadata stores the packed-pixel offset and the original untrimmed dimensions.
@@ -38,13 +39,15 @@ Check `texture.isLoaded` and `sheet.error` before building gameplay objects. The
 `SpriteRenderer` draws its current frame during scene rendering. Its default size and pivot come from the frame; set `size`, `pivot`, `tint`, `flipX`, `flipY`, `visible`, or `renderOrder` when needed. The object's world position, scale, and Z rotation are applied by the renderer.
 
 ```ts
-import { Game, GameObject, Scene, SpriteRenderer, SpriteSheet, Texture } from '@bornengine/engine';
+import { Game, GameObject, Scene, SpriteRenderer, SpriteSheet } from '@bornengine/engine';
 
 const game = new Game();
-const texture = new Texture(game, 'assets/hero-atlas.png');
-const sheet = new SpriteSheet(texture, { frameWidth: 32, frameHeight: 32 });
-const idle = sheet.gridFrame(0, 0);
-if (game.isReady && texture.isLoaded && idle !== null) {
+const texture = game.assets.loadTexture('assets/hero-atlas.png');
+const sheet = texture !== null && texture.isLoaded
+  ? new SpriteSheet(texture, { frameWidth: 32, frameHeight: 32 })
+  : null;
+const idle = sheet === null ? null : sheet.gridFrame(0, 0);
+if (game.isReady && texture !== null && texture.isLoaded && idle !== null) {
   const scene = new Scene(game, { name: 'Level' });
   const player = new GameObject({ name: 'Player', position: { x: 160, y: 120, z: 0 } });
   const sprite = new SpriteRenderer(idle, { size: { x: 64, y: 64 }, renderOrder: 0 });
@@ -63,15 +66,17 @@ Set `scene.camera2D` to a `Camera2D` record to draw the scene inside a 2D camera
 ```ts
 import {
   Game, GameObject, Scene, SpriteAnimation, SpriteAnimator,
-  SpriteRenderer, SpriteSheet, Texture,
+  SpriteRenderer, SpriteSheet,
 } from '@bornengine/engine';
 
 const game = new Game();
-const atlas = new Texture(game, 'assets/hero-atlas.png');
-const sheet = new SpriteSheet(atlas, { frameWidth: 32, frameHeight: 32 });
-const idle = sheet.gridFrame(0, 0);
-const step = sheet.gridFrame(1, 0);
-if (game.isReady && atlas.isLoaded && idle !== null && step !== null) {
+const atlas = game.assets.loadTexture('assets/hero-atlas.png');
+const sheet = atlas !== null && atlas.isLoaded
+  ? new SpriteSheet(atlas, { frameWidth: 32, frameHeight: 32 })
+  : null;
+const idle = sheet === null ? null : sheet.gridFrame(0, 0);
+const step = sheet === null ? null : sheet.gridFrame(1, 0);
+if (game.isReady && atlas !== null && atlas.isLoaded && idle !== null && step !== null) {
   const scene = new Scene(game, { name: 'Level' });
   const player = new GameObject({ name: 'Player' });
   const sprite = new SpriteRenderer(idle);
@@ -160,5 +165,9 @@ function addAnimationEffects(player: GameObject, animator: SpriteAnimator, sheet
 Attach each emitter to the same player object as the sprite and animator so the scene updates and draws it with the animation.
 
 The same callback may call the existing 3D `ParticleSystem.emit()` for a world-space effect. The 3D model `Animation` API and its model playback remain separate from `SpriteAnimation`.
+
+## Camera culling and renderer metrics
+
+The scene renderer skips sprite quads outside the active `camera2D` viewport. `renderer.isRectVisibleIn2D(bounds)` exposes the same world-space test to custom components. `renderer.stats` reports timing for the current game frame, `drawSubmissions2D`, submitted sprite quads, and culled quads; tilemap cells are included. Sprite counts reset even when a custom `Game.render()` omits `super.render()`. The 2D submission count is backend-defined: WGPU counts texture/uniform batches while watchOS counts drawable Canvas commands, so compare it across frames on the same backend rather than treating it as a cross-platform draw-call total.
 
 For a complete scene, see the [2D game guide](../../guides/2d-game/) and the `examples/sprite-animation` project.

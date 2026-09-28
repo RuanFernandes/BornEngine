@@ -39,6 +39,12 @@ export const apiCoverage = [
     sections: ['Loading', 'Sampling', 'Render textures'],
   },
   {
+    slug: 'assets',
+    file: 'api/assets.md',
+    href: '/docs/api/assets/',
+    sections: ['Game-owned cache', 'Texture cache operations', 'Ownership and shutdown'],
+  },
+  {
     slug: 'sprites',
     file: 'api/sprites.md',
     href: '/docs/api/sprites/',
@@ -87,6 +93,18 @@ export const apiCoverage = [
     sections: ['World stepping', 'Shapes and bodies', 'Queries and constraints', 'Characters'],
   },
   {
+    slug: 'physics2d',
+    file: 'api/physics2d.md',
+    href: '/docs/api/physics2d/',
+    sections: ['Fixed-step world', 'Bodies and scene components', 'Collision events and queries', 'Solver limits'],
+  },
+  {
+    slug: 'tilemap',
+    file: 'api/tilemap.md',
+    href: '/docs/api/tilemap/',
+    sections: ['Tile definitions', 'Render and update', 'Collision data'],
+  },
+  {
     slug: 'vfx',
     file: 'api/vfx.md',
     href: '/docs/api/vfx/',
@@ -116,6 +134,7 @@ const recipeSections = ['Setup', 'Game loop', 'Complete example', 'Next steps'];
 
 export const recipeCoverage = [
   { slug: '2d-game', file: 'guides/2d-game.md', href: '/docs/guides/2d-game/', sections: recipeSections },
+  { slug: 'physics2d-tilemap', file: 'guides/physics2d-tilemap.md', href: '/docs/guides/physics2d-tilemap/', sections: ['Setup', 'Game loop', 'Tile collisions', 'Complete example', 'Next steps'] },
   { slug: '3d-scene', file: 'guides/3d-scene.md', href: '/docs/guides/3d-scene/', sections: recipeSections },
   { slug: 'physics-gameplay', file: 'guides/physics-gameplay.md', href: '/docs/guides/physics-gameplay/', sections: recipeSections },
   { slug: 'assets-and-worlds', file: 'guides/assets-and-worlds.md', href: '/docs/guides/assets-and-worlds/', sections: recipeSections },

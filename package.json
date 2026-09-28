@@ -12,11 +12,14 @@
     "./audio": "./src/audio/index.ts",
     "./math": "./src/math/index.ts",
     "./textures": "./src/textures/index.ts",
+    "./assets": "./src/assets/index.ts",
     "./sprites": "./src/sprites/index.ts",
     "./models": "./src/models/index.ts",
     "./mobile": "./src/mobile/index.ts",
     "./scene": "./src/scene/index.ts",
     "./physics": "./src/physics/index.ts",
+    "./physics2d": "./src/physics2d/index.ts",
+    "./tilemap": "./src/tilemap/index.ts",
     "./world": "./src/world/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
@@ -301,6 +304,11 @@
         },
         {
           "name": "bloom_get_fps",
+          "params": [],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_get_2d_draw_calls",
           "params": [],
           "returns": "f64"
         },

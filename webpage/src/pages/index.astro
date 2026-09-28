@@ -9,11 +9,11 @@ import '../styles/homepage.css';
 const heroCode = `import { Colors, Game, Texture } from '@bornengine/engine';
 
 class Undertale extends Game {
-  private readonly player: Texture;
+  private readonly player: Texture | null;
 
   constructor() {
     super({ window: { title: 'Undertale', width: 800, height: 450 } });
-    this.player = new Texture(this, 'assets/player.png');
+    this.player = this.assets.loadTexture('assets/player.png');
   }
 
   protected override onStart() {
@@ -26,7 +26,7 @@ class Undertale extends Game {
 
   protected override render() {
     this.renderer.clear(Colors.SNOW);
-    if (this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+    if (this.player !== null && this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
   }
 }
 
@@ -94,7 +94,7 @@ const homeJsonLd = {
           <div>
             <p class="eyebrow eyebrow--acid">One code shape, many targets</p>
             <h2 id="api-heading">Keep the whole game in one class.</h2>
-            <p>Override <code>onStart</code>, <code>loop</code>, and <code>render</code>, then start the engine with <code>run()</code>. The same instance owns the renderer and resources such as <code>new Texture(this, path)</code>. Use <code>run(callbacks)</code> when you need direct frame control.</p>
+            <p>Override <code>onStart</code>, <code>loop</code>, and <code>render</code>, then start the engine with <code>run()</code>. The same instance owns the renderer and shared assets through <code>this.assets</code>. Use <code>run(callbacks)</code> when you need direct frame control.</p>
             <a class="text-link text-link--acid" href={withBase('/docs/api/')}>Browse the API <span aria-hidden="true">→</span></a>
             {' '}
             <a class="text-link text-link--acid" href={withBase('/docs/api/core/')}>Game lifecycle <span aria-hidden="true">→</span></a>

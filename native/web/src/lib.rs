@@ -295,6 +295,11 @@ pub fn bloom_get_fps() -> f64 {
 }
 
 #[wasm_bindgen]
+pub fn bloom_get_2d_draw_calls() -> f64 {
+    engine().renderer.draw_calls_2d_count() as f64
+}
+
+#[wasm_bindgen]
 pub fn bloom_get_screen_width() -> f64 {
     engine().screen_width()
 }

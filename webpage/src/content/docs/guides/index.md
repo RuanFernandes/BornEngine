@@ -8,9 +8,11 @@ order: 0
 Use these guides when the API reference is not enough context for a complete system.
 
 - [Physics](physics/) — step the simulation and structure gameplay bodies.
+- [2D physics and tilemaps](physics2d-tilemap/) — combine a fixed-step 2D world, scene bodies, atlas tiles, and collision rectangles.
 - [Skeletal animation](skeletal-animation/) — export GLB assets and drive animation layers.
 - [World format](world-format/) — keep authored levels portable and explicit.
 - [Assets](assets/) — package runtime files across native and Web/WASM targets.
+- [Runtime debugging](debugging/) — enable the optional inspector and add diagnostic windows.
 
 ## Composition recipes
 

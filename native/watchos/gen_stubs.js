@@ -17,6 +17,7 @@ const OVERRIDES = new Set([
   'bloom_get_max_touch_points',
   'bloom_get_touch_x', 'bloom_get_touch_y', 'bloom_get_touch_count', 'bloom_is_touch_active',
   'bloom_get_delta_time', 'bloom_get_time', 'bloom_get_fps',
+  'bloom_get_2d_draw_calls',
   'bloom_init_window', 'bloom_close_window', 'bloom_window_should_close',
   'bloom_begin_drawing', 'bloom_end_drawing', 'bloom_clear_background',
   'bloom_run_game', 'bloom_is_any_input_pressed',

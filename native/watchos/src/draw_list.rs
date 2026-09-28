@@ -167,6 +167,18 @@ pub fn push(cmd: DrawCmd) {
     g.building.push(cmd);
 }
 
+/// Number of drawable 2D commands queued for the frame being assembled.
+/// Camera markers and 3D immediate commands don't map to Canvas draw calls.
+pub fn building_2d_draw_calls() -> usize {
+    INNER
+        .lock()
+        .unwrap()
+        .building
+        .iter()
+        .filter(|command| (kind::RECT..=kind::TEXT).contains(&command.kind))
+        .count()
+}
+
 pub fn set_clear(r: f64, g: f64, b: f64, a: f64) {
     CLEAR[0].store(r.to_bits(), Ordering::Relaxed);
     CLEAR[1].store(g.to_bits(), Ordering::Relaxed);

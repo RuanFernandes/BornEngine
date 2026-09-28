@@ -357,6 +357,11 @@ pub extern "C" fn bloom_get_fps() -> f64 {
 }
 
 #[no_mangle]
+pub extern "C" fn bloom_get_2d_draw_calls() -> f64 {
+    draw_list::building_2d_draw_calls() as f64
+}
+
+#[no_mangle]
 pub extern "C" fn bloom_set_target_fps(fps: f64) {
     state().target_fps.store(fps as i64, Ordering::Release);
 }

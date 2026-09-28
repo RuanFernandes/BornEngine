@@ -60,6 +60,7 @@ export class SpriteRenderer extends GameComponent {
   private fadingFrame: SpriteFrame | null = null;
   private fadeDuration = 0;
   private fadeElapsed = 0;
+  private readonly cullingBounds: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
   constructor(frame: SpriteFrame, options: SpriteRendererOptions = {}) {
     super();
@@ -199,7 +200,7 @@ export class SpriteRenderer extends GameComponent {
       this.currentFrame.sheet._canAttachTo(context);
   }
 
-  render(_renderer: Renderer): void {
+  render(renderer: Renderer): void {
     const frame = this.currentFrame;
     const owner = this.gameObject;
     if (!this.visible || this.error !== null || frame === null || owner === null ||
@@ -210,14 +211,14 @@ export class SpriteRenderer extends GameComponent {
 
     if (this.fadingFrame !== null && this.fadeDuration > 0) {
       const progress = Math.max(0, Math.min(1, this.fadeElapsed / this.fadeDuration));
-      this.drawFrame(this.fadingFrame, 1 - progress);
-      this.drawFrame(frame, progress);
+      this.drawFrame(renderer, this.fadingFrame, 1 - progress);
+      this.drawFrame(renderer, frame, progress);
     } else {
-      this.drawFrame(frame, 1);
+      this.drawFrame(renderer, frame, 1);
     }
   }
 
-  private drawFrame(frame: SpriteFrame, opacity: number): void {
+  private drawFrame(renderer: Renderer, frame: SpriteFrame, opacity: number): void {
     const owner = this.gameObject;
     if (owner === null || owner.scene === null || !frame.sheet._canAttachTo(owner.scene.context)) return;
     const originalSize = frame.originalSize;
@@ -257,8 +258,34 @@ export class SpriteRenderer extends GameComponent {
       width: frame.source.width * scaleX,
       height: frame.source.height * scaleY,
     };
+    const rotation = rotationZDegrees(worldRotation);
+    updateRotatedBounds(destination, origin, rotation, this.cullingBounds);
+    if (!renderer.isRectVisibleIn2D(this.cullingBounds)) {
+      renderer._recordSpriteCulled();
+      return;
+    }
     const tint = copyColor(this.tint);
     tint.a *= opacity;
-    frame.sheet.texture.drawRegion(source, destination, origin, rotationZDegrees(worldRotation), tint);
+    if (frame.sheet.texture.drawRegion(source, destination, origin, rotation, tint)) {
+      renderer._recordSpriteDrawn();
+    }
   }
+}
+
+function updateRotatedBounds(destination: Rect, origin: Vec2, rotation: number, bounds: Rect): void {
+  const radians = rotation * Math.PI / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  const pivotX = destination.x + origin.x;
+  const pivotY = destination.y + origin.y;
+  const centerX = pivotX + (destination.width * 0.5 - origin.x) * cosine -
+    (destination.height * 0.5 - origin.y) * sine;
+  const centerY = pivotY + (destination.width * 0.5 - origin.x) * sine +
+    (destination.height * 0.5 - origin.y) * cosine;
+  const halfWidth = (Math.abs(cosine) * destination.width + Math.abs(sine) * destination.height) * 0.5;
+  const halfHeight = (Math.abs(sine) * destination.width + Math.abs(cosine) * destination.height) * 0.5;
+  bounds.x = centerX - halfWidth;
+  bounds.y = centerY - halfHeight;
+  bounds.width = halfWidth * 2;
+  bounds.height = halfHeight * 2;
 }

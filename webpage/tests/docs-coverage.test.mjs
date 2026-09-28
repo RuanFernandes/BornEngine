@@ -4,13 +4,13 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 17);
+  assert.equal(apiCoverage.length, 20);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
-    'game', 'core', 'input', 'shapes', 'textures', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math',
-    'scene', 'physics', 'vfx', 'world', 'mobile', 'ui',
+    'game', 'core', 'input', 'shapes', 'textures', 'assets', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math',
+    'scene', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
-    '2d-game', '3d-scene', 'physics-gameplay', 'assets-and-worlds', 'audio-and-ui',
+    '2d-game', 'physics2d-tilemap', '3d-scene', 'physics-gameplay', 'assets-and-worlds', 'audio-and-ui',
   ]);
 });
 
@@ -34,7 +34,7 @@ test('foundational API pages contain their required sections and examples', asyn
 });
 
 test('asset and scene API pages contain their required sections and examples', async () => {
-  const coverage = new Set(['audio', 'models', 'scene']);
+  const coverage = new Set(['assets', 'audio', 'models', 'scene']);
   for (const item of apiCoverage.filter((entry) => coverage.has(entry.slug))) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
     const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];
@@ -46,7 +46,7 @@ test('asset and scene API pages contain their required sections and examples', a
 });
 
 test('gameplay systems API pages contain their required sections and examples', async () => {
-  const coverage = new Set(['game', 'input', 'physics', 'vfx', 'world', 'mobile', 'ui', 'sprites']);
+  const coverage = new Set(['game', 'input', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui', 'sprites']);
   for (const item of apiCoverage.filter((entry) => coverage.has(entry.slug))) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
     const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];

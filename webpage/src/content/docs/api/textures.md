@@ -19,6 +19,8 @@ else console.log(player.width, player.height);
 
 Texture loading can fail without throwing. Inspect `isLoaded` and `error` before using the resource. The Game also disposes resources that remain registered at shutdown.
 
+For textures shared across scenes, prefer `game.assets.loadTexture(path)`. It returns the same live instance for repeated requests and lets a loading scene release it later with `game.assets.releaseTexture(path)`. See the [Assets API](../assets/).
+
 ## Sampling
 
 Filtering and mipmap generation are resource methods. Draw with `texture.draw(position, tint?)` or `game.renderer.drawTexture(texture, position, tint?)`.
