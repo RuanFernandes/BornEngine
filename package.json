@@ -12,6 +12,7 @@
     "./audio": "./src/audio/index.ts",
     "./math": "./src/math/index.ts",
     "./textures": "./src/textures/index.ts",
+    "./sprites": "./src/sprites/index.ts",
     "./models": "./src/models/index.ts",
     "./mobile": "./src/mobile/index.ts",
     "./scene": "./src/scene/index.ts",

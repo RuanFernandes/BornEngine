@@ -9,6 +9,10 @@ export { Vec2, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
 export type { Matrix4Array } from './math';
 
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
+export { SpriteSheet, SpriteRenderer } from './sprites';
+export type {
+  SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteSheetOptions, SpriteRendererOptions,
+} from './sprites';
 export { Font } from './text';
 export { Model, Mesh, Material, Animation } from './models';
 export type { MaterialKind, DrawCubeOpts, ProceduralSkyOptions, PbrMaterial } from './models';

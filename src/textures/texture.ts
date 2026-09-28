@@ -4,7 +4,7 @@ import { Colors } from '../core/colors';
 import * as operations from './internal';
 import type { ImageData } from './image-data';
 import type { RenderTexture } from './render-texture';
-import type { Color, Vec2 } from '../core/types';
+import type { Color, Rect, Vec2 } from '../core/types';
 
 type TextureSource = string | ImageData | RenderTexture;
 
@@ -84,6 +84,34 @@ export class Texture implements ContextDrawable {
     return this.context.draw(this, position, tint);
   }
 
+  /** Draws a texture region into a destination rectangle without exposing its native handle. */
+  drawRegion(source: Rect, destination: Rect, origin: Vec2, rotation: number, tint: Color): boolean {
+    if (!this.isLoaded || !this.context.owns(this) ||
+        source === null || source === undefined || destination === null || destination === undefined ||
+        origin === null || origin === undefined || tint === null || tint === undefined ||
+        !isFiniteNumber(source.x) || !isFiniteNumber(source.y) ||
+        !isFiniteNumber(source.width) || !isFiniteNumber(source.height) ||
+        source.width === 0 || source.height === 0 ||
+        source.x < 0 || source.y < 0 ||
+        source.x + Math.abs(source.width) > this.width ||
+        source.y + Math.abs(source.height) > this.height ||
+        !isFiniteNumber(destination.x) || !isFiniteNumber(destination.y) ||
+        !isFiniteNumber(destination.width) || !isFiniteNumber(destination.height) ||
+        destination.width <= 0 || destination.height <= 0 ||
+        !isFiniteNumber(origin.x) || !isFiniteNumber(origin.y) || !isFiniteNumber(rotation) ||
+        !isFiniteNumber(tint.r) || !isFiniteNumber(tint.g) ||
+        !isFiniteNumber(tint.b) || !isFiniteNumber(tint.a)) return false;
+
+    operations.drawTextureProRaw(
+      this.handleValue,
+      source.x, source.y, source.width, source.height,
+      destination.x, destination.y, destination.width, destination.height,
+      origin.x, origin.y, rotation,
+      tint.r, tint.g, tint.b, tint.a,
+    );
+    return true;
+  }
+
   setFilter(mode: number): boolean {
     if (!this.isLoaded || !this.ownsHandle) return false;
     operations.setTextureFilter(this.toNativeTexture(), mode);
@@ -114,4 +142,8 @@ export class Texture implements ContextDrawable {
     this.disposed = true;
     this.context.unregister(this);
   }
+}
+
+function isFiniteNumber(value: number): boolean {
+  return value === value && value !== Infinity && value !== -Infinity;
 }
