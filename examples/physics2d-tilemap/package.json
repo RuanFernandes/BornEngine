@@ -1,0 +1,14 @@
+{
+  "name": "bornengine-physics2d-tilemap",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.ts",
+  "dependencies": {
+    "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine"]
+    }
+  }
+}
