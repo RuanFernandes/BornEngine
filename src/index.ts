@@ -9,6 +9,15 @@ export { Vec2, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
 export type { Matrix4Array } from './math';
 
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
+export { SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D } from './sprites';
+export type {
+  SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteSheetOptions, SpriteRendererOptions,
+  ResolvedSpriteKeyframe, SpriteAnimationLoop, SpriteAnimationOptions, SpriteKeyframe,
+  SpriteAnimationTransition, SpriteAnimatorOptions, SpriteAnimatorState, SpriteCompleteCallback,
+  SpriteMarkerCallback, SpriteNumberComparison, SpritePlayOptions, SpriteStateChangedCallback,
+  SpriteTransitionCondition,
+  ParticleBurstOptions, ParticleEmitter2DOptions, ParticleEmitterShape, ParticleRange,
+} from './sprites';
 export { Font } from './text';
 export { Model, Mesh, Material, Animation } from './models';
 export type { MaterialKind, DrawCubeOpts, ProceduralSkyOptions, PbrMaterial } from './models';

@@ -23,6 +23,7 @@ pub mod custom_shaders;
 pub mod staging;
 pub mod profiler;
 pub mod particles;
+pub mod particles2d;
 pub mod decals;
 #[cfg(all(feature = "models3d", feature = "jolt"))]
 pub mod ragdoll;

@@ -15,6 +15,170 @@
 macro_rules! __bloom_ffi_vfx {
     () => {
 
+        // ---- 2D sprite particles ---------------------------------------
+
+        // The 2D pool owns only CPU simulation and atlas data; the texture is
+        // still a normal Game-owned Texture and is sampled by the scene's 2D
+        // renderer. Configuration and per-call transforms use their own
+        // EngineState scratch buffer, independent of models3d.
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_create(capacity: f64, texture: f64) -> f64 {
+            $crate::ffi::guard("bloom_particle2d_create", move || {
+                if !capacity.is_finite() || capacity.fract() != 0.0 || !(1.0..=100_000.0).contains(&capacity) {
+                    return 0.0;
+                }
+                let mut eng = engine();
+                let (width, height) = match eng.textures.get(texture) {
+                    Some(data) => (data.width, data.height),
+                    None => return 0.0,
+                };
+                eng.particles2d.create(capacity as usize, texture, width, height) as f64
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_scratch_reset() {
+            $crate::ffi::guard("bloom_particle2d_scratch_reset", move || {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles2d_scratch, .. } = &mut *eng;
+                particles2d_scratch.clear();
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_scratch_push_f32(value: f64) {
+            $crate::ffi::guard("bloom_particle2d_scratch_push_f32", move || {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles2d_scratch, .. } = &mut *eng;
+                particles2d_scratch.push(value as f32);
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_configure(handle: f64) -> f64 {
+            $crate::ffi::guard("bloom_particle2d_configure", move || {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles2d_scratch, particles2d, .. } = &mut *eng;
+                let values = std::mem::take(particles2d_scratch);
+                if let Some(emitter) = particles2d.get_mut(handle as u32) {
+                    if emitter.configure_from_slice(&values) {
+                        return 1.0;
+                    } else {
+                        $crate::ffi::log_error("bloom_particle2d_configure: invalid emitter configuration");
+                    }
+                }
+                0.0
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_emit(handle: f64, count: f64) {
+            $crate::ffi::guard("bloom_particle2d_emit", move || {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles2d_scratch, particles2d, .. } = &mut *eng;
+                let values = std::mem::take(particles2d_scratch);
+                if values.len() != 9 { return; }
+                let transform = $crate::particles2d::Particle2DTransform {
+                    position: [values[4], values[5]],
+                    rotation: values[6],
+                    scale: [values[7], values[8]],
+                };
+                if let Some(emitter) = particles2d.get_mut(handle as u32) {
+                    emitter.emit(
+                        (count as usize).min(100_000),
+                        [values[0], values[1]], [values[2], values[3]], transform,
+                    );
+                }
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_play(handle: f64) {
+            $crate::ffi::guard("bloom_particle2d_play", move || {
+                if let Some(emitter) = engine().particles2d.get_mut(handle as u32) { emitter.play(); }
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_stop(handle: f64) {
+            $crate::ffi::guard("bloom_particle2d_stop", move || {
+                if let Some(emitter) = engine().particles2d.get_mut(handle as u32) { emitter.stop(); }
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_update(handle: f64, delta_time: f64) -> f64 {
+            $crate::ffi::guard("bloom_particle2d_update", move || {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles2d_scratch, particles2d, .. } = &mut *eng;
+                let values = std::mem::take(particles2d_scratch);
+                if values.len() != 5 { return 0.0; }
+                let transform = $crate::particles2d::Particle2DTransform {
+                    position: [values[0], values[1]],
+                    rotation: values[2],
+                    scale: [values[3], values[4]],
+                };
+                particles2d.get_mut(handle as u32)
+                    .map(|emitter| emitter.update(delta_time as f32, transform) as f64)
+                    .unwrap_or(0.0)
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_draw(handle: f64) {
+            $crate::ffi::guard("bloom_particle2d_draw", move || {
+                let mut eng = engine();
+                let $crate::engine::EngineState { particles2d_scratch, particles2d, renderer, textures, .. } = &mut *eng;
+                let values = std::mem::take(particles2d_scratch);
+                if values.len() != 5 { return; }
+                let transform = $crate::particles2d::Particle2DTransform {
+                    position: [values[0], values[1]],
+                    rotation: values[2],
+                    scale: [values[3], values[4]],
+                };
+                let emitter = match particles2d.get(handle as u32) { Some(value) => value, None => return };
+                let texture = match textures.get(emitter.texture_handle) { Some(value) => value, None => return };
+                let texture_idx = texture.bind_group_idx;
+                emitter.for_each_draw(transform, |draw| {
+                    let (destination, origin) = draw.destination_origin();
+                    renderer.draw_texture_pro(
+                        texture_idx,
+                        draw.source[0] as f64, draw.source[1] as f64,
+                        draw.source[2] as f64, draw.source[3] as f64,
+                        destination[0] as f64, destination[1] as f64,
+                        draw.width as f64, draw.height as f64,
+                        origin[0] as f64, origin[1] as f64,
+                        draw.rotation_degrees as f64,
+                        draw.color[0] as f64, draw.color[1] as f64,
+                        draw.color[2] as f64, draw.color[3] as f64,
+                    );
+                });
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_clear(handle: f64) {
+            $crate::ffi::guard("bloom_particle2d_clear", move || {
+                if let Some(emitter) = engine().particles2d.get_mut(handle as u32) { emitter.clear(); }
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_destroy(handle: f64) {
+            $crate::ffi::guard("bloom_particle2d_destroy", move || {
+                engine().particles2d.destroy(handle as u32);
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particle2d_live(handle: f64) -> f64 {
+            $crate::ffi::guard("bloom_particle2d_live", move || {
+                engine().particles2d.get(handle as u32)
+                    .map(|emitter| emitter.live_count() as f64)
+                    .unwrap_or(0.0)
+            })
+        }
+
         // ---- EN-026 particles ------------------------------------------
 
         // bloom_particles_create — pool + dynamic instance buffer.

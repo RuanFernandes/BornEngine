@@ -37,6 +37,12 @@ const OVERRIDES = new Set([
   'bloom_get_texture_width', 'bloom_get_texture_height',
   'bloom_draw_texture', 'bloom_draw_texture_rec', 'bloom_draw_texture_pro',
   'bloom_set_texture_filter',
+  // 2D particle emitters, adapted into the Swift Canvas draw list in lib.rs.
+  'bloom_particle2d_create', 'bloom_particle2d_scratch_reset',
+  'bloom_particle2d_scratch_push_f32', 'bloom_particle2d_configure',
+  'bloom_particle2d_emit', 'bloom_particle2d_play', 'bloom_particle2d_stop',
+  'bloom_particle2d_update', 'bloom_particle2d_draw', 'bloom_particle2d_clear',
+  'bloom_particle2d_destroy', 'bloom_particle2d_live',
   // Text
   'bloom_draw_text', 'bloom_draw_text_ex',
   'bloom_measure_text', 'bloom_measure_text_ex',

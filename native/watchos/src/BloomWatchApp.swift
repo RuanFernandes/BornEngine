@@ -1229,10 +1229,10 @@ private func drawOne(ctx: GraphicsContext, cmdPtr: UnsafePointer<DrawCmd>) {
 
     case K_TEXTURE_PRO:
         let src = CGRect(x: cmd.srcX, y: cmd.srcY, width: cmd.srcW, height: cmd.srcH)
-        let dst = CGRect(x: cmd.x - cmd.ox, y: cmd.y - cmd.oy, width: cmd.w, height: cmd.h)
+        let dst = CGRect(x: cmd.x, y: cmd.y, width: cmd.w, height: cmd.h)
         if cmd.rot != 0 {
             var nested = ctx
-            nested.translateBy(x: cmd.x, y: cmd.y)
+            nested.translateBy(x: cmd.x + cmd.ox, y: cmd.y + cmd.oy)
             nested.rotate(by: .degrees(cmd.rot))
             nested.translateBy(x: -cmd.ox, y: -cmd.oy)
             drawTexture(ctx: nested, cmd: cmd,
@@ -1257,11 +1257,41 @@ private func drawOne(ctx: GraphicsContext, cmdPtr: UnsafePointer<DrawCmd>) {
 private func drawTexture(ctx: GraphicsContext, cmd: DrawCmd, dstRect: CGRect, srcRect: CGRect?) {
     guard let full = TextureCache.shared.image(for: cmd.tex) else { return }
     let cg: CGImage
-    if let s = srcRect, let cropped = full.cropping(to: s) {
+    if let s = srcRect,
+       let cropped = full.cropping(to: CGRect(
+        x: s.width < 0 ? s.origin.x + s.width : s.origin.x,
+        y: s.height < 0 ? s.origin.y + s.height : s.origin.y,
+        width: abs(s.width),
+        height: abs(s.height)
+       )) {
         cg = cropped
     } else {
         cg = full
     }
     let img = Image(cg, scale: 1.0, label: Text(""))
-    ctx.draw(img, in: dstRect)
+    var drawContext = ctx
+    drawContext.opacity *= max(0, min(1, cmd.a / 255.0))
+
+    let tint = Color(.sRGB,
+                     red: max(0, min(1, cmd.r / 255.0)),
+                     green: max(0, min(1, cmd.g / 255.0)),
+                     blue: max(0, min(1, cmd.b / 255.0)),
+                     opacity: 1)
+    if cmd.r != 255 || cmd.g != 255 || cmd.b != 255 {
+        drawContext.addFilter(.colorMultiply(tint), options: [])
+    }
+
+    if let source = srcRect, source.width < 0 || source.height < 0 {
+        let flipX = source.width < 0
+        let flipY = source.height < 0
+        drawContext.concatenate(CGAffineTransform(
+            a: flipX ? -1 : 1,
+            b: 0,
+            c: 0,
+            d: flipY ? -1 : 1,
+            tx: flipX ? 2 * dstRect.midX : 0,
+            ty: flipY ? 2 * dstRect.midY : 0
+        ))
+    }
+    drawContext.draw(img, in: dstRect)
 }

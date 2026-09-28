@@ -97,7 +97,9 @@ export class Game {
   protected loop(_deltaTime: number): void {}
 
   /** Draw one frame when using the subclass-driven run lifecycle. */
-  protected render(): void {}
+  protected render(): void {
+    this.scenes.render(this.renderer);
+  }
 
   /** Called once when a subclass-driven run ends, before the Game is disposed. */
   protected onStop(): void {}

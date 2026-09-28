@@ -37,6 +37,10 @@ pub struct EngineState {
     /// state that feeds dynamic instance buffers; they own no GPU resources of
     /// their own beyond the buffer handles they were given at creation.
     pub particles: crate::particles::ParticleManager,
+    /// Native CPU pool used by the automatic 2D sprite-particle renderer.
+    pub particles2d: crate::particles2d::Particle2DManager,
+    /// Dedicated FFI scratch for 2D particle configuration and transforms.
+    pub particles2d_scratch: Vec<f32>,
     pub decals: crate::decals::DecalManager,
     /// EN-025 — ragdoll slots. Bodies live in the Jolt world; this owns the
     /// bone->body mapping that turns them back into a skinned pose.
@@ -108,6 +112,8 @@ impl EngineState {
             screenshot_pending: false,
             drs: DrsController::new(),
             particles: crate::particles::ParticleManager::new(),
+            particles2d: crate::particles2d::Particle2DManager::new(),
+            particles2d_scratch: Vec::new(),
             decals: crate::decals::DecalManager::new(),
             #[cfg(all(feature = "models3d", feature = "jolt"))]
             ragdolls: crate::ragdoll::RagdollManager::new(),

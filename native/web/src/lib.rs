@@ -313,8 +313,10 @@ pub fn bloom_get_time() -> f64 {
 // in input_ffi.rs (2000-line file policy).
 mod input_ffi;
 mod material_ffi;
+mod particle2d_ffi;
 mod ui_ffi;
 pub use input_ffi::*;
+pub use particle2d_ffi::*;
 pub use ui_ffi::*;
 
 // EN-063 — web FFI parity for full-3D games: mesh/instance/texture-array

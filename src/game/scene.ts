@@ -3,6 +3,7 @@ import { GameScene } from './game-scene';
 import type { GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
+import type { Camera2D } from '../core/types';
 
 export type SceneState = 'ready' | 'active' | 'paused' | 'unloaded';
 
@@ -31,6 +32,7 @@ function removeAt<T>(values: T[], index: number): void {
 
 export class Scene extends GameScene {
   readonly name: string;
+  camera2D: Camera2D | null = null;
 
   private currentState: SceneState = 'ready';
   private ownedResources: SceneOwnedResource[] = [];

@@ -4,6 +4,16 @@ import { GameObject } from './game-object';
 import type { GameContext, ContextResource } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
+import type { Renderer } from '../core/renderer';
+import type { Camera2D } from '../core/types';
+
+interface RenderEntry {
+  component: GameComponent;
+  owner: GameObject;
+  generation: number;
+  order: number;
+  sequence: number;
+}
 
 function removeAt<T>(values: T[], index: number): void {
   for (let current = index; current + 1 < values.length; current++) {
@@ -93,6 +103,56 @@ export class GameScene implements ContextResource {
       }
     }
     this._syncRuntimeAdapters();
+  }
+
+  /** Draws active render components in ascending renderOrder with stable ties. */
+  render(renderer: Renderer, camera?: Camera2D | null): void {
+    if (this.wasDestroyed) return;
+    const objects = this.sceneObjects.slice();
+    const entries: RenderEntry[] = [];
+    let sequence = 0;
+
+    for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
+      const object = objects[objectIndex];
+      const generation = object._getAttachmentGeneration();
+      if (!this._isEligibleObject(object, generation)) continue;
+      const components = object._componentsSnapshot();
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        const component = components[componentIndex];
+        if (!this._isEligibleComponent(object, component, generation)) continue;
+        entries.push({
+          component,
+          owner: object,
+          generation,
+          order: component.renderOrder,
+          sequence,
+        });
+        sequence++;
+      }
+    }
+
+    entries.sort((left, right) => {
+      if (left.order < right.order) return -1;
+      if (left.order > right.order) return 1;
+      return left.sequence - right.sequence;
+    });
+
+    let cameraStarted = false;
+    try {
+      if (camera !== undefined && camera !== null) {
+        if (!renderer.begin2D(camera)) return;
+        cameraStarted = true;
+      }
+
+      for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index];
+        if (!this._isEligibleComponent(entry.owner, entry.component, entry.generation)) continue;
+        const dynamicComponent: any = entry.component;
+        dynamicComponent.render(renderer);
+      }
+    } finally {
+      if (cameraStarted) renderer.end2D();
+    }
   }
 
   updateFixed(fixedDt: number): void {

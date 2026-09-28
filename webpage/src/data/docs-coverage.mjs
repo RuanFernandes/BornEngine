@@ -39,6 +39,12 @@ export const apiCoverage = [
     sections: ['Loading', 'Sampling', 'Render textures'],
   },
   {
+    slug: 'sprites',
+    file: 'api/sprites.md',
+    href: '/docs/api/sprites/',
+    sections: ['Atlas frames', 'Sprite components and camera', 'Animation and state machines', '2D particle emitters', 'Marker-driven effects'],
+  },
+  {
     slug: 'text',
     file: 'api/text.md',
     href: '/docs/api/text/',

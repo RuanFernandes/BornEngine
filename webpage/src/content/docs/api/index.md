@@ -46,6 +46,7 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | Input | `@bornengine/engine/input` | `InputSystem`, `InputActionMap` |
 | Shapes | `@bornengine/engine/shapes` | Renderer drawing and pure collision helpers |
 | Textures | `@bornengine/engine/textures` | `Texture`, `RenderTexture`, `ImageData` |
+| Sprites | `@bornengine/engine/sprites` | `SpriteSheet`, `SpriteRenderer`, `SpriteAnimation`, `SpriteAnimator`, `ParticleEmitter2D` |
 | Text | `@bornengine/engine/text` | `Font` |
 | Audio | `@bornengine/engine/audio` | `AudioSystem`, `Sound`, `Music`, `SoundManager` |
 | Models | `@bornengine/engine/models` | `Model`, `Mesh`, `Material`, `Animation` |

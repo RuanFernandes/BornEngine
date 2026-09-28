@@ -17,6 +17,8 @@ mod audio;
 mod scene;
 mod models;
 mod postfx;
+#[path = "../../shared/src/particles2d.rs"]
+mod particles2d;
 #[path = "../../shared/src/colyseus.rs"]
 mod colyseus;
 #[path = "colyseus.rs"]
@@ -133,6 +135,20 @@ fn state() -> &'static WatchState {
         last_frame_ns: AtomicU64::new(0),
         frame_count: AtomicUsize::new(0),
     })
+}
+
+fn particle2d_manager() -> &'static std::sync::Mutex<particles2d::Particle2DManager> {
+    static MANAGER: OnceLock<std::sync::Mutex<particles2d::Particle2DManager>> = OnceLock::new();
+    MANAGER.get_or_init(|| std::sync::Mutex::new(particles2d::Particle2DManager::new()))
+}
+
+fn particle2d_scratch() -> &'static std::sync::Mutex<Vec<f32>> {
+    static SCRATCH: OnceLock<std::sync::Mutex<Vec<f32>>> = OnceLock::new();
+    SCRATCH.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+fn take_particle2d_scratch() -> Vec<f32> {
+    std::mem::take(&mut *particle2d_scratch().lock().unwrap())
 }
 
 fn now_nanos() -> u64 {
@@ -586,6 +602,143 @@ pub extern "C" fn bloom_draw_texture_pro(handle: f64,
     c.ox = ox; c.oy = oy; c.rot = rot;
     c.r = r; c.g = g; c.b = b; c.a = a;
     draw_list::push(c);
+}
+
+// ============================================================
+// 2D sprite particles → native pool + draw list
+// ============================================================
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_create(capacity: f64, texture: f64) -> f64 {
+    if !capacity.is_finite() || capacity.fract() != 0.0 || !(1.0..=100_000.0).contains(&capacity) {
+        return 0.0;
+    }
+    if !texture.is_finite() || texture.fract() != 0.0 || !(1.0..=u32::MAX as f64).contains(&texture) {
+        return 0.0;
+    }
+    let texture_handle = texture as u32;
+    let width = textures::width(texture_handle);
+    let height = textures::height(texture_handle);
+    if texture_handle == 0 || width == 0 || height == 0 { return 0.0; }
+    particle2d_manager().lock().unwrap()
+        .create(capacity as usize, texture_handle as f64, width, height) as f64
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_scratch_reset() {
+    particle2d_scratch().lock().unwrap().clear();
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_scratch_push_f32(value: f64) {
+    particle2d_scratch().lock().unwrap().push(value as f32);
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_configure(handle: f64) -> f64 {
+    let values = take_particle2d_scratch();
+    if let Some(emitter) = particle2d_manager().lock().unwrap().get_mut(handle as u32) {
+        if emitter.configure_from_slice(&values) { return 1.0; }
+    }
+    eprintln!("[particles2d] invalid emitter configuration");
+    0.0
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_emit(handle: f64, count: f64) {
+    let values = take_particle2d_scratch();
+    if values.len() != 9 { return; }
+    let transform = particles2d::Particle2DTransform {
+        position: [values[4], values[5]],
+        rotation: values[6],
+        scale: [values[7], values[8]],
+    };
+    if let Some(emitter) = particle2d_manager().lock().unwrap().get_mut(handle as u32) {
+        emitter.emit(
+            (count as usize).min(100_000),
+            [values[0], values[1]], [values[2], values[3]], transform,
+        );
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_play(handle: f64) {
+    if let Some(emitter) = particle2d_manager().lock().unwrap().get_mut(handle as u32) { emitter.play(); }
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_stop(handle: f64) {
+    if let Some(emitter) = particle2d_manager().lock().unwrap().get_mut(handle as u32) { emitter.stop(); }
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_update(handle: f64, delta_time: f64) -> f64 {
+    let values = take_particle2d_scratch();
+    if values.len() != 5 { return 0.0; }
+    let transform = particles2d::Particle2DTransform {
+        position: [values[0], values[1]],
+        rotation: values[2],
+        scale: [values[3], values[4]],
+    };
+    particle2d_manager().lock().unwrap().get_mut(handle as u32)
+        .map(|emitter| emitter.update(delta_time as f32, transform) as f64)
+        .unwrap_or(0.0)
+}
+
+fn particle_draw_command(texture: u32, draw: particles2d::Particle2DDraw) -> DrawCmd {
+    let (destination, origin) = draw.destination_origin();
+    let mut command = DrawCmd::zero();
+    command.kind = kind::TEXTURE_PRO;
+    command.tex = texture;
+    command.x = destination[0] as f64;
+    command.y = destination[1] as f64;
+    command.w = draw.width as f64;
+    command.h = draw.height as f64;
+    command.src_x = draw.source[0] as f64;
+    command.src_y = draw.source[1] as f64;
+    command.src_w = draw.source[2] as f64;
+    command.src_h = draw.source[3] as f64;
+    command.ox = origin[0] as f64;
+    command.oy = origin[1] as f64;
+    command.rot = draw.rotation_degrees as f64;
+    command.r = draw.color[0] as f64;
+    command.g = draw.color[1] as f64;
+    command.b = draw.color[2] as f64;
+    command.a = draw.color[3] as f64;
+    command
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_draw(handle: f64) {
+    let values = take_particle2d_scratch();
+    if values.len() != 5 { return; }
+    let transform = particles2d::Particle2DTransform {
+        position: [values[0], values[1]],
+        rotation: values[2],
+        scale: [values[3], values[4]],
+    };
+    if let Some(emitter) = particle2d_manager().lock().unwrap().get(handle as u32) {
+        emitter.for_each_draw(transform, |draw| {
+            draw_list::push(particle_draw_command(emitter.texture_handle as u32, draw));
+        });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_clear(handle: f64) {
+    if let Some(emitter) = particle2d_manager().lock().unwrap().get_mut(handle as u32) { emitter.clear(); }
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_destroy(handle: f64) {
+    particle2d_manager().lock().unwrap().destroy(handle as u32);
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_particle2d_live(handle: f64) -> f64 {
+    particle2d_manager().lock().unwrap().get(handle as u32)
+        .map(|emitter| emitter.live_count() as f64)
+        .unwrap_or(0.0)
 }
 
 #[no_mangle]
