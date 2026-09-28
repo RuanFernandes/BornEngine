@@ -8,21 +8,29 @@ import '../styles/homepage.css';
 
 const heroCode = `import { Colors, Game, Texture } from '@bornengine/engine';
 
-const game = new Game({
-  window: { title: 'My Game', width: 800, height: 450 },
-});
-const player = new Texture(game, 'assets/player.png');
+class Undertale extends Game {
+  private readonly player: Texture;
 
-game.run({
-  update(deltaTime) {
+  constructor() {
+    super({ window: { title: 'Undertale', width: 800, height: 450 } });
+    this.player = new Texture(this, 'assets/player.png');
+  }
+
+  protected override onStart() {
+    // Initialize game-specific systems.
+  }
+
+  protected override loop(_dt: number) {
     // Update gameplay state in seconds.
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-    if (player.isLoaded) player.draw({ x: 190, y: 200 });
-  },
-  onStop: () => game.dispose(),
-});`;
+  }
+
+  protected override render() {
+    this.renderer.clear(Colors.SNOW);
+    if (this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+  }
+}
+
+new Undertale().run();`;
 
 const homeJsonLd = {
   '@context': 'https://schema.org',
@@ -67,7 +75,7 @@ const homeJsonLd = {
         <div class="section-index">01 / The short path</div>
         <div>
           <h2 id="story-heading">From an empty folder to a running game, without a framework maze.</h2>
-          <p>Create a <code>Game</code> to own the window and engine services. Its frame loop calls your update and render methods, while resource classes keep their native state tied to that game. Perry compiles the TypeScript side, and the engine owns the native renderer.</p>
+          <p>Subclass <code>Game</code> to keep startup, gameplay, and rendering together. The runtime owns the window and services; resources created with <code>this</code> stay bound to that runtime. Perry compiles the TypeScript side, and the engine owns the native renderer.</p>
           <a class="text-link text-link--acid" href={withBase('/docs/concepts/api-shape/')}>How the API fits your game <span aria-hidden="true">→</span></a>
         </div>
         <div class="home-story__terminal">
@@ -85,11 +93,11 @@ const homeJsonLd = {
         <div class="home-api__grid">
           <div>
             <p class="eyebrow eyebrow--acid">One code shape, many targets</p>
-            <h2 id="api-heading">One Game instance keeps the API together.</h2>
-            <p>Access rendering through <code>game.renderer</code> and create owned resources such as <code>new Texture(game, path)</code>. Add <code>GameObject</code> subclasses and components when your gameplay needs a scene and entity model.</p>
+            <h2 id="api-heading">Keep the whole game in one class.</h2>
+            <p>Override <code>onStart</code>, <code>loop</code>, and <code>render</code>, then start the engine with <code>run()</code>. The same instance owns the renderer and resources such as <code>new Texture(this, path)</code>. Use <code>run(callbacks)</code> when you need direct frame control.</p>
             <a class="text-link text-link--acid" href={withBase('/docs/api/')}>Browse the API <span aria-hidden="true">→</span></a>
             {' '}
-            <a class="text-link text-link--acid" href={withBase('/docs/api/game/')}>Build with GameObjects <span aria-hidden="true">→</span></a>
+            <a class="text-link text-link--acid" href={withBase('/docs/api/core/')}>Game lifecycle <span aria-hidden="true">→</span></a>
           </div>
           <CodeBlock code={heroCode} language="typescript" filename="main.ts" />
         </div>

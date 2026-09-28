@@ -5,7 +5,45 @@ section: API / Core
 order: 32
 ---
 
-Create a Game as the root of one runtime. It constructs the window and exposes each service as an instance, rather than relying on process-wide operation functions.
+Create a Game as the root of one runtime. It constructs the window and exposes each service as an instance, rather than relying on process-wide operation functions. Subclass `Game` when the game should own its lifecycle methods; pass callbacks to `run()` when the loop should be composed outside the class.
+
+## Subclass lifecycle
+
+Override `onStart`, `loop`, and `render`, then call `run()` with no arguments. `onStart` runs once before the first frame. The engine advances its services, calls `loop(deltaTime)`, then calls `render()`. When the loop stops, `onStop` runs before the Game disposes its owned resources.
+
+```ts
+import { Colors, Game, Texture } from '@bornengine/engine';
+
+class Undertale extends Game {
+  private readonly player: Texture;
+
+  constructor() {
+    super({ window: { title: 'Undertale', width: 800, height: 450 } });
+    this.player = new Texture(this, 'assets/player.png');
+  }
+
+  protected override onStart(): void {
+    console.log('The game is ready.');
+  }
+
+  protected override loop(_deltaTime: number): void {
+    // Update gameplay state in seconds.
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+    if (this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+  }
+
+  protected override onStop(): void {
+    // Save progress or stop game-specific systems here.
+  }
+}
+
+new Undertale().run();
+```
+
+Resources such as `Texture` still receive the owning Game explicitly. Inside a subclass, pass `this`; this keeps native ownership visible and prevents a resource from silently attaching to another runtime. The subclass lifecycle disposes the Game after `onStop`. If a lifecycle hook throws, the loop shuts down, runs `onStop`, and releases owned resources before surfacing the error.
 
 ## Frame lifecycle
 
