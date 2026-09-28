@@ -114,12 +114,29 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - name: validate-ffi
         run: node tools/validate-ffi.js
       - name: validate Colyseus runtime matrix
         run: node --test tests/colyseus/platform-matrix.test.mjs
       - name: file line limit (2000, ratcheting baseline)
         run: node tools/check-file-lines.js
+      - name: Check the shared crate without 3D model support
+        run: cargo check --manifest-path native/shared/Cargo.toml --no-default-features --features web
+
+  # watchOS has no prebuilt Rust std target, so CI compiles std for the Apple
+  # target before checking the hand-written Canvas FFI adapter.
+  check-watchos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install nightly Rust and watchOS target
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+          targets: aarch64-apple-watchos
+      - name: Check watchOS engine
+        run: cargo +nightly check -Z build-std=std,panic_abort --manifest-path native/watchos/Cargo.toml --target aarch64-apple-watchos
 
   # ---------------------------------------------------------------------------
   # Lint: rustfmt + clippy. Advisory while the codebase is still in flux.

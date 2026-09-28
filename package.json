@@ -1528,6 +1528,66 @@
           "returns": "void"
         },
         {
+          "name": "bloom_particle2d_create",
+          "params": ["f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_particle2d_scratch_reset",
+          "params": [],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_scratch_push_f32",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_configure",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_particle2d_emit",
+          "params": ["f64", "f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_play",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_stop",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_update",
+          "params": ["f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_particle2d_draw",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_clear",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_destroy",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_particle2d_live",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
           "name": "bloom_particles_create",
           "params": [
             "f64"

@@ -21,3 +21,10 @@ export type {
   SpriteStateChangedCallback,
   SpriteTransitionCondition,
 } from './sprite-animator';
+export { ParticleEmitter2D } from './particle-emitter-2d';
+export type {
+  ParticleBurstOptions,
+  ParticleEmitter2DOptions,
+  ParticleEmitterShape,
+  ParticleRange,
+} from './particle-emitter-2d';

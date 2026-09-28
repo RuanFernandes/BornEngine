@@ -4,8 +4,9 @@ import type { Renderer } from '../../src/core/renderer';
 import type { Color, Rect, Vec2 } from '../../src/core/types';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
-import { SpriteRenderer, SpriteSheet } from '../../src/sprites';
-import type { SpriteFrame } from '../../src/sprites';
+import { SpriteRenderer } from '../../src/sprites/sprite-renderer';
+import { SpriteSheet } from '../../src/sprites/sprite-sheet';
+import type { SpriteFrame } from '../../src/sprites/sprite-sheet';
 import type { Texture } from '../../src/textures/texture';
 
 function expect(value: boolean, label: string): void {

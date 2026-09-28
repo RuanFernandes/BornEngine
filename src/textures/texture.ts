@@ -5,6 +5,7 @@ import * as operations from './internal';
 import type { ImageData } from './image-data';
 import type { RenderTexture } from './render-texture';
 import type { Color, Rect, Vec2 } from '../core/types';
+import * as spriteOperations from '../sprites/internal';
 
 type TextureSource = string | ImageData | RenderTexture;
 
@@ -78,6 +79,12 @@ export class Texture implements ContextDrawable {
       (this.renderTextureSource === null || this.renderTextureSource.isLoaded);
   }
   get isDisposed(): boolean { return this.disposed; }
+
+  /** @internal Creates a 2D particle pool without exposing this Texture's native handle. */
+  _createParticleEmitter2D(capacity: number): number {
+    if (!this.isLoaded) return 0;
+    return spriteOperations.createParticleEmitter2D(capacity, this.handleValue);
+  }
 
   draw(position: Vec2, tint: Color = Colors.WHITE): boolean {
     if (!this.isLoaded) return false;
