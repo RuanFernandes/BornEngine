@@ -9,11 +9,25 @@ import { SceneGraph } from '../scene/scene-graph';
 import { TouchControls } from '../mobile';
 import { Ui } from '../ui';
 import { DebugUi } from '../debug-ui';
+import { GameInspector } from '../debug-ui/game-inspector';
 import { beginDrawing, endDrawing, getPlatform, runGame, setTargetFPS, Platform } from './internal';
 
 export interface GameOptions {
   window?: WindowOptions;
   targetFps?: number;
+  /** Opt-in engine inspector backed by the optional Dear ImGui desktop build. */
+  debug?: boolean | GameDebugOptions;
+}
+
+export interface GameDebugOptions {
+  /** Enable the built-in inspector. Defaults to false. */
+  enabled?: boolean;
+  /** Show frame timing and renderer statistics. Defaults to true. */
+  metrics?: boolean;
+  /** Show the active scene and its GameObject hierarchy. Defaults to true. */
+  sceneHierarchy?: boolean;
+  /** Show the loaded asset summary. Defaults to true. */
+  assets?: boolean;
 }
 
 export interface GameLoopCallbacks {
@@ -45,6 +59,7 @@ export class Game {
   readonly ui: Ui;
   readonly debugUi: DebugUi;
 
+  private readonly inspector: GameInspector;
   private disposed = false;
   private configurationError: string | null = null;
   private disposeRequested = false;
@@ -78,6 +93,7 @@ export class Game {
     this.mobile = new TouchControls(this);
     this.ui = new Ui(this);
     this.debugUi = new DebugUi(this);
+    this.inspector = new GameInspector(this, options.debug);
 
     if (getGameContext(this).isReady) {
       if (options.targetFps !== undefined) setTargetFPS(options.targetFps);
@@ -227,6 +243,7 @@ export class Game {
       this.mobile.update();
       callbacks.update(deltaTime);
       callbacks.render();
+      this.inspector.render(deltaTime);
     } catch (error) {
       this.stopRequested = true;
       throw error;
@@ -280,6 +297,7 @@ export class Game {
     this.scenes.dispose();
     this.sceneGraph.dispose();
     this.mobile.dispose();
+    this.inspector.dispose();
     this.ui.dispose();
     this.debugUi.dispose();
     this.audio.dispose();

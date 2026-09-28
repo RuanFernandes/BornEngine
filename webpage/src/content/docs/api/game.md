@@ -67,6 +67,23 @@ class MenuScene extends Scene {
 game.scenes.changeTo(new MenuScene(game));
 ```
 
+## Game configuration and inspector
+
+`Game` accepts the optional Dear ImGui inspector through its `debug` setting. It is disabled by default and requires a desktop native build with the `debug-ui` feature enabled.
+
+```ts
+const game = new Game({
+  debug: {
+    enabled: true,
+    metrics: true,
+    sceneHierarchy: true,
+    assets: true,
+  },
+});
+```
+
+For local builds, `debug: true` enables all built-in panels. An options object requires `enabled: true`; each panel defaults to visible. The inspector silently skips unsupported targets and feature-off builds. See [Debug tools](../debug-ui/) for custom windows and build details.
+
 ## Native adapters
 
 Components such as `SceneNodeComponent`, `RigidBodyComponent`, and `AudioSourceComponent` connect gameplay objects to renderer, physics, or audio resources. Attach only resources created by the same Game; adapters reject mismatched ownership rather than passing stale native identity.
