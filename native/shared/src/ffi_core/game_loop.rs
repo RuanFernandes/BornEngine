@@ -84,6 +84,7 @@ macro_rules! __bloom_ffi_game_loop {
         // instead of the i64-array pointer above, which Perry 0.5.x rejects
         // ("Expected safe integer for native i64 parameter"). Same idiom as
         // bloom_create_mesh_scratch. 9 f32 slots per instance.
+        #[cfg(feature = "models3d")]
         #[no_mangle]
         pub extern "C" fn bloom_create_instance_buffer_scratch(instance_count: f64) -> f64 {
             $crate::ffi::guard("bloom_create_instance_buffer_scratch", move || {
@@ -95,6 +96,12 @@ macro_rules! __bloom_ffi_game_loop {
                 eng.models.mesh_scratch_reset();
                 eng.renderer.create_instance_buffer(&data, count) as f64
         })
+        }
+        #[cfg(not(feature = "models3d"))]
+        #[no_mangle]
+        pub extern "C" fn bloom_create_instance_buffer_scratch(_instance_count: f64) -> f64 {
+            $crate::ffi::feature_off_warn_once("bloom_create_instance_buffer_scratch", "models3d");
+            0.0
         }
 
         // bloom_destroy_instance_buffer  [source: macos]
@@ -184,6 +191,7 @@ macro_rules! __bloom_ffi_game_loop {
         // dimensions. Texels are pushed as PACKED u32 (one per texel, RGBA in
         // little-endian byte order = R | G<<8 | B<<16 | A<<24), so a 128² splat
         // is 16,384 pushes rather than 65,536.
+        #[cfg(feature = "models3d")]
         #[no_mangle]
         pub extern "C" fn bloom_create_texture_array_scratch(
             width:       f64,
@@ -225,6 +233,18 @@ macro_rules! __bloom_ffi_game_loop {
                 }
                 engine().renderer.create_texture_array_ex(&layers, format as u32, mip_levels as u32) as f64
         })
+        }
+        #[cfg(not(feature = "models3d"))]
+        #[no_mangle]
+        pub extern "C" fn bloom_create_texture_array_scratch(
+            _width: f64,
+            _height: f64,
+            _layer_count: f64,
+            _format: f64,
+            _mip_levels: f64,
+        ) -> f64 {
+            $crate::ffi::feature_off_warn_once("bloom_create_texture_array_scratch", "models3d");
+            0.0
         }
 
         // bloom_create_texture_array_from_files  [EN-014 V3]

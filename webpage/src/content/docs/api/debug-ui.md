@@ -41,4 +41,4 @@ if (game.debugUi.isAvailable()) {
 
 Use unique numeric IDs below `4_000_000_000` for custom widgets; the built-in inspector reserves IDs from that value upward. Do not put debug controls in `game.ui` unless players should see them in production.
 
-See the [UI API](ui/) for the full widget surface and the [debugging guide](../guides/debugging/) for platform build settings.
+See the [UI API](../ui/) for the full widget surface and the [debugging guide](../../guides/debugging/) for platform build settings.

@@ -1,7 +1,7 @@
 export { Game } from './core/game';
 export type { GameOptions, GameLoopCallbacks, GameDebugOptions } from './core/game';
 export { Window, Renderer } from './core';
-export type { WindowMode, WindowOptions, UpscaleMode } from './core';
+export type { WindowMode, WindowOptions, UpscaleMode, RendererStats } from './core';
 export { ColorConstants, Colors, Key, MouseButton, CursorShape, Platform, QualityPreset, Tonemap } from './core';
 export type { Color, Rect, Camera2D, Camera3D, Ray, BoundingBox, RayHit, FrustumPlanes, Mat4 } from './core/types';
 
@@ -9,6 +9,7 @@ export { Vec2, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
 export type { Matrix4Array } from './math';
 
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
+export { AssetManager } from './assets';
 export { SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D } from './sprites';
 export type {
   SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteSheetOptions, SpriteRendererOptions,
@@ -52,6 +53,14 @@ export type { ScenePickEntry, ScenePickHit, SceneNodeOptions } from './scene';
 
 export { InputSystem, InputActionMap } from './input';
 export type { ActionAxisBinding, ActionButtonBinding } from './input';
+export { PhysicsWorld2D, PhysicsBody2D } from './physics2d';
+export type {
+  PhysicsBody2DOptions, PhysicsBodyContact2D, PhysicsBodyType2D, PhysicsContact2D,
+  PhysicsContactPhase2D, PhysicsShape2D, PhysicsQueryOptions2D, PhysicsRayHit2D,
+  PhysicsWorld2DOptions,
+} from './physics2d';
+export { Tilemap } from './tilemap';
+export type { TilemapOptions, TilemapSolidTile, TilemapTileDefinition } from './tilemap';
 export {
   PhysicsWorld, Collider, BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
   ConvexHullCollider, MeshCollider, HeightfieldCollider, CompoundCollider, ScaledCollider,

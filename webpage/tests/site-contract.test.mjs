@@ -53,7 +53,7 @@ test('homepage demonstrates subclass lifecycle and lets Monaco fill its panel', 
   ]);
 
   assert.match(homepage, /class Undertale extends Game/);
-  assert.match(homepage, /new Texture\(this,/);
+  assert.match(homepage, /this\.assets\.loadTexture\('assets\/player\.png'\)/);
   assert.match(homepage, /protected override onStart\(\)/);
   assert.match(homepage, /protected override loop\(_dt: number\)/);
   assert.match(homepage, /new Undertale\(\)\.run\(\)/);

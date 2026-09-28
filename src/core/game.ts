@@ -10,6 +10,7 @@ import { TouchControls } from '../mobile';
 import { Ui } from '../ui';
 import { DebugUi } from '../debug-ui';
 import { GameInspector } from '../debug-ui/game-inspector';
+import { AssetManager } from '../assets';
 import { beginDrawing, endDrawing, getPlatform, runGame, setTargetFPS, Platform } from './internal';
 
 export interface GameOptions {
@@ -58,6 +59,7 @@ export class Game {
   readonly mobile: TouchControls;
   readonly ui: Ui;
   readonly debugUi: DebugUi;
+  readonly assets: AssetManager;
 
   private readonly inspector: GameInspector;
   private disposed = false;
@@ -93,6 +95,7 @@ export class Game {
     this.mobile = new TouchControls(this);
     this.ui = new Ui(this);
     this.debugUi = new DebugUi(this);
+    this.assets = new AssetManager(this);
     this.inspector = new GameInspector(this, options.debug);
 
     if (getGameContext(this).isReady) {
@@ -237,6 +240,7 @@ export class Game {
     if (!this.isReady || this.stopRequested) return;
     this.inFrame = true;
     try {
+      this.renderer._beginFrame(deltaTime);
       this.input.update();
       getGameContext(this).updateFrameServices(deltaTime);
       this.audio.update(deltaTime);
@@ -297,6 +301,7 @@ export class Game {
     this.scenes.dispose();
     this.sceneGraph.dispose();
     this.mobile.dispose();
+    this.assets.dispose();
     this.inspector.dispose();
     this.ui.dispose();
     this.debugUi.dispose();

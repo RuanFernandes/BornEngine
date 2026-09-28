@@ -190,7 +190,7 @@ export class Tilemap extends GameComponent {
     return true;
   }
 
-  render(_renderer: Renderer): void {
+  render(renderer: Renderer): void {
     if (!this.visible || this.error !== null || !this.isActiveAndEnabled ||
         !validColor(this.tint) || this.gameObject === null || this.gameObject.scene === null ||
         !this.sheet._canAttachTo(this.gameObject.scene.context)) return;
@@ -207,6 +207,7 @@ export class Tilemap extends GameComponent {
     const signedHeight = this.tileHeight * scale.y;
     const flipX = scale.x < 0;
     const flipY = scale.y < 0;
+    const cullingBounds: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
     for (let row = 0; row < this.rows; row++) {
       for (let column = 0; column < this.columns; column++) {
@@ -221,11 +222,13 @@ export class Tilemap extends GameComponent {
           width: flipX ? -frame.source.width : frame.source.width,
           height: flipY ? -frame.source.height : frame.source.height,
         };
-        const trim = frame.trim === null ? { x: 0, y: 0 } : frame.trim.offset;
+        const trimOffset = frame.trim === null ? { x: 0, y: 0 } : frame.trim.offset;
         const original = frame.originalSize;
         if (original.x <= 0 || original.y <= 0) continue;
-        const sourceCenterX = trim.x + frame.source.width * 0.5;
-        const sourceCenterY = trim.y + frame.source.height * 0.5;
+        const trimX = flipX ? original.x - trimOffset.x - frame.source.width : trimOffset.x;
+        const trimY = flipY ? original.y - trimOffset.y - frame.source.height : trimOffset.y;
+        const sourceCenterX = trimX + frame.source.width * 0.5;
+        const sourceCenterY = trimY + frame.source.height * 0.5;
         const localX = (column + sourceCenterX / original.x) * signedWidth;
         const localY = (row + sourceCenterY / original.y) * signedHeight;
         const centerX = position.x + localX * cos - localY * sin;
@@ -233,7 +236,19 @@ export class Tilemap extends GameComponent {
         const width = frame.source.width / original.x * this.tileWidth * Math.abs(scale.x);
         const height = frame.source.height / original.y * this.tileHeight * Math.abs(scale.y);
         const destination = { x: centerX - width * 0.5, y: centerY - height * 0.5, width, height };
-        this.sheet.texture.drawRegion(source, destination, { x: width * 0.5, y: height * 0.5 }, rotation, this.tint);
+        const halfWidth = (Math.abs(cos) * width + Math.abs(sin) * height) * 0.5;
+        const halfHeight = (Math.abs(sin) * width + Math.abs(cos) * height) * 0.5;
+        cullingBounds.x = centerX - halfWidth;
+        cullingBounds.y = centerY - halfHeight;
+        cullingBounds.width = halfWidth * 2;
+        cullingBounds.height = halfHeight * 2;
+        if (!renderer.isRectVisibleIn2D(cullingBounds)) {
+          renderer._recordSpriteCulled();
+          continue;
+        }
+        if (this.sheet.texture.drawRegion(
+          source, destination, { x: width * 0.5, y: height * 0.5 }, rotation, this.tint,
+        )) renderer._recordSpriteDrawn();
       }
     }
   }

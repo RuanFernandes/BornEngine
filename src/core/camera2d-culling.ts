@@ -10,7 +10,7 @@ export function getCamera2DWorldBounds(camera: Camera2D, viewportWidth: number, 
       !isFiniteNumber(viewportWidth) || !isFiniteNumber(viewportHeight) ||
       viewportWidth <= 0 || viewportHeight <= 0) return null;
 
-  const zoom = Math.abs(camera.zoom);
+  const zoom = camera.zoom;
   const radians = camera.rotation * Math.PI / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);

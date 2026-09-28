@@ -542,6 +542,7 @@ function rayShape(origin: Vec2, direction: Vec2, maxDistance: number, body: Phys
   let near = -Infinity;
   let far = Infinity;
   let normal: Vec2 = { x: 0, y: 0 };
+  let farNormal: Vec2 = { x: 0, y: 0 };
   const halfX = body.shape.width * 0.5;
   const halfY = body.shape.height * 0.5;
   const axes = [
@@ -557,6 +558,7 @@ function rayShape(origin: Vec2, direction: Vec2, maxDistance: number, body: Phys
     let first = (axis.minimum - axis.origin) / axis.direction;
     let second = (axis.maximum - axis.origin) / axis.direction;
     const nearNormal = axis.direction > 0 ? -1 : 1;
+    const farAxisNormal = axis.direction > 0 ? 1 : -1;
     if (first > second) {
       const swap = first;
       first = second;
@@ -566,12 +568,15 @@ function rayShape(origin: Vec2, direction: Vec2, maxDistance: number, body: Phys
       near = first;
       normal = axis.xAxis ? { x: nearNormal, y: 0 } : { x: 0, y: nearNormal };
     }
-    far = Math.min(far, second);
+    if (second < far) {
+      far = second;
+      farNormal = axis.xAxis ? { x: farAxisNormal, y: 0 } : { x: 0, y: farAxisNormal };
+    }
     if (near > far) return null;
   }
   const distance = near >= 0 ? near : far;
   if (distance < 0 || distance > maxDistance || !finite(distance)) return null;
-  if (near < 0) normal = { x: -direction.x, y: -direction.y };
+  if (near < 0) normal = farNormal;
   return {
     point: { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance },
     normal,

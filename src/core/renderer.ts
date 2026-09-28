@@ -24,9 +24,12 @@ export interface RendererStats {
   fps: number;
   /** Milliseconds between consecutive scene renders. */
   frameIntervalMs: number;
-  /** Number of 2D texture/uniform draw groups queued for the frame. */
-  drawCalls2D: number;
-  /** Sprite quads submitted by SpriteRenderer components in the scene render. */
+  /**
+   * Backend-defined 2D submissions: texture/uniform batches on WGPU and
+   * drawable Canvas commands on watchOS.
+   */
+  drawSubmissions2D: number;
+  /** Sprite quads submitted by SpriteRenderer and Tilemap components in the scene render. */
   spritesDrawn: number;
   /** Sprite quads skipped because their bounds fell outside the active 2D camera. */
   spritesCulled: number;
@@ -49,7 +52,6 @@ export class Renderer {
   private disposed = false;
   private activeRenderTexture: RenderTexture | null = null;
   private activeCameraBounds: Rect | null = null;
-  private lastSceneRenderTime = 0;
   private frameIntervalMsValue = 0;
   private spritesDrawnValue = 0;
   private spritesCulledValue = 0;
@@ -68,28 +70,34 @@ export class Renderer {
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
 
-  /** Snapshot of the latest scene render workload. Values reset when the next scene render begins. */
+  /** Snapshot of the current game frame's render workload. */
   get stats(): RendererStats {
     const fps = this.frameIntervalMsValue > 0 ? 1000 / this.frameIntervalMsValue : 0;
     return {
       fps,
       frameIntervalMs: this.frameIntervalMsValue,
-      drawCalls2D: this.isReady ? native.get2DDrawCalls() : 0,
+      drawSubmissions2D: this.isReady ? native.get2DDrawCalls() : 0,
       spritesDrawn: this.spritesDrawnValue,
       spritesCulled: this.spritesCulledValue,
     };
   }
 
-  /** @internal Starts a new scene-render statistics sample. */
-  _beginSceneRender(): void {
-    if (!this.isReady) return;
-    const now = native.getTime();
-    if (isFiniteNumber(now) && now > this.lastSceneRenderTime && this.lastSceneRenderTime > 0) {
-      this.frameIntervalMsValue = (now - this.lastSceneRenderTime) * 1000;
-    }
-    if (isFiniteNumber(now) && now > 0) this.lastSceneRenderTime = now;
+  /** @internal Starts a new game-frame statistics sample. */
+  _beginFrame(deltaTime: number): void {
+    const frameIntervalMs = deltaTime * 1000;
+    this.frameIntervalMsValue = isFiniteNumber(deltaTime) && deltaTime > 0 && isFiniteNumber(frameIntervalMs)
+      ? frameIntervalMs
+      : 0;
     this.spritesDrawnValue = 0;
     this.spritesCulledValue = 0;
+    this.activeCameraBounds = null;
+  }
+
+  /** @internal Resets scene workload before rendering components. */
+  _beginSceneRender(): void {
+    this.spritesDrawnValue = 0;
+    this.spritesCulledValue = 0;
+    this.activeCameraBounds = null;
   }
 
   /** Tests an axis-aligned world-space rectangle against the active camera view. */

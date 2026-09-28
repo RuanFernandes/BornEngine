@@ -1,4 +1,4 @@
-import { Colors, Game, GameObject, Scene, SpriteSheet, SpriteRenderer, Texture } from '@bornengine/engine';
+import { Colors, Game, GameObject, Scene, SpriteSheet, SpriteRenderer } from '@bornengine/engine';
 import { PhysicsWorld2D } from '@bornengine/engine/physics2d';
 import type { PhysicsBody2D } from '@bornengine/engine/physics2d';
 import { Tilemap } from '@bornengine/engine/tilemap';
@@ -70,6 +70,7 @@ class PhysicsTilemapScene extends Scene {
   }
 
   private addStaticTile(tile: TilemapSolidTile, physics: PhysicsWorld2D): void {
+    // Tile collider boxes stay axis-aligned; this scene keeps the tilemap unrotated and at unit scale.
     const position = {
       x: tile.bounds.x + tile.bounds.width * 0.5,
       y: tile.bounds.y + tile.bounds.height * 0.5,
@@ -88,13 +89,17 @@ class PhysicsTilemapGame extends Game {
   private scene: PhysicsTilemapScene | null = null;
 
   constructor() {
-    super({ window: { title: 'BornEngine · Physics2D and tilemap', width: 800, height: 500 }, targetFps: 60 });
+    super({
+      window: { title: 'BornEngine · Physics2D and tilemap', width: 800, height: 500 },
+      targetFps: 60,
+      debug: { enabled: true },
+    });
   }
 
   protected override onStart(): void {
-    const texture = new Texture(this, '../sprite-animation/assets/atlas.png');
-    if (!texture.isLoaded) {
-      console.error(texture.error || 'Could not load the example atlas.');
+    const texture = this.assets.loadTexture('../sprite-animation/assets/atlas.png');
+    if (texture === null || !texture.isLoaded) {
+      console.error(texture === null ? 'Could not access the Game asset manager.' : texture.error || 'Could not load the example atlas.');
       this.stop();
       return;
     }

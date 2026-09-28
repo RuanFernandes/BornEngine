@@ -21,7 +21,7 @@ export class AssetManager implements ContextResource {
    * fields remain available. Returns null after this manager or its Game is disposed.
    */
   loadTexture(path: string): Texture | null {
-    if (this.disposed || this.context.isDisposed || path.length === 0) return null;
+    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0) return null;
 
     const cached = this.getTexture(path);
     if (cached !== null) return cached;
@@ -39,7 +39,7 @@ export class AssetManager implements ContextResource {
 
   /** Returns a cached texture without loading it, or null when it is not cached. */
   getTexture(path: string): Texture | null {
-    if (this.disposed || this.context.isDisposed || path.length === 0) return null;
+    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0) return null;
 
     const texture = this.textures.get(path);
     if (texture === undefined) return null;
@@ -52,7 +52,7 @@ export class AssetManager implements ContextResource {
 
   /** Disposes and removes the texture registered for this path. */
   releaseTexture(path: string): boolean {
-    if (this.disposed || path.length === 0) return false;
+    if (this.disposed || path === null || path === undefined || path.length === 0) return false;
 
     const texture = this.textures.get(path);
     if (texture === undefined) return false;

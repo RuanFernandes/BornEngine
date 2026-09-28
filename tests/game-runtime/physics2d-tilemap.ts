@@ -63,6 +63,10 @@ expect(queryHit !== null && queryHit.body === ball,
 const reverseRayHit = world.raycast({ x: 10, y: 0 }, { x: -1, y: 0 }, 10);
 expect(reverseRayHit !== null && reverseRayHit.body === wall && reverseRayHit.normal.x > 0,
   'reverse box raycasts return an outward-facing normal');
+const insideBoxRayHit = world.raycast({ x: 5, y: 0 }, { x: 1, y: 0 }, 10);
+expect(insideBoxRayHit !== null && insideBoxRayHit.body === wall &&
+  insideBoxRayHit.normal.x > 0 && Math.abs(insideBoxRayHit.distance - 1) < 0.001,
+  'box raycasts starting inside return the outward normal of the exit face');
 const pointHits = world.overlapPoint(ball.position);
 expect(pointHits.length === 1 && pointHits[0].id === ball.id,
   'point overlap query includes a body containing the point');
@@ -132,6 +136,31 @@ expect(attachedBody.position.x === inactivePosition,
   'bodies on inactive GameObjects do not simulate');
 movingObject.active = true;
 
+const standaloneBody = world.createBody({
+  type: 'dynamic',
+  shape: { type: 'circle', radius: 0.25 },
+  position: { x: 200, y: 200 },
+  velocity: { x: 2, y: 0 },
+  gravityScale: 0,
+  friction: 0,
+});
+expect(world.step(0.1) === 1 && Math.abs(standaloneBody.position.x - 200.2) < 0.001,
+  'standalone bodies use their configured world position and simulate while the world steps');
+
+const positionedBody = world.createBody({
+  type: 'static',
+  shape: { type: 'box', width: 1, height: 1 },
+  position: { x: 100, y: 100 },
+});
+const positionedObject = new GameObject({ position: { x: 300, y: 320, z: 0 } });
+positionedObject.addComponent(positionedBody);
+ownerScene.add(positionedObject);
+expect(world.step(0.1) === 1 && positionedBody.position.x === 300 && positionedBody.position.y === 320,
+  'an attached body takes its initial world position from its GameObject transform');
+ownerScene.remove(positionedObject);
+positionedBody.dispose();
+standaloneBody.dispose();
+
 const draws: Array<{ source: Rect; destination: Rect; origin: Vec2; rotation: number; tint: Color }> = [];
 const texture = {
   width: 32,
@@ -181,10 +210,64 @@ const mapObject = new GameObject({ position: { x: 10, y: 20, z: 0 } });
 mapObject.addComponent(tilemap);
 const mapScene = new GameScene(game);
 expect(mapScene.add(mapObject) === mapObject, 'tilemap component attaches to a GameObject');
-mapScene.render({} as Renderer);
+let drawnQuads = 0;
+let culledQuads = 0;
+let cameraSeesTiles = true;
+const renderer = {
+  _beginSceneRender(): void {},
+  isRectVisibleIn2D(): boolean { return cameraSeesTiles; },
+  _recordSpriteDrawn(): void { drawnQuads++; },
+  _recordSpriteCulled(): void { culledQuads++; },
+} as any as Renderer;
+mapScene.render(renderer);
 expect(draws.length === 4 && draws[0].destination.x === 10 && draws[0].destination.y === 20 &&
-  draws[0].destination.width === 16 && draws[0].destination.height === 16,
-  'tilemap draws occupied cells at transformed world positions through the atlas texture');
+  draws[0].destination.width === 16 && draws[0].destination.height === 16 &&
+  drawnQuads === 4 && culledQuads === 0,
+  'tilemap draws visible occupied cells at transformed world positions and records sprite metrics');
+draws.length = 0;
+cameraSeesTiles = false;
+mapScene.render(renderer);
+expect(draws.length === 0 && drawnQuads === 4 && culledQuads === 4,
+  'tilemap camera culling skips offscreen atlas draws and records culled quads');
+
+const trimmedSheet = new SpriteSheet(texture, {
+  frames: [{
+    name: 'trimmed',
+    source: { x: 20, y: 4, width: 8, height: 6 },
+    trim: { offset: { x: 2, y: 3 }, originalSize: { x: 16, y: 16 } },
+  }],
+});
+const trimmedFrame = trimmedSheet.getFrame('trimmed');
+expect(trimmedSheet.error === null && trimmedFrame !== null,
+  'tilemap test trimmed atlas frame is valid: ' + (trimmedSheet.error || 'frame missing'));
+if (trimmedFrame === null) process.exit(1);
+const trimmedMap = new Tilemap(trimmedSheet, {
+  columns: 1,
+  rows: 1,
+  tileWidth: 16,
+  tileHeight: 16,
+  tiles: [{ id: 1, frame: trimmedFrame }],
+  data: [1],
+});
+expect(trimmedMap.error === null && trimmedMap.tileCount === 1,
+  'mirrored tilemap is ready with one occupied cell: ' + (trimmedMap.error || 'empty map'));
+const mirroredMapObject = new GameObject({
+  position: { x: 10, y: 20, z: 0 },
+  scale: { x: -1, y: 1, z: 1 },
+});
+mirroredMapObject.addComponent(trimmedMap);
+const trimmedScene = new GameScene(game);
+expect(trimmedScene.add(mirroredMapObject) === mirroredMapObject,
+  'mirrored tilemap attaches to the scene');
+draws.length = 0;
+cameraSeesTiles = true;
+trimmedScene.render(renderer);
+expect(draws.length === 1 && draws[0].source.width === -8 &&
+  draws[0].destination.x === -4 && draws[0].destination.y === 23,
+  'tilemap mirrors trimmed frame offsets when world scale is negative: ' +
+    draws.length + ', ' + (draws.length > 0 ? draws[0].source.width + '/' +
+      draws[0].destination.x + '/' + draws[0].destination.y : 'no draw'));
+trimmedScene.destroy();
 
 expect(tilemap.setTile(0, 0, 0) && tilemap.getSolidTiles().length === 3,
   'empty cells no longer contribute collision rectangles');

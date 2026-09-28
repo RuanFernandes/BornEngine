@@ -32,6 +32,11 @@ expect(rotated !== null && close(rotated.x, -5) && close(rotated.y, -20) &&
   close(rotated.width, 50) && close(rotated.height, 100),
   'camera helper rotates and scales viewport corners into a conservative world AABB');
 
+const negativeZoom = getCamera2DWorldBounds(camera(0, 0, 100, 50, 0, -2), 100, 80);
+expect(negativeZoom !== null && close(negativeZoom.x, 50) && close(negativeZoom.y, 10) &&
+  close(negativeZoom.width, 50) && close(negativeZoom.height, 40),
+  'camera helper keeps signed zoom when mapping screen corners back into world space');
+
 const offsetRotated = getCamera2DWorldBounds(camera(10, 15, 20, 30, 90, 2), 100, 80);
 expect(offsetRotated !== null && close(offsetRotated.x, -12.5) && close(offsetRotated.y, 25) &&
   close(offsetRotated.width, 40) && close(offsetRotated.height, 50),

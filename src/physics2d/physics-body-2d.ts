@@ -13,6 +13,7 @@ export type PhysicsShape2D =
 export interface PhysicsBody2DOptions {
   type?: PhysicsBodyType2D;
   shape: PhysicsShape2D;
+  /** Initial world position for standalone bodies; an attached GameObject transform takes precedence. */
   position?: Vec2;
   velocity?: Vec2;
   mass?: number;

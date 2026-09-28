@@ -49,6 +49,8 @@ expect(manager.loadTexture('hero.png') === heroTexture,
 expect(manager.getTexture('missing.png') === null,
   'getTexture does not load missing entries');
 expect(manager.textureCount === 2, 'textureCount reports cached live entries');
+expect(manager.loadTexture('') === null && manager.getTexture('') === null &&
+  !manager.releaseTexture(''), 'empty paths are rejected safely');
 
 hero.dispose();
 expect(manager.getTexture('hero.png') === null && manager.textureCount === 1,

@@ -44,4 +44,4 @@ if (game.debugUi.isAvailable()) {
 }
 ```
 
-See [Debug tools](../api/debug-ui/) for the complete configuration and backend details.
+See [Debug tools](../../api/debug-ui/) for the complete configuration and backend details.

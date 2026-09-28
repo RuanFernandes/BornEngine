@@ -1,4 +1,5 @@
 import type { Game, GameDebugOptions } from '../core/game';
+import type { RendererStats } from '../core/renderer';
 import { getFPS } from '../core/internal';
 import { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
@@ -47,24 +48,15 @@ export class GameInspector {
   private renderMetrics(deltaTime: number): void {
     const ui = this.game.debugUi;
     ui.beginWindow(WINDOW_METRICS, 'BornEngine | Performance', 16, 16, 300, 176);
-    const renderer: any = this.game.renderer as any;
-    const stats: any = renderer.stats === undefined || renderer.stats === null ? null : renderer.stats;
-    const fps = stats !== null && stats.fps !== undefined ? stats.fps : getFPS();
-    const frameTime = stats !== null && stats.frameIntervalMs !== undefined
-      ? stats.frameIntervalMs
-      : deltaTime * 1000;
+    const stats: RendererStats = this.game.renderer.stats;
+    const fps = stats.fps > 0 ? stats.fps : getFPS();
+    const frameTime = stats.frameIntervalMs > 0 ? stats.frameIntervalMs : deltaTime * 1000;
     ui.label(WINDOW_METRICS + 1, 'FPS: ' + formatNumber(fps, 1));
     ui.label(WINDOW_METRICS + 2, 'Frame: ' + formatNumber(frameTime, 2) + ' ms');
 
-    if (stats !== null && stats.drawCalls2D !== undefined) {
-      ui.label(WINDOW_METRICS + 3, '2D draw calls: ' + stats.drawCalls2D);
-    }
-    if (stats !== null && stats.spritesDrawn !== undefined) {
-      ui.label(WINDOW_METRICS + 4, 'Sprites: ' + stats.spritesDrawn);
-    }
-    if (stats !== null && stats.spritesCulled !== undefined) {
-      ui.label(WINDOW_METRICS + 5, 'Culled sprites: ' + stats.spritesCulled);
-    }
+    ui.label(WINDOW_METRICS + 3, '2D submissions: ' + stats.drawSubmissions2D);
+    ui.label(WINDOW_METRICS + 4, 'Sprites: ' + stats.spritesDrawn);
+    ui.label(WINDOW_METRICS + 5, 'Culled sprites: ' + stats.spritesCulled);
     ui.endWindow(WINDOW_METRICS);
   }
 
@@ -135,17 +127,7 @@ export class GameInspector {
   private renderAssets(): void {
     const ui = this.game.debugUi;
     ui.beginWindow(WINDOW_ASSETS, 'BornEngine | Assets', 16, 208, 300, 144);
-    const assets: any = (this.game as any).assets;
-    if (assets === undefined || assets === null) {
-      ui.label(WINDOW_ASSETS + 1, 'Asset manager unavailable');
-    } else {
-      if (assets.textureCount !== undefined) {
-        ui.label(WINDOW_ASSETS + 1, 'Textures: ' + assets.textureCount);
-      }
-      if (assets.assetCount !== undefined) {
-        ui.label(WINDOW_ASSETS + 2, 'Cached assets: ' + assets.assetCount);
-      }
-    }
+    ui.label(WINDOW_ASSETS + 1, 'Textures: ' + this.game.assets.textureCount);
     ui.endWindow(WINDOW_ASSETS);
   }
 }
