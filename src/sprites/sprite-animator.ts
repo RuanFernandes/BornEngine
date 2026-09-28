@@ -105,6 +105,7 @@ export class SpriteAnimator extends GameComponent {
   private stoppedValue = false;
   private completionSent = false;
   private pendingInitialMarkers = false;
+  private playbackRevision = 0;
   private animationError: string | null = null;
 
   constructor(renderer: SpriteRenderer, options: SpriteAnimatorOptions) {
@@ -275,12 +276,14 @@ export class SpriteAnimator extends GameComponent {
   pause(): boolean {
     if (!this.playingValue || this.pausedValue) return false;
     this.pausedValue = true;
+    this.playbackRevision++;
     return true;
   }
 
   resume(): boolean {
     if (!this.playingValue || !this.pausedValue) return false;
     this.pausedValue = false;
+    this.playbackRevision++;
     return true;
   }
 
@@ -288,6 +291,7 @@ export class SpriteAnimator extends GameComponent {
   stop(): boolean {
     const animation = this.currentAnimationValue;
     if (animation === null) return false;
+    this.playbackRevision++;
     this.playingValue = false;
     this.pausedValue = false;
     this.stoppedValue = true;
@@ -319,6 +323,8 @@ export class SpriteAnimator extends GameComponent {
     const wasPlaying = this.playingValue;
     const wasPaused = this.pausedValue;
     const wasStopped = this.stoppedValue;
+    this.playbackRevision++;
+    const revision = this.playbackRevision;
     this.frameIndexValue = 0;
     this.frameElapsed = 0;
     this.pingPongDirection = 1;
@@ -328,6 +334,7 @@ export class SpriteAnimator extends GameComponent {
     this.playingValue = true;
     this.pausedValue = false;
     if (targetTime > 0) this.advanceTime(targetTime, emitMarkers, false);
+    if (this.playbackRevision !== revision) return true;
     if (animation.loop === 'once' && timeSeconds >= animation.duration) {
       this.frameIndexValue = animation.frames.length - 1;
       this.frameElapsed = animation.frames[this.frameIndexValue].duration;
@@ -432,8 +439,9 @@ export class SpriteAnimator extends GameComponent {
 
   update(deltaTime: number): void {
     if (this.currentAnimationValue === null) return;
+    const markerRevision = this.playbackRevision;
     this.flushInitialMarkers();
-    if (this.pausedValue) return;
+    if (this.playbackRevision !== markerRevision || this.pausedValue) return;
 
     if (isFiniteNumber(deltaTime) && deltaTime > 0) {
       this.spriteRenderer._advanceCrossfade(deltaTime);
@@ -442,7 +450,9 @@ export class SpriteAnimator extends GameComponent {
       }
     }
 
-    if (this.currentStateValue !== null && !this.stoppedValue) this.evaluateTransitions();
+    if (!this.pausedValue && this.currentStateValue !== null && !this.stoppedValue) {
+      this.evaluateTransitions();
+    }
   }
 
   /** @internal Keeps this animator with the Game that owns its renderer's texture. */
@@ -477,6 +487,7 @@ export class SpriteAnimator extends GameComponent {
       this.animationError = this.spriteRenderer.error || 'SpriteAnimator could not select the clip frame.';
       return false;
     }
+    this.playbackRevision++;
     this.currentAnimationValue = animation;
     this.currentClipNameValue = name;
     this.frameIndexValue = 0;
@@ -500,10 +511,11 @@ export class SpriteAnimator extends GameComponent {
     this.currentStateValue = state.name;
     this.stoppedValue = false;
     this.animationError = null;
+    const revision = this.playbackRevision;
     if (notify && previous !== null && previous !== state.name && this.onStateChanged !== null) {
       this.onStateChanged(state.name, previous);
     }
-    this.flushInitialMarkers();
+    if (notify && this.playbackRevision === revision) this.flushInitialMarkers();
     return true;
   }
 
@@ -518,16 +530,20 @@ export class SpriteAnimator extends GameComponent {
     if (callback === null) return;
     const markers = animation.frames[frameIndex].markers;
     const clipName = this.currentClipNameValue || '';
+    const revision = this.playbackRevision;
     for (let index = 0; index < markers.length; index++) {
       callback(markers[index], clipName, frameIndex);
+      if (this.playbackRevision !== revision) return;
     }
   }
 
   private advanceTime(seconds: number, emitMarkers: boolean, emitCompletion: boolean): void {
     const animation = this.currentAnimationValue;
     if (animation === null || !this.playingValue || !isFiniteNumber(seconds) || seconds <= 0) return;
+    const revision = this.playbackRevision;
     let remaining = seconds;
     while (remaining > 0 && this.playingValue) {
+      if (this.playbackRevision !== revision) return;
       const frame = animation.frames[this.frameIndexValue];
       const timeToBoundary = frame.duration - this.frameElapsed;
       if (remaining < timeToBoundary) {
@@ -545,6 +561,7 @@ export class SpriteAnimator extends GameComponent {
           this.completionSent = true;
           if (emitCompletion && this.onComplete !== null) this.onComplete(this.currentClipNameValue || '');
         }
+        if (this.playbackRevision !== revision) return;
         break;
       }
 
@@ -553,6 +570,7 @@ export class SpriteAnimator extends GameComponent {
         this.animationError = this.spriteRenderer.error || 'SpriteAnimator could not select the next frame.';
       }
       if (emitMarkers) this.dispatchFrameMarkers(animation, this.frameIndexValue);
+      if (this.playbackRevision !== revision) return;
     }
   }
 
@@ -564,16 +582,21 @@ export class SpriteAnimator extends GameComponent {
     }
     if (this.pingPongDirection > 0) {
       if (this.frameIndexValue >= count - 1) {
-        this.pingPongDirection = -1;
-        this.frameIndexValue = count - 2;
+        if (count <= 2) {
+          this.pingPongDirection = 1;
+          this.frameIndexValue = 0;
+        } else {
+          this.pingPongDirection = -1;
+          this.frameIndexValue = count - 2;
+        }
       } else {
         this.frameIndexValue++;
       }
       return;
     }
-    if (this.frameIndexValue <= 0) {
+    if (this.frameIndexValue <= 1) {
       this.pingPongDirection = 1;
-      this.frameIndexValue = 1;
+      this.frameIndexValue = 0;
     } else {
       this.frameIndexValue--;
     }

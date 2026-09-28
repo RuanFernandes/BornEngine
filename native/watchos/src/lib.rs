@@ -685,6 +685,29 @@ pub extern "C" fn bloom_particle2d_update(handle: f64, delta_time: f64) -> f64 {
         .unwrap_or(0.0)
 }
 
+fn particle_draw_command(texture: u32, draw: particles2d::Particle2DDraw) -> DrawCmd {
+    let (destination, origin) = draw.destination_origin();
+    let mut command = DrawCmd::zero();
+    command.kind = kind::TEXTURE_PRO;
+    command.tex = texture;
+    command.x = destination[0] as f64;
+    command.y = destination[1] as f64;
+    command.w = draw.width as f64;
+    command.h = draw.height as f64;
+    command.src_x = draw.source[0] as f64;
+    command.src_y = draw.source[1] as f64;
+    command.src_w = draw.source[2] as f64;
+    command.src_h = draw.source[3] as f64;
+    command.ox = origin[0] as f64;
+    command.oy = origin[1] as f64;
+    command.rot = draw.rotation_degrees as f64;
+    command.r = draw.color[0] as f64;
+    command.g = draw.color[1] as f64;
+    command.b = draw.color[2] as f64;
+    command.a = draw.color[3] as f64;
+    command
+}
+
 #[no_mangle]
 pub extern "C" fn bloom_particle2d_draw(handle: f64) {
     let values = take_particle2d_scratch();
@@ -696,25 +719,7 @@ pub extern "C" fn bloom_particle2d_draw(handle: f64) {
     };
     if let Some(emitter) = particle2d_manager().lock().unwrap().get(handle as u32) {
         emitter.for_each_draw(transform, |draw| {
-            let mut command = DrawCmd::zero();
-            command.kind = kind::TEXTURE_PRO;
-            command.tex = emitter.texture_handle as u32;
-            command.x = (draw.x - draw.width * 0.5) as f64;
-            command.y = (draw.y - draw.height * 0.5) as f64;
-            command.w = draw.width as f64;
-            command.h = draw.height as f64;
-            command.src_x = draw.source[0] as f64;
-            command.src_y = draw.source[1] as f64;
-            command.src_w = draw.source[2] as f64;
-            command.src_h = draw.source[3] as f64;
-            command.ox = draw.width as f64 * 0.5;
-            command.oy = draw.height as f64 * 0.5;
-            command.rot = draw.rotation_degrees as f64;
-            command.r = draw.color[0] as f64;
-            command.g = draw.color[1] as f64;
-            command.b = draw.color[2] as f64;
-            command.a = draw.color[3] as f64;
-            draw_list::push(command);
+            draw_list::push(particle_draw_command(emitter.texture_handle as u32, draw));
         });
     }
 }

@@ -66,7 +66,7 @@ const definition = {
   name: 'walk-0',
   source: { x: 4, y: 6, width: 16, height: 8 },
   pivot: { x: 0.25, y: 0.75 },
-  trim: { offset: { x: 8, y: 4 }, originalSize: { x: 32, y: 16 } },
+  trim: { offset: { x: 3, y: 1 }, originalSize: { x: 32, y: 16 } },
 };
 const sheet = new SpriteSheet(texture, { frames: [definition] });
 const frame = sheet.getFrame('walk-0');
@@ -86,6 +86,7 @@ const sprite = new SpriteRenderer(frame, {
   pivot: { x: 0.25, y: 0.75 },
   tint: { r: 0.8, g: 0.6, b: 0.4, a: 1 },
   flipX: true,
+  flipY: true,
 });
 const scene = new GameScene(owner);
 const object = new GameObject({
@@ -99,13 +100,16 @@ expect(!sprite._canAttachTo({ owns: (_resource: object) => false } as any),
   'sprite renderer rejects a texture owned by another Game');
 scene.render({} as Renderer);
 expect(calls.length === 1, 'scene automatically draws an attached sprite');
-expect(calls[0].source.x === 4 && calls[0].source.y === 6 && calls[0].source.width === -16,
-  'sprite flip reverses its source region');
-expect(calls[0].destination.x === 10 && calls[0].destination.y === 20 &&
+expect(calls[0].source.x === 20 && calls[0].source.y === 14 &&
+  calls[0].source.width === -16 && calls[0].source.height === -8,
+  'sprite flips sample the same atlas frame instead of the neighboring region');
+expect(calls[0].destination.x === 20 && calls[0].destination.y === 17.5 &&
   calls[0].destination.width === 32 && calls[0].destination.height === 4,
   'sprite draw uses world position and scale while preserving trim proportions');
-expect(calls[0].origin.x === 0 && calls[0].origin.y === 4,
-  'sprite draw uses its normalized pivot: ' + calls[0].origin.x + ',' + calls[0].origin.y);
+expect(calls[0].origin.x === -10 && calls[0].origin.y === 2.5 &&
+  calls[0].destination.x + calls[0].origin.x === 10 &&
+  calls[0].destination.y + calls[0].origin.y === 20,
+  'trimmed and mirrored sprite geometry keeps its pivot at the GameObject position');
 expect(Math.abs(calls[0].rotation - 90) < 0.001,
   'sprite draw uses world Z rotation: ' + calls[0].rotation);
 expect(calls[0].tint.r === 0.8 && calls[0].tint.g === 0.6,

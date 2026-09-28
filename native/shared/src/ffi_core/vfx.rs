@@ -140,13 +140,14 @@ macro_rules! __bloom_ffi_vfx {
                 let texture = match textures.get(emitter.texture_handle) { Some(value) => value, None => return };
                 let texture_idx = texture.bind_group_idx;
                 emitter.for_each_draw(transform, |draw| {
+                    let (destination, origin) = draw.destination_origin();
                     renderer.draw_texture_pro(
                         texture_idx,
                         draw.source[0] as f64, draw.source[1] as f64,
                         draw.source[2] as f64, draw.source[3] as f64,
-                        (draw.x - draw.width * 0.5) as f64, (draw.y - draw.height * 0.5) as f64,
+                        destination[0] as f64, destination[1] as f64,
                         draw.width as f64, draw.height as f64,
-                        draw.width as f64 * 0.5, draw.height as f64 * 0.5,
+                        origin[0] as f64, origin[1] as f64,
                         draw.rotation_degrees as f64,
                         draw.color[0] as f64, draw.color[1] as f64,
                         draw.color[2] as f64, draw.color[3] as f64,

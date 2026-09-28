@@ -91,7 +91,10 @@ export class Texture implements ContextDrawable {
     return this.context.draw(this, position, tint);
   }
 
-  /** Draws a texture region into a destination rectangle without exposing its native handle. */
+  /**
+   * Draws a texture region into a destination rectangle without exposing its native handle.
+   * The destination is the unrotated top-left rectangle; origin is a local pivot measured from that corner.
+   */
   drawRegion(source: Rect, destination: Rect, origin: Vec2, rotation: number, tint: Color): boolean {
     if (!this.isLoaded || !this.context.owns(this) ||
         source === null || source === undefined || destination === null || destination === undefined ||

@@ -89,6 +89,27 @@ const pingPong = new SpriteAnimation({
   ],
   loop: 'ping-pong',
 });
+const longPingPong = new SpriteAnimation({
+  frames: [
+    { sprite: frameA, duration: 1 },
+    { sprite: frameB, duration: 1 },
+    { sprite: frameC, duration: 1 },
+  ],
+  loop: 'ping-pong',
+});
+const twoFramePingPong = new SpriteAnimation({
+  frames: [{ sprite: frameA, duration: 1 }, { sprite: frameB, duration: 1 }],
+  loop: 'ping-pong',
+});
+const longClip = new SpriteAnimation({
+  frames: [
+    { sprite: frameA, duration: 1 },
+    { sprite: frameB, duration: 1, markers: ['switch'] },
+    { sprite: frameC, duration: 1 },
+    { sprite: frameD, duration: 1 },
+  ],
+});
+const shortClip = new SpriteAnimation({ frames: [{ sprite: frameE, duration: 1 }] });
 const paced = new SpriteAnimation({
   frames: [{ sprite: frameD }, { sprite: frameE }],
   fps: 10,
@@ -157,7 +178,7 @@ const states: SpriteAnimatorState[] = [
 
 const sprite = new SpriteRenderer(frameA);
 const animator = new HookedAnimator(sprite, {
-  clips: { loop, once, pingPong, paced },
+  clips: { loop, once, pingPong, longPingPong, longClip, shortClip, paced },
 });
 const object = new GameObject();
 object.addComponent(sprite);
@@ -284,6 +305,57 @@ expect(animator.play('loop') && animator.error === null && animator.currentFrame
   'repeating a valid current clip clears the error without restarting playback');
 machine.resetTrigger('attack');
 expect(!machine.hasTrigger('attack'), 'resetTrigger clears a named trigger');
+
+const initialMarkerAnimation = new SpriteAnimation({
+  frames: [{ sprite: frameA, markers: ['ready'] }],
+  loop: 'once',
+});
+const initialMarkerAnimator = new SpriteAnimator(new SpriteRenderer(frameA), {
+  clips: { initialMarkerAnimation },
+  states: [{ name: 'ready', clip: 'initialMarkerAnimation' }],
+  initialState: 'ready',
+});
+const initialMarkers: string[] = [];
+initialMarkerAnimator.onMarker = (marker) => { initialMarkers.push(marker); };
+initialMarkerAnimator.update(0);
+expect(initialMarkers.join(',') === 'ready',
+  'initial-state frame markers remain pending until the caller installs hooks');
+
+const reentrantAnimator = new SpriteAnimator(new SpriteRenderer(frameA), {
+  clips: { longClip, shortClip },
+});
+reentrantAnimator.onMarker = (marker) => {
+  if (marker === 'switch') reentrantAnimator.play('shortClip');
+};
+expect(reentrantAnimator.play('longClip'), 'reentrancy regression clip starts');
+reentrantAnimator.update(2.5);
+expect(reentrantAnimator.currentClip === 'shortClip' && reentrantAnimator.currentFrameIndex === 0,
+  'marker callback can switch playback during a large update');
+reentrantAnimator.update(0.1);
+expect(reentrantAnimator.currentClip === 'shortClip' && reentrantAnimator.currentFrameIndex === 0,
+  'marker playback changes stop consuming the previous clip timeline');
+
+const advancedPingPong = new SpriteAnimator(new SpriteRenderer(frameA), { clips: { longPingPong } });
+const soughtPingPong = new SpriteAnimator(new SpriteRenderer(frameA), { clips: { longPingPong } });
+expect(advancedPingPong.play('longPingPong') && soughtPingPong.play('longPingPong'),
+  'long ping-pong clips start');
+advancedPingPong.update(4.5);
+expect(soughtPingPong.seek(4.5), 'ping-pong seek accepts times beyond one cycle');
+expect(advancedPingPong.currentFrameIndex === soughtPingPong.currentFrameIndex &&
+  Math.abs(advancedPingPong.currentTime - soughtPingPong.currentTime) < 0.001 &&
+  Math.abs(advancedPingPong.normalizedTime - soughtPingPong.normalizedTime) < 0.001 &&
+  advancedPingPong.currentFrameIndex === 0 && Math.abs(advancedPingPong.currentTime - 0.5) < 0.001,
+  'ping-pong update wraps the return to frame zero like seek');
+const twoFramePlayback = new SpriteAnimator(new SpriteRenderer(frameA), { clips: { twoFramePingPong } });
+const twoFrameSeek = new SpriteAnimator(new SpriteRenderer(frameA), { clips: { twoFramePingPong } });
+twoFramePlayback.play('twoFramePingPong');
+twoFrameSeek.play('twoFramePingPong');
+twoFramePlayback.update(2.5);
+twoFrameSeek.seek(2.5);
+expect(twoFramePlayback.currentFrameIndex === 0 && twoFrameSeek.currentFrameIndex === 0 &&
+  Math.abs(twoFramePlayback.currentTime - 0.5) < 0.001 &&
+  Math.abs(twoFrameSeek.currentTime - 0.5) < 0.001,
+  'two-frame ping-pong loops at its real cycle duration');
 
 const malformedAnimation = new SpriteAnimation({ frames: null as any });
 expect(malformedAnimation.error !== null, 'malformed frame collections fail without throwing');

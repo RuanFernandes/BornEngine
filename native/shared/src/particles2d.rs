@@ -96,6 +96,16 @@ pub struct Particle2DDraw {
     pub color: [f32; 4],
 }
 
+impl Particle2DDraw {
+    /// Returns the draw destination's top-left and its local center pivot.
+    pub fn destination_origin(self) -> ([f32; 2], [f32; 2]) {
+        (
+            [self.x - self.width * 0.5, self.y - self.height * 0.5],
+            [self.width * 0.5, self.height * 0.5],
+        )
+    }
+}
+
 /// One sprite emitter's CPU-side pool and immutable atlas/config data.
 pub struct ParticleEmitter2D {
     pub capacity: usize,
@@ -729,6 +739,26 @@ mod tests {
         assert!((draws[0].height - 7.5).abs() < 0.001);
         assert!((draws[0].color[0] - 150.0).abs() < 0.001);
         assert!((draws[0].color[3] - 127.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn particle_draw_geometry_uses_top_left_and_center_local_origin() {
+        let draw = Particle2DDraw {
+            source: [32.0, 16.0, 16.0, 8.0],
+            x: 100.0,
+            y: 50.0,
+            width: 16.0,
+            height: 8.0,
+            rotation_degrees: 30.0,
+            color: [255.0, 128.0, 64.0, 96.0],
+        };
+        let (destination, origin) = draw.destination_origin();
+        assert_eq!(destination, [92.0, 46.0]);
+        assert_eq!(origin, [8.0, 4.0]);
+        assert_eq!(
+            [destination[0] + origin[0], destination[1] + origin[1]],
+            [draw.x, draw.y]
+        );
     }
 
     #[test]

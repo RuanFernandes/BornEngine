@@ -1,6 +1,31 @@
 use wgpu::util::DeviceExt;
 use std::collections::HashMap;
 
+fn texture_pro_positions(
+    dst_x: f32,
+    dst_y: f32,
+    dst_w: f32,
+    dst_h: f32,
+    origin_x: f32,
+    origin_y: f32,
+    rotation_degrees: f32,
+) -> [[f32; 2]; 4] {
+    let cos_r = rotation_degrees.to_radians().cos();
+    let sin_r = rotation_degrees.to_radians().sin();
+    let pivot_x = dst_x + origin_x;
+    let pivot_y = dst_y + origin_y;
+    let corners = [
+        [0.0, 0.0],
+        [dst_w, 0.0],
+        [dst_w, dst_h],
+        [0.0, dst_h],
+    ];
+    corners.map(|point| [
+        (point[0] - origin_x) * cos_r - (point[1] - origin_y) * sin_r + pivot_x,
+        (point[0] - origin_x) * sin_r + (point[1] - origin_y) * cos_r + pivot_y,
+    ])
+}
+
 mod shaders;
 mod texture_store;
 mod draw2d;
@@ -10706,26 +10731,16 @@ impl Renderer {
         let u1 = (src_x + src_w) as f32 / tw as f32;
         let v1 = (src_y + src_h) as f32 / th as f32;
 
-        let cos_r = (rotation as f32).to_radians().cos();
-        let sin_r = (rotation as f32).to_radians().sin();
-        let ox = origin_x as f32;
-        let oy = origin_y as f32;
         let (dx, dy, dw, dh) = (dst_x as f32, dst_y as f32, dst_w as f32, dst_h as f32);
-
-        let corners = [
-            [dx - ox, dy - oy],
-            [dx + dw - ox, dy - oy],
-            [dx + dw - ox, dy + dh - oy],
-            [dx - ox, dy + dh - oy],
-        ];
+        let corners = texture_pro_positions(
+            dx, dy, dw, dh, origin_x as f32, origin_y as f32, rotation as f32,
+        );
 
         self.ensure_draw_state(bind_group_idx);
         let base = self.vertices_2d.len() as u32;
         let uvs = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
-        for (c, uv) in corners.iter().zip(uvs.iter()) {
-            let rx = c[0] * cos_r - c[1] * sin_r + ox;
-            let ry = c[0] * sin_r + c[1] * cos_r + oy;
-            self.vertices_2d.push(Vertex2D { position: [rx, ry], uv: *uv, color });
+        for (position, uv) in corners.iter().zip(uvs.iter()) {
+            self.vertices_2d.push(Vertex2D { position: *position, uv: *uv, color });
         }
         self.indices_2d.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
     }
@@ -11805,6 +11820,33 @@ impl Renderer {
 
         self.custom_pipelines.push(pipeline);
         self.custom_pipelines.len() // 1-based index
+    }
+}
+
+#[cfg(test)]
+mod sprite_texture_pro_tests {
+    use super::texture_pro_positions;
+
+    #[test]
+    fn destination_origin_rotates_the_local_quad_around_its_world_pivot() {
+        let positions = texture_pro_positions(10.0, 20.0, 32.0, 4.0, 0.0, 4.0, 90.0);
+        let expected = [[14.0, 24.0], [14.0, 56.0], [10.0, 56.0], [10.0, 24.0]];
+        for (actual, expected) in positions.iter().zip(expected.iter()) {
+            assert!((actual[0] - expected[0]).abs() < 0.001);
+            assert!((actual[1] - expected[1]).abs() < 0.001);
+        }
+    }
+
+    #[test]
+    fn centered_particle_rectangle_rotates_around_its_reported_world_position() {
+        let positions = texture_pro_positions(92.0, 46.0, 16.0, 8.0, 8.0, 4.0, 30.0);
+        let center = positions.iter().fold([0.0, 0.0], |mut sum, point| {
+            sum[0] += point[0] * 0.25;
+            sum[1] += point[1] * 0.25;
+            sum
+        });
+        assert!((center[0] - 100.0).abs() < 0.001);
+        assert!((center[1] - 50.0).abs() < 0.001);
     }
 }
 

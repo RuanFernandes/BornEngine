@@ -232,22 +232,30 @@ export class SpriteRenderer extends GameComponent {
 
     const flipX = this.flipX !== (worldScale.x < 0);
     const flipY = this.flipY !== (worldScale.y < 0);
+    const sourceX = frame.source.x + (flipX ? frame.source.width : 0);
+    const sourceY = frame.source.y + (flipY ? frame.source.height : 0);
     const source: Rect = {
-      x: frame.source.x,
-      y: frame.source.y,
+      x: sourceX,
+      y: sourceY,
       width: flipX ? -frame.source.width : frame.source.width,
       height: flipY ? -frame.source.height : frame.source.height,
     };
+    const trimOffset = frame.trim === null ? { x: 0, y: 0 } : frame.trim.offset;
+    const trimX = flipX
+      ? originalSize.x - trimOffset.x - frame.source.width
+      : trimOffset.x;
+    const trimY = flipY
+      ? originalSize.y - trimOffset.y - frame.source.height
+      : trimOffset.y;
+    const origin: Vec2 = {
+      x: this.pivot.x * this.size.x * Math.abs(worldScale.x) - trimX * scaleX,
+      y: this.pivot.y * this.size.y * Math.abs(worldScale.y) - trimY * scaleY,
+    };
     const destination: Rect = {
-      x: worldPosition.x,
-      y: worldPosition.y,
+      x: worldPosition.x - origin.x,
+      y: worldPosition.y - origin.y,
       width: frame.source.width * scaleX,
       height: frame.source.height * scaleY,
-    };
-    const trimOffset = frame.trim === null ? { x: 0, y: 0 } : frame.trim.offset;
-    const origin: Vec2 = {
-      x: this.pivot.x * this.size.x * Math.abs(worldScale.x) - trimOffset.x * scaleX,
-      y: this.pivot.y * this.size.y * Math.abs(worldScale.y) - trimOffset.y * scaleY,
     };
     const tint = copyColor(this.tint);
     tint.a *= opacity;

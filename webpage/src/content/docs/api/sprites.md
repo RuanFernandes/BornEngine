@@ -29,6 +29,8 @@ const step = sheet.gridFrame(1, 0);
 
 `gridFrame(column, row)` returns a cached frame or `null` for an invalid cell. Named frames use `{ name, source, pivot?, trim? }`; `source` is a pixel rectangle inside the texture. `pivot` is normalized to the original frame size. Trim metadata stores the packed-pixel offset and the original untrimmed dimensions.
 
+`Texture.drawRegion(source, destination, origin, rotation, tint)` uses a top-left destination rectangle. `origin` is a local pivot measured from that corner, so the object's world position is `destination + origin` when the region rotates.
+
 Check `texture.isLoaded` and `sheet.error` before building gameplay objects. The sheet keeps a reference to the texture; dispose the texture through its owning `Game` lifecycle.
 
 ## Sprite components and camera
