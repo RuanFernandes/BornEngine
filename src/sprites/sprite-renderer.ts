@@ -57,6 +57,9 @@ export class SpriteRenderer extends GameComponent {
   error: string | null = null;
 
   private currentFrame: SpriteFrame | null = null;
+  private fadingFrame: SpriteFrame | null = null;
+  private fadeDuration = 0;
+  private fadeElapsed = 0;
 
   constructor(frame: SpriteFrame, options: SpriteRendererOptions = {}) {
     super();
@@ -91,12 +94,26 @@ export class SpriteRenderer extends GameComponent {
 
   /** Changes the frame without changing the renderer's size or pivot. */
   setFrame(frame: SpriteFrame | null): boolean {
+    return this.assignFrame(frame, true);
+  }
+
+  /** @internal Selects an animation frame without interrupting an active crossfade. */
+  _setAnimationFrame(frame: SpriteFrame): boolean {
+    return this.assignFrame(frame, false);
+  }
+
+  private assignFrame(frame: SpriteFrame | null, cancelFade: boolean): boolean {
     if (frame === undefined) {
       this.error = 'SpriteRenderer frame cannot be undefined.';
       return false;
     }
     if (frame === null) {
       this.currentFrame = null;
+      if (cancelFade) {
+        this.fadingFrame = null;
+        this.fadeDuration = 0;
+        this.fadeElapsed = 0;
+      }
       this.error = null;
       return true;
     }
@@ -115,12 +132,44 @@ export class SpriteRenderer extends GameComponent {
 
     const isInitialFrame = this.currentFrame === null;
     this.currentFrame = frame;
+    if (cancelFade) {
+      this.fadingFrame = null;
+      this.fadeDuration = 0;
+      this.fadeElapsed = 0;
+    }
     this.error = null;
     if (isInitialFrame) {
       this.size = copyVec2(frame.originalSize);
       this.pivot = copyVec2(frame.pivot);
     }
     return true;
+  }
+
+  /** @internal Changes frames and optionally retains the outgoing frame for a crossfade. */
+  _transitionTo(frame: SpriteFrame, duration = 0): boolean {
+    if (!isFiniteNumber(duration) || duration < 0) {
+      this.error = 'SpriteRenderer transition duration must be finite and non-negative.';
+      return false;
+    }
+    const outgoing = this.currentFrame;
+    if (!this.setFrame(frame)) return false;
+    if (duration > 0 && outgoing !== null && outgoing !== frame) {
+      this.fadingFrame = outgoing;
+      this.fadeDuration = duration;
+      this.fadeElapsed = 0;
+    }
+    return true;
+  }
+
+  /** @internal Advances crossfade time independently from clip playback speed. */
+  _advanceCrossfade(deltaTime: number): void {
+    if (this.fadingFrame === null || !isFiniteNumber(deltaTime) || deltaTime <= 0) return;
+    this.fadeElapsed += deltaTime;
+    if (this.fadeElapsed >= this.fadeDuration) {
+      this.fadingFrame = null;
+      this.fadeDuration = 0;
+      this.fadeElapsed = 0;
+    }
   }
 
   setSize(size: Vec2): boolean {
@@ -159,6 +208,18 @@ export class SpriteRenderer extends GameComponent {
         !validSize(this.size) || this.size.x === 0 || this.size.y === 0 ||
         !isFiniteNumber(this.pivot.x) || !isFiniteNumber(this.pivot.y) || !validColor(this.tint)) return;
 
+    if (this.fadingFrame !== null && this.fadeDuration > 0) {
+      const progress = Math.max(0, Math.min(1, this.fadeElapsed / this.fadeDuration));
+      this.drawFrame(this.fadingFrame, 1 - progress);
+      this.drawFrame(frame, progress);
+    } else {
+      this.drawFrame(frame, 1);
+    }
+  }
+
+  private drawFrame(frame: SpriteFrame, opacity: number): void {
+    const owner = this.gameObject;
+    if (owner === null || owner.scene === null || !frame.sheet._canAttachTo(owner.scene.context)) return;
     const originalSize = frame.originalSize;
     if (originalSize.x <= 0 || originalSize.y <= 0) return;
     const transform = owner.transform;
@@ -188,6 +249,8 @@ export class SpriteRenderer extends GameComponent {
       x: this.pivot.x * this.size.x * Math.abs(worldScale.x) - trimOffset.x * scaleX,
       y: this.pivot.y * this.size.y * Math.abs(worldScale.y) - trimOffset.y * scaleY,
     };
-    frame.sheet.texture.drawRegion(source, destination, origin, rotationZDegrees(worldRotation), this.tint);
+    const tint = copyColor(this.tint);
+    tint.a *= opacity;
+    frame.sheet.texture.drawRegion(source, destination, origin, rotationZDegrees(worldRotation), tint);
   }
 }
