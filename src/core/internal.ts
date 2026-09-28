@@ -102,6 +102,7 @@ declare function bloom_set_target_fps(fps: number): void;
 declare function bloom_set_direct_2d_mode(on: number): void;
 declare function bloom_get_delta_time(): number;
 declare function bloom_get_fps(): number;
+declare function bloom_get_2d_draw_calls(): number;
 declare function bloom_get_screen_width(): number;
 declare function bloom_get_screen_height(): number;
 declare function bloom_is_key_pressed(key: number): number;
@@ -787,6 +788,11 @@ export function getDeltaTime(): number {
 
 export function getFPS(): number {
   return bloom_get_fps();
+}
+
+/** Current 2D batch draw-call groups queued for the frame. */
+export function get2DDrawCalls(): number {
+  return bloom_get_2d_draw_calls();
 }
 
 export function getTime(): number {

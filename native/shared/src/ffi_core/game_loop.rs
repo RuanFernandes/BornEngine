@@ -40,6 +40,14 @@ macro_rules! __bloom_ffi_game_loop {
         })
         }
 
+        // bloom_get_2d_draw_calls — queued texture/uniform groups in the 2D batch.
+        #[no_mangle]
+        pub extern "C" fn bloom_get_2d_draw_calls() -> f64 {
+            $crate::ffi::guard("bloom_get_2d_draw_calls", move || {
+                engine().renderer.draw_calls_2d_count() as f64
+            })
+        }
+
         // bloom_get_screen_width  [source: macos]
         #[no_mangle]
         pub extern "C" fn bloom_get_screen_width() -> f64 {

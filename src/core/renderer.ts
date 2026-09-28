@@ -15,6 +15,26 @@ import {
   drawSphere, drawSphereWires,
 } from '../models/internal';
 import type { Camera2D, Camera3D, Color, Rect, Vec2, Vec3 } from './types';
+import { getCamera2DWorldBounds, isRectIntersecting } from './camera2d-culling';
+export { getCamera2DWorldBounds };
+
+/** Render workload measured for the most recent scene render. */
+export interface RendererStats {
+  /** Frames per second estimated from consecutive scene renders. */
+  fps: number;
+  /** Milliseconds between consecutive scene renders. */
+  frameIntervalMs: number;
+  /** Number of 2D texture/uniform draw groups queued for the frame. */
+  drawCalls2D: number;
+  /** Sprite quads submitted by SpriteRenderer components in the scene render. */
+  spritesDrawn: number;
+  /** Sprite quads skipped because their bounds fell outside the active 2D camera. */
+  spritesCulled: number;
+}
+
+function isFiniteNumber(value: number): boolean {
+  return value === value && value !== Infinity && value !== -Infinity;
+}
 
 export interface InstancedDrawSource extends ContextResource {
   readonly isLoaded: boolean;
@@ -28,6 +48,11 @@ export class Renderer {
   private mode: RenderMode = 'none';
   private disposed = false;
   private activeRenderTexture: RenderTexture | null = null;
+  private activeCameraBounds: Rect | null = null;
+  private lastSceneRenderTime = 0;
+  private frameIntervalMsValue = 0;
+  private spritesDrawnValue = 0;
+  private spritesCulledValue = 0;
 
   private readonly context: GameContext;
 
@@ -43,6 +68,41 @@ export class Renderer {
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
 
+  /** Snapshot of the latest scene render workload. Values reset when the next scene render begins. */
+  get stats(): RendererStats {
+    const fps = this.frameIntervalMsValue > 0 ? 1000 / this.frameIntervalMsValue : 0;
+    return {
+      fps,
+      frameIntervalMs: this.frameIntervalMsValue,
+      drawCalls2D: this.isReady ? native.get2DDrawCalls() : 0,
+      spritesDrawn: this.spritesDrawnValue,
+      spritesCulled: this.spritesCulledValue,
+    };
+  }
+
+  /** @internal Starts a new scene-render statistics sample. */
+  _beginSceneRender(): void {
+    if (!this.isReady) return;
+    const now = native.getTime();
+    if (isFiniteNumber(now) && now > this.lastSceneRenderTime && this.lastSceneRenderTime > 0) {
+      this.frameIntervalMsValue = (now - this.lastSceneRenderTime) * 1000;
+    }
+    if (isFiniteNumber(now) && now > 0) this.lastSceneRenderTime = now;
+    this.spritesDrawnValue = 0;
+    this.spritesCulledValue = 0;
+  }
+
+  /** Tests an axis-aligned world-space rectangle against the active camera view. */
+  isRectVisibleIn2D(bounds: Rect): boolean {
+    return this.activeCameraBounds === null || isRectIntersecting(bounds, this.activeCameraBounds);
+  }
+
+  /** @internal Counts a SpriteRenderer quad after successful submission. */
+  _recordSpriteDrawn(): void { this.spritesDrawnValue++; }
+
+  /** @internal Counts a SpriteRenderer quad rejected by camera culling. */
+  _recordSpriteCulled(): void { this.spritesCulledValue++; }
+
   clear(color: Color): boolean {
     if (!this.isReady) return false;
     native.clearBackground(color);
@@ -53,6 +113,7 @@ export class Renderer {
     if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null) return false;
     native.beginMode2D(camera);
     this.mode = '2d';
+    this.activeCameraBounds = getCamera2DWorldBounds(camera, native.getScreenWidth(), native.getScreenHeight());
     return true;
   }
 
@@ -60,6 +121,7 @@ export class Renderer {
     if (!this.isReady || this.mode !== '2d') return false;
     native.endMode2D();
     this.mode = 'none';
+    this.activeCameraBounds = null;
     return true;
   }
 
@@ -74,6 +136,7 @@ export class Renderer {
     if (!this.isReady || this.mode !== '3d') return false;
     native.endMode3D();
     this.mode = 'none';
+    this.activeCameraBounds = null;
     return true;
   }
 

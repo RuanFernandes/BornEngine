@@ -98,7 +98,17 @@ object.addComponent(sprite);
 expect(scene.add(object) === object, 'sprite renderer attaches to the texture owning Game');
 expect(!sprite._canAttachTo({ owns: (_resource: object) => false } as any),
   'sprite renderer rejects a texture owned by another Game');
-scene.render({} as Renderer);
+let cameraVisible = true;
+let culledSprites = 0;
+let submittedSprites = 0;
+let measuredBounds: Rect | null = null;
+const renderer = {
+  _beginSceneRender(): void {},
+  isRectVisibleIn2D(bounds: Rect): boolean { measuredBounds = bounds; return cameraVisible; },
+  _recordSpriteDrawn(): void { submittedSprites++; },
+  _recordSpriteCulled(): void { culledSprites++; },
+} as any as Renderer;
+scene.render(renderer);
 expect(calls.length === 1, 'scene automatically draws an attached sprite');
 expect(calls[0].source.x === 20 && calls[0].source.y === 14 &&
   calls[0].source.width === -16 && calls[0].source.height === -8,
@@ -112,6 +122,16 @@ expect(calls[0].origin.x === -10 && calls[0].origin.y === 2.5 &&
   'trimmed and mirrored sprite geometry keeps its pivot at the GameObject position');
 expect(Math.abs(calls[0].rotation - 90) < 0.001,
   'sprite draw uses world Z rotation: ' + calls[0].rotation);
+expect(measuredBounds !== null && Math.abs(measuredBounds.x - 8.5) < 0.01 &&
+  Math.abs(measuredBounds.y - 30) < 0.01 && Math.abs(measuredBounds.width - 4) < 0.01 &&
+  Math.abs(measuredBounds.height - 32) < 0.01,
+  'sprite camera bounds account for world rotation and mirrored trim pivot');
+expect(submittedSprites === 1 && culledSprites === 0,
+  'sprite workload counts successfully submitted quads');
+cameraVisible = false;
+scene.render(renderer);
+expect(calls.length === 1 && submittedSprites === 1 && culledSprites === 1,
+  'camera culling avoids texture submission and records the skipped sprite');
 expect(calls[0].tint.r === 0.8 && calls[0].tint.g === 0.6,
   'sprite tint is passed to the texture draw call');
 expect(disposeCalls === 0, 'SpriteSheet does not dispose its shared Texture');

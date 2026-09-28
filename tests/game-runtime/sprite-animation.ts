@@ -280,18 +280,24 @@ expect(machine.currentState === 'attack' && !machine.hasTrigger('attack') &&
   'successful transition consumes its trigger and reports state changes');
 
 draws.length = 0;
-machineScene.render({} as Renderer);
+const sceneRenderer = {
+  _beginSceneRender(): void {},
+  isRectVisibleIn2D(): boolean { return true; },
+  _recordSpriteDrawn(): void {},
+  _recordSpriteCulled(): void {},
+} as any as Renderer;
+machineScene.render(sceneRenderer);
 expect(draws.length === 2 && draws[0].tint.a === 255 && draws[1].tint.a === 0,
   'crossfade starts with outgoing and incoming frames');
 machine.update(0.1);
 draws.length = 0;
-machineScene.render({} as Renderer);
+machineScene.render(sceneRenderer);
 expect(draws.length === 2 && Math.abs(draws[0].tint.a - 127.5) < 0.001 &&
   Math.abs(draws[1].tint.a - 127.5) < 0.001,
   'crossfade blends both frames halfway through its duration');
 machine.update(0.1);
 draws.length = 0;
-machineScene.render({} as Renderer);
+machineScene.render(sceneRenderer);
 expect(draws.length === 1 && draws[0].source.x === 48,
   'crossfade clears the outgoing frame at its configured duration');
 

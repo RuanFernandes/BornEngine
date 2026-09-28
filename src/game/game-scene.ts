@@ -108,6 +108,7 @@ export class GameScene implements ContextResource {
   /** Draws active render components in ascending renderOrder with stable ties. */
   render(renderer: Renderer, camera?: Camera2D | null): void {
     if (this.wasDestroyed) return;
+    renderer._beginSceneRender();
     const objects = this.sceneObjects.slice();
     const entries: RenderEntry[] = [];
     let sequence = 0;

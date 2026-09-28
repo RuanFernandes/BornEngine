@@ -19,12 +19,18 @@ const camera: Camera2D = {
   zoom: 1,
 };
 const renderer = {
+  _beginSceneRender(): void {},
   begin2D(): boolean { calls.push('begin'); return true; },
   end2D(): boolean { calls.push('end'); return true; },
 } as any as Renderer;
 
+let throwAttempted = false;
 class FailingRenderer extends GameComponent {
-  render(): void { throw new Error('render failure'); }
+  render(): void {
+    calls.push('component');
+    throwAttempted = true;
+    throw new Error('render failure');
+  }
 }
 
 const scene = new GameScene(owner);
@@ -32,14 +38,12 @@ const object = new GameObject();
 object.addComponent(new FailingRenderer());
 scene.add(object);
 
-let caught = false;
 try {
   scene.render(renderer, camera);
 } catch (_error) {
-  caught = true;
 }
 
-if (!caught || calls.join(',') !== 'begin,end') {
-  throw new Error('Camera mode must close after a render callback throws.');
+if (!throwAttempted || calls.join(',') !== 'begin,component,end') {
+  throw new Error('Camera mode must close after a throwing render callback; calls=' + calls.join(','));
 }
 console.log('PASS: scene camera cleanup after render failure');

@@ -305,6 +305,11 @@
           "returns": "f64"
         },
         {
+          "name": "bloom_get_2d_draw_calls",
+          "params": [],
+          "returns": "f64"
+        },
+        {
           "name": "bloom_get_screen_width",
           "params": [],
           "returns": "f64"

@@ -71,6 +71,7 @@ const camera: Camera2D = {
 };
 const cameraEvents: string[] = [];
 const renderer = {
+  _beginSceneRender(): void {},
   begin2D(value: Camera2D): boolean {
     cameraEvents.push(value === camera ? 'begin' : 'wrong-camera');
     return true;
