@@ -2,12 +2,15 @@ import type { Game } from '../core/game';
 import { GameContext, getGameContext } from '../core/context';
 import type { ContextResource } from '../core/context';
 import { Texture } from '../textures/texture';
+import { AssetGroup } from './asset-group';
+import type { AssetGroupLoader } from './asset-group';
 
 /** Game-owned cache for textures loaded from asset paths. */
 export class AssetManager implements ContextResource {
   private readonly context: GameContext;
   private readonly textures = new Map<string, Texture>();
   private readonly paths: string[] = [];
+  private readonly groups: AssetGroup[] = [];
   private disposed = false;
 
   constructor(private readonly game: Game) {
@@ -67,9 +70,24 @@ export class AssetManager implements ContextResource {
     return this.paths.length;
   }
 
+  /** Create a named preload group owned by this Game's AssetManager. */
+  createGroup(name = ''): AssetGroup | null {
+    if (this.disposed || this.context.isDisposed) return null;
+    const loader: AssetGroupLoader = {
+      loadTexture: (path) => this.loadTexture(path),
+      loadSound: (path) => this.game.audio.loadSharedSound(path),
+      loadMusic: (path) => this.game.audio.loadSharedMusic(path),
+      removeGroup: (group) => this.removeGroup(group),
+    };
+    const group = new AssetGroup(name, loader, this.context);
+    this.groups.push(group);
+    return group;
+  }
+
   /** Disposes all cached textures while keeping this manager available for reuse. */
   clear(): void {
     if (this.disposed) return;
+    this.clearGroups();
     this.clearEntries();
   }
 
@@ -79,6 +97,7 @@ export class AssetManager implements ContextResource {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.clearGroups();
     this.clearEntries();
     this.context.unregister(this);
   }
@@ -90,6 +109,18 @@ export class AssetManager implements ContextResource {
       const texture = this.textures.get(path);
       if (texture === undefined || texture.isDisposed) this.removeEntry(path);
       else index++;
+    }
+  }
+
+  private removeGroup(group: AssetGroup): void {
+    const index = this.groups.indexOf(group);
+    if (index >= 0) this.groups.splice(index, 1);
+  }
+
+  private clearGroups(): void {
+    while (this.groups.length > 0) {
+      const group = this.groups.pop();
+      if (group !== undefined) group.dispose();
     }
   }
 

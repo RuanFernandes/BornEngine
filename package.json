@@ -26,6 +26,7 @@
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
     "./input": "./src/input/index.ts",
+    "./storage": "./src/storage/index.ts",
     "./ui": "./src/ui/index.ts",
     "./debug-ui": "./src/debug-ui/index.ts",
     "./colyseus": "./src/colyseus/index.ts"
@@ -2496,6 +2497,35 @@
         },
         {
           "name": "bloom_read_file",
+          "params": [
+            "string"
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_storage_remove",
+          "params": [
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_storage_write",
+          "params": [
+            "string",
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_storage_exists",
+          "params": [
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_storage_read",
           "params": [
             "string"
           ],

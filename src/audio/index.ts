@@ -1,4 +1,7 @@
 export { AudioSystem } from './audio-system';
+export { AudioListener2D } from './audio-listener-2d';
+export type { AudioEmitter2DOptions } from './audio-emitter-2d';
+export { AudioEmitter2D } from './audio-emitter-2d';
 export { Sound, StagedSound } from './sound';
 export type { SoundPlayOptions, SoundVoice, SpatialPlaybackOptions } from './sound';
 export { Music, StagedMusic } from './music';

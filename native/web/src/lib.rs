@@ -1447,6 +1447,30 @@ pub fn bloom_read_file(_path: f64) -> f64 {
     0.0
 }
 
+#[wasm_bindgen]
+pub fn bloom_storage_remove(_path: f64) -> f64 {
+    // Handled by JS glue — removes one localStorage key.
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_write(_path: f64, _data: f64) -> f64 {
+    // Handled by JS glue — writes one localStorage key atomically.
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_exists(_path: f64) -> f64 {
+    // Handled by JS glue — checks the isolated app-data namespace.
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_read(_path: f64) -> f64 {
+    // Handled by JS glue — reads from the isolated app-data namespace.
+    0.0
+}
+
 // ============================================================
 // Cursor
 // ============================================================
