@@ -1,7 +1,7 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
-import type { Camera2D, Color, Rect, Vec2 } from '../../src/core/types';
+import type { Camera2D, Color, Rect, Vector2DLike } from '../../src/core/types';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
 import { GameComponent } from '../../src/game/game-component';
@@ -39,7 +39,7 @@ const texture = {
   height: 2,
   isLoaded: true,
   dispose(): void {},
-  drawRegion(_source: Rect, destination: Rect, _origin: Vec2, _rotation: number, _tint: Color): boolean {
+  drawRegion(_source: Rect, destination: Rect, _origin: Vector2DLike, _rotation: number, _tint: Color): boolean {
     draws.push({ destination });
     return true;
   },

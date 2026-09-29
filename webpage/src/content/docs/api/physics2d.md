@@ -72,7 +72,7 @@ character.moveAndSlide({ x: horizontalInput * 220, y: verticalSpeed }, physics.f
 if (character.isOnFloor) verticalSpeed = 0;
 ```
 
-Read `position`, the resolved `velocity`, `isOnFloor`, `isOnWall`, `isOnCeiling`, and `contactNormals` after movement. `moveAndSlide()` returns `false` when the component is detached, disabled, invalid, or its world is disposed. The controller handles axis-aligned boxes and circles in the world; it does not implement slope traversal, polygon contacts, or full rigid-body dynamics.
+Read `position`, the resolved `velocity`, `isOnFloor`, `isOnWall`, `isOnCeiling`, and `contactNormals` after movement. These vector results are detached `Vector2D` values with helpers such as `magnitude`, `normalized`, and `clamp`; changing a returned vector does not change the body or controller. `moveAndSlide()` returns `false` when the component is detached, disabled, invalid, or its world is disposed. The controller handles axis-aligned boxes and circles in the world; it does not implement slope traversal, polygon contacts, or full rigid-body dynamics.
 
 ## Collision events and queries
 
@@ -87,7 +87,7 @@ const hit = physics.raycast({ x: 0, y: 40 }, { x: 1, y: 0 }, 500);
 if (hit !== null) console.log(hit.body, hit.point, hit.distance);
 ```
 
-Queries can filter by `layerMask` and choose whether to include sensors. Results are ordered by body creation ID. Layer and mask values are bitfields. `popContacts()` drains the queued pair-oriented event records.
+Queries can filter by `layerMask` and choose whether to include sensors. Ray hit points and normals, collision callback vectors, and queued contact vectors are detached `Vector2D` instances. Results are ordered by body creation ID. Layer and mask values are bitfields. `popContacts()` drains the queued pair-oriented event records.
 
 ## Solver limits
 

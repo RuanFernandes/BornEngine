@@ -1,20 +1,28 @@
 import type { GameContext } from '../core/context';
-import type { Rect, Vec2 } from '../core/types';
+import type { Rect, Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import type { Texture } from '../textures/texture';
 
 export interface SpriteFrameTrim {
   /** Top-left offset of the packed pixels inside the original, untrimmed frame. */
-  readonly offset: Readonly<Vec2>;
+  readonly offset: Readonly<Vector2D>;
   /** Size of the original frame before atlas trimming. */
-  readonly originalSize: Readonly<Vec2>;
+  readonly originalSize: Readonly<Vector2D>;
+}
+
+export interface SpriteFrameTrimDefinition {
+  /** Top-left offset of the packed pixels inside the original, untrimmed frame. */
+  offset: Readonly<Vector2DLike>;
+  /** Size of the original frame before atlas trimming. */
+  originalSize: Readonly<Vector2DLike>;
 }
 
 export interface SpriteFrameDefinition {
   name: string;
   source: Readonly<Rect>;
   /** Normalized pivot in the original, untrimmed frame. Values outside 0..1 are allowed. */
-  pivot?: Readonly<Vec2>;
-  trim?: SpriteFrameTrim;
+  pivot?: Readonly<Vector2DLike>;
+  trim?: SpriteFrameTrimDefinition;
 }
 
 /** Immutable source frame created by a SpriteSheet. */
@@ -22,9 +30,9 @@ export interface SpriteFrame {
   readonly name: string;
   readonly sheet: SpriteSheet;
   readonly source: Readonly<Rect>;
-  readonly pivot: Readonly<Vec2>;
+  readonly pivot: Readonly<Vector2D>;
   readonly trim: SpriteFrameTrim | null;
-  readonly originalSize: Readonly<Vec2>;
+  readonly originalSize: Readonly<Vector2D>;
 }
 
 export interface SpriteSheetOptions {
@@ -33,9 +41,9 @@ export interface SpriteSheetOptions {
   /** Grid cell height in texture pixels. Pair with frameWidth to enable gridFrame(). */
   frameHeight?: number;
   /** Symmetric atlas edge inset in texture pixels. */
-  margin?: Readonly<Vec2>;
+  margin?: Readonly<Vector2DLike>;
   /** Horizontal and vertical gap between grid cells in texture pixels. */
-  spacing?: Readonly<Vec2>;
+  spacing?: Readonly<Vector2DLike>;
   /** Named, manually placed frames. Frame rectangles are not rotated. */
   frames?: SpriteFrameDefinition[];
 }
@@ -46,8 +54,12 @@ interface GridFrameEntry {
   frame: SpriteFrame;
 }
 
-function copyVec2(value: Vec2): Vec2 {
-  return { x: value.x, y: value.y };
+function copyVec2(value: Vector2DLike): Vector2D {
+  return Vector2D.from(value);
+}
+
+function copyTrim(value: SpriteFrameTrimDefinition): SpriteFrameTrim {
+  return { offset: copyVec2(value.offset), originalSize: copyVec2(value.originalSize) };
 }
 
 function copyRect(value: Rect): Rect {
@@ -66,7 +78,7 @@ function isNonNegative(value: number): boolean {
   return isFiniteNumber(value) && value >= 0;
 }
 
-function isValidVector(value: Vec2): boolean {
+function isValidVector(value: Vector2DLike): boolean {
   return value !== null && value !== undefined &&
     isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
@@ -75,34 +87,35 @@ class AtlasSpriteFrame implements SpriteFrame {
   readonly name: string;
   readonly sheet: SpriteSheet;
   readonly source: Rect;
-  readonly pivot: Vec2;
-  readonly trim: SpriteFrameTrim | null;
-  readonly originalSize: Vec2;
+  private readonly pivotValue: Vector2D;
+  private readonly trimValue: SpriteFrameTrim | null;
+  private readonly originalSizeValue: Vector2D;
+
+  get pivot(): Readonly<Vector2D> { return this.pivotValue.clone(); }
+  get trim(): SpriteFrameTrim | null { return this.trimValue === null ? null : copyTrim(this.trimValue); }
+  get originalSize(): Readonly<Vector2D> { return this.originalSizeValue.clone(); }
 
   constructor(sheet: SpriteSheet, definition: SpriteFrameDefinition) {
     this.name = definition.name;
     this.sheet = sheet;
     this.source = copyRect(definition.source);
-    this.pivot = definition.pivot === undefined
-      ? { x: 0.5, y: 0.5 }
+    this.pivotValue = definition.pivot === undefined
+      ? new Vector2D(0.5, 0.5)
       : copyVec2(definition.pivot);
-    this.trim = definition.trim === undefined
+    this.trimValue = definition.trim === undefined
       ? null
-      : {
-          offset: copyVec2(definition.trim.offset),
-          originalSize: copyVec2(definition.trim.originalSize),
-        };
-    this.originalSize = this.trim === null
-      ? { x: this.source.width, y: this.source.height }
-      : copyVec2(this.trim.originalSize);
+      : copyTrim(definition.trim);
+    this.originalSizeValue = this.trimValue === null
+      ? new Vector2D(this.source.width, this.source.height)
+      : this.trimValue.originalSize.clone();
   }
 }
 
 /** Reusable named or grid-based frames over one Game-owned texture. */
 export class SpriteSheet {
   readonly texture: Texture;
-  readonly margin: Readonly<Vec2>;
-  readonly spacing: Readonly<Vec2>;
+  private readonly marginValue: Vector2D;
+  private readonly spacingValue: Vector2D;
   readonly frameWidth: number;
   readonly frameHeight: number;
   private columnCount = 0;
@@ -119,19 +132,19 @@ export class SpriteSheet {
     this.texture = texture;
     this.frameWidth = settings.frameWidth === undefined ? 0 : settings.frameWidth;
     this.frameHeight = settings.frameHeight === undefined ? 0 : settings.frameHeight;
-    this.margin = settings.margin === undefined
-      ? { x: 0, y: 0 }
-      : isValidVector(settings.margin) ? copyVec2(settings.margin) : { x: NaN, y: NaN };
-    this.spacing = settings.spacing === undefined
-      ? { x: 0, y: 0 }
-      : isValidVector(settings.spacing) ? copyVec2(settings.spacing) : { x: NaN, y: NaN };
+    this.marginValue = settings.margin === undefined
+      ? Vector2D.zero()
+      : isValidVector(settings.margin) ? copyVec2(settings.margin) : new Vector2D(NaN, NaN);
+    this.spacingValue = settings.spacing === undefined
+      ? Vector2D.zero()
+      : isValidVector(settings.spacing) ? copyVec2(settings.spacing) : new Vector2D(NaN, NaN);
     if (texture === null || texture === undefined || !texture.isLoaded ||
         !isPositive(texture.width) || !isPositive(texture.height)) {
       this.frameError = 'SpriteSheet requires a loaded texture.';
       return;
     }
-    if (!isValidVector(this.margin) || !isNonNegative(this.margin.x) || !isNonNegative(this.margin.y) ||
-        !isValidVector(this.spacing) || !isNonNegative(this.spacing.x) || !isNonNegative(this.spacing.y)) {
+    if (!isValidVector(this.marginValue) || !isNonNegative(this.marginValue.x) || !isNonNegative(this.marginValue.y) ||
+        !isValidVector(this.spacingValue) || !isNonNegative(this.spacingValue.x) || !isNonNegative(this.spacingValue.y)) {
       this.frameError = 'SpriteSheet margin and spacing must be finite and non-negative.';
       return;
     }
@@ -148,16 +161,16 @@ export class SpriteSheet {
     }
 
     if (hasGridWidth) {
-      const availableWidth = texture.width - this.margin.x * 2;
-      const availableHeight = texture.height - this.margin.y * 2;
-      const columnStride = this.frameWidth + this.spacing.x;
-      const rowStride = this.frameHeight + this.spacing.y;
+      const availableWidth = texture.width - this.marginValue.x * 2;
+      const availableHeight = texture.height - this.marginValue.y * 2;
+      const columnStride = this.frameWidth + this.spacingValue.x;
+      const rowStride = this.frameHeight + this.spacingValue.y;
       this.columnCount = availableWidth < this.frameWidth
         ? 0
-        : Math.floor((availableWidth + this.spacing.x) / columnStride);
+        : Math.floor((availableWidth + this.spacingValue.x) / columnStride);
       this.rowCount = availableHeight < this.frameHeight
         ? 0
-        : Math.floor((availableHeight + this.spacing.y) / rowStride);
+        : Math.floor((availableHeight + this.spacingValue.y) / rowStride);
       if (this.columnCount === 0 || this.rowCount === 0) {
         this.frameError = 'SpriteSheet grid does not fit inside the texture.';
         return;
@@ -199,6 +212,8 @@ export class SpriteSheet {
   get error(): string | null { return this.frameError; }
   get columns(): number { return this.columnCount; }
   get rows(): number { return this.rowCount; }
+  get margin(): Readonly<Vector2D> { return this.marginValue.clone(); }
+  get spacing(): Readonly<Vector2D> { return this.spacingValue.clone(); }
 
   /** Returns the same cached frame object for every request of a grid cell. */
   gridFrame(column: number, row: number): SpriteFrame | null {
@@ -213,8 +228,8 @@ export class SpriteSheet {
     const definition: SpriteFrameDefinition = {
       name: 'grid:' + column + ':' + row,
       source: {
-        x: this.margin.x + column * (this.frameWidth + this.spacing.x),
-        y: this.margin.y + row * (this.frameHeight + this.spacing.y),
+        x: this.marginValue.x + column * (this.frameWidth + this.spacingValue.x),
+        y: this.marginValue.y + row * (this.frameHeight + this.spacingValue.y),
         width: this.frameWidth,
         height: this.frameHeight,
       },

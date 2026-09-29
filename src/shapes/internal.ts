@@ -1,4 +1,4 @@
-import { Color, Rect, Vec2 } from '../core/types';
+import { Color, Rect, Vector2DLike } from '../core/types';
 
 // FFI declarations
 declare function bloom_draw_line(x1: number, y1: number, x2: number, y2: number, thickness: number, r: number, g: number, b: number, a: number): void;
@@ -77,7 +77,7 @@ export function checkCollisionRecs(rec1: Rect, rec2: Rect): boolean {
   );
 }
 
-export function checkCollisionCircles(center1: Vec2, radius1: number, center2: Vec2, radius2: number): boolean {
+export function checkCollisionCircles(center1: Vector2DLike, radius1: number, center2: Vector2DLike, radius2: number): boolean {
   const dx = center2.x - center1.x;
   const dy = center2.y - center1.y;
   const distSq = dx * dx + dy * dy;
@@ -85,7 +85,7 @@ export function checkCollisionCircles(center1: Vec2, radius1: number, center2: V
   return distSq <= radiusSum * radiusSum;
 }
 
-export function checkCollisionCircleRec(center: Vec2, radius: number, rec: Rect): boolean {
+export function checkCollisionCircleRec(center: Vector2DLike, radius: number, rec: Rect): boolean {
   const closestX = Math.max(rec.x, Math.min(center.x, rec.x + rec.width));
   const closestY = Math.max(rec.y, Math.min(center.y, rec.y + rec.height));
   const dx = center.x - closestX;
@@ -93,7 +93,7 @@ export function checkCollisionCircleRec(center: Vec2, radius: number, rec: Rect)
   return (dx * dx + dy * dy) <= radius * radius;
 }
 
-export function checkCollisionPointRec(point: Vec2, rec: Rect): boolean {
+export function checkCollisionPointRec(point: Vector2DLike, rec: Rect): boolean {
   return (
     point.x >= rec.x &&
     point.x <= rec.x + rec.width &&
@@ -102,7 +102,7 @@ export function checkCollisionPointRec(point: Vec2, rec: Rect): boolean {
   );
 }
 
-export function checkCollisionPointCircle(point: Vec2, center: Vec2, radius: number): boolean {
+export function checkCollisionPointCircle(point: Vector2DLike, center: Vector2DLike, radius: number): boolean {
   const dx = point.x - center.x;
   const dy = point.y - center.y;
   return (dx * dx + dy * dy) <= radius * radius;

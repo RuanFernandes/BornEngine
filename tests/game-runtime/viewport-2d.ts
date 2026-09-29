@@ -1,4 +1,5 @@
 import { Viewport2D } from '../../src/camera2d/viewport-2d';
+import { Vector2D } from '../../src/math/vector2d';
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
@@ -71,6 +72,8 @@ const camera: Camera2D = {
 const center = fit.screenToWorld({ x: 500, y: 300 }, camera, 1000, 600);
 expect(center !== null && center.x === 0 && center.y === 0,
   'pointer conversion applies the viewport before the camera transform');
+expect(center instanceof Vector2D && center.add(Vector2D.one()).equals(new Vector2D(1, 1)),
+  'viewport conversions return Vector2D instances with math helpers');
 expect(fit.screenToWorld({ x: 500, y: 10 }, camera, 1000, 600) === null,
   'pointer positions in letterbox bars have no world position');
 const screen = fit.worldToScreen({ x: 10, y: 20 }, camera, 1000, 600);

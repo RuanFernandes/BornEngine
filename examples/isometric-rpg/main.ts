@@ -1,4 +1,4 @@
-import { Colors, Game, Key, Mathf, MouseButton } from '@bornengine/engine';
+import { Colors, Game, Key, Mathf, MouseButton, Vector2D } from '@bornengine/engine';
 import type { Camera2D, Color } from '@bornengine/engine';
 
 // Constants
@@ -49,18 +49,15 @@ interface Item {
 }
 
 // Isometric conversion
-function isoToScreen(mapX: number, mapY: number): Vec2 {
-  return {
-    x: (mapX - mapY) * (TILE_W / 2),
-    y: (mapX + mapY) * (TILE_H / 2),
-  };
+function isoToScreen(mapX: number, mapY: number): Vector2D {
+  return new Vector2D((mapX - mapY) * (TILE_W / 2), (mapX + mapY) * (TILE_H / 2));
 }
 
-function screenToIso(sx: number, sy: number): Vec2 {
-  return {
-    x: Math.floor((sx / (TILE_W / 2) + sy / (TILE_H / 2)) / 2),
-    y: Math.floor((sy / (TILE_H / 2) - sx / (TILE_W / 2)) / 2),
-  };
+function screenToIso(sx: number, sy: number): Vector2D {
+  return new Vector2D(
+    Math.floor((sx / (TILE_W / 2) + sy / (TILE_H / 2)) / 2),
+    Math.floor((sy / (TILE_H / 2) - sx / (TILE_W / 2)) / 2),
+  );
 }
 
 // Game state

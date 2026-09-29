@@ -1,4 +1,5 @@
-import { Game } from '@bornengine/engine';
+import { Game, Vector2D } from '@bornengine/engine';
+import type { Camera2DSnapshot, PhysicsRayHit2D, SpriteFrame } from '@bornengine/engine';
 import {
   GameComponent,
   GameObject,
@@ -8,13 +9,31 @@ import {
 } from '@bornengine/engine/game';
 import type { SoundManager as AudioManager } from '@bornengine/engine/audio';
 import type { InputActionMap } from '@bornengine/engine/input';
-import type { ManagedSoundOptions as RootManagedSoundOptions } from '@bornengine/engine';
+import type { ManagedSoundOptions as RootManagedSoundOptions, Vector2DLike } from '@bornengine/engine';
 import type { SoundManager as RootSoundManager } from '@bornengine/engine';
 import type { ManagedSoundOptions, SpatialSoundOptions } from '@bornengine/engine/audio';
 
 declare const process: { exit(code: number): never };
 
 const game = new Game();
+const zero2D = new Vector2D();
+const origin2D: Vector2DLike = zero2D;
+
+function readVectorMath(value: Readonly<Vector2D>): number {
+  return value.clamped(Vector2D.zero(), Vector2D.one()).magnitude;
+}
+
+function readCameraSnapshot(value: Camera2DSnapshot): number {
+  return readVectorMath(value.target) + readVectorMath(value.offset);
+}
+
+function readRayHit(hit: PhysicsRayHit2D): Vector2D {
+  return hit.point.add(hit.normal);
+}
+
+function readSpriteFrame(frame: SpriteFrame): Vector2D {
+  return frame.pivot.add(frame.originalSize);
+}
 
 class Base {
   readonly baseValue: number;
@@ -61,6 +80,7 @@ const values: Base[] = [leafAgain];
 const first: Base = values[0];
 
 requireTrue(first instanceof Leaf, 'multi-level instanceof');
+requireTrue(zero2D.equals(Vector2D.zero()) && origin2D.x === 0, 'Vector2D root export and static helpers');
 requireTrue(first instanceof Middle, 'parent instanceof');
 requireTrue(first.read() === 6, 'constructors, super, and override');
 requireTrue(leafAgain.baseValue === 5, 'readonly property and subclass return');

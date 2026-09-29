@@ -1,5 +1,6 @@
 import type { InputSystem } from './input-system';
-import type { Rect, Vec2 } from '../core/types';
+import type { Rect, Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import {
   advanceActionState,
   evaluateActionBindings,
@@ -361,7 +362,7 @@ export class InputActionMap {
   }
 
   /** Read two named axes without normalizing diagonal values. */
-  readVector2(horizontal: string, vertical: string): Vec2 {
-    return { x: this.readAxis(horizontal), y: this.readAxis(vertical) };
+  readVector2(horizontal: string, vertical: string): Vector2D {
+    return new Vector2D(this.readAxis(horizontal), this.readAxis(vertical));
   }
 }

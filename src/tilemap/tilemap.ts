@@ -1,6 +1,6 @@
 import { Colors } from '../core/colors';
 import type { GameContext } from '../core/context';
-import type { Color, Rect, Vec2 } from '../core/types';
+import type { Color, Rect, Vector2DLike } from '../core/types';
 import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
 import type { SpriteFrame, SpriteSheet } from '../sprites/sprite-sheet';
@@ -89,7 +89,7 @@ function flipIsValid(value: TilemapCellFlip): boolean {
   return true;
 }
 
-function transformCellPoint(x: number, y: number, flip: TilemapCellFlip): Vec2 {
+function transformCellPoint(x: number, y: number, flip: TilemapCellFlip): Vector2DLike {
   let resultX = x;
   let resultY = y;
   if (flip.flipDiagonal === true) { const swap = resultX; resultX = resultY; resultY = swap; }
@@ -123,8 +123,8 @@ function transformCellRect(rect: Rect, tileWidth: number, tileHeight: number, fl
     width: (maxX - minX) * tileWidth, height: (maxY - minY) * tileHeight };
 }
 
-function transformPoint(x: number, y: number, position: Vec2, width: number, height: number,
-  cosine: number, sine: number): Vec2 {
+function transformPoint(x: number, y: number, position: Vector2DLike, width: number, height: number,
+  cosine: number, sine: number): Vector2DLike {
   const localX = x * width;
   const localY = y * height;
   return { x: position.x + localX * cosine - localY * sine,

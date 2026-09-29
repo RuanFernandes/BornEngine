@@ -1,4 +1,5 @@
-import type { Camera2D, Rect, Vec2 } from '../core/types';
+import type { Camera2D, Rect, Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 
 export type ViewportScalingMode2D = 'fit' | 'integer' | 'stretch';
 
@@ -31,7 +32,7 @@ function isPositive(value: number): boolean {
   return isFiniteNumber(value) && value > 0;
 }
 
-function validPoint(value: Vec2): boolean {
+function validPoint(value: Vector2DLike): boolean {
   return value !== null && value !== undefined &&
     isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
@@ -42,31 +43,31 @@ function validCamera(camera: Camera2D): boolean {
     isFiniteNumber(camera.rotation) && isFiniteNumber(camera.zoom) && camera.zoom > 0;
 }
 
-function screenToWorld(position: Vec2, camera: Camera2D): Vec2 | null {
+function screenToWorld(position: Vector2DLike, camera: Camera2D): Vector2D | null {
   if (!validPoint(position) || !validCamera(camera)) return null;
   const radians = camera.rotation * Math.PI / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   const dx = (position.x - camera.offset.x) / camera.zoom;
   const dy = (position.y - camera.offset.y) / camera.zoom;
-  const result = {
-    x: cosine * dx + sine * dy + camera.target.x,
-    y: -sine * dx + cosine * dy + camera.target.y,
-  };
+  const result = new Vector2D(
+    cosine * dx + sine * dy + camera.target.x,
+    -sine * dx + cosine * dy + camera.target.y,
+  );
   return validPoint(result) ? result : null;
 }
 
-function worldToScreen(position: Vec2, camera: Camera2D): Vec2 | null {
+function worldToScreen(position: Vector2DLike, camera: Camera2D): Vector2D | null {
   if (!validPoint(position) || !validCamera(camera)) return null;
   const radians = camera.rotation * Math.PI / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   const dx = position.x - camera.target.x;
   const dy = position.y - camera.target.y;
-  const result = {
-    x: (cosine * dx - sine * dy) * camera.zoom + camera.offset.x,
-    y: (sine * dx + cosine * dy) * camera.zoom + camera.offset.y,
-  };
+  const result = new Vector2D(
+    (cosine * dx - sine * dy) * camera.zoom + camera.offset.x,
+    (sine * dx + cosine * dy) * camera.zoom + camera.offset.y,
+  );
   return validPoint(result) ? result : null;
 }
 
@@ -151,47 +152,47 @@ export class Viewport2D {
     };
   }
 
-  screenToLogical(position: Vec2, screenWidth: number, screenHeight: number): Vec2 | null {
+  screenToLogical(position: Vector2DLike, screenWidth: number, screenHeight: number): Vector2D | null {
     if (!validPoint(position)) return null;
     const transform = this.getTransform(screenWidth, screenHeight);
     if (transform === null) return null;
     if (position.x < transform.offsetX || position.y < transform.offsetY ||
         position.x >= transform.offsetX + transform.contentWidth ||
         position.y >= transform.offsetY + transform.contentHeight) return null;
-    const logical = {
-      x: (position.x - transform.offsetX) / transform.scaleX,
-      y: (position.y - transform.offsetY) / transform.scaleY,
-    };
+    const logical = new Vector2D(
+      (position.x - transform.offsetX) / transform.scaleX,
+      (position.y - transform.offsetY) / transform.scaleY,
+    );
     return validPoint(logical) ? logical : null;
   }
 
-  logicalToScreen(position: Vec2, screenWidth: number, screenHeight: number): Vec2 | null {
+  logicalToScreen(position: Vector2DLike, screenWidth: number, screenHeight: number): Vector2D | null {
     if (!validPoint(position)) return null;
     const transform = this.getTransform(screenWidth, screenHeight);
     if (transform === null) return null;
-    const screen = {
-      x: position.x * transform.scaleX + transform.offsetX,
-      y: position.y * transform.scaleY + transform.offsetY,
-    };
+    const screen = new Vector2D(
+      position.x * transform.scaleX + transform.offsetX,
+      position.y * transform.scaleY + transform.offsetY,
+    );
     return validPoint(screen) ? screen : null;
   }
 
   screenToWorld(
-    position: Vec2,
+    position: Vector2DLike,
     camera: Camera2D,
     screenWidth: number,
     screenHeight: number,
-  ): Vec2 | null {
+  ): Vector2D | null {
     const logical = this.screenToLogical(position, screenWidth, screenHeight);
     return logical === null ? null : screenToWorld(logical, camera);
   }
 
   worldToScreen(
-    position: Vec2,
+    position: Vector2DLike,
     camera: Camera2D,
     screenWidth: number,
     screenHeight: number,
-  ): Vec2 | null {
+  ): Vector2D | null {
     const logical = worldToScreen(position, camera);
     return logical === null ? null : this.logicalToScreen(logical, screenWidth, screenHeight);
   }

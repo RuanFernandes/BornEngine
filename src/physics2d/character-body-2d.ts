@@ -1,4 +1,5 @@
-import type { Vec2 } from '../core/types';
+import type { Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import { GameComponent } from '../game/game-component';
 import type { GameContext } from '../core/context';
 import type { PhysicsBody2D } from './physics-body-2d';
@@ -13,11 +14,11 @@ function finite(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
-function validVec(value: Vec2): boolean {
+function validVec(value: Vector2DLike): boolean {
   return value !== null && value !== undefined && finite(value.x) && finite(value.y);
 }
 
-function copyVec(value: Vec2): Vec2 { return { x: value.x, y: value.y }; }
+function copyVec(value: Vector2DLike): Vector2D { return Vector2D.from(value); }
 
 /** Axis-separated arcade character movement backed by a kinematic PhysicsBody2D. */
 export class CharacterBody2D extends GameComponent {
@@ -27,8 +28,8 @@ export class CharacterBody2D extends GameComponent {
   readonly error: string | null;
 
   private body: PhysicsBody2D | null = null;
-  private velocityValue: Vec2 = { x: 0, y: 0 };
-  private contactNormalsValue: Vec2[] = [];
+  private velocityValue: Vector2DLike = { x: 0, y: 0 };
+  private contactNormalsValue: Vector2DLike[] = [];
   private onFloorValue = false;
   private onWallValue = false;
   private onCeilingValue = false;
@@ -61,21 +62,21 @@ export class CharacterBody2D extends GameComponent {
   }
 
   get isReady(): boolean { return this.error === null && this.body !== null && !this.body.isDisposed && this.world.isReady; }
-  get position(): Vec2 {
+  get position(): Vector2D {
     const owner = this.gameObject;
     if (owner !== null) {
       const value = owner.transform.worldPosition;
-      return { x: value.x, y: value.y };
+      return new Vector2D(value.x, value.y);
     }
     if (this.body !== null) return this.body.position;
-    return { x: 0, y: 0 };
+    return Vector2D.zero();
   }
-  get velocity(): Vec2 { return copyVec(this.velocityValue); }
+  get velocity(): Vector2D { return Vector2D.from(this.velocityValue); }
   get isOnFloor(): boolean { return this.onFloorValue; }
   get isOnWall(): boolean { return this.onWallValue; }
   get isOnCeiling(): boolean { return this.onCeilingValue; }
-  get contactNormals(): ReadonlyArray<Readonly<Vec2>> {
-    const result: Vec2[] = [];
+  get contactNormals(): ReadonlyArray<Readonly<Vector2D>> {
+    const result: Vector2D[] = [];
     for (let index = 0; index < this.contactNormalsValue.length; index++) {
       result.push(copyVec(this.contactNormalsValue[index]));
     }
@@ -83,7 +84,7 @@ export class CharacterBody2D extends GameComponent {
   }
 
   /** Moves by velocity times dt, resolving X then Y against filtered non-sensor bodies. */
-  moveAndSlide(velocity: Vec2, dt: number): boolean {
+  moveAndSlide(velocity: Vector2DLike, dt: number): boolean {
     const owner = this.gameObject;
     if (!this.isReady || !validVec(velocity) || !finite(dt) || dt < 0 || owner === null ||
         owner.scene === null || !this.isActiveAndEnabled || this.body === null) return false;

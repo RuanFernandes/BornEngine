@@ -9,7 +9,7 @@ order: 37
 
 ## Camera rig
 
-Attach a rig to a scene object, then bind it to the scene. The rig returns a copy of its camera record. Disabling, removing, or detaching the rig restores the camera that was active before it was bound.
+Attach a rig to a scene object, then bind it to the scene. The `camera` getter returns a detached `Camera2DSnapshot`; its `target` and `offset` values are `Vector2D` instances, so you can use vector helpers without changing the rig's state. Disabling, removing, or detaching the rig restores the camera that was active before it was bound.
 
 ```ts
 import { CameraRig2D, GameObject, Scene } from '@bornengine/engine';
@@ -32,6 +32,8 @@ function followPlayer(scene: Scene, player: GameObject): CameraRig2D | null {
 ```
 
 Smoothing is exponential in seconds, so changing frame subdivisions does not change the response. Bounds keep the camera inside the configured world rectangle and center it when that rectangle is smaller than the visible area. Call `setZoom()` for a clamped runtime change, `shake({ amplitude, duration, seed })` for a repeatable shake, or pass a normalized `envelope` of offsets for authored shake.
+
+Camera options accept `Vector2DLike` values such as `{ x, y }`, which are convenient at configuration and JSON boundaries. Values returned by `CameraRig2D.camera` are detached `Vector2D` snapshots.
 
 ## Viewport scaling and coordinates
 

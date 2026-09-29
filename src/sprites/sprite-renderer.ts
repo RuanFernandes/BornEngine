@@ -1,6 +1,7 @@
 import { Colors } from '../core/colors';
 import type { GameContext } from '../core/context';
-import type { Color, Rect, Vec2 } from '../core/types';
+import type { Color, Rect, Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
 import type { SpriteFrame } from './sprite-sheet';
@@ -8,9 +9,9 @@ import { getParallaxOffset } from '../camera2d/parallax-layer-2d';
 
 export interface SpriteRendererOptions {
   /** Untrimmed frame size in world units. Defaults to the frame's original atlas size. */
-  size?: Vec2;
+  size?: Vector2DLike;
   /** Normalized pivot in the untrimmed frame. */
-  pivot?: Vec2;
+  pivot?: Vector2DLike;
   tint?: Color;
   flipX?: boolean;
   flipY?: boolean;
@@ -18,8 +19,8 @@ export interface SpriteRendererOptions {
   renderOrder?: number;
 }
 
-function copyVec2(value: Vec2): Vec2 {
-  return { x: value.x, y: value.y };
+function copyVec2(value: Vector2DLike): Vector2D {
+  return Vector2D.from(value);
 }
 
 function copyColor(value: Color): Color {
@@ -30,7 +31,7 @@ function isFiniteNumber(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
-function validSize(value: Vec2): boolean {
+function validSize(value: Vector2DLike): boolean {
   return value !== null && value !== undefined &&
     isFiniteNumber(value.x) && isFiniteNumber(value.y) && value.x >= 0 && value.y >= 0;
 }
@@ -49,8 +50,8 @@ function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number
 
 /** Draws a SpriteSheet frame from its GameObject transform during scene rendering. */
 export class SpriteRenderer extends GameComponent {
-  size: Vec2;
-  pivot: Vec2;
+  size: Vector2D;
+  pivot: Vector2D;
   tint: Color;
   flipX: boolean;
   flipY: boolean;
@@ -68,8 +69,8 @@ export class SpriteRenderer extends GameComponent {
     const settings: SpriteRendererOptions = options === null || options === undefined
       ? {}
       : options;
-    this.size = { x: 0, y: 0 };
-    this.pivot = { x: 0.5, y: 0.5 };
+    this.size = Vector2D.zero();
+    this.pivot = new Vector2D(0.5, 0.5);
     this.tint = copyColor(Colors.WHITE);
     this.flipX = settings.flipX === undefined ? false : settings.flipX;
     this.flipY = settings.flipY === undefined ? false : settings.flipY;
@@ -174,7 +175,7 @@ export class SpriteRenderer extends GameComponent {
     }
   }
 
-  setSize(size: Vec2): boolean {
+  setSize(size: Vector2DLike): boolean {
     if (!validSize(size)) {
       this.error = 'SpriteRenderer size must be finite and non-negative.';
       return false;
@@ -184,7 +185,7 @@ export class SpriteRenderer extends GameComponent {
     return true;
   }
 
-  setPivot(pivot: Vec2): boolean {
+  setPivot(pivot: Vector2DLike): boolean {
     if (pivot === null || pivot === undefined ||
         !isFiniteNumber(pivot.x) || !isFiniteNumber(pivot.y)) {
       this.error = 'SpriteRenderer pivot must be finite.';
@@ -245,14 +246,15 @@ export class SpriteRenderer extends GameComponent {
       width: flipX ? -frame.source.width : frame.source.width,
       height: flipY ? -frame.source.height : frame.source.height,
     };
-    const trimOffset = frame.trim === null ? { x: 0, y: 0 } : frame.trim.offset;
+    const trim = frame.trim;
+    const trimOffset = trim === null ? { x: 0, y: 0 } : trim.offset;
     const trimX = flipX
       ? originalSize.x - trimOffset.x - frame.source.width
       : trimOffset.x;
     const trimY = flipY
       ? originalSize.y - trimOffset.y - frame.source.height
       : trimOffset.y;
-    const origin: Vec2 = {
+    const origin: Vector2DLike = {
       x: this.pivot.x * this.size.x * Math.abs(worldScale.x) - trimX * scaleX,
       y: this.pivot.y * this.size.y * Math.abs(worldScale.y) - trimY * scaleY,
     };
@@ -276,7 +278,7 @@ export class SpriteRenderer extends GameComponent {
   }
 }
 
-function updateRotatedBounds(destination: Rect, origin: Vec2, rotation: number, bounds: Rect): void {
+function updateRotatedBounds(destination: Rect, origin: Vector2DLike, rotation: number, bounds: Rect): void {
   const radians = rotation * Math.PI / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);

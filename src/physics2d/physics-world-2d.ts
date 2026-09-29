@@ -1,7 +1,8 @@
 import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
-import type { Vec2 } from '../core/types';
+import type { Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import { PhysicsBody2D } from './physics-body-2d';
 import type {
   PhysicsBodyContact2D,
@@ -12,15 +13,15 @@ import type {
 } from './physics-body-2d';
 
 export interface PhysicsWorld2DOptions {
-  gravity?: Vec2;
+  gravity?: Vector2DLike;
   fixedTimeStep?: number;
   maxSubSteps?: number;
 }
 
 export interface PhysicsRayHit2D {
   readonly body: PhysicsBody2D;
-  readonly point: Readonly<Vec2>;
-  readonly normal: Readonly<Vec2>;
+  readonly point: Readonly<Vector2D>;
+  readonly normal: Readonly<Vector2D>;
   readonly distance: number;
 }
 
@@ -30,13 +31,13 @@ export interface PhysicsQueryOptions2D {
 }
 
 interface ContactGeometry {
-  normal: Vec2;
-  point: Vec2;
+  normal: Vector2DLike;
+  point: Vector2DLike;
   penetration: number;
 }
 
 interface ShapePose {
-  position: Vec2;
+  position: Vector2DLike;
   shape: PhysicsShape2D;
 }
 
@@ -69,7 +70,7 @@ interface CandidatePair {
 
 interface AxisSweepHit {
   distance: number;
-  normal: Vec2;
+  normal: Vector2DLike;
 }
 
 const BROADPHASE_CELL_SIZE = 64;
@@ -79,11 +80,11 @@ function finite(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
-function validVec(value: Vec2): boolean {
+function validVec(value: Vector2DLike): boolean {
   return value !== null && value !== undefined && finite(value.x) && finite(value.y);
 }
 
-function copyVec(value: Vec2): Vec2 { return { x: value.x, y: value.y }; }
+function copyVec(value: Vector2DLike): Vector2D { return Vector2D.from(value); }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
 function bodyBounds(body: PhysicsBody2D): BroadphaseBounds {
   const position = body.position;
@@ -103,7 +104,7 @@ function bodyBounds(body: PhysicsBody2D): BroadphaseBounds {
   };
 }
 
-function sweepBoxAgainstBody(position: Vec2, width: number, height: number, axis: 'x' | 'y', delta: number,
+function sweepBoxAgainstBody(position: Vector2DLike, width: number, height: number, axis: 'x' | 'y', delta: number,
   target: PhysicsBody2D): AxisSweepHit | null {
   if (delta === 0) return null;
   const movingPositive = delta > 0;
@@ -184,7 +185,7 @@ export class PhysicsWorld2D implements ContextResource {
   readonly context: GameContext;
   readonly error: string | null;
 
-  private gravityValue: Vec2;
+  private gravityValue: Vector2DLike;
   private fixedTimeStepValue: number;
   private maxSubStepsValue: number;
   private accumulator = 0;
@@ -225,7 +226,7 @@ export class PhysicsWorld2D implements ContextResource {
 
   get isReady(): boolean { return !this.disposed && this.error === null && this.context.isReady && !this.context.isDisposed; }
   get isDisposed(): boolean { return this.disposed; }
-  get gravity(): Vec2 { return copyVec(this.gravityValue); }
+  get gravity(): Vector2D { return Vector2D.from(this.gravityValue); }
   get fixedTimeStep(): number { return this.fixedTimeStepValue; }
   get maxSubSteps(): number { return this.maxSubStepsValue; }
   get bodyCount(): number { return this.bodies.length; }
@@ -238,7 +239,7 @@ export class PhysicsWorld2D implements ContextResource {
   /** Bodies tested by the most recent spatial query. */
   get lastQueryCandidateCount(): number { return this.queryCandidateCount; }
 
-  setGravity(value: Vec2): boolean {
+  setGravity(value: Vector2DLike): boolean {
     if (!this.isReady || !validVec(value)) return false;
     this.gravityValue = copyVec(value);
     return true;
@@ -282,7 +283,7 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   /** Returns the nearest positive hit or null. Directions are normalized internally. */
-  raycast(origin: Vec2, direction: Vec2, maxDistance: number, options: PhysicsQueryOptions2D = {}): PhysicsRayHit2D | null {
+  raycast(origin: Vector2DLike, direction: Vector2DLike, maxDistance: number, options: PhysicsQueryOptions2D = {}): PhysicsRayHit2D | null {
     if (!this.isReady || !validVec(origin) || !validVec(direction) || !finite(maxDistance) || maxDistance < 0) return null;
     const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
     if (length <= 0.0000001) return null;
@@ -305,13 +306,13 @@ export class PhysicsWorld2D implements ContextResource {
       if (!this.isQueryable(body, layerMask, includeSensors)) continue;
       const hit = rayShape(origin, { x: dx, y: dy }, maxDistance, body);
       if (hit !== null && (closest === null || hit.distance < closest.distance)) {
-        closest = { body, point: hit.point, normal: hit.normal, distance: hit.distance };
+        closest = { body, point: copyVec(hit.point), normal: copyVec(hit.normal), distance: hit.distance };
       }
     }
     return closest;
   }
 
-  overlapPoint(point: Vec2, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
+  overlapPoint(point: Vector2DLike, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
     if (!this.isReady || !validVec(point)) return [];
     const layerMask = options.layerMask === undefined ? 0x7fffffff : options.layerMask;
     if (!validMask(layerMask)) return [];
@@ -325,7 +326,7 @@ export class PhysicsWorld2D implements ContextResource {
     return result;
   }
 
-  overlapCircle(center: Vec2, radius: number, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
+  overlapCircle(center: Vector2DLike, radius: number, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
     if (!this.isReady || !validVec(center) || !finite(radius) || radius <= 0) return [];
     const layerMask = options.layerMask === undefined ? 0x7fffffff : options.layerMask;
     if (!validMask(layerMask)) return [];
@@ -343,7 +344,7 @@ export class PhysicsWorld2D implements ContextResource {
     return result;
   }
 
-  overlapBox(center: Vec2, size: Vec2, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
+  overlapBox(center: Vector2DLike, size: Vector2DLike, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
     if (!this.isReady || !validVec(center) || !validVec(size) || size.x <= 0 || size.y <= 0) return [];
     const layerMask = options.layerMask === undefined ? 0x7fffffff : options.layerMask;
     if (!validMask(layerMask)) return [];
@@ -400,12 +401,12 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   /** @internal Sweeps a kinematic box along X then Y and reports the blocking outward normals. */
-  _moveKinematicBox(body: PhysicsBody2D, width: number, height: number, delta: Vec2):
-    { position: Vec2; normals: Vec2[] } | null {
+  _moveKinematicBox(body: PhysicsBody2D, width: number, height: number, delta: Vector2DLike):
+    { position: Vector2DLike; normals: Vector2DLike[] } | null {
     if (!this.isReady || body.world !== this || body.type !== 'kinematic' || body.shape.type !== 'box' ||
         body.shape.width !== width || body.shape.height !== height || !body._isUsable() || !validVec(delta)) return null;
-    let position = body.position;
-    const normals: Vec2[] = [];
+    let position: Vector2DLike = copyVec(body.position);
+    const normals: Vector2DLike[] = [];
     if (delta.x !== 0) {
       const hit = this.sweepKinematicBoxAxis(body, width, height, position, 'x', delta.x);
       if (hit !== null) {
@@ -570,7 +571,7 @@ export class PhysicsWorld2D implements ContextResource {
     }
   }
 
-  private sweepKinematicBoxAxis(body: PhysicsBody2D, width: number, height: number, position: Vec2,
+  private sweepKinematicBoxAxis(body: PhysicsBody2D, width: number, height: number, position: Vector2DLike,
     axis: 'x' | 'y', delta: number): AxisSweepHit | null {
     const halfX = width * 0.5;
     const halfY = height * 0.5;
@@ -747,7 +748,7 @@ export class PhysicsWorld2D implements ContextResource {
         phase: contact.phase,
         self: contact.bodyB,
         other: contact.bodyA,
-        normal: { x: -contact.normal.x, y: -contact.normal.y },
+        normal: new Vector2D(-contact.normal.x, -contact.normal.y),
         point: copyVec(contact.point),
         penetration: contact.penetration,
         isTrigger: contact.isTrigger,
@@ -779,7 +780,7 @@ function filtersAllow(a: PhysicsBody2D, b: PhysicsBody2D): boolean {
   return (a.layer & b.mask) !== 0 && (b.layer & a.mask) !== 0;
 }
 
-function positionOf(value: ShapePose | PhysicsBody2D): Vec2 {
+function positionOf(value: ShapePose | PhysicsBody2D): Vector2DLike {
   if (value instanceof PhysicsBody2D) return value.position;
   return value.position;
 }
@@ -845,7 +846,7 @@ function collide(a: ShapePose | PhysicsBody2D, b: ShapePose | PhysicsBody2D): Co
   };
 }
 
-function collideCircleBox(circle: Vec2, radius: number, box: Vec2,
+function collideCircleBox(circle: Vector2DLike, radius: number, box: Vector2DLike,
   shape: { type: 'box'; width: number; height: number }): ContactGeometry | null {
   const halfX = shape.width * 0.5;
   const halfY = shape.height * 0.5;
@@ -870,8 +871,8 @@ function collideCircleBox(circle: Vec2, radius: number, box: Vec2,
   for (let index = 1; index < distances.length; index++) {
     if (distances[index] < distances[face]) face = index;
   }
-  let normal: Vec2 = { x: 0, y: 0 };
-  let point: Vec2 = { x: circle.x, y: circle.y };
+  let normal: Vector2DLike = { x: 0, y: 0 };
+  let point: Vector2DLike = { x: circle.x, y: circle.y };
   if (face === 0) { normal = { x: 1, y: 0 }; point.x = box.x - halfX; }
   else if (face === 1) { normal = { x: -1, y: 0 }; point.x = box.x + halfX; }
   else if (face === 2) { normal = { x: 0, y: 1 }; point.y = box.y - halfY; }
@@ -915,7 +916,7 @@ function resolveContact(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeom
   b._addVelocity(tangentX * frictionImpulse * inverseB, tangentY * frictionImpulse * inverseB);
 }
 
-function containsPoint(body: PhysicsBody2D, point: Vec2): boolean {
+function containsPoint(body: PhysicsBody2D, point: Vector2DLike): boolean {
   const position = body.position;
   if (body.shape.type === 'circle') {
     const dx = point.x - position.x;
@@ -926,8 +927,8 @@ function containsPoint(body: PhysicsBody2D, point: Vec2): boolean {
     Math.abs(point.y - position.y) <= body.shape.height * 0.5;
 }
 
-function rayShape(origin: Vec2, direction: Vec2, maxDistance: number, body: PhysicsBody2D):
-  { point: Vec2; normal: Vec2; distance: number } | null {
+function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: number, body: PhysicsBody2D):
+  { point: Vector2DLike; normal: Vector2DLike; distance: number } | null {
   const position = body.position;
   if (body.shape.type === 'circle') {
     const offsetX = origin.x - position.x;
@@ -946,8 +947,8 @@ function rayShape(origin: Vec2, direction: Vec2, maxDistance: number, body: Phys
 
   let near = -Infinity;
   let far = Infinity;
-  let normal: Vec2 = { x: 0, y: 0 };
-  let farNormal: Vec2 = { x: 0, y: 0 };
+  let normal: Vector2DLike = { x: 0, y: 0 };
+  let farNormal: Vector2DLike = { x: 0, y: 0 };
   const halfX = body.shape.width * 0.5;
   const halfY = body.shape.height * 0.5;
   const axes = [

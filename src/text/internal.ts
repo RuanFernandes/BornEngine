@@ -1,4 +1,4 @@
-import { Color, Font, Vec2 } from '../core/types';
+import { Color, Font, Vector2DLike } from '../core/types';
 
 // FFI declarations
 declare function bloom_draw_text(text: number, x: number, y: number, size: number, r: number, g: number, b: number, a: number): void;
@@ -38,11 +38,11 @@ export function unloadFont(font: Font): void {
   bloom_unload_font(font.handle);
 }
 
-export function drawTextEx(font: Font, text: string, pos: Vec2, size: number, spacing: number, color: Color): void {
+export function drawTextEx(font: Font, text: string, pos: Vector2DLike, size: number, spacing: number, color: Color): void {
   bloom_draw_text_ex(font.handle, text as any, pos.x, pos.y, size, spacing, color.r, color.g, color.b, color.a);
 }
 
-export function measureTextEx(font: Font, text: string, size: number, spacing: number): Vec2 {
+export function measureTextEx(font: Font, text: string, size: number, spacing: number): Vector2DLike {
   const width = bloom_measure_text_ex(font.handle, text as any, size, spacing);
   return { x: width, y: size };
 }

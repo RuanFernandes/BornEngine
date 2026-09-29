@@ -1,21 +1,7 @@
 import * as nativeMath from './internal';
-import type { BoundingBox, FrustumPlanes, Mat4, Quat as QuatLike, Ray, RayHit, Vec2 as Vec2Like, Vec3 as Vec3Like, Vec4 as Vec4Like } from '../core/types';
+import type { BoundingBox, FrustumPlanes, Mat4, Quat as QuatLike, Ray, RayHit, Vector2DLike, Vec3 as Vec3Like, Vec4 as Vec4Like } from '../core/types';
 import { checkCollisionCircleRec, checkCollisionCircles, checkCollisionPointCircle, checkCollisionPointRec, checkCollisionRecs, getCollisionRec } from '../shapes/internal';
-
-export class Vec2 implements Vec2Like {
-  constructor(public x = 0, public y = 0) {}
-  static zero(): Vec2 { return new Vec2(); }
-  static from(value: Vec2Like): Vec2 { return new Vec2(value.x, value.y); }
-  add(value: Vec2Like): Vec2 { return new Vec2(this.x + value.x, this.y + value.y); }
-  subtract(value: Vec2Like): Vec2 { return new Vec2(this.x - value.x, this.y - value.y); }
-  scale(factor: number): Vec2 { return new Vec2(this.x * factor, this.y * factor); }
-  get length(): number { return Math.sqrt(this.x * this.x + this.y * this.y); }
-  get lengthSquared(): number { return this.x * this.x + this.y * this.y; }
-  normalized(): Vec2 { const length = this.length; return length === 0 ? Vec2.zero() : this.scale(1 / length); }
-  dot(value: Vec2Like): number { return this.x * value.x + this.y * value.y; }
-  distanceTo(value: Vec2Like): number { return Math.sqrt((value.x - this.x) ** 2 + (value.y - this.y) ** 2); }
-  lerp(value: Vec2Like, amount: number): Vec2 { return new Vec2(this.x + (value.x - this.x) * amount, this.y + (value.y - this.y) * amount); }
-}
+export { Vector2D } from './vector2d';
 
 export class Vec3 implements Vec3Like {
   constructor(public x = 0, public y = 0, public z = 0) {}
@@ -109,12 +95,13 @@ export class Collision {
   static rayIntersectsTriangle(ray: Ray, a: Vec3Like, b: Vec3Like, c: Vec3Like): RayHit { return nativeMath.rayIntersectsTriangle(ray, a, b, c); }
   static getRayCollisionBox(ray: Ray, box: BoundingBox): RayHit { return nativeMath.getRayCollisionBox(ray, box); }
   static checkRectangles(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean { return checkCollisionRecs(a, b); }
-  static checkCircles(a: Vec2Like, radiusA: number, b: Vec2Like, radiusB: number): boolean { return checkCollisionCircles(a, radiusA, b, radiusB); }
-  static checkCircleRectangle(center: Vec2Like, radius: number, rect: { x: number; y: number; width: number; height: number }): boolean { return checkCollisionCircleRec(center, radius, rect); }
-  static checkPointRectangle(point: Vec2Like, rect: { x: number; y: number; width: number; height: number }): boolean { return checkCollisionPointRec(point, rect); }
-  static checkPointCircle(point: Vec2Like, center: Vec2Like, radius: number): boolean { return checkCollisionPointCircle(point, center, radius); }
+  static checkCircles(a: Vector2DLike, radiusA: number, b: Vector2DLike, radiusB: number): boolean { return checkCollisionCircles(a, radiusA, b, radiusB); }
+  static checkCircleRectangle(center: Vector2DLike, radius: number, rect: { x: number; y: number; width: number; height: number }): boolean { return checkCollisionCircleRec(center, radius, rect); }
+  static checkPointRectangle(point: Vector2DLike, rect: { x: number; y: number; width: number; height: number }): boolean { return checkCollisionPointRec(point, rect); }
+  static checkPointCircle(point: Vector2DLike, center: Vector2DLike, radius: number): boolean { return checkCollisionPointCircle(point, center, radius); }
   static getRectangleIntersection(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number } { return getCollisionRec(a, b); }
 }
 
 export type { BoundingBox, FrustumPlanes, Ray, RayHit };
+export type { Vector2DLike } from '../core/types';
 export type Matrix4Array = Mat4;

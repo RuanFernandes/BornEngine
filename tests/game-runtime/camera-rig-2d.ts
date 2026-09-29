@@ -1,6 +1,7 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import { CameraRig2D } from '../../src/camera2d/camera-rig-2d';
+import { Vector2D } from '../../src/math/vector2d';
 import { Viewport2D } from '../../src/camera2d/viewport-2d';
 import { GameObject } from '../../src/game/game-object';
 import { Scene } from '../../src/game/scene';
@@ -35,6 +36,11 @@ const follow = new CameraRig2D({ target, offset: { x: 50, y: 40 } });
 follow.update(1 / 60);
 expect(follow.camera.target.x === 20 && follow.camera.target.y === 12,
   'camera rig follows its target without smoothing');
+expect(follow.camera.target instanceof Vector2D && follow.targetOffset instanceof Vector2D,
+  'camera snapshots and offsets expose Vector2D values');
+const clampedCameraTarget = follow.camera.target.clamped(Vector2D.zero(), new Vector2D(30, 30));
+expect(clampedCameraTarget.equals({ x: 20, y: 12 }),
+  'camera snapshots expose Vector2D methods in their declared type');
 
 target.transform.position = { x: 40, y: 18, z: 0 };
 follow.update(1 / 60);
@@ -126,7 +132,7 @@ expect(explicitShake.camera.target.x === 3 && explicitShake.camera.target.y === 
   'explicit shake envelope samples normalized offsets');
 
 const cameraSnapshot = zoomRig.camera;
-cameraSnapshot.target.x = 999;
+cameraSnapshot.target.set(999, 999);
 expect(zoomRig.camera.target.x === 0, 'camera getter returns an isolated snapshot');
 
 const fallbackCamera = {

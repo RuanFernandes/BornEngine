@@ -28,7 +28,7 @@ const idle = sheet === null ? null : sheet.gridFrame(0, 0);
 const step = sheet === null ? null : sheet.gridFrame(1, 0);
 ```
 
-`gridFrame(column, row)` returns a cached frame or `null` for an invalid cell. Named frames use `{ name, source, pivot?, trim? }`; `source` is a pixel rectangle inside the texture. `pivot` is normalized to the original frame size. Trim metadata stores the packed-pixel offset and the original untrimmed dimensions.
+`gridFrame(column, row)` returns a cached frame or `null` for an invalid cell. Named frames use `{ name, source, pivot?, trim? }`; `source` is a pixel rectangle inside the texture. `pivot` is normalized to the original frame size. Trim metadata stores the packed-pixel offset and the original untrimmed dimensions. `SpriteFrame.pivot`, `originalSize`, `trim.offset`, and `trim.originalSize`, along with `SpriteSheet.margin` and `spacing`, are detached `Vector2D` snapshots with the class's vector helpers. Mutating a returned snapshot does not change the atlas frame. Use `SpriteFrameTrimDefinition` for trim input data; its coordinates can be plain `{ x, y }` values.
 
 `Texture.drawRegion(source, destination, origin, rotation, tint)` uses a top-left destination rectangle. `origin` is a local pivot measured from that corner, so the object's world position is `destination + origin` when the region rotates.
 
