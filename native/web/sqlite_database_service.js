@@ -268,7 +268,10 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
       if (handle.transaction) return fail(8);
       try {
         handle.transactionSnapshot = handle.persist ? exportDatabase(sqlite, handle.db) : null;
-        handle.db.exec('BEGIN IMMEDIATE'); handle.transaction = true; return ok();
+        handle.db.exec('BEGIN IMMEDIATE');
+        handle.rollbackAcknowledgment = false;
+        handle.transaction = true;
+        return ok();
       }
       catch (error) { return fail(mapError(error, 10)); }
     }

@@ -324,6 +324,31 @@ test('failed durable transaction commit restores the last committed image', asyn
   assert.deepEqual((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).values, ['old']);
 });
 
+test('new transaction rollback is not consumed by a stale failed-commit acknowledgment', async () => {
+  const sqlite = await sqlite3InitModule();
+  let saved;
+  let failNext = false;
+  const service = createDatabaseService({ sqlite, openPersistent: async () => ({
+    db: openSnapshotDatabase(sqlite, saved),
+    persist: async (db) => {
+      if (failNext) { failNext = false; throw Object.assign(Error('full'), { name: 'QuotaExceededError' }); }
+      saved = exportDatabase(sqlite, db);
+    },
+  }) });
+  const handle = (await service.execute({ op: 1, handle: 0, args: ['app', 'ack-reuse', false, schema] })).values[0];
+  assert.equal((await service.execute({ op: 10, handle, args: [1, migration] })).status, 0);
+  assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'committed' }] })).status, 0);
+  assert.equal((await service.execute({ op: 7, handle, args: [] })).status, 0);
+  assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'failed' }] })).status, 0);
+  failNext = true;
+  assert.equal((await service.execute({ op: 8, handle, args: [] })).status, 11);
+  assert.equal((await service.execute({ op: 7, handle, args: [] })).status, 0);
+  assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'rolled back' }] })).status, 0);
+  assert.equal((await service.execute({ op: 9, handle, args: [] })).status, 0);
+  assert.deepEqual((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).values, ['committed']);
+  assert.equal((await service.execute({ op: 2, handle, args: [] })).status, 0);
+});
+
 test('add and drop column rebuilds retain native column order and surviving rows', async () => {
   const sqlite = await sqlite3InitModule();
   const service = createDatabaseService({ sqlite });
