@@ -1,0 +1,44 @@
+{
+  "format": "bornengine.world2d",
+  "version": 1,
+  "id": "spawn-points",
+  "name": "Spawn Points",
+  "assets": [],
+  "tilesets": [],
+  "layers": [
+    {
+      "id": "entities",
+      "type": "objects",
+      "name": "Entities",
+      "visible": true,
+      "opacity": 1,
+      "offset": { "x": 0, "y": 0 },
+      "parallax": { "x": 1, "y": 1 },
+      "objects": [
+        {
+          "id": "spawn-001",
+          "name": "Player Spawn",
+          "type": "spawn",
+          "position": { "x": 32, "y": 48 },
+          "rotation": 0,
+          "size": { "x": 24, "y": 48 },
+          "origin": { "x": 0, "y": 0 },
+          "visible": true,
+          "tags": ["spawn", "player"],
+          "properties": {
+            "health": { "type": "int", "value": 3 },
+            "friendly": { "type": "bool", "value": true },
+            "voice": { "type": "file", "value": "audio/player.wav" }
+          },
+          "components": [
+            { "kind": "gameplay.spawn-marker", "data": { "spawnId": "start" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "keep": ["first", { "unknown": "value" }],
+    "formatting": "preserve"
+  }
+}
