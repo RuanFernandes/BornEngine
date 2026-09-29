@@ -10,17 +10,22 @@ BornEngine applications start with one **Game** instance. The Game owns the nati
 ```ts
 import { Colors, Game } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'Field test', width: 1280, height: 720 } });
-const sprite = game.assets.loadTexture('assets/player.png');
+class FieldTest extends Game {
+  constructor() {
+    super({ window: { title: 'Field test', width: 1280, height: 720 } });
+  }
 
-game.run({
-  update(deltaTime) { /* advance the simulation */ },
-  render() {
-    game.renderer.clear(Colors.SKYBLUE);
-    if (sprite !== null && sprite.isLoaded) sprite.draw({ x: 40, y: 40 });
-  },
-  onStop: () => game.dispose(),
-});
+  protected override loop(deltaTime: number): void {
+    this.scenes.update(deltaTime);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SKYBLUE);
+    super.render();
+  }
+}
+
+new FieldTest().run();
 ```
 
 ## Import from the root or a subpath
@@ -44,13 +49,14 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | --- | --- | --- |
 | Core | `@bornengine/engine/core` | `Game`, `Window`, `Renderer`, platform values |
 | 2D camera | `@bornengine/engine/camera2d` | `CameraRig2D`, `Viewport2D`, `ParallaxLayer2D` |
-| Input | `@bornengine/engine/input` | `InputSystem`, `InputActionMap` |
+| Input | `@bornengine/engine/input` | `InputSystem`, `InputActionMap`, serializable action data |
 | Shapes | `@bornengine/engine/shapes` | Renderer drawing and pure collision helpers |
 | Textures | `@bornengine/engine/textures` | `Texture`, `RenderTexture`, `ImageData` |
-| Assets | `@bornengine/engine/assets` | `AssetManager` and Game-owned texture cache |
+| Assets | `@bornengine/engine/assets` | `AssetManager`, texture cache, `AssetGroup` preload batches |
 | Sprites | `@bornengine/engine/sprites` | `SpriteSheet`, `SpriteRenderer`, `SpriteAnimation`, `SpriteAnimator`, `ParticleEmitter2D` |
 | Text | `@bornengine/engine/text` | `Font` |
-| Audio | `@bornengine/engine/audio` | `AudioSystem`, `Sound`, `Music`, `SoundManager` |
+| Audio | `@bornengine/engine/audio` | `AudioSystem`, `Sound`, `Music`, `SoundManager`, `AudioListener2D`, `AudioEmitter2D` |
+| Storage | `@bornengine/engine/storage` | `createGameStorage`, versioned JSON saves and settings |
 | Models | `@bornengine/engine/models` | `Model`, `Mesh`, `Material`, `Animation` |
 | Scene | `@bornengine/engine/scene` | `SceneGraph`, `SceneNode` |
 | Game | `@bornengine/engine/game` | `GameObject`, components, scenes, adapters |

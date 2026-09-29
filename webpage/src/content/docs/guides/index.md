@@ -13,6 +13,8 @@ Use these guides when the API reference is not enough context for a complete sys
 - [World format](world-format/) — author versioned 3D worlds and 2D tilemap/object documents.
 - [Assets](assets/) — package runtime files across native and Web/WASM targets.
 - [Runtime debugging](debugging/) — enable the optional inspector and add diagnostic windows.
+- [2D production workflow](2d-production-workflow/) — author, validate, save, and package a 2D game world.
+- [Migrate the 2D API](migrating-2d-api/) — move gameplay into `Game`, `Scene`, `GameObject`, and `Vector2D`.
 
 ## Composition recipes
 
