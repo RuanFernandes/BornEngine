@@ -87,6 +87,22 @@ export type {
   PrefabLeaf, Vec3Lit, Vec4Lit, Mat4Lit,
 } from './world';
 
+export {
+  WORLD2D_FORMAT, WORLD2D_VERSION, BUILTIN_WORLD2D_COMPONENT_KINDS,
+  validateWorld2D, formatWorld2DDiagnostics, migrateWorld2D, serializeWorld2D,
+  World2DComponentRegistry, World2DLoader,
+} from './world2d';
+export type {
+  World2DJsonValue, World2DVector, World2DRect, World2DPropertyData, WorldProperty,
+  World2DTileDefinition, World2DTilesetData, WorldTileCell, World2DTileCell,
+  World2DComponentDescriptor, World2DSpriteRendererData, World2DPhysicsShape,
+  World2DPhysicsBodyData, World2DLayerBase, World2DTileLayer, World2DObjectData,
+  World2DObjectLayer, World2DLayer, World2DDocument, World2DDiagnostic,
+  World2DValidationResult, World2DMigrationResult, World2DLoadInstance,
+  World2DLoadResult, World2DSerializeResult, World2DComponentFactoryValue,
+  World2DComponentFactoryContext, World2DComponentFactory, World2DLoaderOptions,
+} from './world2d';
+
 export { TouchControls, VirtualJoystick, VirtualButton } from './mobile';
 export type { VirtualJoystickOptions, VirtualButtonOptions } from './mobile';
 export { ParticleSystem, DecalSystem } from './vfx';

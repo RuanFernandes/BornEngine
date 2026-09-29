@@ -274,6 +274,55 @@ export class GameScene implements ContextResource {
     return true;
   }
 
+  /** @internal Validates and attaches a batch before any object receives onAwake. */
+  _attachSubtreesAtomically(roots: GameObject[]): boolean {
+    if (this.wasDestroyed || !Array.isArray(roots)) return false;
+
+    const subtrees: GameObject[][] = [];
+    const claimed: GameObject[] = [];
+    for (let rootIndex = 0; rootIndex < roots.length; rootIndex++) {
+      const root = roots[rootIndex];
+      if (root === null || root === undefined || root.parent !== null || !this._canAttachSubtree(root)) {
+        return false;
+      }
+      const subtree = this._collectSubtree(root);
+      for (let objectIndex = 0; objectIndex < subtree.length; objectIndex++) {
+        if (claimed.indexOf(subtree[objectIndex]) >= 0) return false;
+        claimed.push(subtree[objectIndex]);
+      }
+      subtrees.push(subtree);
+    }
+
+    for (let subtreeIndex = 0; subtreeIndex < subtrees.length; subtreeIndex++) {
+      const subtree = subtrees[subtreeIndex];
+      for (let objectIndex = 0; objectIndex < subtree.length; objectIndex++) {
+        const object = subtree[objectIndex];
+        object._setScene(this);
+        object._setAttachmentGeneration(this.nextAttachmentGeneration++);
+        this.sceneObjects.push(object);
+      }
+    }
+
+    if (this.isAwakening) {
+      for (let index = 0; index < roots.length; index++) this.pendingAwakeRoots.push(roots[index]);
+      return true;
+    }
+
+    this.isAwakening = true;
+    try {
+      for (let index = 0; index < roots.length; index++) this._awakenSubtree(roots[index]);
+      let pendingIndex = 0;
+      while (pendingIndex < this.pendingAwakeRoots.length) {
+        this._awakenSubtree(this.pendingAwakeRoots[pendingIndex]);
+        pendingIndex++;
+      }
+    } finally {
+      this.pendingAwakeRoots.length = 0;
+      this.isAwakening = false;
+    }
+    return true;
+  }
+
   /** @internal Removes an object after all of its destruction callbacks return. */
   _removeDestroyedObject(object: GameObject): void {
     const index = this.sceneObjects.indexOf(object);
