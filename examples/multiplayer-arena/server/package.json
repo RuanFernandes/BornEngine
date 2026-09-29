@@ -1,0 +1,22 @@
+{
+  "name": "bornengine-multiplayer-arena-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20.9.0" },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "start": "tsx src/index.ts",
+    "test": "npm run check && tsx test/contract-test.ts"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.8",
+    "@colyseus/tools": "^0.18.4",
+    "colyseus": "^0.18.8"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "0.18.4",
+    "tsx": "^4.10.2",
+    "typescript": "^5.0.4"
+  }
+}
