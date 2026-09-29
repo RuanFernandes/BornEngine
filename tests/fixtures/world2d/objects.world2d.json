@@ -3,7 +3,7 @@
   "version": 1,
   "id": "spawn-points",
   "name": "Spawn Points",
-  "assets": [],
+  "assets": ["audio/player.wav"],
   "tilesets": [],
   "layers": [
     {

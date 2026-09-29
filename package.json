@@ -21,6 +21,7 @@
     "./physics2d": "./src/physics2d/index.ts",
     "./tilemap": "./src/tilemap/index.ts",
     "./world": "./src/world/index.ts",
+    "./world2d": "./src/world2d/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
     "./input": "./src/input/index.ts",

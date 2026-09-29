@@ -3,7 +3,7 @@
   "version": 1,
   "id": "sample-platform",
   "name": "Sample Platform",
-  "assets": ["assets/actors.png", "assets/terrain.png"],
+  "assets": ["assets/terrain.png"],
   "tilesets": [
     {
       "id": "terrain",
@@ -29,6 +29,7 @@
       "opacity": 1,
       "offset": { "x": 0, "y": 0 },
       "parallax": { "x": 1, "y": 1 },
+      "properties": { "surface": { "type": "string", "value": "grass" } },
       "width": 2,
       "height": 1,
       "tileSize": { "x": 16, "y": 16 },
@@ -45,6 +46,7 @@
       "opacity": 1,
       "offset": { "x": 0, "y": 0 },
       "parallax": { "x": 1, "y": 1 },
+      "properties": { "layerRole": { "type": "string", "value": "actors" } },
       "objects": [
         {
           "id": "hero",
@@ -68,7 +70,7 @@
                 "flipDiagonal": false,
                 "size": { "x": 16, "y": 24 },
                 "pivot": { "x": 0.5, "y": 1 },
-                "tint": { "r": 1, "g": 1, "b": 1, "a": 1 }
+                "tint": { "r": 255, "g": 255, "b": 255, "a": 255 }
               }
             },
             {

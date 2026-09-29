@@ -57,6 +57,7 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | Physics 2D | `@bornengine/engine/physics2d` | `PhysicsWorld2D`, `PhysicsBody2D` |
 | Tilemaps | `@bornengine/engine/tilemap` | `Tilemap` and tile collision data |
 | World | `@bornengine/engine/world` | `WorldData`, `WorldInstance`, prefab library |
+| World2D | `@bornengine/engine/world2d` | Versioned 2D world validation, serialization, component registry, and loader |
 | VFX | `@bornengine/engine/vfx` | `ParticleSystem`, `DecalSystem` |
 | Mobile | `@bornengine/engine/mobile` | `TouchControls`, joystick and button objects |
 | UI | `@bornengine/engine/ui` | `Ui` |

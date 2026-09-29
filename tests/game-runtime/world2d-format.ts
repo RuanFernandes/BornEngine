@@ -54,6 +54,7 @@ function tileLayer(data: Array<WorldTileCell | null>): World2DLayer {
     opacity: 1,
     offset: { x: 0, y: 0 },
     parallax: { x: 1, y: 1 },
+    properties: { surface: { type: 'string', value: 'grass' } },
     width: 4,
     height: 2,
     tileSize: { x: 16, y: 16 },
@@ -70,6 +71,7 @@ function objectLayer(): World2DLayer {
     opacity: 1,
     offset: { x: 0, y: 0 },
     parallax: { x: 1, y: 1 },
+    properties: { layerRole: { type: 'string', value: 'actors' } },
     objects: [
       {
         id: 'spawn-001',
@@ -84,24 +86,59 @@ function objectLayer(): World2DLayer {
         properties: {
           health: { type: 'int', value: 3 },
           friendly: { type: 'bool', value: true },
+          speed: { type: 'float', value: 2.5 },
+          displayName: { type: 'string', value: 'Mira' },
+          tint: { type: 'color', value: '#3366CC' },
+          voice: { type: 'file', value: 'audio/player.wav' },
         },
         components: [
           { kind: 'gameplay.spawn-marker', data: { spawnId: 'start' } },
         ],
+      },
+      {
+        id: 'spawn-002',
+        name: 'Second Spawn',
+        type: 'spawn',
+        position: { x: 64, y: 48 },
+        rotation: 0,
+        size: { x: 24, y: 48 },
+        origin: { x: 0, y: 0 },
+        visible: true,
+        tags: ['spawn'],
+        properties: {},
+        components: [],
       },
     ],
   };
 }
 
 function makeWorld(id: string, layers: World2DLayer[] = []): World2DDocument {
+  const assets: string[] = [];
+  for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+    const layer = layers[layerIndex];
+    if (layer.type === 'tilemap' && assets.indexOf('assets/terrain.png') < 0) {
+      assets.push('assets/terrain.png');
+    }
+    if (layer.type === 'objects') {
+      for (let objectIndex = 0; objectIndex < layer.objects.length; objectIndex++) {
+        const properties = layer.objects[objectIndex].properties;
+        const propertyNames = Object.keys(properties);
+        for (let propertyIndex = 0; propertyIndex < propertyNames.length; propertyIndex++) {
+          const property = properties[propertyNames[propertyIndex]];
+          if (property.type === 'file' && typeof property.value === 'string' && assets.indexOf(property.value) < 0) {
+            assets.push(property.value);
+          }
+        }
+      }
+    }
+  }
+  assets.sort();
   return {
     format: 'bornengine.world2d',
     version: 1,
     id,
     name: id,
-    assets: layers.length > 0 && layers[0].type === 'tilemap'
-      ? ['assets/terrain.png']
-      : [],
+    assets,
     tilesets: layers.length > 0 && layers[0].type === 'tilemap'
       ? [{
           id: 'terrain',
@@ -119,7 +156,7 @@ function makeWorld(id: string, layers: World2DLayer[] = []): World2DDocument {
         }]
       : [],
     layers,
-    metadata: { ordered: ['first', 'second'], unknown: { keep: true } },
+    metadata: { ordered: ['first', 'second'], unknown: { keep: true, zeta: 'last', alpha: 'first' } },
   };
 }
 
@@ -136,12 +173,46 @@ const migration = migrateWorld2D(sample);
 expect(migration.ok && migration.document.version === 1,
   'current v1 migration preserves the current document');
 
-const serialized = serializeWorld2D(sample);
+const serializedResult = serializeWorld2D(sample);
+expect(serializedResult.ok, 'sample serializes successfully');
+const serialized = serializedResult.json;
 const reparsed = JSON.parse(serialized) as World2DDocument;
 expect(validateWorld2D(reparsed).ok, 'serialized sample reparses and validates');
-expect(serializeWorld2D(reparsed) === serialized, 'sample serialization is deterministic');
-expect(reparsed.metadata.unknown.keep === true,
+const serializedAgain = serializeWorld2D(reparsed).json;
+expect(serializedAgain === serialized, 'sample serialization is deterministic');
+expect((reparsed.metadata.unknown as { keep: boolean }).keep === true,
   'unknown nested metadata survives serialization');
+const unknownMetadataKeys = Object.keys(reparsed.metadata.unknown as { [key: string]: World2DDocument['metadata'][string] });
+expect(unknownMetadataKeys.length === 3 && unknownMetadataKeys[0] === 'keep' &&
+  unknownMetadataKeys[1] === 'zeta' && unknownMetadataKeys[2] === 'alpha',
+  'nested metadata key order survives serialization');
+expect(reparsed.layers[0].properties !== undefined &&
+  reparsed.layers[0].properties.surface.value === 'grass' &&
+  reparsed.layers[1].properties !== undefined &&
+  reparsed.layers[1].properties.layerRole.value === 'actors',
+  'optional typed properties survive on both layer kinds');
+const metadataKeys = Object.keys(reparsed.metadata);
+expect(metadataKeys.length === 2 && metadataKeys[0] === 'ordered' && metadataKeys[1] === 'unknown',
+  'metadata object key order survives serialization');
+const sortedAssets = makeWorld('asset-order');
+sortedAssets.assets = ['z/data.bin', 'a/data.bin'];
+const sortedAssetsResult = serializeWorld2D(sortedAssets);
+const sortedAssetsDocument = JSON.parse(sortedAssetsResult.json) as World2DDocument;
+expect(sortedAssetsResult.ok && sortedAssetsDocument.assets[0] === 'a/data.bin' &&
+  sortedAssetsDocument.assets[1] === 'z/data.bin',
+  'asset set order is canonicalized while semantic array order is preserved');
+const roundTripTileLayer = reparsed.layers[0];
+expect(roundTripTileLayer.type === 'tilemap' && roundTripTileLayer.data[7] !== null &&
+  roundTripTileLayer.data[7].flipX && roundTripTileLayer.data[7].flipY &&
+  roundTripTileLayer.data[7].flipDiagonal,
+  'sample round trip preserves explicit tile flip fields');
+const roundTripObjectLayer = reparsed.layers[1];
+const roundTripObjectProperties = roundTripObjectLayer.type === 'objects'
+  ? Object.keys(roundTripObjectLayer.objects[0].properties)
+  : [];
+expect(roundTripObjectProperties.length === 6 && roundTripObjectProperties[0] === 'displayName' &&
+  roundTripObjectProperties[1] === 'friendly' && roundTripObjectProperties[2] === 'health',
+  'name-keyed property maps use canonical key order');
 
 const badLength = makeWorld('bad-length', [tileLayer(tileCells())]);
 if (badLength.layers[0].type === 'tilemap') badLength.layers[0].data.pop();
@@ -160,7 +231,7 @@ expect(!cellCheck.ok && hasDiagnostic(cellCheck.diagnostics, 'tile_id_out_of_ran
 const duplicate = makeWorld('duplicate-object', [objectLayer()]);
 if (duplicate.layers[0].type === 'objects') duplicate.layers[0].objects.push(duplicate.layers[0].objects[0]);
 const duplicateCheck = validateWorld2D(duplicate);
-expect(!duplicateCheck.ok && hasDiagnostic(duplicateCheck.diagnostics, 'duplicate_id', '/layers/0/objects/1/id'),
+expect(!duplicateCheck.ok && hasDiagnostic(duplicateCheck.diagnostics, 'duplicate_id', '/layers/0/objects/2/id'),
   'duplicate object IDs identify the second occurrence');
 
 const escapingAsset = makeWorld('escaping-asset', [tileLayer(tileCells())]);
@@ -168,6 +239,12 @@ escapingAsset.assets.push('../outside.png');
 const assetCheck = validateWorld2D(escapingAsset);
 expect(!assetCheck.ok && hasDiagnostic(assetCheck.diagnostics, 'invalid_asset_path', '/assets/1'),
   'escaping asset references are rejected with a path');
+const missingFileAsset = makeWorld('missing-file-asset', [objectLayer()]);
+missingFileAsset.assets = [];
+const missingFileCheck = validateWorld2D(missingFileAsset);
+expect(!missingFileCheck.ok && hasDiagnostic(missingFileCheck.diagnostics, 'missing_asset',
+  '/layers/0/objects/0/properties/voice/value'),
+  'file properties must refer to declared project assets');
 
 const future = makeWorld('future');
 future.version = 2;
@@ -193,37 +270,54 @@ emptyRegistry.registerComponentFactory('unused', () => {
 const emptyLoad = new World2DLoader(emptyRegistry).load(simple, emptyScene);
 expect(emptyLoad.ok && emptyFactoryCalls === 0 && emptyScene.objects.length === 0,
   'empty worlds load safely without invoking unrelated factories');
+const malformedJSONLoad = new World2DLoader().loadJSON('{', emptyScene);
+expect(!malformedJSONLoad.ok && malformedJSONLoad.diagnostics.length > 0 && emptyScene.objects.length === 0,
+  'malformed JSON returns structured diagnostics without changing the destination scene');
 
 const failedScene = new GameScene(owner as Game);
+const existingObject = new GameObject({ name: 'Existing' });
+failedScene.add(existingObject);
 const failingRegistry = new World2DComponentRegistry();
-failingRegistry.registerComponentFactory('gameplay.spawn-marker', () => ({
+const failingRegistered = failingRegistry.registerComponentFactory('gameplay.spawn-marker', () => ({
   path: '/layers/0/objects/0/components/0',
   code: 'factory_rejected',
   message: 'fixture factory failure',
 }));
 const failedLoad = new World2DLoader(failingRegistry).load(objects, failedScene);
-expect(!failedLoad.ok && failedScene.objects.length === 0 && failedLoad.diagnostics.length > 0,
-  'factory failure leaves destination scene unchanged');
+expect(failingRegistered && !failedLoad.ok &&
+  hasDiagnostic(failedLoad.diagnostics, 'factory_rejected', '/layers/0/objects/0/components/0') &&
+  failedScene.objects.length === 1 && failedScene.objects[0] === existingObject,
+  'factory failure leaves existing destination scene contents unchanged');
 
 class SpawnMarker extends GameComponent {
   readonly spawnId: string;
+  awakeSceneObjectCount = 0;
   constructor(spawnId: string) {
     super();
     this.spawnId = spawnId;
   }
+  onAwake(): void {
+    const ownerObject = this.gameObject;
+    if (ownerObject !== null && ownerObject.scene !== null) {
+      this.awakeSceneObjectCount = ownerObject.scene.objects.length;
+    }
+  }
 }
 const successScene = new GameScene(owner as Game);
 const successRegistry = new World2DComponentRegistry();
-successRegistry.registerComponentFactory('gameplay.spawn-marker', (data) => {
+const successRegistered = successRegistry.registerComponentFactory('gameplay.spawn-marker', (data) => {
   const values = data as { spawnId: string };
   return new SpawnMarker(values.spawnId);
 });
+expect(successRegistered && !successRegistry.registerComponentFactory('spriteRenderer', () => new GameComponent()) &&
+  !successRegistry.registerComponentFactory('gameplay.spawn-marker', () => new GameComponent()),
+  'registry reserves built-in kinds and rejects duplicate registrations');
 const successLoad = new World2DLoader(successRegistry).load(objects, successScene);
-const loadedObject = successScene.objects.length === 1 ? successScene.objects[0] : null;
+const loadedObject = successScene.objects.length === 2 ? successScene.objects[0] : null;
 const marker = loadedObject === null ? null : loadedObject.getComponent(SpawnMarker);
 expect(successLoad.ok && loadedObject !== null && loadedObject.name === 'Player Spawn' &&
-  marker !== null && marker.spawnId === 'start',
-  'registered factories create components before atomic scene attachment');
+  marker !== null && marker.spawnId === 'start' && marker.awakeSceneObjectCount === 2,
+  'registered factories create every object before atomic scene attachment callbacks run');
 
 successScene.destroy();
 failedScene.destroy();
