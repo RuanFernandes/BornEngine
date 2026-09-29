@@ -86,6 +86,17 @@ export function inspectPackage(filePath, manifest) {
     issues.push(`${normalizedPath}: Bloom package dependency alias; depend on @bornengine/engine`);
   }
 
+  const dependsOnBornEngine = dependencySections.some(
+    (section) => section && Object.hasOwn(section, '@bornengine/engine'),
+  );
+  if (dependsOnBornEngine) {
+    const nativeAllowlist = manifest.perry?.allow?.nativeLibrary;
+    if (!Array.isArray(nativeAllowlist)
+      || !nativeAllowlist.some((moduleName) => moduleName === '@bornengine/engine' || moduleName === '@bornengine/engine/*')) {
+      issues.push(`${normalizedPath}: Perry native-library allowlist must include @bornengine/engine`);
+    }
+  }
+
   return issues;
 }
 

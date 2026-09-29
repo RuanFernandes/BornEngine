@@ -44,6 +44,22 @@ test('rejects Bloom package aliases and Bloom-branded example package names', ()
   assert.match(issues.join('\n'), /Bloom package dependency alias/);
 });
 
+test('requires the Perry native-library allowlist for BornEngine consumers', () => {
+  const invalid = inspectPackage('examples/game/package.json', {
+    name: 'bornengine-game',
+    dependencies: { '@bornengine/engine': 'file:../../' },
+    perry: { allow: { nativeLibrary: true } },
+  });
+  const valid = inspectPackage('examples/game/package.json', {
+    name: 'bornengine-game',
+    dependencies: { '@bornengine/engine': 'file:../../' },
+    perry: { allow: { nativeLibrary: ['@bornengine/engine'] } },
+  });
+
+  assert.match(invalid.join('\n'), /Perry native-library allowlist must include @bornengine\/engine/);
+  assert.deepEqual(valid, []);
+});
+
 test('requires every discovered example TypeScript file exactly once in the inventory', () => {
   const issues = validateInventory(
     ['examples/a/main.ts', 'examples/a/main.ts', 'examples/b/main.ts'],
