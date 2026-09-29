@@ -278,6 +278,9 @@ jobs:
       - name: Install Perry
         run: npm install --global @perryts/perry@0.5.1022
 
+      - name: Check all BornEngine examples
+        run: npm run examples:check
+
       - name: Install native TypeScript smoke dependencies
         run: npm install --prefix examples/colyseus-smoke --no-package-lock
 

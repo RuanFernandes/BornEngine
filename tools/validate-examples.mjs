@@ -171,7 +171,6 @@ function compileEntrypoints(buildRoot) {
       '--target',
       'linux',
       '--no-link',
-      '--no-cache',
       '-o',
       outputPath,
     ], {
