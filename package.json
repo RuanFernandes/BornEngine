@@ -2,6 +2,11 @@
   "name": "@bornengine/engine",
   "version": "0.10.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
+  "scripts": {
+    "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
+    "examples:check:static": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs --static",
+    "test:examples-validator": "node --test tools/validate-examples.test.mjs"
+  },
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
