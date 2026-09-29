@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@colyseus/sdk": "0.18.4"
+    "@colyseus/sdk": "0.18.4",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build1"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.5"
   }
 }

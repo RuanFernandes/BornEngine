@@ -251,7 +251,7 @@ export class GameDatabase<S extends DatabaseSchema> {
         release(closed);
         this.handle = 0;
         this.opening = false;
-        return result(status === 'storage_error' ? 'migration_error' : status);
+        return result(status);
       }
     }
     this.lifecycle = 'open';
