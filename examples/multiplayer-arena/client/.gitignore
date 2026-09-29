@@ -1,0 +1,5 @@
+build/
+node_modules/
+*.o
+_perry_stubs.o
+.perry-cache/

@@ -1,4 +1,4 @@
-import { Collision, Colors, Game, Key, Mathf } from '@bornengine/engine';
+import { Collision, Colors, Game, Key, Mathf, Vector2D } from '@bornengine/engine';
 import type { Color, Rect } from '@bornengine/engine';
 
 // Constants
@@ -20,14 +20,12 @@ const ENEMY_HEIGHT = 24;
 
 // Types
 interface Bullet {
-  x: number;
-  y: number;
+  position: Vector2D;
   active: boolean;
 }
 
 interface Enemy {
-  x: number;
-  y: number;
+  position: Vector2D;
   hp: number;
   speed: number;
   active: boolean;
@@ -35,10 +33,8 @@ interface Enemy {
 }
 
 interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  position: Vector2D;
+  velocity: Vector2D;
   life: number;
   maxLife: number;
   color: Color;
@@ -46,15 +42,13 @@ interface Particle {
 }
 
 interface Star {
-  x: number;
-  y: number;
+  position: Vector2D;
   speed: number;
   brightness: number;
 }
 
 // Game state
-let playerX = SCREEN_WIDTH / 2;
-let playerY = SCREEN_HEIGHT - 80;
+let playerPosition = new Vector2D(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 80);
 let bulletCooldown = 0;
 let score = 0;
 let lives = 3;
@@ -67,35 +61,33 @@ let gameOver = false;
 // Entity pools
 const bullets: Bullet[] = [];
 for (let i = 0; i < MAX_BULLETS; i++) {
-  bullets.push({ x: 0, y: 0, active: false });
+  bullets.push({ position: Vector2D.zero(), active: false });
 }
 
 const enemies: Enemy[] = [];
 for (let i = 0; i < MAX_ENEMIES; i++) {
-  enemies.push({ x: 0, y: 0, hp: 0, speed: 0, active: false, kind: 0 });
+  enemies.push({ position: Vector2D.zero(), hp: 0, speed: 0, active: false, kind: 0 });
 }
 
 const particles: Particle[] = [];
 for (let i = 0; i < MAX_PARTICLES; i++) {
-  particles.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, color: Colors.WHITE, active: false });
+  particles.push({ position: Vector2D.zero(), velocity: Vector2D.zero(), life: 0, maxLife: 0, color: Colors.WHITE, active: false });
 }
 
 // Scrolling star background
 const stars: Star[] = [];
 for (let i = 0; i < MAX_STARS; i++) {
   stars.push({
-    x: Mathf.randomFloat(0, SCREEN_WIDTH),
-    y: Mathf.randomFloat(0, SCREEN_HEIGHT),
+    position: new Vector2D(Mathf.randomFloat(0, SCREEN_WIDTH), Mathf.randomFloat(0, SCREEN_HEIGHT)),
     speed: Mathf.randomFloat(30, 150),
     brightness: Mathf.randomFloat(0.2, 1.0),
   });
 }
 
-function spawnBullet(x: number, y: number): void {
+function spawnBullet(position: Vector2D): void {
   for (let i = 0; i < MAX_BULLETS; i++) {
     if (!bullets[i].active) {
-      bullets[i].x = x;
-      bullets[i].y = y;
+      bullets[i].position = position.clone();
       bullets[i].active = true;
       return;
     }
@@ -106,8 +98,7 @@ function spawnEnemy(): void {
   for (let i = 0; i < MAX_ENEMIES; i++) {
     if (!enemies[i].active) {
       const kind = wave >= 3 ? Mathf.randomInt(0, 2) : (wave >= 2 ? Mathf.randomInt(0, 1) : 0);
-      enemies[i].x = Mathf.randomFloat(ENEMY_WIDTH, SCREEN_WIDTH - ENEMY_WIDTH);
-      enemies[i].y = -ENEMY_HEIGHT;
+      enemies[i].position = new Vector2D(Mathf.randomFloat(ENEMY_WIDTH, SCREEN_WIDTH - ENEMY_WIDTH), -ENEMY_HEIGHT);
       enemies[i].kind = kind;
       if (kind === 0) {
         enemies[i].hp = 1;
@@ -125,16 +116,14 @@ function spawnEnemy(): void {
   }
 }
 
-function spawnExplosion(x: number, y: number, count: number, color: Color): void {
+function spawnExplosion(position: Vector2D, count: number, color: Color): void {
   for (let n = 0; n < count; n++) {
     for (let i = 0; i < MAX_PARTICLES; i++) {
       if (!particles[i].active) {
         const angle = Mathf.randomFloat(0, Math.PI * 2);
         const speed = Mathf.randomFloat(50, 200);
-        particles[i].x = x;
-        particles[i].y = y;
-        particles[i].vx = Math.cos(angle) * speed;
-        particles[i].vy = Math.sin(angle) * speed;
+        particles[i].position = position.clone();
+        particles[i].velocity = new Vector2D(Math.cos(angle) * speed, Math.sin(angle) * speed);
         particles[i].life = Mathf.randomFloat(0.3, 0.8);
         particles[i].maxLife = particles[i].life;
         particles[i].color = color;
@@ -152,8 +141,7 @@ function getEnemyColor(kind: number): Color {
 }
 
 function resetGame(): void {
-  playerX = SCREEN_WIDTH / 2;
-  playerY = SCREEN_HEIGHT - 80;
+  playerPosition = new Vector2D(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 80);
   score = 0;
   lives = 3;
   wave = 1;
@@ -175,24 +163,24 @@ class SpaceBlasterGame extends Game {
     } else {
       // Player movement
       if (this.input.isKeyDown(Key.LEFT) || this.input.isKeyDown(Key.A)) {
-        playerX = playerX - PLAYER_SPEED * dt;
+        playerPosition.x -= PLAYER_SPEED * dt;
       }
       if (this.input.isKeyDown(Key.RIGHT) || this.input.isKeyDown(Key.D)) {
-        playerX = playerX + PLAYER_SPEED * dt;
+        playerPosition.x += PLAYER_SPEED * dt;
       }
       if (this.input.isKeyDown(Key.UP) || this.input.isKeyDown(Key.W)) {
-        playerY = playerY - PLAYER_SPEED * dt;
+        playerPosition.y -= PLAYER_SPEED * dt;
       }
       if (this.input.isKeyDown(Key.DOWN) || this.input.isKeyDown(Key.S)) {
-        playerY = playerY + PLAYER_SPEED * dt;
+        playerPosition.y += PLAYER_SPEED * dt;
       }
-      playerX = Mathf.clamp(playerX, PLAYER_WIDTH / 2, SCREEN_WIDTH - PLAYER_WIDTH / 2);
-      playerY = Mathf.clamp(playerY, PLAYER_HEIGHT / 2, SCREEN_HEIGHT - PLAYER_HEIGHT / 2);
+      playerPosition.x = Mathf.clamp(playerPosition.x, PLAYER_WIDTH / 2, SCREEN_WIDTH - PLAYER_WIDTH / 2);
+      playerPosition.y = Mathf.clamp(playerPosition.y, PLAYER_HEIGHT / 2, SCREEN_HEIGHT - PLAYER_HEIGHT / 2);
 
       // Shooting
       bulletCooldown = bulletCooldown - dt;
       if (this.input.isKeyDown(Key.SPACE) && bulletCooldown <= 0) {
-        spawnBullet(playerX - 2, playerY - PLAYER_HEIGHT / 2);
+        spawnBullet(new Vector2D(playerPosition.x - 2, playerPosition.y - PLAYER_HEIGHT / 2));
         bulletCooldown = BULLET_COOLDOWN;
       }
 
@@ -219,8 +207,8 @@ class SpaceBlasterGame extends Game {
       // Update bullets
       for (let i = 0; i < MAX_BULLETS; i++) {
         if (!bullets[i].active) continue;
-        bullets[i].y = bullets[i].y - BULLET_SPEED * dt;
-        if (bullets[i].y < -BULLET_HEIGHT) {
+        bullets[i].position.y -= BULLET_SPEED * dt;
+        if (bullets[i].position.y < -BULLET_HEIGHT) {
           bullets[i].active = false;
         }
       }
@@ -228,10 +216,10 @@ class SpaceBlasterGame extends Game {
       // Update enemies
       for (let i = 0; i < MAX_ENEMIES; i++) {
         if (!enemies[i].active) continue;
-        enemies[i].y = enemies[i].y + enemies[i].speed * dt;
+        enemies[i].position.y += enemies[i].speed * dt;
 
         // Off screen
-        if (enemies[i].y > SCREEN_HEIGHT + ENEMY_HEIGHT) {
+        if (enemies[i].position.y > SCREEN_HEIGHT + ENEMY_HEIGHT) {
           enemies[i].active = false;
           lives = lives - 1;
           if (lives <= 0) gameOver = true;
@@ -240,19 +228,19 @@ class SpaceBlasterGame extends Game {
 
         // Collision with player
         const playerRect: Rect = {
-          x: playerX - PLAYER_WIDTH / 2,
-          y: playerY - PLAYER_HEIGHT / 2,
+          x: playerPosition.x - PLAYER_WIDTH / 2,
+          y: playerPosition.y - PLAYER_HEIGHT / 2,
           width: PLAYER_WIDTH,
           height: PLAYER_HEIGHT,
         };
         const enemyRect: Rect = {
-          x: enemies[i].x - ENEMY_WIDTH / 2,
-          y: enemies[i].y - ENEMY_HEIGHT / 2,
+          x: enemies[i].position.x - ENEMY_WIDTH / 2,
+          y: enemies[i].position.y - ENEMY_HEIGHT / 2,
           width: ENEMY_WIDTH,
           height: ENEMY_HEIGHT,
         };
         if (Collision.checkRectangles(playerRect, enemyRect)) {
-          spawnExplosion(enemies[i].x, enemies[i].y, 15, getEnemyColor(enemies[i].kind));
+          spawnExplosion(enemies[i].position, 15, getEnemyColor(enemies[i].kind));
           enemies[i].active = false;
           lives = lives - 1;
           if (lives <= 0) gameOver = true;
@@ -263,8 +251,8 @@ class SpaceBlasterGame extends Game {
         for (let j = 0; j < MAX_BULLETS; j++) {
           if (!bullets[j].active) continue;
           const bulletRect: Rect = {
-            x: bullets[j].x - BULLET_WIDTH / 2,
-            y: bullets[j].y - BULLET_HEIGHT / 2,
+            x: bullets[j].position.x - BULLET_WIDTH / 2,
+            y: bullets[j].position.y - BULLET_HEIGHT / 2,
             width: BULLET_WIDTH,
             height: BULLET_HEIGHT,
           };
@@ -272,11 +260,11 @@ class SpaceBlasterGame extends Game {
             bullets[j].active = false;
             enemies[i].hp = enemies[i].hp - 1;
             if (enemies[i].hp <= 0) {
-              spawnExplosion(enemies[i].x, enemies[i].y, 12, getEnemyColor(enemies[i].kind));
+              spawnExplosion(enemies[i].position, 12, getEnemyColor(enemies[i].kind));
               enemies[i].active = false;
               score = score + (enemies[i].kind === 2 ? 30 : (enemies[i].kind === 1 ? 20 : 10));
             } else {
-              spawnExplosion(bullets[j].x, bullets[j].y, 3, { r: 255, g: 255, b: 100, a: 255 });
+              spawnExplosion(bullets[j].position, 3, { r: 255, g: 255, b: 100, a: 255 });
             }
             break;
           }
@@ -286,8 +274,8 @@ class SpaceBlasterGame extends Game {
       // Update particles
       for (let i = 0; i < MAX_PARTICLES; i++) {
         if (!particles[i].active) continue;
-        particles[i].x = particles[i].x + particles[i].vx * dt;
-        particles[i].y = particles[i].y + particles[i].vy * dt;
+        particles[i].position.x += particles[i].velocity.x * dt;
+        particles[i].position.y += particles[i].velocity.y * dt;
         particles[i].life = particles[i].life - dt;
         if (particles[i].life <= 0) {
           particles[i].active = false;
@@ -297,10 +285,10 @@ class SpaceBlasterGame extends Game {
 
     // Update stars (always, even on game over)
     for (let i = 0; i < MAX_STARS; i++) {
-      stars[i].y = stars[i].y + stars[i].speed * dt;
-      if (stars[i].y > SCREEN_HEIGHT) {
-        stars[i].y = 0;
-        stars[i].x = Mathf.randomFloat(0, SCREEN_WIDTH);
+      stars[i].position.y += stars[i].speed * dt;
+      if (stars[i].position.y > SCREEN_HEIGHT) {
+        stars[i].position.y = 0;
+        stars[i].position.x = Mathf.randomFloat(0, SCREEN_WIDTH);
       }
     }
 
@@ -313,28 +301,33 @@ class SpaceBlasterGame extends Game {
     // Stars
     for (let i = 0; i < MAX_STARS; i++) {
       const b = Math.floor(stars[i].brightness * 255);
-      this.renderer.drawRectangle({ x: stars[i].x, y: stars[i].y, width: 2, height: 2 }, { r: b, g: b, b: b, a: 255 });
+      this.renderer.drawRectangle({ x: stars[i].position.x, y: stars[i].position.y, width: 2, height: 2 }, { r: b, g: b, b: b, a: 255 });
     }
 
     if (!gameOver) {
       // Player ship (triangle)
-      this.renderer.drawTriangle({ x: playerX, y: playerY - PLAYER_HEIGHT / 2 }, { x: playerX - PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { x: playerX + PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { r: 50, g: 200, b: 255, a: 255 });
+      this.renderer.drawTriangle(
+        new Vector2D(playerPosition.x, playerPosition.y - PLAYER_HEIGHT / 2),
+        new Vector2D(playerPosition.x - PLAYER_WIDTH / 2, playerPosition.y + PLAYER_HEIGHT / 2),
+        new Vector2D(playerPosition.x + PLAYER_WIDTH / 2, playerPosition.y + PLAYER_HEIGHT / 2),
+        { r: 50, g: 200, b: 255, a: 255 },
+      );
       // Engine glow
-      this.renderer.drawRectangle({ x: playerX - 4, y: playerY + PLAYER_HEIGHT / 2, width: 8, height: 6 }, { r: 255, g: 150, b: 0, a: 200 });
+      this.renderer.drawRectangle({ x: playerPosition.x - 4, y: playerPosition.y + PLAYER_HEIGHT / 2, width: 8, height: 6 }, { r: 255, g: 150, b: 0, a: 200 });
 
       // Bullets
       for (let i = 0; i < MAX_BULLETS; i++) {
         if (!bullets[i].active) continue;
-        this.renderer.drawRectangle({ x: bullets[i].x - BULLET_WIDTH / 2, y: bullets[i].y - BULLET_HEIGHT / 2, width: BULLET_WIDTH, height: BULLET_HEIGHT }, { r: 255, g: 255, b: 100, a: 255 });
+        this.renderer.drawRectangle({ x: bullets[i].position.x - BULLET_WIDTH / 2, y: bullets[i].position.y - BULLET_HEIGHT / 2, width: BULLET_WIDTH, height: BULLET_HEIGHT }, { r: 255, g: 255, b: 100, a: 255 });
       }
 
       // Enemies
       for (let i = 0; i < MAX_ENEMIES; i++) {
         if (!enemies[i].active) continue;
         const color = getEnemyColor(enemies[i].kind);
-        this.renderer.drawRectangle({ x: enemies[i].x - ENEMY_WIDTH / 2, y: enemies[i].y - ENEMY_HEIGHT / 2, width: ENEMY_WIDTH, height: ENEMY_HEIGHT }, color);
+        this.renderer.drawRectangle({ x: enemies[i].position.x - ENEMY_WIDTH / 2, y: enemies[i].position.y - ENEMY_HEIGHT / 2, width: ENEMY_WIDTH, height: ENEMY_HEIGHT }, color);
         // Cockpit
-        this.renderer.drawRectangle({ x: enemies[i].x - 4, y: enemies[i].y - 4, width: 8, height: 8 }, { r: 200, g: 200, b: 200, a: 255 });
+        this.renderer.drawRectangle({ x: enemies[i].position.x - 4, y: enemies[i].position.y - 4, width: 8, height: 8 }, { r: 200, g: 200, b: 200, a: 255 });
       }
     }
 
@@ -343,31 +336,36 @@ class SpaceBlasterGame extends Game {
       if (!particles[i].active) continue;
       const alpha = Math.floor((particles[i].life / particles[i].maxLife) * 255);
       const c = particles[i].color;
-      this.renderer.drawRectangle({ x: particles[i].x - 2, y: particles[i].y - 2, width: 4, height: 4 }, { r: c.r, g: c.g, b: c.b, a: alpha });
+      this.renderer.drawRectangle({ x: particles[i].position.x - 2, y: particles[i].position.y - 2, width: 4, height: 4 }, { r: c.r, g: c.g, b: c.b, a: alpha });
     }
 
     // HUD
-    this.renderer.drawText("SCORE: " + score.toString(), { x: 10, y: 10 }, 20, Colors.WHITE);
-    this.renderer.drawText("WAVE: " + wave.toString(), { x: SCREEN_WIDTH / 2 - 40, y: 10 }, 20, Colors.WHITE);
+    this.renderer.drawText("SCORE: " + score.toString(), new Vector2D(10, 10), 20, Colors.WHITE);
+    this.renderer.drawText("WAVE: " + wave.toString(), new Vector2D(SCREEN_WIDTH / 2 - 40, 10), 20, Colors.WHITE);
 
     // Lives
     for (let i = 0; i < lives; i++) {
-      this.renderer.drawTriangle({ x: SCREEN_WIDTH - 30 - i * 25, y: 12 }, { x: SCREEN_WIDTH - 40 - i * 25, y: 28 }, { x: SCREEN_WIDTH - 20 - i * 25, y: 28 }, { r: 50, g: 200, b: 255, a: 255 });
+      this.renderer.drawTriangle(
+        new Vector2D(SCREEN_WIDTH - 30 - i * 25, 12),
+        new Vector2D(SCREEN_WIDTH - 40 - i * 25, 28),
+        new Vector2D(SCREEN_WIDTH - 20 - i * 25, 28),
+        { r: 50, g: 200, b: 255, a: 255 },
+      );
     }
 
     // Wave announcement
     if (waveTimer < 0) {
       const waveText = "WAVE " + wave.toString();
-      this.renderer.drawText(waveText, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(waveText, 40) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 40, Colors.YELLOW);
+      this.renderer.drawText(waveText, new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText(waveText, 40) / 2, SCREEN_HEIGHT / 2 - 20), 40, Colors.YELLOW);
     }
 
     // Game over screen
     if (gameOver) {
-      this.renderer.drawText("GAME OVER", { x: SCREEN_WIDTH / 2 - this.renderer.measureText("GAME OVER", 60) / 2, y: SCREEN_HEIGHT / 2 - 60 }, 60, Colors.RED);
+      this.renderer.drawText("GAME OVER", new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText("GAME OVER", 60) / 2, SCREEN_HEIGHT / 2 - 60), 60, Colors.RED);
       const finalScore = "Score: " + score.toString();
-      this.renderer.drawText(finalScore, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(finalScore, 30) / 2, y: SCREEN_HEIGHT / 2 + 10 }, 30, Colors.WHITE);
+      this.renderer.drawText(finalScore, new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText(finalScore, 30) / 2, SCREEN_HEIGHT / 2 + 10), 30, Colors.WHITE);
       const restartText = "Press ENTER to restart";
-      this.renderer.drawText(restartText, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(restartText, 20) / 2, y: SCREEN_HEIGHT / 2 + 60 }, 20, Colors.LIGHTGRAY);
+      this.renderer.drawText(restartText, new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText(restartText, 20) / 2, SCREEN_HEIGHT / 2 + 60), 20, Colors.LIGHTGRAY);
     }
 
   }

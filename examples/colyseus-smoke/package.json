@@ -14,7 +14,7 @@
   },
   "perry": {
     "allow": {
-      "nativeLibrary": ["@bornengine/engine/*"]
+      "nativeLibrary": ["@bornengine/engine"]
     }
   }
 }

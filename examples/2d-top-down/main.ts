@@ -30,7 +30,7 @@ class RoomBackdrop extends GameComponent {
 
   constructor(size: Vector2D) {
     super();
-    this.size = { x: size.x, y: size.y };
+    this.size = size.clone();
     this.color = { r: 17, g: 42, b: 58, a: 255 };
     this.renderOrder = -100;
   }
@@ -191,7 +191,7 @@ class MoonlitPierGame extends Game {
     super.render();
     this.renderer.drawText(
       'WASD / arrows: move     R: switch layout     Space: chime',
-      { x: 18, y: 18 },
+      new Vector2D(18, 18),
       17,
       Colors.WHITE,
     );

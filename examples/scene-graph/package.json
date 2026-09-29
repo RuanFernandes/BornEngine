@@ -1,0 +1,13 @@
+{
+  "name": "bornengine-scene-graph-examples",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine"]
+    }
+  }
+}

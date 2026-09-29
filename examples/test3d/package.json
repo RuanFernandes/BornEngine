@@ -3,5 +3,10 @@
   "version": "0.1.0",
   "dependencies": {
     "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine"]
+    }
   }
 }

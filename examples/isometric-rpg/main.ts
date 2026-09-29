@@ -1,4 +1,4 @@
-import { Colors, Game, Key, Mathf, MouseButton, Vector2D } from '@bornengine/engine';
+import { Colors, Game, Key, Mathf, Vector2D } from '@bornengine/engine';
 import type { Camera2D, Color } from '@bornengine/engine';
 
 // Constants
@@ -26,10 +26,8 @@ const ITEM_KEY = 3;
 const ITEM_COIN = 4;
 
 interface Entity {
-  mapX: number;
-  mapY: number;
-  screenX: number;
-  screenY: number;
+  mapPosition: Vector2D;
+  screenPosition: Vector2D;
   name: string;
   hp: number;
   maxHp: number;
@@ -42,21 +40,23 @@ interface Entity {
 
 interface Item {
   type: number;
-  mapX: number;
-  mapY: number;
+  mapPosition: Vector2D;
   active: boolean;
   name: string;
 }
 
 // Isometric conversion
-function isoToScreen(mapX: number, mapY: number): Vector2D {
-  return new Vector2D((mapX - mapY) * (TILE_W / 2), (mapX + mapY) * (TILE_H / 2));
+function isoToScreen(mapPosition: Vector2D): Vector2D {
+  return new Vector2D(
+    (mapPosition.x - mapPosition.y) * (TILE_W / 2),
+    (mapPosition.x + mapPosition.y) * (TILE_H / 2),
+  );
 }
 
-function screenToIso(sx: number, sy: number): Vector2D {
+function screenToIso(screenPosition: Vector2D): Vector2D {
   return new Vector2D(
-    Math.floor((sx / (TILE_W / 2) + sy / (TILE_H / 2)) / 2),
-    Math.floor((sy / (TILE_H / 2) - sx / (TILE_W / 2)) / 2),
+    Math.floor((screenPosition.x / (TILE_W / 2) + screenPosition.y / (TILE_H / 2)) / 2),
+    Math.floor((screenPosition.y / (TILE_H / 2) - screenPosition.x / (TILE_W / 2)) / 2),
   );
 }
 
@@ -65,7 +65,7 @@ const map: number[] = [];
 for (let i = 0; i < MAP_W * MAP_H; i++) map.push(T_GRASS);
 
 const player: Entity = {
-  mapX: 5, mapY: 5, screenX: 0, screenY: 0,
+  mapPosition: new Vector2D(5, 5), screenPosition: Vector2D.zero(),
   name: "Hero", hp: 30, maxHp: 30, attack: 8, defense: 3,
   friendly: true, dialogue: [], dialogueIndex: 0,
 };
@@ -172,7 +172,7 @@ function generateWorld(): void {
 
   // NPCs
   npcs.push({
-    mapX: 4, mapY: 4, screenX: 0, screenY: 0,
+    mapPosition: new Vector2D(4, 4), screenPosition: Vector2D.zero(),
     name: "Elder", hp: 20, maxHp: 20, attack: 0, defense: 0,
     friendly: true,
     dialogue: [
@@ -183,52 +183,53 @@ function generateWorld(): void {
     dialogueIndex: 0,
   });
   npcs.push({
-    mapX: 12, mapY: 8, screenX: 0, screenY: 0,
+    mapPosition: new Vector2D(12, 8), screenPosition: Vector2D.zero(),
     name: "Merchant", hp: 15, maxHp: 15, attack: 0, defense: 0,
     friendly: true,
     dialogue: ["I sell potions and shields!", "Come back when you have gold."],
     dialogueIndex: 0,
   });
   npcs.push({
-    mapX: 16, mapY: 5, screenX: 0, screenY: 0,
+    mapPosition: new Vector2D(16, 5), screenPosition: Vector2D.zero(),
     name: "Goblin", hp: 12, maxHp: 12, attack: 5, defense: 1,
     friendly: false, dialogue: ["Grrrr!"], dialogueIndex: 0,
   });
   npcs.push({
-    mapX: 18, mapY: 7, screenX: 0, screenY: 0,
+    mapPosition: new Vector2D(18, 7), screenPosition: Vector2D.zero(),
     name: "Goblin", hp: 12, maxHp: 12, attack: 5, defense: 1,
     friendly: false, dialogue: ["Grrrr!"], dialogueIndex: 0,
   });
   npcs.push({
-    mapX: 17, mapY: 3, screenX: 0, screenY: 0,
+    mapPosition: new Vector2D(17, 3), screenPosition: Vector2D.zero(),
     name: "Goblin Chief", hp: 25, maxHp: 25, attack: 8, defense: 3,
     friendly: false, dialogue: ["You dare challenge me?!"], dialogueIndex: 0,
   });
 
   // Items scattered around
-  items.push({ type: ITEM_POTION, mapX: 8, mapY: 12, active: true, name: "Potion" });
-  items.push({ type: ITEM_COIN, mapX: 6, mapY: 9, active: true, name: "Gold" });
-  items.push({ type: ITEM_COIN, mapX: 15, mapY: 11, active: true, name: "Gold" });
-  items.push({ type: ITEM_SWORD, mapX: 4, mapY: 3, active: true, name: "Iron Sword" });
-  items.push({ type: ITEM_SHIELD, mapX: 12, mapY: 15, active: true, name: "Shield" });
-  items.push({ type: ITEM_KEY, mapX: 18, mapY: 3, active: true, name: "Dungeon Key" });
+  items.push({ type: ITEM_POTION, mapPosition: new Vector2D(8, 12), active: true, name: "Potion" });
+  items.push({ type: ITEM_COIN, mapPosition: new Vector2D(6, 9), active: true, name: "Gold" });
+  items.push({ type: ITEM_COIN, mapPosition: new Vector2D(15, 11), active: true, name: "Gold" });
+  items.push({ type: ITEM_SWORD, mapPosition: new Vector2D(4, 3), active: true, name: "Iron Sword" });
+  items.push({ type: ITEM_SHIELD, mapPosition: new Vector2D(12, 15), active: true, name: "Shield" });
+  items.push({ type: ITEM_KEY, mapPosition: new Vector2D(18, 3), active: true, name: "Dungeon Key" });
 }
 
-function npcAt(x: number, y: number): number {
+function npcAt(position: Vector2D): number {
   for (let i = 0; i < npcs.length; i++) {
-    if (npcs[i].hp > 0 && npcs[i].mapX === x && npcs[i].mapY === y) return i;
+    if (npcs[i].hp > 0 && npcs[i].mapPosition.x === position.x && npcs[i].mapPosition.y === position.y) return i;
   }
   return -1;
 }
 
-function tryMovePlayer(dx: number, dy: number): void {
-  const nx = player.mapX + dx;
-  const ny = player.mapY + dy;
+function tryMovePlayer(direction: Vector2D): void {
+  const destination = player.mapPosition.add(direction);
+  const nx = destination.x;
+  const ny = destination.y;
 
   if (!isWalkable(nx, ny)) return;
 
   // Check for NPC
-  const ni = npcAt(nx, ny);
+  const ni = npcAt(destination);
   if (ni >= 0) {
     if (npcs[ni].friendly) {
       // Talk
@@ -260,12 +261,11 @@ function tryMovePlayer(dx: number, dy: number): void {
     return;
   }
 
-  player.mapX = nx;
-  player.mapY = ny;
+  player.mapPosition = destination;
 
   // Check items
   for (let i = 0; i < items.length; i++) {
-    if (items[i].active && items[i].mapX === nx && items[i].mapY === ny) {
+    if (items[i].active && items[i].mapPosition.x === nx && items[i].mapPosition.y === ny) {
       items[i].active = false;
       if (items[i].type === ITEM_COIN) {
         gold = gold + 10;
@@ -297,10 +297,10 @@ class IsometricRpgGame extends Game {
       }
     } else if (player.hp > 0) {
       // Movement (turn-based)
-      if (this.input.isKeyPressed(Key.UP) || this.input.isKeyPressed(Key.W)) tryMovePlayer(0, -1);
-      if (this.input.isKeyPressed(Key.DOWN) || this.input.isKeyPressed(Key.S)) tryMovePlayer(0, 1);
-      if (this.input.isKeyPressed(Key.LEFT) || this.input.isKeyPressed(Key.A)) tryMovePlayer(-1, 0);
-      if (this.input.isKeyPressed(Key.RIGHT) || this.input.isKeyPressed(Key.D)) tryMovePlayer(1, 0);
+      if (this.input.isKeyPressed(Key.UP) || this.input.isKeyPressed(Key.W)) tryMovePlayer(new Vector2D(0, -1));
+      if (this.input.isKeyPressed(Key.DOWN) || this.input.isKeyPressed(Key.S)) tryMovePlayer(new Vector2D(0, 1));
+      if (this.input.isKeyPressed(Key.LEFT) || this.input.isKeyPressed(Key.A)) tryMovePlayer(new Vector2D(-1, 0));
+      if (this.input.isKeyPressed(Key.RIGHT) || this.input.isKeyPressed(Key.D)) tryMovePlayer(new Vector2D(1, 0));
 
       // Zoom
       if (this.input.isKeyDown(Key.EQUAL)) camera.zoom = Mathf.clamp(camera.zoom + dt, 0.5, 2.0);
@@ -309,28 +309,22 @@ class IsometricRpgGame extends Game {
       if (this.input.isKeyPressed(Key.ENTER)) {
         // Respawn
         player.hp = player.maxHp;
-        player.mapX = 5;
-        player.mapY = 5;
+        player.mapPosition = new Vector2D(5, 5);
         showMsg("You wake up at the village...");
       }
     }
 
     // Smooth camera
-    const playerScreen = isoToScreen(player.mapX, player.mapY);
-    camera.target.x = Mathf.lerp(camera.target.x, playerScreen.x, 6 * dt);
-    camera.target.y = Mathf.lerp(camera.target.y, playerScreen.y, 6 * dt);
+    const playerScreen = isoToScreen(player.mapPosition);
+    camera.target = Vector2D.lerpUnclamped(camera.target, playerScreen, 6 * dt);
 
     if (messageTimer > 0) messageTimer = messageTimer - dt;
 
     // Update NPC screen positions
     for (let i = 0; i < npcs.length; i++) {
-      const s = isoToScreen(npcs[i].mapX, npcs[i].mapY);
-      npcs[i].screenX = s.x;
-      npcs[i].screenY = s.y;
+      npcs[i].screenPosition = isoToScreen(npcs[i].mapPosition);
     }
-    const ps = isoToScreen(player.mapX, player.mapY);
-    player.screenX = ps.x;
-    player.screenY = ps.y;
+    player.screenPosition = isoToScreen(player.mapPosition);
 
     // Drawing
   }
@@ -347,7 +341,7 @@ class IsometricRpgGame extends Game {
     for (let y = 0; y < MAP_H; y++) {
       for (let x = 0; x < MAP_W; x++) {
         const tile = tileAt(x, y);
-        const s = isoToScreen(x, y);
+        const s = isoToScreen(new Vector2D(x, y));
         const sx = s.x * camera.zoom + ox;
         const sy = s.y * camera.zoom + oy;
         const tw = TILE_W * camera.zoom;
@@ -364,18 +358,19 @@ class IsometricRpgGame extends Game {
     // Draw items
     for (let i = 0; i < items.length; i++) {
       if (!items[i].active) continue;
-      const s = isoToScreen(items[i].mapX, items[i].mapY);
+      const s = isoToScreen(items[i].mapPosition);
       const sx = s.x * camera.zoom + ox;
       const sy = s.y * camera.zoom + oy;
       const size = 8 * camera.zoom;
-      this.renderer.drawCircle({ x: sx, y: sy + TILE_H * camera.zoom * 0.5 }, size, itemColor(items[i].type));
+      this.renderer.drawCircle(new Vector2D(sx, sy + TILE_H * camera.zoom * 0.5), size, itemColor(items[i].type));
     }
 
     // Draw NPCs
     for (let i = 0; i < npcs.length; i++) {
       if (npcs[i].hp <= 0) continue;
-      const sx = npcs[i].screenX * camera.zoom + ox;
-      const sy = npcs[i].screenY * camera.zoom + oy;
+      const screenPosition = npcs[i].screenPosition.scale(camera.zoom).add(new Vector2D(ox, oy));
+      const sx = screenPosition.x;
+      const sy = screenPosition.y;
       const size = 12 * camera.zoom;
       const bodyColor = npcs[i].friendly ? { r: 50, g: 150, b: 50, a: 255 } : { r: 200, g: 50, b: 50, a: 255 };
       this.renderer.drawRectangle({ x: sx - size / 2, y: sy - size + TILE_H * camera.zoom * 0.3, width: size, height: size * 1.5 }, bodyColor);
@@ -387,26 +382,27 @@ class IsometricRpgGame extends Game {
 
     // Draw player
     {
-      const sx = player.screenX * camera.zoom + ox;
-      const sy = player.screenY * camera.zoom + oy;
+      const screenPosition = player.screenPosition.scale(camera.zoom).add(new Vector2D(ox, oy));
+      const sx = screenPosition.x;
+      const sy = screenPosition.y;
       const size = 14 * camera.zoom;
       this.renderer.drawRectangle({ x: sx - size / 2, y: sy - size + TILE_H * camera.zoom * 0.3, width: size, height: size * 1.5 }, { r: 50, g: 100, b: 255, a: 255 });
       // Head
-      this.renderer.drawCircle({ x: sx, y: sy - size + TILE_H * camera.zoom * 0.3 - 4 * camera.zoom }, 5 * camera.zoom, { r: 230, g: 200, b: 170, a: 255 });
+      this.renderer.drawCircle(new Vector2D(sx, sy - size + TILE_H * camera.zoom * 0.3 - 4 * camera.zoom), 5 * camera.zoom, { r: 230, g: 200, b: 170, a: 255 });
     }
 
     // HUD panel
     this.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 45 }, { r: 20, g: 20, b: 30, a: 220 });
-    this.renderer.drawText(player.name + "  Lv." + level.toString(), { x: 10, y: 5 }, 18, Colors.WHITE);
+    this.renderer.drawText(player.name + "  Lv." + level.toString(), new Vector2D(10, 5), 18, Colors.WHITE);
     // HP bar
     this.renderer.drawRectangle({ x: 10, y: 28, width: 120, height: 10 }, { r: 60, g: 0, b: 0, a: 255 });
     this.renderer.drawRectangle({ x: 10, y: 28, width: Math.floor(120 * player.hp / player.maxHp), height: 10 }, Colors.RED);
-    this.renderer.drawText(player.hp.toString() + "/" + player.maxHp.toString(), { x: 15, y: 27 }, 10, Colors.WHITE);
+    this.renderer.drawText(player.hp.toString() + "/" + player.maxHp.toString(), new Vector2D(15, 27), 10, Colors.WHITE);
 
-    this.renderer.drawText("ATK: " + player.attack.toString(), { x: 150, y: 8 }, 16, { r: 255, g: 150, b: 50, a: 255 });
-    this.renderer.drawText("DEF: " + player.defense.toString(), { x: 240, y: 8 }, 16, { r: 50, g: 150, b: 255, a: 255 });
-    this.renderer.drawText("Gold: " + gold.toString(), { x: 330, y: 8 }, 16, Colors.YELLOW);
-    this.renderer.drawText("EXP: " + exp.toString() + "/" + (level * 20).toString(), { x: 430, y: 8 }, 16, { r: 150, g: 255, b: 150, a: 255 });
+    this.renderer.drawText("ATK: " + player.attack.toString(), new Vector2D(150, 8), 16, { r: 255, g: 150, b: 50, a: 255 });
+    this.renderer.drawText("DEF: " + player.defense.toString(), new Vector2D(240, 8), 16, { r: 50, g: 150, b: 255, a: 255 });
+    this.renderer.drawText("Gold: " + gold.toString(), new Vector2D(330, 8), 16, Colors.YELLOW);
+    this.renderer.drawText("EXP: " + exp.toString() + "/" + (level * 20).toString(), new Vector2D(430, 8), 16, { r: 150, g: 255, b: 150, a: 255 });
 
     // Inventory
     if (inventory.length > 0) {
@@ -415,7 +411,7 @@ class IsometricRpgGame extends Game {
         if (i > 0) invStr = invStr + ", ";
         invStr = invStr + itemName(inventory[i]);
       }
-      this.renderer.drawText(invStr, { x: 550, y: 8 }, 14, Colors.LIGHTGRAY);
+      this.renderer.drawText(invStr, new Vector2D(550, 8), 14, Colors.LIGHTGRAY);
     }
 
     // Dialogue box
@@ -423,26 +419,26 @@ class IsometricRpgGame extends Game {
       this.renderer.drawRectangle({ x: 50, y: SCREEN_HEIGHT - 120, width: SCREEN_WIDTH - 100, height: 100 }, { r: 10, g: 10, b: 30, a: 230 });
       this.renderer.drawRectangleOutline({ x: 50, y: SCREEN_HEIGHT - 120, width: SCREEN_WIDTH - 100, height: 100 }, Colors.WHITE, 2);
       const npcName = npcs[dialogueNpc].name;
-      this.renderer.drawText(npcName, { x: 70, y: SCREEN_HEIGHT - 110 }, 20, Colors.YELLOW);
-      this.renderer.drawText(dialogueText, { x: 70, y: SCREEN_HEIGHT - 80 }, 18, Colors.WHITE);
-      this.renderer.drawText("[SPACE] to continue", { x: 70, y: SCREEN_HEIGHT - 35 }, 14, Colors.LIGHTGRAY);
+      this.renderer.drawText(npcName, new Vector2D(70, SCREEN_HEIGHT - 110), 20, Colors.YELLOW);
+      this.renderer.drawText(dialogueText, new Vector2D(70, SCREEN_HEIGHT - 80), 18, Colors.WHITE);
+      this.renderer.drawText("[SPACE] to continue", new Vector2D(70, SCREEN_HEIGHT - 35), 14, Colors.LIGHTGRAY);
     }
 
     // Message log
     if (messageTimer > 0) {
       const alpha = Math.floor(Mathf.clamp(messageTimer * 255, 0, 255));
-      this.renderer.drawText(message, { x: 10, y: SCREEN_HEIGHT - 30 }, 16, { r: 255, g: 255, b: 200, a: alpha });
+      this.renderer.drawText(message, new Vector2D(10, SCREEN_HEIGHT - 30), 16, { r: 255, g: 255, b: 200, a: alpha });
     }
 
     // Death
     if (player.hp <= 0) {
       this.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 40, width: SCREEN_WIDTH, height: 80 }, { r: 0, g: 0, b: 0, a: 200 });
-      this.renderer.drawText("YOU DIED", { x: SCREEN_WIDTH / 2 - this.renderer.measureText("YOU DIED", 50) / 2, y: SCREEN_HEIGHT / 2 - 30 }, 50, Colors.RED);
-      this.renderer.drawText("Press ENTER to respawn", { x: SCREEN_WIDTH / 2 - this.renderer.measureText("Press ENTER to respawn", 18) / 2, y: SCREEN_HEIGHT / 2 + 25 }, 18, Colors.LIGHTGRAY);
+      this.renderer.drawText("YOU DIED", new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText("YOU DIED", 50) / 2, SCREEN_HEIGHT / 2 - 30), 50, Colors.RED);
+      this.renderer.drawText("Press ENTER to respawn", new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText("Press ENTER to respawn", 18) / 2, SCREEN_HEIGHT / 2 + 25), 18, Colors.LIGHTGRAY);
     }
 
     // Controls hint
-    this.renderer.drawText("WASD/Arrows: Move | +/-: Zoom", { x: SCREEN_WIDTH - 310, y: SCREEN_HEIGHT - 20 }, 12, { r: 150, g: 150, b: 150, a: 150 });
+    this.renderer.drawText("WASD/Arrows: Move | +/-: Zoom", new Vector2D(SCREEN_WIDTH - 310, SCREEN_HEIGHT - 20), 12, { r: 150, g: 150, b: 150, a: 150 });
 
   }
 }
@@ -451,8 +447,8 @@ const game = new IsometricRpgGame({ window: { width: SCREEN_WIDTH, height: SCREE
 generateWorld();
 
 const camera: Camera2D = {
-  offset: { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 3 },
-  target: { x: 0, y: 0 },
+  offset: new Vector2D(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 3),
+  target: Vector2D.zero(),
   rotation: 0,
   zoom: 1.0,
 };

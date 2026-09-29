@@ -99,8 +99,8 @@ class RampSurface extends GameComponent {
   override render(renderer: Renderer): void {
     const origin = this.gameObject?.transform.worldPosition;
     if (!this.isActiveAndEnabled || origin === null || origin === undefined) return;
-    renderer.drawLine({ x: origin.x - 80, y: origin.y + 32 },
-      { x: origin.x + 80, y: origin.y - 32 }, { r: 126, g: 224, b: 255, a: 255 }, 4);
+    renderer.drawLine(new Vector2D(origin.x - 80, origin.y + 32),
+      new Vector2D(origin.x + 80, origin.y - 32), { r: 126, g: 224, b: 255, a: 255 }, 4);
   }
 }
 
@@ -167,26 +167,26 @@ class PlatformerScene extends Scene {
     const ramp = new GameObject({ name: 'Ascending ramp', position: { x: 500, y: 640, z: 0 } });
     ramp.addComponent(new RampSurface());
     ramp.addComponent(physics.createBody({ type: 'static', shape: { type: 'segment',
-      start: { x: -80, y: 32 }, end: { x: 80, y: -32 } } }));
+      start: new Vector2D(-80, 32), end: new Vector2D(80, -32) } }));
     this.addNode(ramp);
 
     const bridge = new GameObject({ name: 'One-way bridge', position: { x: 500, y: 520, z: 0 } });
     bridge.addComponent(new PlatformSurface(160, 4));
     bridge.addComponent(physics.createBody({ type: 'static', shape: { type: 'segment',
-      start: { x: -80, y: 0 }, end: { x: 80, y: 0 } },
-      oneWay: { normal: { x: 0, y: -1 }, tolerance: 0.01 } }));
+      start: new Vector2D(-80, 0), end: new Vector2D(80, 0) },
+      oneWay: { normal: new Vector2D(0, -1), tolerance: 0.01 } }));
     this.addNode(bridge);
 
     const projectileWall = new GameObject({ name: 'Projectile wall', position: { x: 700, y: 400, z: 0 } });
     projectileWall.addComponent(new PlatformSurface(4, 80));
     projectileWall.addComponent(physics.createBody({ type: 'static', shape: { type: 'segment',
-      start: { x: 0, y: -40 }, end: { x: 0, y: 40 } } }));
+      start: new Vector2D(0, -40), end: new Vector2D(0, 40) } }));
     this.addNode(projectileWall);
 
     const projectile = new GameObject({ name: 'Fast projectile', position: { x: 80, y: 400, z: 0 } });
-    projectile.addComponent(new SpriteRenderer(idle, { size: { x: 8, y: 8 } }));
+    projectile.addComponent(new SpriteRenderer(idle, { size: new Vector2D(8, 8) }));
     projectile.addComponent(physics.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 4 },
-      velocity: { x: 3600, y: 0 }, gravityScale: 0, friction: 0,
+      velocity: new Vector2D(3600, 0), gravityScale: 0, friction: 0,
       ccd: true, ccdThreshold: 4 }));
     this.addNode(projectile);
 
@@ -404,7 +404,7 @@ class PlatformerGame extends Game {
   protected override render(): void {
     this.renderer.clear({ r: 11, g: 18, b: 31, a: 255 });
     super.render();
-    this.renderer.drawText('A / D or arrows: move     Space: jump', { x: 20, y: 18 }, 18, Colors.WHITE);
+    this.renderer.drawText('A / D or arrows: move     Space: jump', new Vector2D(20, 18), 18, Colors.WHITE);
   }
 }
 

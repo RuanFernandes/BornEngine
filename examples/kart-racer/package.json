@@ -4,5 +4,10 @@
   "main": "main.ts",
   "dependencies": {
     "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine"]
+    }
   }
 }

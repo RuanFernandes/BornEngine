@@ -1,5 +1,5 @@
 // ============================================================
-// Bloom Renderer Test Scene
+// BornEngine Renderer Test Scene
 // ============================================================
 // Walkable 3D showcase exercising every current rendering feature.
 // Visual regression target for bloom-renderer-spec-v2.md.
@@ -27,42 +27,13 @@
 //   6  Thin Geometry / AA     (-Z, -X)
 // ============================================================
 
-import {
-  initWindow, closeWindow, windowShouldClose, beginDrawing, endDrawing, takeScreenshot,
-  clearBackground, setEnvClearFromHdr, setTargetFPS, getDeltaTime, getFPS, getTime,
-  isKeyDown, isKeyPressed,
-  getMouseDeltaX, getMouseDeltaY,
-  disableCursor, enableCursor,
-  beginMode3D, endMode3D,
-  setFog, setChromaticAberration, setVignette, setFilmGrain, setSunShafts,
-  setAutoExposure, setEnvIntensity, setDepthOfField,
-} from "bloom/core";
-import { Key } from "bloom/core";
-import { drawText } from "bloom/text";
+import { Game, Key, Matrix4, Mesh, Model, Mathf, QualityPreset } from '@bornengine/engine';
+import type { Camera3D, Color, SceneNode, Vec3 } from '@bornengine/engine';
 
-// HUD colors (0-255 range, matching bloom Color struct)
+// HUD colors (0-255 range, matching the BornEngine Color struct)
 const WHITE  = { r: 255, g: 255, b: 255, a: 255 };
 const LGRAY  = { r: 200, g: 200, b: 200, a: 255 };
 const GRAY   = { r: 130, g: 130, b: 130, a: 255 };
-import {
-  setAmbientLight, setDirectionalLight,
-  drawGrid, genMeshCube, createMesh, loadModel, drawModel, drawCube,
-} from "bloom/models";
-import {
-  createSceneNode, setSceneNodeTransform,
-  updateSceneNodeGeometry,
-  setSceneNodeColor, setSceneNodePbr,
-  setSceneNodeCastShadow, setSceneNodeReceiveShadow,
-  enableShadows, dumpShadowMap,
-  addDirectionalLight, addPointLight,
-  attachModelToNode,
-  setSceneNodeWaterMaterial,
-} from "bloom/scene";
-import {
-  mat4Identity, mat4Translate, mat4Scale, mat4RotateY,
-  clamp,
-} from "bloom/math";
-
 // ---- Constants ----
 
 const SCREEN_W = 1280;
@@ -72,6 +43,25 @@ const MOVE_SPEED = 8.0;
 const SPRINT_MULT = 2.5;
 const PI = 3.14159265;
 const TWO_PI = 6.28318530;
+
+type ModelReference = { handle: number; meshCount: number; materialCount: number; transform: number[] };
+
+class RendererTestGame extends Game {
+  protected override loop(deltaTime: number): void {
+    updateCamera(deltaTime);
+  }
+
+  protected override render(): void {
+    renderScene();
+  }
+}
+
+let game: RendererTestGame;
+let elapsedSeconds = 0;
+const managedModels: (Model | Mesh)[] = new Array<Model | Mesh>(16);
+const managedNodes: SceneNode[] = new Array<SceneNode>(2048);
+let managedModelCount = 0;
+let managedNodeCount = 0;
 
 // ---- Headless / spec-driven mode parsing ----
 // When launched with `--spec FILE --out FILE`, we skip the interactive
@@ -144,8 +134,180 @@ for (let i = 2; i < argv.length; i = i + 1) {
 
 // ---- Mesh generation ----
 
+// Renderer-test helpers keep procedural geometry readable while routing each
+// operation through BornEngine's Game-owned API.
+function mat4Identity(): number[] { return Matrix4.identity().toArray(); }
+function mat4Translate(matrix: number[], offset: Vec3): number[] {
+  return new Matrix4(matrix).translated(offset).toArray();
+}
+function mat4Scale(matrix: number[], scale: Vec3): number[] {
+  return new Matrix4(matrix).scaled(scale).toArray();
+}
+function mat4RotateY(matrix: number[], radians: number): number[] {
+  return new Matrix4(matrix).rotatedY(radians).toArray();
+}
+function clamp(value: number, min: number, max: number): number { return Mathf.clamp(value, min, max); }
+function clearBackground(color: Color): void { game.renderer.clear(color); }
+function setEnvClearFromHdr(path: string): void { game.renderer.setEnvironmentFromHdr(path); }
+function takeScreenshot(path: string): void { game.renderer.screenshot(path); }
+function getFPS(): number { return game.renderer.stats.fps; }
+function getTime(): number { return elapsedSeconds; }
+function isKeyDown(key: number): boolean { return game.input.isKeyDown(key); }
+function isKeyPressed(key: number): boolean { return game.input.isKeyPressed(key); }
+function getMouseDeltaX(): number { return game.input.getMouseDeltaX(); }
+function getMouseDeltaY(): number { return game.input.getMouseDeltaY(); }
+function disableCursor(): void { game.input.setCursorCaptured(true); }
+function enableCursor(): void { game.input.setCursorCaptured(false); }
+function beginTest3D(camera: Camera3D): void { game.renderer.begin3D(camera); }
+function endTest3D(): void { game.renderer.end3D(); }
+function setFog(r: number, g: number, b: number, density: number, heightReference: number, heightFalloff: number): void {
+  game.renderer.setFog({ r: r * 255, g: g * 255, b: b * 255, a: 255 }, density, heightReference, heightFalloff);
+}
+function setChromaticAberration(strength: number): void { game.renderer.setChromaticAberration(strength); }
+function setVignette(strength: number, softness: number): void { game.renderer.setVignette(strength, softness); }
+function setFilmGrain(strength: number): void { game.renderer.setFilmGrain(strength); }
+function setSunShafts(strength: number, decay: number, r: number, g: number, b: number): void {
+  game.renderer.setSunShafts(strength, decay, { r: r * 255, g: g * 255, b: b * 255, a: 255 });
+}
+function setAutoExposure(enabled: boolean): void { game.renderer.setAutoExposure(enabled); }
+function setEnvIntensity(value: number): void { game.renderer.setEnvironmentIntensity(value); }
+function setDepthOfField(focusDistance: number, aperture: number): void { game.renderer.setDepthOfField(focusDistance, aperture); }
+function setAmbientLight(color: Color, intensity: number): void { game.sceneGraph.setAmbientLight(color, intensity); }
+function setDirectionalLight(direction: Vec3, color: Color, intensity: number): void {
+  game.sceneGraph.addDirectionalLight(direction, color, intensity);
+}
+function setShadowsEnabled(enabled: boolean): void { game.sceneGraph.setShadowsEnabled(enabled); }
+function enableShadows(): void { setShadowsEnabled(true); }
+function dumpShadowMap(path: string): void { game.sceneGraph.dumpShadowMap(path); }
+function addTestDirectionalLight(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void {
+  game.sceneGraph.addDirectionalLight(
+    { x: dx, y: dy, z: dz }, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
+  );
+}
+function addTestPointLight(x: number, y: number, z: number, range: number, r: number, g: number, b: number, intensity: number): void {
+  game.sceneGraph.addPointLight(
+    { x, y, z }, range, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
+  );
+}
+function drawTestGrid(slices: number, spacing: number): void { game.renderer.drawGrid(slices, spacing); }
+function drawHudText(text: string, x: number, y: number, size: number, color: Color): void {
+  game.renderer.drawText(text, { x, y }, size, color);
+}
+function drawTestCube(position: Vec3, width: number, height: number, depth: number, color: Color): void {
+  game.renderer.drawCube(position, { x: width, y: height, z: depth }, color);
+}
+function drawTestModel(reference: ModelReference, position: Vec3, scale: number, tint: Color): void {
+  const model = managedModels[reference.handle - 1];
+  if (model !== undefined) game.renderer.drawModel(model, position, scale, tint);
+}
+function createTrackedNode(): number {
+  const node = game.sceneGraph.createNode();
+  managedNodes[managedNodeCount] = node;
+  managedNodeCount += 1;
+  return managedNodeCount;
+}
+function getTrackedNode(handle: number): SceneNode | null { return managedNodes[handle - 1] || null; }
+function modelReference(model: Model | Mesh, meshCount: number, materialCount = 0): ModelReference {
+  managedModels[managedModelCount] = model;
+  managedModelCount += 1;
+  return { handle: model.isLoaded ? managedModelCount : 0, meshCount, materialCount, transform: Matrix4.identity().toArray() };
+}
+function createTestMesh(vertices: number[], indices: number[]): ModelReference {
+  const mesh = new Mesh(game, vertices, indices);
+  return modelReference(mesh, 1);
+}
+function loadTestModel(path: string): ModelReference {
+  const model = new Model(game, path);
+  return modelReference(model, model.meshCount, model.materialCount);
+}
+function attachTestModel(nodeHandle: number, modelHandle: number, meshIndex = 0): void {
+  const node = getTrackedNode(nodeHandle);
+  const model = managedModels[modelHandle - 1];
+  if (node !== null && model !== undefined) node.attachModel(model, meshIndex);
+}
+function setTrackedNodeTransform(handle: number, transform: number[]): void { getTrackedNode(handle)?.setTransform(transform); }
+function updateTrackedNodeGeometry(handle: number, vertices: number[], indices: number[]): void {
+  getTrackedNode(handle)?.updateGeometry(vertices, indices);
+}
+function setTrackedNodeColor(handle: number, r: number, g: number, b: number, a = 255): void {
+  getTrackedNode(handle)?.setColor({ r, g, b, a });
+}
+function setTrackedNodePbr(handle: number, roughness: number, metalness: number): void {
+  getTrackedNode(handle)?.setPbr(roughness, metalness);
+}
+function setTrackedNodeCastShadow(handle: number, enabled: boolean): void { getTrackedNode(handle)?.setCastShadow(enabled); }
+function setTrackedNodeReceiveShadow(handle: number, enabled: boolean): void { getTrackedNode(handle)?.setReceiveShadow(enabled); }
+function setTrackedNodeWaterMaterial(handle: number, amplitude: number, speed: number, r: number, g: number, b: number, a: number): void {
+  getTrackedNode(handle)?.setWaterMaterial(amplitude, speed, { r, g, b, a });
+}
+function setRenderScale(scale: number): void { game.renderer.setRenderScale(scale); }
+function setTaaEnabled(enabled: boolean): void { game.renderer.setTaaEnabled(enabled); }
+function setUpscaleMode(mode: 'catmull-rom' | 'bilinear'): void { game.renderer.setUpscaleMode(mode); }
+function setCasStrength(strength: number): void { game.renderer.setCasStrength(strength); }
+function setProfilerEnabled(enabled: boolean): void { game.renderer.setProfilerEnabled(enabled); }
+function getProfilerFrameCpuUs(): number { return game.renderer.getProfilerCpuTimeUs(); }
+function getProfilerFrameGpuUs(): number { return game.renderer.getProfilerGpuTimeUs(); }
+function printProfilerSummary(): void { game.renderer.printProfilerSummary(); }
+function setQualityPreset(preset: QualityPreset): void { game.renderer.setQualityPreset(preset); }
+function setSsaoEnabled(enabled: boolean): void { game.renderer.setSsaoEnabled(enabled); }
+function setSsrEnabled(enabled: boolean): void { game.renderer.setSsrEnabled(enabled); }
+function setSsgiEnabled(enabled: boolean): void { game.renderer.setSsgiEnabled(enabled); }
+
+function cubeVertices(width: number, height: number, depth: number): number[] {
+  const vertices: number[] = new Array<number>(6 * 4 * 12);
+  const halfX = width * 0.5;
+  const halfY = height * 0.5;
+  const halfZ = depth * 0.5;
+  const faces: { normal: Vec3; points: Vec3[] }[] = [
+    { normal: { x: 0, y: 0, z: 1 }, points: [{ x: -halfX, y: -halfY, z: halfZ }, { x: halfX, y: -halfY, z: halfZ }, { x: halfX, y: halfY, z: halfZ }, { x: -halfX, y: halfY, z: halfZ }] },
+    { normal: { x: 0, y: 0, z: -1 }, points: [{ x: halfX, y: -halfY, z: -halfZ }, { x: -halfX, y: -halfY, z: -halfZ }, { x: -halfX, y: halfY, z: -halfZ }, { x: halfX, y: halfY, z: -halfZ }] },
+    { normal: { x: 1, y: 0, z: 0 }, points: [{ x: halfX, y: -halfY, z: halfZ }, { x: halfX, y: -halfY, z: -halfZ }, { x: halfX, y: halfY, z: -halfZ }, { x: halfX, y: halfY, z: halfZ }] },
+    { normal: { x: -1, y: 0, z: 0 }, points: [{ x: -halfX, y: -halfY, z: -halfZ }, { x: -halfX, y: -halfY, z: halfZ }, { x: -halfX, y: halfY, z: halfZ }, { x: -halfX, y: halfY, z: -halfZ }] },
+    { normal: { x: 0, y: 1, z: 0 }, points: [{ x: -halfX, y: halfY, z: halfZ }, { x: halfX, y: halfY, z: halfZ }, { x: halfX, y: halfY, z: -halfZ }, { x: -halfX, y: halfY, z: -halfZ }] },
+    { normal: { x: 0, y: -1, z: 0 }, points: [{ x: -halfX, y: -halfY, z: -halfZ }, { x: halfX, y: -halfY, z: -halfZ }, { x: halfX, y: -halfY, z: halfZ }, { x: -halfX, y: -halfY, z: halfZ }] },
+  ];
+  let vertexIndex = 0;
+  for (const face of faces) {
+    for (let index = 0; index < 4; index += 1) {
+      const point = face.points[index];
+      const offset = vertexIndex * 12;
+      vertices[offset] = point.x;
+      vertices[offset + 1] = point.y;
+      vertices[offset + 2] = point.z;
+      vertices[offset + 3] = face.normal.x;
+      vertices[offset + 4] = face.normal.y;
+      vertices[offset + 5] = face.normal.z;
+      vertices[offset + 6] = 1;
+      vertices[offset + 7] = 1;
+      vertices[offset + 8] = 1;
+      vertices[offset + 9] = 1;
+      vertices[offset + 10] = index === 1 || index === 2 ? 1 : 0;
+      vertices[offset + 11] = index >= 2 ? 1 : 0;
+      vertexIndex += 1;
+    }
+  }
+  return vertices;
+}
+function cubeIndices(): number[] {
+  const indices: number[] = new Array<number>(36);
+  for (let face = 0; face < 6; face += 1) {
+    const base = face * 4;
+    const offset = face * 6;
+    indices[offset] = base;
+    indices[offset + 1] = base + 1;
+    indices[offset + 2] = base + 2;
+    indices[offset + 3] = base;
+    indices[offset + 4] = base + 2;
+    indices[offset + 5] = base + 3;
+  }
+  return indices;
+}
+function genMeshCube(width: number, height: number, depth: number): ModelReference {
+  return createTestMesh(cubeVertices(width, height, depth), cubeIndices());
+}
+
 function makeSphereVertices(radius: number, segs: number, rings: number): number[] {
-  const v: number[] = [];
+  const v: number[] = new Array<number>((segs + 1) * (rings + 1) * 12);
   for (let r = 0; r <= rings; r = r + 1) {
     const phi = PI * r / rings;
     const sp = Math.sin(phi);
@@ -157,23 +319,37 @@ function makeSphereVertices(radius: number, segs: number, rings: number): number
       const x = sp * ct;
       const y = cp;
       const z = sp * st;
-      v.push(x * radius, y * radius, z * radius); // position
-      v.push(x, y, z);                             // normal
-      v.push(1, 1, 1, 1);                          // color (white)
-      v.push(s / segs, r / rings);                  // uv
+      const offset = (r * (segs + 1) + s) * 12;
+      v[offset] = x * radius;
+      v[offset + 1] = y * radius;
+      v[offset + 2] = z * radius;
+      v[offset + 3] = x;
+      v[offset + 4] = y;
+      v[offset + 5] = z;
+      v[offset + 6] = 1;
+      v[offset + 7] = 1;
+      v[offset + 8] = 1;
+      v[offset + 9] = 1;
+      v[offset + 10] = s / segs;
+      v[offset + 11] = r / rings;
     }
   }
   return v;
 }
 
 function makeSphereIndices(segs: number, rings: number): number[] {
-  const idx: number[] = [];
+  const idx: number[] = new Array<number>(segs * rings * 6);
   for (let r = 0; r < rings; r = r + 1) {
     for (let s = 0; s < segs; s = s + 1) {
       const a = r * (segs + 1) + s;
       const b = a + segs + 1;
-      idx.push(a, b, a + 1);
-      idx.push(b, b + 1, a + 1);
+      const offset = (r * segs + s) * 6;
+      idx[offset] = a;
+      idx[offset + 1] = b;
+      idx[offset + 2] = a + 1;
+      idx[offset + 3] = b;
+      idx[offset + 4] = b + 1;
+      idx[offset + 5] = a + 1;
     }
   }
   return idx;
@@ -194,7 +370,7 @@ function makePlaneIndices(): number[] {
   return [0, 2, 1, 0, 3, 2];
 }
 
-// ---- Shared mesh handles (initialized after initWindow) ----
+// ---- Shared mesh handles (initialized after Game construction) ----
 
 let sphereHandle = 0;
 let cubeHandle = 0;
@@ -202,7 +378,7 @@ let cubeHandle = 0;
 function initSharedMeshes(): void {
   const sv = makeSphereVertices(0.5, 24, 16);
   const si = makeSphereIndices(24, 16);
-  sphereHandle = createMesh(sv, si).handle;
+  sphereHandle = createTestMesh(sv, si).handle;
   cubeHandle = genMeshCube(1, 1, 1).handle;
 }
 
@@ -213,14 +389,14 @@ function placeNode(
   px: number, py: number, pz: number,
   sx: number, sy: number, sz: number,
 ): number {
-  const node = createSceneNode();
-  attachModelToNode(node, modelHandle, meshIdx);
+  const node = createTrackedNode();
+  attachTestModel(node, modelHandle, meshIdx);
   let m = mat4Identity();
   m = mat4Translate(m, { x: px, y: py, z: pz });
   m = mat4Scale(m, { x: sx, y: sy, z: sz });
-  setSceneNodeTransform(node, m);
-  setSceneNodeCastShadow(node, true);
-  setSceneNodeReceiveShadow(node, true);
+  setTrackedNodeTransform(node, m);
+  setTrackedNodeCastShadow(node, true);
+  setTrackedNodeReceiveShadow(node, true);
   return node;
 }
 
@@ -231,8 +407,8 @@ function placeSphere(
   roughness: number, metalness: number,
 ): number {
   const node = placeNode(sphereHandle, 0, px, py, pz, scale, scale, scale);
-  setSceneNodeColor(node, cr * 255, cg * 255, cb * 255);
-  setSceneNodePbr(node, roughness, metalness);
+  setTrackedNodeColor(node, cr * 255, cg * 255, cb * 255);
+  setTrackedNodePbr(node, roughness, metalness);
   return node;
 }
 
@@ -243,13 +419,13 @@ function placeCube(
   roughness: number, metalness: number,
 ): number {
   const node = placeNode(cubeHandle, 0, px, py, pz, sx, sy, sz);
-  setSceneNodeColor(node, cr * 255, cg * 255, cb * 255);
-  setSceneNodePbr(node, roughness, metalness);
+  setTrackedNodeColor(node, cr * 255, cg * 255, cb * 255);
+  setTrackedNodePbr(node, roughness, metalness);
   // Thin horizontal slabs (floors) should receive but not cast
   // shadows — otherwise they fill the shadow map with their own
   // depth and everything reads as "in shadow of the ground".
   if (sy <= 0.3) {
-    setSceneNodeCastShadow(node, false);
+    setTrackedNodeCastShadow(node, false);
   }
   return node;
 }
@@ -332,7 +508,7 @@ function setupLightArena(): void {
 function setupShadowTest(): void {
   // Ground — bright warm-white floor, receive-only
   const floor = placeCube(0, -0.05, 0, 50, 0.1, 50, 0.95, 0.93, 0.88, 0.85, 0.0);
-  setSceneNodeCastShadow(floor, false);
+  setTrackedNodeCastShadow(floor, false);
 
   // Central pillar — warm stone
   placeCube(0, 4, 0, 1.5, 8, 1.5, 0.82, 0.78, 0.72, 0.5, 0.0);
@@ -368,14 +544,14 @@ function setupWater(): void {
   const cz = 25.0;
 
   // Water plane
-  const waterNode = createSceneNode();
+  const waterNode = createTrackedNode();
   const wv = makePlaneVertices(30, 20);
   const wi = makePlaneIndices();
-  updateSceneNodeGeometry(waterNode, wv, wi);
+  updateTrackedNodeGeometry(waterNode, wv, wi);
   const wm = mat4Translate(mat4Identity(), { x: 0, y: 0.2, z: cz });
-  setSceneNodeTransform(waterNode, wm);
-  setSceneNodeWaterMaterial(waterNode, 0.15, 1.5, 26, 77, 128, 153);
-  setSceneNodeReceiveShadow(waterNode, true);
+  setTrackedNodeTransform(waterNode, wm);
+  setTrackedNodeWaterMaterial(waterNode, 0.15, 1.5, 26, 77, 128, 153);
+  setTrackedNodeReceiveShadow(waterNode, true);
 
   // Rocks / objects sticking out of water
   placeSphere(3, 0.8, cz - 3, 1.5, 0.45, 0.42, 0.4, 0.8, 0.0);
@@ -455,17 +631,17 @@ function setupThinGeometry(): void {
   // Diagonal bars (worst case for aliasing)
   for (let i = 0; i < 12; i = i + 1) {
     const x = cx - 5.5 + i * 1.0;
-    const node = createSceneNode();
-    attachModelToNode(node, cubeHandle, 0);
-    setSceneNodeColor(node, 153, 153, 158);
-    setSceneNodePbr(node, 0.3, 1.0);
-    setSceneNodeCastShadow(node, true);
-    setSceneNodeReceiveShadow(node, true);
+    const node = createTrackedNode();
+    attachTestModel(node, cubeHandle, 0);
+    setTrackedNodeColor(node, 153, 153, 158);
+    setTrackedNodePbr(node, 0.3, 1.0);
+    setTrackedNodeCastShadow(node, true);
+    setTrackedNodeReceiveShadow(node, true);
     let m = mat4Identity();
     m = mat4Translate(m, { x: x, y: 1.5, z: cz + 2 });
     m = mat4RotateY(m, 0.3 + i * 0.15);
     m = mat4Scale(m, { x: 0.05, y: 3.0, z: 0.05 });
-    setSceneNodeTransform(node, m);
+    setTrackedNodeTransform(node, m);
   }
 
   // Grid of very thin wires (subpixel test)
@@ -500,14 +676,14 @@ function setupGround(): void {
 // here, they'll look good on real game art. This is where procedural
 // cubes/spheres stop being a meaningful test.
 //
-// Uses immediate-mode drawModel() inside the render loop, matching
+// Uses immediate-mode drawTestModel() inside the render loop, matching
 // how david/garden render glTF — the scene graph attach path has
 // issues we haven't debugged yet.
 
-let gltfModel = { handle: 0, meshCount: 0, materialCount: 0, transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1] };
+let gltfModel: ModelReference = { handle: 0, meshCount: 0, materialCount: 0, transform: Matrix4.identity().toArray() };
 
 function setupGltfModel(): void {
-  gltfModel = loadModel("assets/DamagedHelmet.glb");
+  gltfModel = loadTestModel("assets/DamagedHelmet.glb");
   // Pedestal (still rendered via scene graph)
   placeCube(0, 0.1, -30, 6, 0.2, 6, 0.15, 0.15, 0.17, 0.9, 0.0);
 }
@@ -526,6 +702,9 @@ let camZ = 16.0;
 let camYaw = 0.0;
 let camPitch = -0.2;
 let cursorLocked = true;
+let lookX = 0.0;
+let lookY = 0.0;
+let lookZ = 0.0;
 
 // Zone teleport positions [x, y, z, yaw]
 const zones: number[][] = [
@@ -556,10 +735,12 @@ const zoneNames: string[] = [
 // interactive walkthrough size.
 const winW = headlessResW > 0 ? headlessResW : SCREEN_W;
 const winH = headlessResH > 0 ? headlessResH : SCREEN_H;
-initWindow(winW, winH, "Bloom Renderer Test", 0);
-setTargetFPS(60);
+game = new RendererTestGame({
+  window: { width: winW, height: winH, title: 'BornEngine Renderer Test' },
+  targetFps: 60,
+});
 if (!headlessMode) {
-  disableCursor();
+  game.input.setCursorCaptured(true);
 }
 
 
@@ -628,9 +809,8 @@ if (headlessShadows) {
 let headlessFrame = 0;
 const HEADLESS_WARMUP_FRAMES = 30;
 
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
-  const t = getTime();
+function updateCamera(dt: number): void {
+  elapsedSeconds += dt;
 
   // ---- Camera controls ----
 
@@ -682,7 +862,7 @@ while (!windowShouldClose()) {
     }
   }
 
-  // F12 → screenshot for bloom-diff comparison against bloom-reference
+  // F12 → screenshot for visual comparison against the reference renderer
   if (isKeyPressed(Key.F12)) {
     takeScreenshot("renderer-test-screenshot.png");
   }
@@ -701,13 +881,14 @@ while (!windowShouldClose()) {
   }
 
   // Look target
-  const lookX = camX + Math.cos(camPitch) * (-Math.sin(camYaw)) * 100;
-  const lookY = camY + Math.sin(camPitch) * 100;
-  const lookZ = camZ + Math.cos(camPitch) * (-Math.cos(camYaw)) * 100;
+  lookX = camX + Math.cos(camPitch) * (-Math.sin(camYaw)) * 100;
+  lookY = camY + Math.sin(camPitch) * 100;
+  lookZ = camZ + Math.cos(camPitch) * (-Math.cos(camYaw)) * 100;
 
-  // ---- Rendering ----
+}
 
-  beginDrawing();
+function renderScene(): void {
+  const t = getTime();
   // Interactive mode: explicit dark clear color matching the spec
   // scenes. Headless mode uses the HDR env average seeded at init
   // time, so we skip clearBackground to preserve that color.
@@ -744,19 +925,19 @@ while (!windowShouldClose()) {
   // diff numbers when light state leaks into the shader's counters.
   if (!headlessMode) {
     const lightRadius = 7.0;
-    addPointLight(
+    addTestPointLight(
       28 + Math.cos(t * 0.8) * lightRadius,
       3.0,
       Math.sin(t * 0.8) * lightRadius,
       18, 1.0, 0.25, 0.08, 4.0
     );
-    addPointLight(
+    addTestPointLight(
       28 + Math.cos(t * 0.8 + 2.09) * lightRadius,
       3.0,
       Math.sin(t * 0.8 + 2.09) * lightRadius,
       18, 0.08, 0.4, 1.0, 4.0
     );
-    addPointLight(
+    addTestPointLight(
       28 + Math.cos(t * 0.8 + 4.19) * lightRadius,
       3.0,
       Math.sin(t * 0.8 + 4.19) * lightRadius,
@@ -764,7 +945,7 @@ while (!windowShouldClose()) {
     );
 
     // Additional warm fill light near shadow zone
-    addPointLight(-28, 6, 5, 20, 1.0, 0.9, 0.7, 1.5);
+    addTestPointLight(-28, 6, 5, 20, 1.0, 0.9, 0.7, 1.5);
   }
 
   // 3D rendering. Headless mode uses the spec's camera/fov verbatim
@@ -772,7 +953,7 @@ while (!windowShouldClose()) {
   // transform. Interactive mode uses the FPS camera and zone 7's
   // world-space position.
   if (headlessMode) {
-    beginMode3D({
+    beginTest3D({
       position: { x: headlessCamX, y: headlessCamY, z: headlessCamZ },
       target: { x: headlessTargetX, y: headlessTargetY, z: headlessTargetZ },
       up: { x: 0, y: 1, z: 0 },
@@ -782,47 +963,46 @@ while (!windowShouldClose()) {
     // TEMP: visual sanity check — a bright cube at origin. If this
     // shows but the glTF helmet doesn't, the issue is in the glTF
     // model load, not the render pass.
-    drawCube({ x: 0, y: 0, z: 0 }, 0.8, 0.8, 0.8, { r: 255, g: 100, b: 100, a: 255 });
+    drawTestCube({ x: 0, y: 0, z: 0 }, 0.8, 0.8, 0.8, { r: 255, g: 100, b: 100, a: 255 });
     if (gltfModel.handle !== 0) {
-      drawModel(gltfModel, { x: 0, y: 0, z: 0 }, 1.0, { r: 255, g: 255, b: 255, a: 255 });
+      drawTestModel(gltfModel, { x: 0, y: 0, z: 0 }, 1.0, { r: 255, g: 255, b: 255, a: 255 });
     }
   } else {
-    beginMode3D({
+    beginTest3D({
       position: { x: camX, y: camY, z: camZ },
       target: { x: lookX, y: lookY, z: lookZ },
       up: { x: 0, y: 1, z: 0 },
       fovy: 60,
       projection: "perspective",
     });
-    drawGrid(60, 2.0);
+    drawTestGrid(60, 2.0);
     // Zone 7: glTF helmet drawn in immediate mode
     if (gltfModel.handle !== 0) {
-      drawModel(gltfModel, { x: 0, y: 2.5, z: -30 }, 2.0, { r: 255, g: 255, b: 255, a: 255 });
+      drawTestModel(gltfModel, { x: 0, y: 2.5, z: -30 }, 2.0, { r: 255, g: 255, b: 255, a: 255 });
     }
   }
-  endMode3D();
+  endTest3D();
 
   // ---- HUD ---- (skipped in headless — reference never shows text)
 
   if (!headlessMode) {
-    drawText("Bloom Renderer Test", 10, 10, 22, WHITE);
-    drawText("FPS: " + getFPS().toString(), 10, 38, 16, LGRAY);
+    drawHudText("BornEngine Renderer Test", 10, 10, 22, WHITE);
+    drawHudText("FPS: " + getFPS().toString(), 10, 38, 16, LGRAY);
 
-    drawText("WASD move / Mouse look / Shift sprint / Tab cursor", 10, SCREEN_H - 50, 14, GRAY);
-    drawText("Press 1-6 to teleport to zones", 10, SCREEN_H - 30, 14, GRAY);
+    drawHudText("WASD move / Mouse look / Shift sprint / Tab cursor", 10, SCREEN_H - 50, 14, GRAY);
+    drawHudText("Press 1-6 to teleport to zones", 10, SCREEN_H - 30, 14, GRAY);
 
     // Zone legend
     const legendX = SCREEN_W - 220;
-    drawText("Zones:", legendX, 10, 16, LGRAY);
+    drawHudText("Zones:", legendX, 10, 16, LGRAY);
     for (let i = 0; i < 7; i = i + 1) {
       const label = (i + 1).toString() + "  " + zoneNames[i];
-      drawText(label, legendX, 32 + i * 20, 14, GRAY);
+      drawHudText(label, legendX, 32 + i * 20, 14, GRAY);
     }
   }
 
   // Headless: after warmup frames, capture the frame to --out and
-  // exit. We request the screenshot BEFORE endDrawing() so the
-  // renderer's pending-screenshot path picks it up during present.
+  // exit. Capture after rendering so the platform presenter can flush it.
   if (headlessMode) {
     headlessFrame = headlessFrame + 1;
     if (headlessFrame === HEADLESS_WARMUP_FRAMES && headlessOutPath.length > 0) {
@@ -832,8 +1012,8 @@ while (!windowShouldClose()) {
       }
     }
     if (headlessFrame > HEADLESS_WARMUP_FRAMES) {
-      endDrawing();
-      break;
+      game.stop();
+      return;
     }
   } else if (interactiveCaptureFrames > 0) {
     headlessFrame = headlessFrame + 1;
@@ -841,14 +1021,12 @@ while (!windowShouldClose()) {
       takeScreenshot(interactiveCapturePath);
     }
     if (headlessFrame > interactiveCaptureFrames) {
-      endDrawing();
-      break;
+      game.stop();
+      return;
     }
   }
 
-  endDrawing();
 }
 
-// Clean shutdown — headless mode relies on this so the PNG flushes
-// to disk before the process exits.
-closeWindow();
+// Game.run owns the native frame loop and orderly resource cleanup.
+game.run();
