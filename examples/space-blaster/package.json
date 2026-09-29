@@ -1,8 +1,16 @@
 {
-  "name": "space-blaster",
+  "name": "bornengine-space-blaster",
   "version": "1.0.0",
+  "private": true,
   "main": "main.ts",
   "dependencies": {
     "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": [
+        "@bornengine/engine"
+      ]
+    }
   }
 }

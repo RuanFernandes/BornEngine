@@ -1,8 +1,16 @@
 {
-  "name": "dungeon-crawl",
+  "name": "bornengine-dungeon-crawl",
   "version": "1.0.0",
+  "private": true,
   "main": "main.ts",
   "dependencies": {
     "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": [
+        "@bornengine/engine"
+      ]
+    }
   }
 }

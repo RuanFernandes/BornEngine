@@ -10,6 +10,7 @@ import {
   SpriteAnimator,
   SpriteRenderer,
   SpriteSheet,
+  Vector2D,
 } from '@bornengine/engine';
 import type { InputActionMap } from '@bornengine/engine/input';
 import type { SpriteFrame } from '@bornengine/engine/sprites';
@@ -23,14 +24,14 @@ class SpriteDemoScene extends Scene {
   constructor(game: Game, idle: SpriteFrame, walk: SpriteFrame[], attack: SpriteFrame[], sparks: SpriteFrame[]) {
     super(game, { name: 'Sprite animation' });
     this.camera2D = {
-      offset: { x: 400, y: 225 },
-      target: { x: 400, y: 225 },
+      offset: new Vector2D(400, 225),
+      target: new Vector2D(400, 225),
       rotation: 0,
       zoom: 1,
     };
 
     this.player = new GameObject({ name: 'Player', position: { x: 400, y: 225, z: 0 } });
-    this.sprite = new SpriteRenderer(idle, { size: { x: 72, y: 72 } });
+    this.sprite = new SpriteRenderer(idle, { size: new Vector2D(72, 72) });
     const idleAnimation = new SpriteAnimation({
       frames: [{ sprite: idle }],
       fps: 2,
@@ -86,7 +87,7 @@ class SpriteDemoScene extends Scene {
       capacity: 96,
       emissionRate: 3,
       shape: { type: 'circle', radius: 5 },
-      direction: { x: 0, y: -1 },
+      direction: new Vector2D(0, -1),
       lifetime: { min: 0.18, max: 0.48 },
       speed: { min: 30, max: 105 },
       startSize: { min: 4, max: 9 },
@@ -99,9 +100,9 @@ class SpriteDemoScene extends Scene {
     });
     this.particles.renderOrder = -1;
     this.animator.onMarker = (marker) => {
-      if (marker === 'footstep') this.particles.emitBurst(3, { direction: { x: 0, y: -1 } });
+      if (marker === 'footstep') this.particles.emitBurst(3, { direction: new Vector2D(0, -1) });
       if (marker === 'impact') {
-        const direction = { x: this.sprite.flipX ? -1 : 1, y: 0 };
+        const direction = new Vector2D(this.sprite.flipX ? -1 : 1, 0);
         this.particles.emitBurst(18, { direction });
       }
     };
@@ -191,8 +192,9 @@ class SpriteAnimationGame extends Game {
         moveX /= length;
         moveY /= length;
       }
-      level.player.transform.position.x += moveX * 190 * deltaTime;
-      level.player.transform.position.y += moveY * 190 * deltaTime;
+      const movement = new Vector2D(moveX, moveY);
+      level.player.transform.position.x += movement.x * 190 * deltaTime;
+      level.player.transform.position.y += movement.y * 190 * deltaTime;
       if (moveX !== 0) level.sprite.flipX = moveX < 0;
       level.animator.setBool('moving', moveX !== 0 || moveY !== 0);
       if (controls.wasPressed('attack')) level.animator.setTrigger('attack');
@@ -203,7 +205,7 @@ class SpriteAnimationGame extends Game {
   protected override render(): void {
     this.renderer.clear({ r: 14, g: 24, b: 38, a: 255 });
     super.render();
-    this.renderer.drawText('WASD / arrows: move     Space: attack', { x: 18, y: 18 }, 18, Colors.WHITE);
+    this.renderer.drawText('WASD / arrows: move     Space: attack', new Vector2D(18, 18), 18, Colors.WHITE);
   }
 }
 
