@@ -32,22 +32,24 @@ Attach reusable behavior with `GameComponent`. A component can belong to one obj
 ```ts
 import { Colors, Game, GameObject, GameScene } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'Scene sample' } });
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    scene.update(deltaTime);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'Scene sample' } });
 const scene = new GameScene(game);
 scene.add(new GameObject({ name: 'Marker' }));
 
-game.run({
-  update(deltaTime) {
-    scene.update(deltaTime);
-  },
-  render() {
-    game.renderer.clear(Colors.BLACK);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
-`Game.run()` advances platform input/audio/network services. It does not choose how your game structures its gameplay update, so call `scene.update(deltaTime)` or `game.scenes.update(deltaTime)` from the update callback. Use `GameScene` as a direct object container and `Scene` when the scene manager should own activation and transitions:
+`Game.run()` advances platform input/audio/network services. It does not choose how your game structures its gameplay update, so call `scene.update(deltaTime)` or `game.scenes.update(deltaTime)` from your subclass `loop()` hook. Use `GameScene` as a direct object container and `Scene` when the scene manager should own activation and transitions:
 
 ```ts
 import { Game, Scene } from '@bornengine/engine';

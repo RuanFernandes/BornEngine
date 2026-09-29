@@ -10,8 +10,18 @@ Model and animation instances are constructed with a Game. Their native identiti
 ## Loading
 
 ```ts
-import { Game, Model } from '@bornengine/engine';
-const game = new Game();
+import { Colors, Game, Model } from '@bornengine/engine';
+class ExampleGame extends Game {
+  protected override render(): void {
+    this.renderer.begin3D(camera);
+    this.renderer.drawGrid(20, 1);
+    this.renderer.drawCube({ x: 0, y: 0.5, z: 0 }, { x: 1, y: 1, z: 1 }, Colors.BLUE);
+    if (character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: -3 });
+    this.renderer.end3D();
+  }
+}
+
+const game = new ExampleGame();
 const character = new Model(game, 'assets/models/character.glb');
 if (!character.isLoaded) console.error(character.error);
 else console.log(character.meshCount, character.materialCount);
@@ -22,18 +32,7 @@ else console.log(character.meshCount, character.materialCount);
 Use `game.renderer` for built-in 3D primitives or draw an owned model through that renderer. Positions and sizes use world-space values.
 
 ```ts
-import { Colors } from '@bornengine/engine';
-game.run({
-  update() {},
-  render() {
-    game.renderer.begin3D(camera);
-    game.renderer.drawGrid(20, 1);
-    game.renderer.drawCube({ x: 0, y: 0.5, z: 0 }, { x: 1, y: 1, z: 1 }, Colors.BLUE);
-    if (character.isLoaded) character.draw(game.renderer, { x: 0, y: 0, z: -3 });
-    game.renderer.end3D();
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 ## Materials and animation

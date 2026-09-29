@@ -1,6 +1,6 @@
 ---
 title: Web / WASM
-description: Compile BornEngine to browser WebAssembly with WebGPU, WebGL fallback, Web Audio, and Game callbacks.
+description: Compile BornEngine to browser WebAssembly with WebGPU, WebGL fallback, Web Audio, and Game lifecycle hooks.
 section: Platforms / Web
 order: 54
 ---
@@ -24,18 +24,20 @@ Browsers cannot let game code block the main thread. `Game.run()` hands frame sc
 ```ts
 import { Colors, Game } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'Browser game', width: 800, height: 600 } });
-game.run({
-  update(deltaTime) { updateGame(deltaTime); },
-  render() {
-    game.renderer.clear(Colors.BLACK);
-    game.renderer.drawRectangle({ x: 100, y: 100, width: 50, height: 50 }, Colors.RED);
-  },
-  onStop: () => game.dispose(),
-});
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { updateGame(deltaTime); }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    this.renderer.drawRectangle({ x: 100, y: 100, width: 50, height: 50 }, Colors.RED);
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'Browser game', width: 800, height: 600 } });
+game.run();
 ```
 
-The same callbacks run on native. Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. A small JavaScript glue layer handles DOM events, asset fetching, and audio output.
+The same hooks run on native. Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. A small JavaScript glue layer handles DOM events, asset fetching, and audio output.
 
 ## Assets and support
 

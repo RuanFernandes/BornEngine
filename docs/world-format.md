@@ -99,9 +99,21 @@ Two proven shapes:
 **Generic path** (shortest; the world-viewer example is exactly this):
 
 ```ts
-import { Game, Model, WorldData } from '@bornengine/engine';
+import { Game, Model, WorldData, WorldInstance } from '@bornengine/engine';
 
-const game = new Game();
+class ExampleGame extends Game {
+  world: WorldInstance | null = null;
+
+  protected override render(): void {
+    if (this.world !== null) this.world.applyLighting();
+  }
+
+  protected override onStop(): void {
+    if (this.world !== null) this.world.dispose();
+  }
+}
+
+const game = new ExampleGame();
 const models = new Map<string, Model>();
 const data = new WorldData('assets/worlds/level1.world.json');
 if (!data.load()) {
@@ -122,14 +134,8 @@ if (!data.load()) {
   if (!instance.isLoaded) {
     console.error(instance.error);
   } else {
-    game.run({
-      update() {},
-      render() { instance.applyLighting(); },
-      onStop() {
-        instance.dispose();
-        game.dispose();
-      },
-    });
+    game.world = instance;
+    game.run();
   }
 }
 ```

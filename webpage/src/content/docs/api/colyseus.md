@@ -38,7 +38,7 @@ console.log(room.roomId, room.sessionId);
 
 Join methods return promises. They reject when the client is unavailable, matchmaking cannot start, or the server rejects the request.
 
-For a native Perry game that uses `Game.run()`, use the callback form. It delivers the join result from the frame loop's network polling, without waiting for a Promise continuation inside the blocking native loop.
+For a native Perry game that uses `Game.run()`, use `joinOrCreateWithCallbacks()`. It delivers the join result from the frame loop's network polling, without waiting for a Promise continuation inside the blocking native loop.
 
 ```ts
 client.joinOrCreateWithCallbacks('arena', { name: 'Player' }, {

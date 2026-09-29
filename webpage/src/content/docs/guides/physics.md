@@ -10,7 +10,13 @@ Create one game-owned world, reuse colliders, create bodies with an explicit mot
 ```ts
 import { BoxCollider, Game, MotionType, PhysicsWorld } from '@bornengine/engine';
 
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { world.step(deltaTime); }
+
+  protected override render(): void {}
+}
+
+const game = new ExampleGame();
 const world = new PhysicsWorld(game, { gravity: { x: 0, y: -9.81, z: 0 } });
 const groundShape = new BoxCollider(world, { x: 50, y: 0.5, z: 50 });
 const ground = world.createBody(groundShape, {
@@ -19,11 +25,7 @@ const ground = world.createBody(groundShape, {
 });
 
 world.optimizeBroadphase();
-game.run({
-  update(deltaTime) { world.step(deltaTime); },
-  render() {},
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 `PhysicsWorld.step()` uses a fixed internal timestep with an accumulator and returns interpolation alpha. Use `world.setInterpolation(true)` for smoothed body transforms or read `world.stepAlpha` to blend your own values. `stepVariable()` exists when your game owns the accumulator.

@@ -11,16 +11,18 @@ Physics uses meters, seconds, and kilograms in a right-handed, Y-up world. Each 
 
 ```ts
 import { Game, PhysicsWorld } from '@bornengine/engine';
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { world.step(Math.min(deltaTime, 0.25)); }
+
+  protected override render(): void {}
+}
+
+const game = new ExampleGame();
 const world = new PhysicsWorld(game, { gravity: { x: 0, y: -9.81, z: 0 } });
 world.setFixedTimestep(60, 4);
 world.setInterpolation(true);
 
-game.run({
-  update(deltaTime) { world.step(Math.min(deltaTime, 0.25)); },
-  render() {},
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 `step()` advances its fixed-rate accumulator and returns interpolation alpha. When created with a Game that owns scenes, it synchronizes attached physics adapters before and after the step.

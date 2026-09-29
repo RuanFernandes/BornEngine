@@ -36,7 +36,33 @@ function cubeIndices(): number[] {
   return indices;
 }
 
-const game = new Game({
+class TestSceneWatchGame extends Game {
+  protected override loop(deltaTime: number): void {
+    elapsed += deltaTime;
+    const cosine = Math.cos(elapsed);
+    const sine = Math.sin(elapsed);
+    first.setTransform([
+      cosine, 0, sine, 0,
+      0, 1, 0, 0,
+      -sine, 0, cosine, 0,
+      -2, 0, 0, 1,
+    ]);
+    second.setTransform([
+      cosine, 0, -sine, 0,
+      0, 1, 0, 0,
+      sine, 0, cosine, 0,
+      2, 0, 0, 1,
+    ]);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    this.renderer.begin3D(camera);
+    this.renderer.end3D();
+  }
+}
+
+const game = new TestSceneWatchGame({
   window: { width: 800, height: 600, title: 'BornEngine Scene Watch' },
   targetFps: 30,
 });
@@ -66,28 +92,4 @@ const camera = {
   projection: 'perspective' as const,
 };
 
-game.run({
-  update(deltaTime) {
-    elapsed += deltaTime;
-    const cosine = Math.cos(elapsed);
-    const sine = Math.sin(elapsed);
-    first.setTransform([
-      cosine, 0, sine, 0,
-      0, 1, 0, 0,
-      -sine, 0, cosine, 0,
-      -2, 0, 0, 1,
-    ]);
-    second.setTransform([
-      cosine, 0, -sine, 0,
-      0, 1, 0, 0,
-      sine, 0, cosine, 0,
-      2, 0, 0, 1,
-    ]);
-  },
-  render() {
-    game.renderer.clear(Colors.BLACK);
-    game.renderer.begin3D(camera);
-    game.renderer.end3D();
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

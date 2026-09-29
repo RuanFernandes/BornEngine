@@ -11,15 +11,15 @@ Text drawing belongs to the renderer. Create a Font for a custom typeface and pa
 
 ```ts
 import { Colors, Game } from '@bornengine/engine';
-const game = new Game();
-game.run({
-  update() {},
-  render() {
-    game.renderer.clear(Colors.BLACK);
-    game.renderer.drawText('Score: 120', { x: 24, y: 24 }, 24, Colors.WHITE);
-  },
-  onStop: () => game.dispose(),
-});
+class ExampleGame extends Game {
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    this.renderer.drawText('Score: 120', { x: 24, y: 24 }, 24, Colors.WHITE);
+  }
+}
+
+const game = new ExampleGame();
+game.run();
 ```
 
 The default font is available without creating a separate resource. Position is the top-left drawing origin.

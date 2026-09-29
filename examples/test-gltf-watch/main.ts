@@ -1,7 +1,28 @@
 // glTF loader sample for watchOS and native targets.
 import { Game, Model } from '@bornengine/engine';
 
-const game = new Game({
+class TestGltfWatchGame extends Game {
+  protected override loop(deltaTime: number): void {
+    elapsed += deltaTime;
+    const cosine = Math.cos(elapsed * 0.4);
+    const sine = Math.sin(elapsed * 0.4);
+    const scale = 0.015;
+    root.setTransform([
+      cosine * scale, 0, sine * scale, 0,
+      0, scale, 0, 0,
+      -sine * scale, 0, cosine * scale, 0,
+      0, -1.5, 0, 1,
+    ]);
+  }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 20, g: 24, b: 32, a: 255 });
+    if (!this.renderer.begin3D(camera)) return;
+    this.renderer.end3D();
+  }
+}
+
+const game = new TestGltfWatchGame({
   window: { width: 800, height: 600, title: 'BornEngine glTF Watch' },
   targetFps: 30,
 });
@@ -29,23 +50,4 @@ const camera = {
   projection: 'perspective' as const,
 };
 
-game.run({
-  update(deltaTime) {
-    elapsed += deltaTime;
-    const cosine = Math.cos(elapsed * 0.4);
-    const sine = Math.sin(elapsed * 0.4);
-    const scale = 0.015;
-    root.setTransform([
-      cosine * scale, 0, sine * scale, 0,
-      0, scale, 0, 0,
-      -sine * scale, 0, cosine * scale, 0,
-      0, -1.5, 0, 1,
-    ]);
-  },
-  render() {
-    game.renderer.clear({ r: 20, g: 24, b: 32, a: 255 });
-    if (!game.renderer.begin3D(camera)) return;
-    game.renderer.end3D();
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

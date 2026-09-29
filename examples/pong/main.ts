@@ -9,7 +9,12 @@ const BALL_RADIUS = 8;
 const BALL_SPEED = 250;
 const PADDLE_MARGIN = 30;
 
-const game = new Game({
+class PongGame extends Game {
+  protected override loop(deltaTime: number): void { updateGame(deltaTime); }
+  protected override render(): void { renderGame(); }
+}
+
+const game = new PongGame({
   window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: 'Pong' },
   targetFps: 60,
 });
@@ -33,7 +38,7 @@ function resetBall(direction: number): void {
   ballVelY = BALL_SPEED * 0.5 * (Math.random() > 0.5 ? 1 : -1);
 }
 
-function update(deltaTime: number): void {
+function updateGame(deltaTime: number): void {
   if (controls.wasPressed('pause')) paused = !paused;
   if (paused) return;
 
@@ -75,7 +80,7 @@ function update(deltaTime: number): void {
   if (ballX > SCREEN_WIDTH) { leftScore += 1; resetBall(-1); }
 }
 
-function render(): void {
+function renderGame(): void {
   const renderer = game.renderer;
   renderer.clear(Colors.BLACK);
   const segments = 20;
@@ -105,4 +110,4 @@ function render(): void {
   if (paused) renderer.drawText('PAUSED', { x: SCREEN_WIDTH / 2 - 55, y: SCREEN_HEIGHT / 2 - 15 }, 30, Colors.LIGHTGRAY);
 }
 
-game.run({ update, render, onStop: () => game.dispose() });
+game.run();

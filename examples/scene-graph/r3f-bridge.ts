@@ -10,7 +10,27 @@ import { Colors, Game } from '@bornengine/engine';
 import type { Camera3D } from '@bornengine/engine';
 import { buildR3FIntrinsic } from 'perry-react-three-fiber';
 
-const game = new Game({
+class SceneGraphGame extends Game {
+  protected override loop(deltaTime: number): void {
+    angle += deltaTime * 0.2;
+    camera.position.x = Math.cos(angle) * 10;
+    camera.position.z = Math.sin(angle) * 10;
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+    if (this.renderer.begin3D(camera)) {
+      this.renderer.drawGrid(20, 1);
+      this.renderer.end3D();
+    }
+
+    this.renderer.drawText('Perry R3F Bridge Demo', { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+    this.renderer.drawText('Retained nodes generated from R3F intrinsics', { x: 10, y: 35 }, 16, Colors.GRAY);
+    this.renderer.drawText('Game owns the native loop, input, lighting, and rendering', { x: 10, y: 55 }, 16, Colors.GRAY);
+  }
+}
+
+const game = new SceneGraphGame({
   window: { width: 1280, height: 720, title: 'BornEngine — R3F Bridge Demo' },
   targetFps: 60,
 });
@@ -64,22 +84,4 @@ const camera: Camera3D = {
   projection: 'perspective',
 };
 
-game.run({
-  update(deltaTime) {
-    angle += deltaTime * 0.2;
-    camera.position.x = Math.cos(angle) * 10;
-    camera.position.z = Math.sin(angle) * 10;
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-    if (game.renderer.begin3D(camera)) {
-      game.renderer.drawGrid(20, 1);
-      game.renderer.end3D();
-    }
-
-    game.renderer.drawText('Perry R3F Bridge Demo', { x: 10, y: 10 }, 20, Colors.DARKGRAY);
-    game.renderer.drawText('Retained nodes generated from R3F intrinsics', { x: 10, y: 35 }, 16, Colors.GRAY);
-    game.renderer.drawText('Game owns the native loop, input, lighting, and rendering', { x: 10, y: 55 }, 16, Colors.GRAY);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

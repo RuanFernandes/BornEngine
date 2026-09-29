@@ -5,7 +5,7 @@ section: API / Core
 order: 32
 ---
 
-Create a Game as the root of one runtime. It constructs the window and exposes each service as an instance, rather than relying on process-wide operation functions. Subclass `Game` when the game should own its lifecycle methods; pass callbacks to `run()` when the loop should be composed outside the class.
+Create a Game as the root of one runtime. It constructs the window and exposes each service as an instance, rather than relying on process-wide operation functions. Subclass `Game` for a standalone game. An embedded host can drive `runFrame()` with callbacks from its own frame scheduler.
 
 ## Subclass lifecycle
 
@@ -43,49 +43,53 @@ class Undertale extends Game {
 new Undertale().run();
 ```
 
-Resources such as `Texture` still receive the owning Game explicitly. Inside a subclass, pass `this`; this keeps native ownership visible and prevents a resource from silently attaching to another runtime. The subclass lifecycle disposes the Game after `onStop`. If a lifecycle hook throws, the loop shuts down, runs `onStop`, and releases owned resources before surfacing the error.
+Resources such as `Texture` still receive the owning Game explicitly. Inside a subclass, pass `this`; this keeps native ownership visible and prevents a resource from silently attaching to another runtime. The subclass lifecycle disposes the Game after `onStop`. If a lifecycle hook fails, the loop shuts down, runs `onStop`, and releases owned resources. Inspect `game.error` after the completion Promise resolves.
 
 ## Frame lifecycle
 
 ```ts
 import { Colors, Game } from '@bornengine/engine/core';
 
-const game = new Game({
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { playerX += 120 * deltaTime; }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 12, g: 16, b: 20, a: 255 });
+    this.renderer.drawRectangle({ x: playerX, y: 320, width: 48, height: 48 }, Colors.LIME);
+  }
+}
+
+const game = new ExampleGame({
   window: { title: 'Manual control', width: 1280, height: 720 },
   targetFps: 60,
 });
 let playerX = 80;
 
-game.run({
-  update(deltaTime) { playerX += 120 * deltaTime; },
-  render() {
-    game.renderer.clear({ r: 12, g: 16, b: 20, a: 255 });
-    game.renderer.drawRectangle({ x: playerX, y: 320, width: 48, height: 48 }, Colors.LIME);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
-Game owns begin/end frame calls and invokes update before render. Native uses the engine loop; Web/WASM uses the browser scheduler. The delta is elapsed seconds, not a fixed frame interval.
+Game owns begin/end frame calls and invokes `loop()` before `render()`. Native uses the engine loop; Web/WASM uses the browser scheduler. The delta is elapsed seconds, not a fixed frame interval.
 
 ## Input
 
-Read devices through `game.input`, or create a named action map through `game.input.createActionMap()`. Input state is polled once before the update callback on each Game frame.
+Read devices through `game.input`, or create a named action map through `game.input.createActionMap()`. Input state is polled once before the `loop()` hook on each Game frame.
 
 ```ts
 import { Game, Key } from '@bornengine/engine';
 
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(): void {
+    if (controls.wasPressed('jump')) console.log('jump');
+  }
+
+  protected override render(): void {}
+}
+
+const game = new ExampleGame();
 const controls = game.input.createActionMap();
 controls.bindAction('jump', { kind: 'key', key: Key.SPACE });
 
-game.run({
-  update() {
-    if (controls.wasPressed('jump')) console.log('jump');
-  },
-  render() {},
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 ## Cameras and coordinates

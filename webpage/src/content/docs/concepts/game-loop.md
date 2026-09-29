@@ -38,19 +38,21 @@ If you use gameplay scenes, call `this.scenes.update(deltaTime)` in `loop`. Phys
 
 ## Stop and dispose
 
-`this.stop()` requests orderly shutdown. The current frame completes before `onStop()` runs. In the subclass lifecycle, the Game disposes its services and resources after `onStop()`. When using callback-based `run({ update, render, onStop })`, call `game.dispose()` from the callback's `onStop` to release them. Stop and dispose are idempotent.
+`this.stop()` requests orderly shutdown. The current frame completes before `onStop()` runs. The Game disposes its services and resources after `onStop()`. `run()` returns a Promise that resolves after cleanup, including when a hook fails. Inspect `game.error` after awaiting it. Stop and dispose are idempotent.
 
-## Callback-based loop
+## Another standalone loop
 
-Pass callbacks to `run()` if you prefer to keep the loop outside a `Game` subclass. The same frame order and owner rules apply:
+Keep frame behavior in subclass hooks even when the game state lives beside the class:
 
 ```ts
-const game = new Game({ window: { title: 'Callback loop', width: 960, height: 540 } });
-game.run({
-  update(deltaTime) { /* Advance state. */ },
-  render() { game.renderer.clear(Colors.BLACK); },
-  onStop: () => game.dispose(),
-});
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { /* Advance state. */ }
+
+  protected override render(): void { this.renderer.clear(Colors.BLACK); }
+}
+
+const game = new ExampleGame({ window: { title: 'Standalone loop', width: 960, height: 540 } });
+game.run();
 ```
 
 ## Embedded hosts

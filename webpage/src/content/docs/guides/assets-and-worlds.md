@@ -22,8 +22,20 @@ assets/
 Cache textures and models by path so gameplay objects share resources instead of repeatedly loading them.
 
 ```ts
-import { Game, Model, Texture } from '@bornengine/engine';
-const game = new Game();
+import { Game, Model, Texture, WorldInstance } from '@bornengine/engine';
+class WorldViewerGame extends Game {
+  world: WorldInstance | null = null;
+
+  protected override render(): void {
+    if (this.world !== null) this.world.applyLighting();
+  }
+
+  protected override onStop(): void {
+    if (this.world !== null) this.world.dispose();
+  }
+}
+
+const game = new WorldViewerGame();
 const models = new Map<string, Model>();
 const textures = new Map<string, Texture>();
 
@@ -48,14 +60,8 @@ if (!worldData.load()) {
   if (!validation.ok) console.error(validation.errors);
   const instance = worldData.instantiate(game, { getModel });
   if (instance.isLoaded) {
-    game.run({
-      update() {},
-      render() { instance.applyLighting(); },
-      onStop() {
-        instance.dispose();
-        game.dispose();
-      },
-    });
+    game.world = instance;
+    game.run();
   } else {
     console.error(instance.error);
   }
@@ -65,9 +71,21 @@ if (!worldData.load()) {
 ## Complete example
 
 ```ts
-import { Game, Model, WorldData } from '@bornengine/engine';
+import { Game, Model, WorldData, WorldInstance } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'World viewer' } });
+class ExampleGame extends Game {
+  world: WorldInstance | null = null;
+
+  protected override render(): void {
+    if (this.world !== null) this.world.applyLighting();
+  }
+
+  protected override onStop(): void {
+    if (this.world !== null) this.world.dispose();
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'World viewer' } });
 const models = new Map<string, Model>();
 const worldData = new WorldData('assets/worlds/main.world.json');
 if (!game.isReady) console.error(game.error || 'Engine startup failed');
@@ -84,14 +102,8 @@ if (!worldData.load()) {
   if (!instance.isLoaded) {
     console.error(instance.error);
   } else {
-    game.run({
-      update() {},
-      render() { instance.applyLighting(); },
-      onStop() {
-        instance.dispose();
-        game.dispose();
-      },
-    });
+    game.world = instance;
+    game.run();
   }
 }
 ```
