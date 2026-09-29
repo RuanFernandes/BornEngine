@@ -33,6 +33,17 @@ test('permits current class-first run and the Perry-owned BloomView boundary onl
   );
 });
 
+test('rejects free-function facades that preserve Bloom-style engine API names', () => {
+  const issues = inspectSource(
+    'examples/legacy-facade/main.ts',
+    'function beginMode3D() {}\nfunction drawText() {}\nclass GameSample { drawText() {} }',
+  );
+
+  assert.equal(issues.length, 2);
+  assert.match(issues.join('\n'), /legacy free-function facade.*beginMode3D/);
+  assert.match(issues.join('\n'), /legacy free-function facade.*drawText/);
+});
+
 test('rejects Bloom package aliases and Bloom-branded example package names', () => {
   const issues = inspectPackage('examples/renderer-test/package.json', {
     name: 'bloom-renderer-test',

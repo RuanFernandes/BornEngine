@@ -57,6 +57,30 @@ export function inspectSource(filePath, source) {
     issues.push(`${normalizedPath}: callback-based game.run lifecycle; use a Game subclass`);
   }
 
+  const legacyFacadeNames = [
+    'beginMode3D',
+    'endMode3D',
+    'drawText',
+    'drawModel',
+    'drawGrid',
+    'drawCube',
+    'createSceneNode',
+    'sceneNode',
+    'createMesh',
+    'loadModel',
+    'attachModelToNode',
+    'addDirectionalLight',
+    'addPointLight',
+    'setSceneNode[A-Z]\\w*',
+  ];
+  const legacyFunctionPattern = new RegExp(
+    `(?:^|\\n)\\s*function\\s+(${legacyFacadeNames.join('|')})\\b`,
+    'g',
+  );
+  for (const match of source.matchAll(legacyFunctionPattern)) {
+    issues.push(`${normalizedPath}: legacy free-function facade "${match[1]}"; use a sample-specific helper name or the Game API directly`);
+  }
+
   if (/\bBloomView\b/.test(source)) {
     const perryBoundary = normalizedPath === 'examples/perry-embed/main.ts';
     const importsPerryUi = /\bfrom\s*(['"])perry\/ui\1/.test(source);

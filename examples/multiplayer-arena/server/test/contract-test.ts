@@ -104,8 +104,10 @@ async function main(): Promise<void> {
   server.stderr.setEncoding("utf8").on("data", (chunk: string) => { serverOutput += chunk; });
   const clientA = new Client(`ws://${host}:${port}`);
   const clientB = new Client(`ws://${host}:${port}`);
+  const clientC = new Client(`ws://${host}:${port}`);
   let roomA: any = null;
   let roomB: any = null;
+  let roomC: any = null;
 
   try {
     await waitForServer(server, port, () => serverOutput);
@@ -143,9 +145,21 @@ async function main(): Promise<void> {
     roomA = null;
     const afterLeave = await waitForState(roomB, "player removal after leave", (state) => !state.players.has(sessionA));
     assert.equal(afterLeave.players.size, 1, "leaving must remove the server-owned player entry");
+
+    const remainingPlayer = afterLeave.players.get(roomB.sessionId);
+    assert.ok(remainingPlayer, "the second player should remain in the room");
+    roomC = await clientC.joinOrCreate("arena");
+    const afterRejoin = await waitForState(roomB, "new player after rejoin", (state) => state.players.size === 2);
+    const rejoinedPlayer = afterRejoin.players.get(roomC.sessionId);
+    assert.ok(rejoinedPlayer, "the rejoining client should receive a server-owned player entry");
+    assert.ok(
+      rejoinedPlayer.x !== remainingPlayer.x || rejoinedPlayer.y !== remainingPlayer.y,
+      "a rejoining player should use an unoccupied spawn position",
+    );
     console.log("Multiplayer arena two-client contract passed");
   } finally {
     if (roomA) await roomA.leave().catch(() => undefined);
+    if (roomC) await roomC.leave().catch(() => undefined);
     if (roomB) await roomB.leave().catch(() => undefined);
     await stopServer(server);
   }

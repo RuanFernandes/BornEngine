@@ -32,6 +32,7 @@ export class ArenaRoom extends Room {
   state = new ArenaState();
 
   private readonly movementBySession = new Map<string, InputState>();
+  private readonly spawnSlotsBySession = new Map<string, number>();
   private readonly lastSequences = new Map<string, number>();
   private readonly lastInputAt = new Map<string, number>();
 
@@ -43,7 +44,9 @@ export class ArenaRoom extends Room {
   onJoin(client: Client, options: { name?: unknown } = {}): void {
     const player = new ArenaPlayer();
     player.name = this.playerName(options.name, this.state.players.size);
-    const spawn = this.spawnAt(this.state.players.size);
+    const spawnSlot = this.nextAvailableSpawnSlot();
+    this.spawnSlotsBySession.set(client.sessionId, spawnSlot);
+    const spawn = this.spawnAt(spawnSlot);
     player.x = spawn.x;
     player.y = spawn.y;
     this.state.players.set(client.sessionId, player);
@@ -54,6 +57,7 @@ export class ArenaRoom extends Room {
   onLeave(client: Client): void {
     this.state.players.delete(client.sessionId);
     this.movementBySession.delete(client.sessionId);
+    this.spawnSlotsBySession.delete(client.sessionId);
     this.lastSequences.delete(client.sessionId);
     this.lastInputAt.delete(client.sessionId);
   }
@@ -99,6 +103,20 @@ export class ArenaRoom extends Room {
     const column = index % columns;
     const row = Math.floor(index / columns);
     return clampPlayerPosition(100 + column * 120, 120 + row * 120);
+  }
+
+  private nextAvailableSpawnSlot(): number {
+    for (let candidate = 0; candidate < MAX_CLIENTS; candidate += 1) {
+      let occupied = false;
+      for (const slot of this.spawnSlotsBySession.values()) {
+        if (slot === candidate) {
+          occupied = true;
+          break;
+        }
+      }
+      if (!occupied) return candidate;
+    }
+    return MAX_CLIENTS;
   }
 
   private playerName(value: unknown, index: number): string {

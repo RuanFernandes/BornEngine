@@ -134,8 +134,8 @@ for (let i = 2; i < argv.length; i = i + 1) {
 
 // ---- Mesh generation ----
 
-// Compatibility helpers keep the diagnostic scene's procedural geometry easy
-// to read while routing every operation through BornEngine's Game-owned API.
+// Renderer-test helpers keep procedural geometry readable while routing each
+// operation through BornEngine's Game-owned API.
 function mat4Identity(): number[] { return Matrix4.identity().toArray(); }
 function mat4Translate(matrix: number[], offset: Vec3): number[] {
   return new Matrix4(matrix).translated(offset).toArray();
@@ -158,8 +158,8 @@ function getMouseDeltaX(): number { return game.input.getMouseDeltaX(); }
 function getMouseDeltaY(): number { return game.input.getMouseDeltaY(); }
 function disableCursor(): void { game.input.setCursorCaptured(true); }
 function enableCursor(): void { game.input.setCursorCaptured(false); }
-function beginMode3D(camera: Camera3D): void { game.renderer.begin3D(camera); }
-function endMode3D(): void { game.renderer.end3D(); }
+function beginTest3D(camera: Camera3D): void { game.renderer.begin3D(camera); }
+function endTest3D(): void { game.renderer.end3D(); }
 function setFog(r: number, g: number, b: number, density: number, heightReference: number, heightFalloff: number): void {
   game.renderer.setFog({ r: r * 255, g: g * 255, b: b * 255, a: 255 }, density, heightReference, heightFalloff);
 }
@@ -179,66 +179,66 @@ function setDirectionalLight(direction: Vec3, color: Color, intensity: number): 
 function setShadowsEnabled(enabled: boolean): void { game.sceneGraph.setShadowsEnabled(enabled); }
 function enableShadows(): void { setShadowsEnabled(true); }
 function dumpShadowMap(path: string): void { game.sceneGraph.dumpShadowMap(path); }
-function addDirectionalLight(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void {
+function addTestDirectionalLight(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void {
   game.sceneGraph.addDirectionalLight(
     { x: dx, y: dy, z: dz }, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
   );
 }
-function addPointLight(x: number, y: number, z: number, range: number, r: number, g: number, b: number, intensity: number): void {
+function addTestPointLight(x: number, y: number, z: number, range: number, r: number, g: number, b: number, intensity: number): void {
   game.sceneGraph.addPointLight(
     { x, y, z }, range, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
   );
 }
-function drawGrid(slices: number, spacing: number): void { game.renderer.drawGrid(slices, spacing); }
-function drawText(text: string, x: number, y: number, size: number, color: Color): void {
+function drawTestGrid(slices: number, spacing: number): void { game.renderer.drawGrid(slices, spacing); }
+function drawHudText(text: string, x: number, y: number, size: number, color: Color): void {
   game.renderer.drawText(text, { x, y }, size, color);
 }
-function drawCube(position: Vec3, width: number, height: number, depth: number, color: Color): void {
+function drawTestCube(position: Vec3, width: number, height: number, depth: number, color: Color): void {
   game.renderer.drawCube(position, { x: width, y: height, z: depth }, color);
 }
-function drawModel(reference: ModelReference, position: Vec3, scale: number, tint: Color): void {
+function drawTestModel(reference: ModelReference, position: Vec3, scale: number, tint: Color): void {
   const model = managedModels[reference.handle - 1];
   if (model !== undefined) game.renderer.drawModel(model, position, scale, tint);
 }
-function createSceneNode(): number {
+function createTrackedNode(): number {
   const node = game.sceneGraph.createNode();
   managedNodes[managedNodeCount] = node;
   managedNodeCount += 1;
   return managedNodeCount;
 }
-function sceneNode(handle: number): SceneNode | null { return managedNodes[handle - 1] || null; }
+function getTrackedNode(handle: number): SceneNode | null { return managedNodes[handle - 1] || null; }
 function modelReference(model: Model | Mesh, meshCount: number, materialCount = 0): ModelReference {
   managedModels[managedModelCount] = model;
   managedModelCount += 1;
   return { handle: model.isLoaded ? managedModelCount : 0, meshCount, materialCount, transform: Matrix4.identity().toArray() };
 }
-function createMesh(vertices: number[], indices: number[]): ModelReference {
+function createTestMesh(vertices: number[], indices: number[]): ModelReference {
   const mesh = new Mesh(game, vertices, indices);
   return modelReference(mesh, 1);
 }
-function loadModel(path: string): ModelReference {
+function loadTestModel(path: string): ModelReference {
   const model = new Model(game, path);
   return modelReference(model, model.meshCount, model.materialCount);
 }
-function attachModelToNode(nodeHandle: number, modelHandle: number, meshIndex = 0): void {
-  const node = sceneNode(nodeHandle);
+function attachTestModel(nodeHandle: number, modelHandle: number, meshIndex = 0): void {
+  const node = getTrackedNode(nodeHandle);
   const model = managedModels[modelHandle - 1];
   if (node !== null && model !== undefined) node.attachModel(model, meshIndex);
 }
-function setSceneNodeTransform(handle: number, transform: number[]): void { sceneNode(handle)?.setTransform(transform); }
-function updateSceneNodeGeometry(handle: number, vertices: number[], indices: number[]): void {
-  sceneNode(handle)?.updateGeometry(vertices, indices);
+function setTrackedNodeTransform(handle: number, transform: number[]): void { getTrackedNode(handle)?.setTransform(transform); }
+function updateTrackedNodeGeometry(handle: number, vertices: number[], indices: number[]): void {
+  getTrackedNode(handle)?.updateGeometry(vertices, indices);
 }
-function setSceneNodeColor(handle: number, r: number, g: number, b: number, a = 255): void {
-  sceneNode(handle)?.setColor({ r, g, b, a });
+function setTrackedNodeColor(handle: number, r: number, g: number, b: number, a = 255): void {
+  getTrackedNode(handle)?.setColor({ r, g, b, a });
 }
-function setSceneNodePbr(handle: number, roughness: number, metalness: number): void {
-  sceneNode(handle)?.setPbr(roughness, metalness);
+function setTrackedNodePbr(handle: number, roughness: number, metalness: number): void {
+  getTrackedNode(handle)?.setPbr(roughness, metalness);
 }
-function setSceneNodeCastShadow(handle: number, enabled: boolean): void { sceneNode(handle)?.setCastShadow(enabled); }
-function setSceneNodeReceiveShadow(handle: number, enabled: boolean): void { sceneNode(handle)?.setReceiveShadow(enabled); }
-function setSceneNodeWaterMaterial(handle: number, amplitude: number, speed: number, r: number, g: number, b: number, a: number): void {
-  sceneNode(handle)?.setWaterMaterial(amplitude, speed, { r, g, b, a });
+function setTrackedNodeCastShadow(handle: number, enabled: boolean): void { getTrackedNode(handle)?.setCastShadow(enabled); }
+function setTrackedNodeReceiveShadow(handle: number, enabled: boolean): void { getTrackedNode(handle)?.setReceiveShadow(enabled); }
+function setTrackedNodeWaterMaterial(handle: number, amplitude: number, speed: number, r: number, g: number, b: number, a: number): void {
+  getTrackedNode(handle)?.setWaterMaterial(amplitude, speed, { r, g, b, a });
 }
 function setRenderScale(scale: number): void { game.renderer.setRenderScale(scale); }
 function setTaaEnabled(enabled: boolean): void { game.renderer.setTaaEnabled(enabled); }
@@ -303,7 +303,7 @@ function cubeIndices(): number[] {
   return indices;
 }
 function genMeshCube(width: number, height: number, depth: number): ModelReference {
-  return createMesh(cubeVertices(width, height, depth), cubeIndices());
+  return createTestMesh(cubeVertices(width, height, depth), cubeIndices());
 }
 
 function makeSphereVertices(radius: number, segs: number, rings: number): number[] {
@@ -378,7 +378,7 @@ let cubeHandle = 0;
 function initSharedMeshes(): void {
   const sv = makeSphereVertices(0.5, 24, 16);
   const si = makeSphereIndices(24, 16);
-  sphereHandle = createMesh(sv, si).handle;
+  sphereHandle = createTestMesh(sv, si).handle;
   cubeHandle = genMeshCube(1, 1, 1).handle;
 }
 
@@ -389,14 +389,14 @@ function placeNode(
   px: number, py: number, pz: number,
   sx: number, sy: number, sz: number,
 ): number {
-  const node = createSceneNode();
-  attachModelToNode(node, modelHandle, meshIdx);
+  const node = createTrackedNode();
+  attachTestModel(node, modelHandle, meshIdx);
   let m = mat4Identity();
   m = mat4Translate(m, { x: px, y: py, z: pz });
   m = mat4Scale(m, { x: sx, y: sy, z: sz });
-  setSceneNodeTransform(node, m);
-  setSceneNodeCastShadow(node, true);
-  setSceneNodeReceiveShadow(node, true);
+  setTrackedNodeTransform(node, m);
+  setTrackedNodeCastShadow(node, true);
+  setTrackedNodeReceiveShadow(node, true);
   return node;
 }
 
@@ -407,8 +407,8 @@ function placeSphere(
   roughness: number, metalness: number,
 ): number {
   const node = placeNode(sphereHandle, 0, px, py, pz, scale, scale, scale);
-  setSceneNodeColor(node, cr * 255, cg * 255, cb * 255);
-  setSceneNodePbr(node, roughness, metalness);
+  setTrackedNodeColor(node, cr * 255, cg * 255, cb * 255);
+  setTrackedNodePbr(node, roughness, metalness);
   return node;
 }
 
@@ -419,13 +419,13 @@ function placeCube(
   roughness: number, metalness: number,
 ): number {
   const node = placeNode(cubeHandle, 0, px, py, pz, sx, sy, sz);
-  setSceneNodeColor(node, cr * 255, cg * 255, cb * 255);
-  setSceneNodePbr(node, roughness, metalness);
+  setTrackedNodeColor(node, cr * 255, cg * 255, cb * 255);
+  setTrackedNodePbr(node, roughness, metalness);
   // Thin horizontal slabs (floors) should receive but not cast
   // shadows — otherwise they fill the shadow map with their own
   // depth and everything reads as "in shadow of the ground".
   if (sy <= 0.3) {
-    setSceneNodeCastShadow(node, false);
+    setTrackedNodeCastShadow(node, false);
   }
   return node;
 }
@@ -508,7 +508,7 @@ function setupLightArena(): void {
 function setupShadowTest(): void {
   // Ground — bright warm-white floor, receive-only
   const floor = placeCube(0, -0.05, 0, 50, 0.1, 50, 0.95, 0.93, 0.88, 0.85, 0.0);
-  setSceneNodeCastShadow(floor, false);
+  setTrackedNodeCastShadow(floor, false);
 
   // Central pillar — warm stone
   placeCube(0, 4, 0, 1.5, 8, 1.5, 0.82, 0.78, 0.72, 0.5, 0.0);
@@ -544,14 +544,14 @@ function setupWater(): void {
   const cz = 25.0;
 
   // Water plane
-  const waterNode = createSceneNode();
+  const waterNode = createTrackedNode();
   const wv = makePlaneVertices(30, 20);
   const wi = makePlaneIndices();
-  updateSceneNodeGeometry(waterNode, wv, wi);
+  updateTrackedNodeGeometry(waterNode, wv, wi);
   const wm = mat4Translate(mat4Identity(), { x: 0, y: 0.2, z: cz });
-  setSceneNodeTransform(waterNode, wm);
-  setSceneNodeWaterMaterial(waterNode, 0.15, 1.5, 26, 77, 128, 153);
-  setSceneNodeReceiveShadow(waterNode, true);
+  setTrackedNodeTransform(waterNode, wm);
+  setTrackedNodeWaterMaterial(waterNode, 0.15, 1.5, 26, 77, 128, 153);
+  setTrackedNodeReceiveShadow(waterNode, true);
 
   // Rocks / objects sticking out of water
   placeSphere(3, 0.8, cz - 3, 1.5, 0.45, 0.42, 0.4, 0.8, 0.0);
@@ -631,17 +631,17 @@ function setupThinGeometry(): void {
   // Diagonal bars (worst case for aliasing)
   for (let i = 0; i < 12; i = i + 1) {
     const x = cx - 5.5 + i * 1.0;
-    const node = createSceneNode();
-    attachModelToNode(node, cubeHandle, 0);
-    setSceneNodeColor(node, 153, 153, 158);
-    setSceneNodePbr(node, 0.3, 1.0);
-    setSceneNodeCastShadow(node, true);
-    setSceneNodeReceiveShadow(node, true);
+    const node = createTrackedNode();
+    attachTestModel(node, cubeHandle, 0);
+    setTrackedNodeColor(node, 153, 153, 158);
+    setTrackedNodePbr(node, 0.3, 1.0);
+    setTrackedNodeCastShadow(node, true);
+    setTrackedNodeReceiveShadow(node, true);
     let m = mat4Identity();
     m = mat4Translate(m, { x: x, y: 1.5, z: cz + 2 });
     m = mat4RotateY(m, 0.3 + i * 0.15);
     m = mat4Scale(m, { x: 0.05, y: 3.0, z: 0.05 });
-    setSceneNodeTransform(node, m);
+    setTrackedNodeTransform(node, m);
   }
 
   // Grid of very thin wires (subpixel test)
@@ -676,14 +676,14 @@ function setupGround(): void {
 // here, they'll look good on real game art. This is where procedural
 // cubes/spheres stop being a meaningful test.
 //
-// Uses immediate-mode drawModel() inside the render loop, matching
+// Uses immediate-mode drawTestModel() inside the render loop, matching
 // how david/garden render glTF — the scene graph attach path has
 // issues we haven't debugged yet.
 
 let gltfModel: ModelReference = { handle: 0, meshCount: 0, materialCount: 0, transform: Matrix4.identity().toArray() };
 
 function setupGltfModel(): void {
-  gltfModel = loadModel("assets/DamagedHelmet.glb");
+  gltfModel = loadTestModel("assets/DamagedHelmet.glb");
   // Pedestal (still rendered via scene graph)
   placeCube(0, 0.1, -30, 6, 0.2, 6, 0.15, 0.15, 0.17, 0.9, 0.0);
 }
@@ -925,19 +925,19 @@ function renderScene(): void {
   // diff numbers when light state leaks into the shader's counters.
   if (!headlessMode) {
     const lightRadius = 7.0;
-    addPointLight(
+    addTestPointLight(
       28 + Math.cos(t * 0.8) * lightRadius,
       3.0,
       Math.sin(t * 0.8) * lightRadius,
       18, 1.0, 0.25, 0.08, 4.0
     );
-    addPointLight(
+    addTestPointLight(
       28 + Math.cos(t * 0.8 + 2.09) * lightRadius,
       3.0,
       Math.sin(t * 0.8 + 2.09) * lightRadius,
       18, 0.08, 0.4, 1.0, 4.0
     );
-    addPointLight(
+    addTestPointLight(
       28 + Math.cos(t * 0.8 + 4.19) * lightRadius,
       3.0,
       Math.sin(t * 0.8 + 4.19) * lightRadius,
@@ -945,7 +945,7 @@ function renderScene(): void {
     );
 
     // Additional warm fill light near shadow zone
-    addPointLight(-28, 6, 5, 20, 1.0, 0.9, 0.7, 1.5);
+    addTestPointLight(-28, 6, 5, 20, 1.0, 0.9, 0.7, 1.5);
   }
 
   // 3D rendering. Headless mode uses the spec's camera/fov verbatim
@@ -953,7 +953,7 @@ function renderScene(): void {
   // transform. Interactive mode uses the FPS camera and zone 7's
   // world-space position.
   if (headlessMode) {
-    beginMode3D({
+    beginTest3D({
       position: { x: headlessCamX, y: headlessCamY, z: headlessCamZ },
       target: { x: headlessTargetX, y: headlessTargetY, z: headlessTargetZ },
       up: { x: 0, y: 1, z: 0 },
@@ -963,41 +963,41 @@ function renderScene(): void {
     // TEMP: visual sanity check — a bright cube at origin. If this
     // shows but the glTF helmet doesn't, the issue is in the glTF
     // model load, not the render pass.
-    drawCube({ x: 0, y: 0, z: 0 }, 0.8, 0.8, 0.8, { r: 255, g: 100, b: 100, a: 255 });
+    drawTestCube({ x: 0, y: 0, z: 0 }, 0.8, 0.8, 0.8, { r: 255, g: 100, b: 100, a: 255 });
     if (gltfModel.handle !== 0) {
-      drawModel(gltfModel, { x: 0, y: 0, z: 0 }, 1.0, { r: 255, g: 255, b: 255, a: 255 });
+      drawTestModel(gltfModel, { x: 0, y: 0, z: 0 }, 1.0, { r: 255, g: 255, b: 255, a: 255 });
     }
   } else {
-    beginMode3D({
+    beginTest3D({
       position: { x: camX, y: camY, z: camZ },
       target: { x: lookX, y: lookY, z: lookZ },
       up: { x: 0, y: 1, z: 0 },
       fovy: 60,
       projection: "perspective",
     });
-    drawGrid(60, 2.0);
+    drawTestGrid(60, 2.0);
     // Zone 7: glTF helmet drawn in immediate mode
     if (gltfModel.handle !== 0) {
-      drawModel(gltfModel, { x: 0, y: 2.5, z: -30 }, 2.0, { r: 255, g: 255, b: 255, a: 255 });
+      drawTestModel(gltfModel, { x: 0, y: 2.5, z: -30 }, 2.0, { r: 255, g: 255, b: 255, a: 255 });
     }
   }
-  endMode3D();
+  endTest3D();
 
   // ---- HUD ---- (skipped in headless — reference never shows text)
 
   if (!headlessMode) {
-    drawText("BornEngine Renderer Test", 10, 10, 22, WHITE);
-    drawText("FPS: " + getFPS().toString(), 10, 38, 16, LGRAY);
+    drawHudText("BornEngine Renderer Test", 10, 10, 22, WHITE);
+    drawHudText("FPS: " + getFPS().toString(), 10, 38, 16, LGRAY);
 
-    drawText("WASD move / Mouse look / Shift sprint / Tab cursor", 10, SCREEN_H - 50, 14, GRAY);
-    drawText("Press 1-6 to teleport to zones", 10, SCREEN_H - 30, 14, GRAY);
+    drawHudText("WASD move / Mouse look / Shift sprint / Tab cursor", 10, SCREEN_H - 50, 14, GRAY);
+    drawHudText("Press 1-6 to teleport to zones", 10, SCREEN_H - 30, 14, GRAY);
 
     // Zone legend
     const legendX = SCREEN_W - 220;
-    drawText("Zones:", legendX, 10, 16, LGRAY);
+    drawHudText("Zones:", legendX, 10, 16, LGRAY);
     for (let i = 0; i < 7; i = i + 1) {
       const label = (i + 1).toString() + "  " + zoneNames[i];
-      drawText(label, legendX, 32 + i * 20, 14, GRAY);
+      drawHudText(label, legendX, 32 + i * 20, 14, GRAY);
     }
   }
 

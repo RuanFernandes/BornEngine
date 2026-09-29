@@ -220,12 +220,12 @@ function setShadowsEnabled(enabled: boolean): void { game.renderer.setShadowsEna
 function setSsaoEnabled(enabled: boolean): void { game.renderer.setSsaoEnabled(enabled); }
 function setSsrEnabled(enabled: boolean): void { game.renderer.setSsrEnabled(enabled); }
 function setSsgiEnabled(enabled: boolean): void { game.renderer.setSsgiEnabled(enabled); }
-function addDirectionalLight(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void {
+function addSponzaDirectionalLight(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void {
   game.sceneGraph.addDirectionalLight(
     { x: dx, y: dy, z: dz }, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
   );
 }
-function addPointLight(x: number, y: number, z: number, range: number, r: number, g: number, b: number, intensity: number): void {
+function addSponzaPointLight(x: number, y: number, z: number, range: number, r: number, g: number, b: number, intensity: number): void {
   game.sceneGraph.addPointLight(
     { x, y, z }, range, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
   );
@@ -234,34 +234,34 @@ function setAmbientLight(color: Color, intensity: number): void { game.sceneGrap
 function setDirectionalLight(direction: Vec3, color: Color, intensity: number): void {
   game.sceneGraph.addDirectionalLight(direction, color, intensity);
 }
-function createSceneNode(): number {
+function createSponzaNode(): number {
   const node = game.sceneGraph.createNode();
   managedNodes[managedNodeCount] = node;
   managedNodeCount += 1;
   return managedNodeCount;
 }
-function attachModelToNode(nodeHandle: number, model: Model, meshIndex: number): void {
+function attachSponzaModel(nodeHandle: number, model: Model, meshIndex: number): void {
   const node = managedNodes[nodeHandle - 1];
   if (node !== undefined) node.attachModel(model, meshIndex);
 }
-function setSceneNodeTransform(nodeHandle: number, transform: number[]): void {
+function setSponzaNodeTransform(nodeHandle: number, transform: number[]): void {
   const node = managedNodes[nodeHandle - 1];
   if (node !== undefined) node.setTransform(transform);
 }
-function setSceneNodeCastShadow(nodeHandle: number, enabled: boolean): void {
+function setSponzaNodeCastShadow(nodeHandle: number, enabled: boolean): void {
   const node = managedNodes[nodeHandle - 1];
   if (node !== undefined) node.setCastShadow(enabled);
 }
 function dumpShadowMap(path: string): void { game.sceneGraph.dumpShadowMap(path); }
-function loadModel(path: string): { model: Model; meshCount: number } {
+function loadSponzaModel(path: string): { model: Model; meshCount: number } {
   const model = new Model(game, path);
   managedModels[managedModelCount] = model;
   managedModelCount += 1;
   return { model, meshCount: model.meshCount };
 }
-function beginMode3D(camera: Camera3D): void { game.renderer.begin3D(camera); }
-function endMode3D(): void { game.renderer.end3D(); }
-function drawText(text: string, x: number, y: number, size: number, color: Color): void {
+function beginSponza3D(camera: Camera3D): void { game.renderer.begin3D(camera); }
+function endSponza3D(): void { game.renderer.end3D(); }
+function drawSponzaHudText(text: string, x: number, y: number, size: number, color: Color): void {
   game.renderer.drawText(text, { x, y }, size, color);
 }
 
@@ -351,13 +351,13 @@ if (taaOverride === 1) { setTaaEnabled(true); }
 // Intel Sponza ships as loose glTF + .bin + 68 textures. The
 // filename in Intel's bundle is typically `NewSponza_Main_glTF_003.gltf`
 // or similar — adjust after extracting to match whatever it turns out to be.
-const sponzaData = loadModel("assets/NewSponza_Main_glTF_003.gltf");
+const sponzaData = loadSponzaModel("assets/NewSponza_Main_glTF_003.gltf");
 const sponza = sponzaData.model;
 const identity = mat4Identity();
 for (let i = 0; i < sponzaData.meshCount; i = i + 1) {
-  const node = createSceneNode();
-  attachModelToNode(node, sponza, i);
-  setSceneNodeTransform(node, identity);
+  const node = createSponzaNode();
+  attachSponzaModel(node, sponza, i);
+  setSponzaNodeTransform(node, identity);
 }
 
 // ---- Camera ----
@@ -453,9 +453,9 @@ function renderFrame(): void {
   // amber since what actually hits a ceiling's underside is bounce
   // light from the sun-lit stone floor, not sky. Matches Cycles'
   // warmer undersoffit tone.
-  addDirectionalLight(0.0, -1.0, 0.0, 0.6, 0.5, 0.4, 0.5);
+  addSponzaDirectionalLight(0.0, -1.0, 0.0, 0.6, 0.5, 0.4, 0.5);
 
-  beginMode3D({
+  beginSponza3D({
     position: { x: camX, y: camY, z: camZ },
     target: { x: lookX, y: lookY, z: lookZ },
     up: { x: 0, y: 1, z: 0 },
@@ -466,10 +466,10 @@ function renderFrame(): void {
   // Scene graph handles all rendering (shadows + PBR). No
   // drawModel needed — it would double-render without shadows.
 
-  endMode3D();
+  endSponza3D();
 
   // HUD
-  drawText("BornEngine Intel Sponza Stress", 10, 10, 20, { r: 255, g: 255, b: 255, a: 255 });
+  drawSponzaHudText("BornEngine Intel Sponza Stress", 10, 10, 20, { r: 255, g: 255, b: 255, a: 255 });
   const fps = getFPS();
   const ms = fps > 0.0 ? 1000.0 / fps : 0.0;
   // Color the FPS line based on perf bucket so glances give
@@ -480,8 +480,8 @@ function renderFrame(): void {
       ? { r: 230, g: 220, b: 120, a: 255 }
       : { r: 230, g: 120, b: 120, a: 255 };
   const fpsText = `FPS ${Math.round(fps)}  (${ms.toFixed(1)} ms)`;
-  drawText(fpsText, 10, 35, 16, fpsColor);
-  drawText("WASD move / Mouse look / Tab cursor", 10, SCREEN_H - 30, 14, { r: 180, g: 180, b: 180, a: 255 });
+  drawSponzaHudText(fpsText, 10, 35, 16, fpsColor);
+  drawSponzaHudText("WASD move / Mouse look / Tab cursor", 10, SCREEN_H - 30, 14, { r: 180, g: 180, b: 180, a: 255 });
 
   // Auto-capture for automated testing
   if (captureFrames > 0) {
