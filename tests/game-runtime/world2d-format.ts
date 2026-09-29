@@ -147,8 +147,8 @@ function makeWorld(id: string, layers: World2DLayer[] = []): World2DDocument {
           tileHeight: 16,
           columns: 2,
           tileCount: 2,
-          margin: 0,
-          spacing: 0,
+          margin: { x: 1, y: 2 },
+          spacing: { x: 3, y: 4 },
           tiles: [
             { tileId: 0, properties: {} },
             { tileId: 1, collision: { x: 0, y: 8, width: 16, height: 8 }, properties: {} },
@@ -169,6 +169,12 @@ expect(validateWorld2D(tilemap).ok, 'tilemap validates with all eight flip combi
 expect(validateWorld2D(objects).ok, 'object layer validates typed properties and components');
 expect(validateWorld2D(sample).ok, 'sample world combines tile and object layers');
 
+const invalidAtlasDimensions = makeWorld('invalid-atlas', [tileLayer(tileCells())]);
+invalidAtlasDimensions.tilesets[0].spacing.y = 0.5;
+const invalidAtlasResult = validateWorld2D(invalidAtlasDimensions);
+expect(!invalidAtlasResult.ok && hasDiagnostic(invalidAtlasResult.diagnostics, 'invalid_dimensions', '/tilesets/0/spacing'),
+  'tileset margin and spacing must be non-negative integer vectors');
+
 const migration = migrateWorld2D(sample);
 expect(migration.ok && migration.document.version === 1,
   'current v1 migration preserves the current document');
@@ -178,6 +184,9 @@ expect(serializedResult.ok, 'sample serializes successfully');
 const serialized = serializedResult.json;
 const reparsed = JSON.parse(serialized) as World2DDocument;
 expect(validateWorld2D(reparsed).ok, 'serialized sample reparses and validates');
+expect(reparsed.tilesets[0].margin.x === 1 && reparsed.tilesets[0].margin.y === 2 &&
+  reparsed.tilesets[0].spacing.x === 3 && reparsed.tilesets[0].spacing.y === 4,
+  'asymmetric tileset margins and spacing survive serialization');
 const serializedAgain = serializeWorld2D(reparsed).json;
 expect(serializedAgain === serialized, 'sample serialization is deterministic');
 expect((reparsed.metadata.unknown as { keep: boolean }).keep === true,

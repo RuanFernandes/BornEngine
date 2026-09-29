@@ -47,8 +47,8 @@ export interface World2DTilesetData {
   tileHeight: number;
   columns: number;
   tileCount: number;
-  margin: number;
-  spacing: number;
+  margin: World2DVector;
+  spacing: World2DVector;
   tiles: World2DTileDefinition[];
 }
 

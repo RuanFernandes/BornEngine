@@ -141,8 +141,8 @@ function tileset(value: World2DTilesetData, depth: number): string {
   output = output + indent(depth + 1) + '"tileHeight": ' + number(value.tileHeight) + ',\n';
   output = output + indent(depth + 1) + '"columns": ' + number(value.columns) + ',\n';
   output = output + indent(depth + 1) + '"tileCount": ' + number(value.tileCount) + ',\n';
-  output = output + indent(depth + 1) + '"margin": ' + number(value.margin) + ',\n';
-  output = output + indent(depth + 1) + '"spacing": ' + number(value.spacing) + ',\n';
+  output = output + indent(depth + 1) + '"margin": ' + vector(value.margin) + ',\n';
+  output = output + indent(depth + 1) + '"spacing": ' + vector(value.spacing) + ',\n';
   output = output + indent(depth + 1) + '"tiles": ';
   if (value.tiles.length === 0) return output + '[]\n' + indent(depth) + '}';
   output = output + '[\n';

@@ -71,6 +71,11 @@ function positiveVector2(value: any): boolean {
   return true;
 }
 
+function nonNegativeIntegerVector2(value: any): boolean {
+  if (!vector2(value)) return false;
+  return integer(value.x) && value.x >= 0 && integer(value.y) && value.y >= 0;
+}
+
 function validateJson(path: string, value: any, diagnostics: World2DDiagnostic[], depth: number): void {
   if (depth > 128) {
     add(diagnostics, path, 'json_too_deep', 'JSON data exceeds the supported nesting depth.');
@@ -296,8 +301,8 @@ function validateWorldBody(root: any, diagnostics: World2DDiagnostic[]): void {
       if (!integer(tileset.tileHeight) || tileset.tileHeight <= 0) add(diagnostics, pointer(path, 'tileHeight'), 'invalid_dimensions', 'tileHeight must be a positive integer.');
       if (!integer(tileset.columns) || tileset.columns <= 0) add(diagnostics, pointer(path, 'columns'), 'invalid_dimensions', 'columns must be a positive integer.');
       if (!integer(tileset.tileCount) || tileset.tileCount <= 0) add(diagnostics, pointer(path, 'tileCount'), 'invalid_dimensions', 'tileCount must be a positive integer.');
-      if (!integer(tileset.margin) || tileset.margin < 0) add(diagnostics, pointer(path, 'margin'), 'invalid_dimensions', 'margin must be a non-negative integer.');
-      if (!integer(tileset.spacing) || tileset.spacing < 0) add(diagnostics, pointer(path, 'spacing'), 'invalid_dimensions', 'spacing must be a non-negative integer.');
+      if (!nonNegativeIntegerVector2(tileset.margin)) add(diagnostics, pointer(path, 'margin'), 'invalid_dimensions', 'margin must contain non-negative integer x and y values.');
+      if (!nonNegativeIntegerVector2(tileset.spacing)) add(diagnostics, pointer(path, 'spacing'), 'invalid_dimensions', 'spacing must contain non-negative integer x and y values.');
       if (!Array.isArray(tileset.tiles)) {
         add(diagnostics, pointer(path, 'tiles'), 'invalid_tiles', 'tiles must be an array.');
       } else {

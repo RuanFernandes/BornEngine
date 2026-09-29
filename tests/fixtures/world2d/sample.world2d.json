@@ -12,8 +12,8 @@
       "tileHeight": 16,
       "columns": 2,
       "tileCount": 2,
-      "margin": 0,
-      "spacing": 0,
+      "margin": {"x": 0, "y": 0},
+      "spacing": {"x": 0, "y": 0},
       "tiles": [
         { "tileId": 0, "properties": {} },
         { "tileId": 1, "collision": { "x": 0, "y": 0, "width": 16, "height": 16 }, "properties": { "solid": { "type": "bool", "value": true } } }
