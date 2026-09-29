@@ -818,6 +818,14 @@ fn database_physical_schema_matches(
 
         let imported_indexes = physical_index_fingerprints(imported, &table)?;
         let current_indexes = physical_index_fingerprints(current, &table)?;
+        // Migrations cannot describe partial-index predicates, so matching only
+        // the indexed terms would not prove that both databases enforce the
+        // same constraint.
+        if imported_indexes.iter().any(|index| index.partial)
+            || current_indexes.iter().any(|index| index.partial)
+        {
+            return Ok(false);
+        }
         if imported_indexes != current_indexes {
             return Ok(false);
         }
@@ -907,11 +915,10 @@ fn physical_index_fingerprints(
             return Err(DatabaseStatus::CorruptData);
         }
 
-        let public_name = if origin == "u" || name.starts_with("__bornengine_unique_") {
-            None
-        } else {
-            Some(name)
-        };
+        // SQLite's inline UNIQUE autoindexes have no migration-visible name.
+        // Explicit indexes keep their exact names, including the engine's
+        // reserved-looking prefix, because createIndex accepts that prefix.
+        let public_name = (origin != "u").then_some(name);
         indexes.push(PhysicalIndexFingerprint {
             name: public_name,
             unique: unique != 0,

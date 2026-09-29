@@ -160,6 +160,15 @@ fn make_database_image(sql: &str) -> Vec<u8> {
     connection.serialize(rusqlite::MAIN_DB).unwrap().to_vec()
 }
 
+fn rewrite_database_image(image: &[u8], sql: &str) -> Vec<u8> {
+    let mut connection = rusqlite::Connection::open_in_memory().unwrap();
+    connection
+        .deserialize_read_exact(rusqlite::MAIN_DB, image, image.len(), false)
+        .unwrap();
+    connection.execute_batch(sql).unwrap();
+    connection.serialize(rusqlite::MAIN_DB).unwrap().to_vec()
+}
+
 fn execute(
     store: &mut DatabaseStore,
     op: u32,
@@ -1430,6 +1439,261 @@ fn import_rejects_partial_replacement_of_migration_created_unique_index() {
         IMPORT,
         target,
         vec![DatabaseValue::Bytes(incompatible_image)],
+        Some(root.path()),
+    );
+    assert_eq!(status, DatabaseStatus::CorruptData);
+    let (status, values, rows) = execute(
+        &mut store,
+        SELECT,
+        target,
+        vec![
+            string("saves"),
+            empty_object(),
+            DatabaseValue::Array(vec![string("slot"), string("score")]),
+        ],
+        Some(root.path()),
+    );
+    assert_eq!(status, DatabaseStatus::Ok);
+    assert_eq!(rows, 1);
+    assert!(
+        matches!(values.as_slice(), [DatabaseValue::String(slot), DatabaseValue::Number(73.0)] if slot == "keep-live")
+    );
+}
+
+#[test]
+fn import_rejects_different_predicates_for_matching_partial_indexes() {
+    let root = TempDir::new();
+    let mut store = DatabaseStore::new();
+    let target = open_and_migrate(&mut store, root.path(), "partial-predicate-target");
+    let source = open_and_migrate(&mut store, root.path(), "partial-predicate-source");
+    let add_unique_index = || {
+        migration_step(
+            "createIndex",
+            "saves",
+            "idx_saves_score_unique",
+            object([(
+                "descriptor",
+                object([
+                    ("name", string("idx_saves_score_unique")),
+                    ("columns", DatabaseValue::Array(vec![string("score")])),
+                    ("unique", DatabaseValue::Boolean(true)),
+                ]),
+            )]),
+        )
+    };
+    for handle in [target, source] {
+        assert_eq!(
+            execute(
+                &mut store,
+                MIGRATE,
+                handle,
+                vec![number(2.0), DatabaseValue::Array(vec![add_unique_index()])],
+                Some(root.path()),
+            )
+            .0,
+            DatabaseStatus::Ok
+        );
+    }
+    assert_eq!(
+        execute(
+            &mut store,
+            INSERT,
+            target,
+            vec![
+                string("saves"),
+                object([
+                    ("slot", string("keep-live")),
+                    ("score", number(73.0)),
+                    ("payload", DatabaseValue::Bytes(vec![7, 3])),
+                ]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+    assert_eq!(
+        execute(
+            &mut store,
+            INSERT,
+            source,
+            vec![
+                string("saves"),
+                object([
+                    ("slot", string("incoming")),
+                    ("score", number(31.0)),
+                    ("payload", DatabaseValue::Bytes(vec![3, 1])),
+                ]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+
+    let target_path = root
+        .path()
+        .join("org.example.native-tests/partial-predicate-target.sqlite3");
+    let target_connection = rusqlite::Connection::open(target_path).unwrap();
+    target_connection
+        .execute_batch(
+            "DROP INDEX idx_saves_score_unique; \
+             CREATE UNIQUE INDEX idx_saves_score_unique \
+             ON saves (score) WHERE score > 0;",
+        )
+        .unwrap();
+    drop(target_connection);
+
+    let (status, values, _) = execute(&mut store, EXPORT, source, vec![], Some(root.path()));
+    assert_eq!(status, DatabaseStatus::Ok);
+    let exported = match values.into_iter().next().unwrap() {
+        DatabaseValue::Bytes(bytes) => bytes,
+        _ => panic!("export result was not a blob"),
+    };
+    let incompatible_image = rewrite_database_image(
+        &exported,
+        "DROP INDEX idx_saves_score_unique; \
+         CREATE UNIQUE INDEX idx_saves_score_unique \
+         ON saves (score) WHERE score > 10;",
+    );
+    let mut imported_connection = rusqlite::Connection::open_in_memory().unwrap();
+    imported_connection
+        .deserialize_read_exact(
+            rusqlite::MAIN_DB,
+            &incompatible_image[..],
+            incompatible_image.len(),
+            false,
+        )
+        .unwrap();
+    let imported_version: i64 = imported_connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .unwrap();
+    assert_eq!(imported_version, 2);
+    drop(imported_connection);
+
+    let (status, _, _) = execute(
+        &mut store,
+        IMPORT,
+        target,
+        vec![DatabaseValue::Bytes(incompatible_image)],
+        Some(root.path()),
+    );
+    assert_eq!(status, DatabaseStatus::CorruptData);
+    let (status, values, rows) = execute(
+        &mut store,
+        SELECT,
+        target,
+        vec![
+            string("saves"),
+            empty_object(),
+            DatabaseValue::Array(vec![string("slot"), string("score")]),
+        ],
+        Some(root.path()),
+    );
+    assert_eq!(status, DatabaseStatus::Ok);
+    assert_eq!(rows, 1);
+    assert!(
+        matches!(values.as_slice(), [DatabaseValue::String(slot), DatabaseValue::Number(73.0)] if slot == "keep-live")
+    );
+}
+
+#[test]
+fn import_rejects_different_explicit_index_names_with_internal_prefix() {
+    let root = TempDir::new();
+    let mut store = DatabaseStore::new();
+    let target = open_and_migrate(&mut store, root.path(), "reserved-index-name-target");
+    let source = open_and_migrate(&mut store, root.path(), "reserved-index-name-source");
+    let add_unique_index = |name: &str| {
+        migration_step(
+            "createIndex",
+            "saves",
+            name,
+            object([(
+                "descriptor",
+                object([
+                    ("name", string(name)),
+                    ("columns", DatabaseValue::Array(vec![string("score")])),
+                    ("unique", DatabaseValue::Boolean(true)),
+                ]),
+            )]),
+        )
+    };
+    assert_eq!(
+        execute(
+            &mut store,
+            MIGRATE,
+            target,
+            vec![
+                number(2.0),
+                DatabaseValue::Array(vec![add_unique_index("__bornengine_unique_a")]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+    assert_eq!(
+        execute(
+            &mut store,
+            MIGRATE,
+            source,
+            vec![
+                number(2.0),
+                DatabaseValue::Array(vec![add_unique_index("__bornengine_unique_b")]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+    assert_eq!(
+        execute(
+            &mut store,
+            INSERT,
+            target,
+            vec![
+                string("saves"),
+                object([
+                    ("slot", string("keep-live")),
+                    ("score", number(73.0)),
+                    ("payload", DatabaseValue::Bytes(vec![7, 3])),
+                ]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+    assert_eq!(
+        execute(
+            &mut store,
+            INSERT,
+            source,
+            vec![
+                string("saves"),
+                object([
+                    ("slot", string("incoming")),
+                    ("score", number(31.0)),
+                    ("payload", DatabaseValue::Bytes(vec![3, 1])),
+                ]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+
+    let (status, values, _) = execute(&mut store, EXPORT, source, vec![], Some(root.path()));
+    assert_eq!(status, DatabaseStatus::Ok);
+    let image = match values.into_iter().next().unwrap() {
+        DatabaseValue::Bytes(bytes) => bytes,
+        _ => panic!("export result was not a blob"),
+    };
+    let (status, _, _) = execute(
+        &mut store,
+        IMPORT,
+        target,
+        vec![DatabaseValue::Bytes(image)],
         Some(root.path()),
     );
     assert_eq!(status, DatabaseStatus::CorruptData);
