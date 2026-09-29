@@ -25,6 +25,9 @@ fn engine() -> MutexGuard<'static, EngineState> {
 fn bloom_resolve_asset_path(path: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Borrowed(path)
 }
+fn bloom_database_data_root() -> Option<std::path::PathBuf> {
+    bloom_shared::database::linux_app_data_root()
+}
 
 // The full shared (non-physics) FFI surface. See bloom_shared::ffi_core
 // docs for the contract; tools/validate-ffi.js checks parity in CI.

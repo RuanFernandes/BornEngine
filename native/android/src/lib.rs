@@ -11,6 +11,7 @@ static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
 static mut NATIVE_WINDOW: *mut libc::c_void = std::ptr::null_mut();
 static AUDIO_RUNNING: AtomicBool = AtomicBool::new(false);
 static mut ASSET_BASE_PATH: Option<String> = None;
+static DATABASE_DATA_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
 static ANDROID_UI_KEYBOARD_REQUEST: std::sync::atomic::AtomicI32 =
     std::sync::atomic::AtomicI32::new(-1);
 static ANDROID_UI_TEXT: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
@@ -22,6 +23,12 @@ fn engine() -> &'static mut EngineState {
 /// resolve_path (relative paths don't resolve from the app working dir here).
 fn bloom_resolve_asset_path(path: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Owned(resolve_path(path))
+}
+fn bloom_database_data_root() -> Option<std::path::PathBuf> {
+    if let Some(path) = std::env::var_os("BLOOM_APP_DATA_PATH").map(std::path::PathBuf::from) {
+        if path.is_absolute() { return Some(path); }
+    }
+    DATABASE_DATA_PATH.get().filter(|path| path.is_absolute()).cloned()
 }
 
 // The full shared (non-physics) FFI surface. See bloom_shared::ffi_core
@@ -50,6 +57,8 @@ fn resolve_path(path: &str) -> String {
 #[no_mangle]
 pub extern "C" fn bloom_android_set_asset_path(path_ptr: *const u8) {
     let path = str_from_header(path_ptr);
+    let data_path = std::path::PathBuf::from(path);
+    if data_path.is_absolute() { let _ = DATABASE_DATA_PATH.set(data_path); }
     unsafe {
         ASSET_BASE_PATH = Some(path.to_string());
     }
@@ -645,6 +654,13 @@ pub extern "C" fn JNI_OnLoad(_vm: *mut libc::c_void, _reserved: *mut libc::c_voi
             );
             ASSET_BASE_PATH = Some(path);
         }
+    }
+    if let Some(path) = std::env::var_os("BLOOM_APP_DATA_PATH") {
+        let path = std::path::PathBuf::from(path);
+        if path.is_absolute() { let _ = DATABASE_DATA_PATH.set(path); }
+    } else if let Ok(path) = std::env::var("BLOOM_ASSET_PATH") {
+        let path = std::path::PathBuf::from(path);
+        if path.is_absolute() { let _ = DATABASE_DATA_PATH.set(path); }
     }
 
     0x00010006 // JNI_VERSION_1_6
