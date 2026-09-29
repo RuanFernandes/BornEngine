@@ -109,7 +109,7 @@ export class Renderer {
   _recordSpriteDrawn(): void { this.spritesDrawnValue++; }
 
   /** @internal Counts a SpriteRenderer quad rejected by camera culling. */
-  _recordSpriteCulled(): void { this.spritesCulledValue++; }
+  _recordSpriteCulled(count = 1): void { this.spritesCulledValue += count; }
 
   clear(color: Color): boolean {
     if (!this.isReady) return false;

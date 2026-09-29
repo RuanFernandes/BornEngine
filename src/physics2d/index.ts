@@ -13,3 +13,5 @@ export type {
   PhysicsRayHit2D,
   PhysicsWorld2DOptions,
 } from './physics-world-2d';
+export { CharacterBody2D } from './character-body-2d';
+export type { CharacterBody2DOptions } from './character-body-2d';
