@@ -1,0 +1,19 @@
+{
+  "name": "bornengine-2d-top-down",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.ts",
+  "dependencies": {
+    "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": [
+        "@bornengine/engine",
+        "@bornengine/engine/audio",
+        "@bornengine/engine/input",
+        "@bornengine/engine/world2d"
+      ]
+    }
+  }
+}
