@@ -1,4 +1,5 @@
 import { Game, Vector2D } from '@bornengine/engine';
+import type { EmbeddedFrameCallbacks } from '@bornengine/engine';
 import type { Camera2DSnapshot, PhysicsRayHit2D, SpriteFrame } from '@bornengine/engine';
 import {
   GameComponent,
@@ -13,9 +14,19 @@ import type { ManagedSoundOptions as RootManagedSoundOptions, Vector2DLike } fro
 import type { SoundManager as RootSoundManager } from '@bornengine/engine';
 import type { ManagedSoundOptions, SpatialSoundOptions } from '@bornengine/engine/audio';
 import type { DatabaseContractFixture } from './game-database-types';
+import type { verifyStandaloneLifecycle, verifyEmbeddedFrames } from './game-subclass-lifecycle';
 
 declare const process: { exit(code: number): never };
 type DatabaseContractIncluded = DatabaseContractFixture;
+type LifecycleFixtureIncluded = typeof verifyStandaloneLifecycle | typeof verifyEmbeddedFrames;
+
+export function lifecycleCompletionContract(value: Game): Promise<void> {
+  return value.run();
+}
+
+export function embeddedFrameContract(value: Game, callbacks: EmbeddedFrameCallbacks): boolean {
+  return value.runFrame(1 / 60, callbacks);
+}
 
 const game = new Game();
 const zero2D = new Vector2D();

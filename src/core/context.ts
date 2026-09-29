@@ -139,7 +139,11 @@ export class GameContext {
     this.resources.length = 0;
 
     for (let index = pending.length - 1; index >= 0; index--) {
-      pending[index].dispose();
+      try {
+        pending[index].dispose();
+      } catch (error) {
+        if (this.error === null) this.error = error instanceof Error ? error.message : String(error);
+      }
     }
   }
 

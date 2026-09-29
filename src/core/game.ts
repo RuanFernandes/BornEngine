@@ -130,7 +130,14 @@ export class Game {
   /** Run the subclass lifecycle and resolve after shutdown and cleanup. */
   run(): Promise<void> {
     if (this.completion !== null) return this.completion;
-    if (!this.isReady || !this.window.isOpen || this.hasRun || this.runCompleted || this.window.mode === 'embedded') {
+    if (this.hasRun || this.runCompleted) return Promise.resolve();
+    if (!this.isReady || !this.window.isOpen) {
+      // An unattached embedded surface can still become ready. A failed
+      // configuration or windowed startup cannot, so release its context.
+      if (this.window.mode !== 'embedded' || this.error !== null) this.disposeInternal();
+      return Promise.resolve();
+    }
+    if (this.window.mode === 'embedded') {
       return Promise.resolve();
     }
     const completion = new Promise<void>((resolve) => { this.resolveCompletion = resolve; });
@@ -188,7 +195,11 @@ export class Game {
     if (this.runCompleted) return;
     this.stopRequested = true;
     if (this.inFrame) return;
-    if (!this.hasRun || this.webRuntime) this.completeRun();
+    if (!this.hasRun) {
+      this.disposeInternal();
+      return;
+    }
+    if (this.webRuntime) this.completeRun();
   }
 
   /** Close the runtime and release all resources still owned by this Game. */
@@ -297,20 +308,23 @@ export class Game {
 
   private disposeInternal(): void {
     if (this.disposed) return;
-    this.scenes.dispose();
-    this.sceneGraph.dispose();
-    this.mobile.dispose();
-    this.assets.dispose();
-    this.inspector.dispose();
-    this.ui.dispose();
-    this.debugUi.dispose();
-    this.audio.dispose();
-    this.input.dispose();
-    this.renderer.dispose();
-    getGameContext(this).dispose();
-    this.window.close();
-    this.disposed = true;
-    this.runCompleted = true;
-    this.callbacks = null;
+    try {
+      try { this.scenes.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.sceneGraph.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.mobile.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.assets.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.inspector.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.ui.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.debugUi.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.audio.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.input.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.renderer.dispose(); } catch (error) { this.recordRunError(error); }
+      try { getGameContext(this).dispose(); } catch (error) { this.recordRunError(error); }
+    } finally {
+      try { this.window.close(); } catch (error) { this.recordRunError(error); }
+      this.disposed = true;
+      this.runCompleted = true;
+      this.callbacks = null;
+    }
   }
 }
