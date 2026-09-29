@@ -117,6 +117,11 @@ declare function bloom_is_mouse_button_released(btn: number): number;
 
 // Camera FFI
 declare function bloom_begin_mode_2d(ox: number, oy: number, tx: number, ty: number, rot: number, zoom: number): void;
+declare function bloom_begin_mode_2d_viewport(
+  ox: number, oy: number, tx: number, ty: number, rot: number, zoom: number,
+  scaleX: number, scaleY: number, originX: number, originY: number,
+  clipX: number, clipY: number, clipWidth: number, clipHeight: number,
+): void;
 declare function bloom_end_mode_2d(): void;
 declare function bloom_begin_mode_3d(px: number, py: number, pz: number, tx: number, ty: number, tz: number, ux: number, uy: number, uz: number, fovy: number, proj: number): void;
 declare function bloom_end_mode_3d(): void;
@@ -869,6 +874,35 @@ export function getTouchPosition(index: number): { x: number; y: number } {
 
 export function beginMode2D(camera: Camera2D): void {
   bloom_begin_mode_2d(camera.offset.x, camera.offset.y, camera.target.x, camera.target.y, camera.rotation, camera.zoom);
+}
+
+export function beginMode2DViewport(
+  camera: Camera2D,
+  scaleX: number,
+  scaleY: number,
+  originX: number,
+  originY: number,
+  clip: { x: number; y: number; width: number; height: number },
+): void {
+  beginMode2DViewportRaw(
+    camera.offset.x, camera.offset.y, camera.target.x, camera.target.y,
+    camera.rotation, camera.zoom, scaleX, scaleY, originX, originY,
+    clip.x, clip.y, clip.width, clip.height,
+  );
+}
+
+// Keep object-property reads out of the native FFI argument expression. This
+// mirrors beginMode2DRaw for aarch64 Android's f64 argument lowering.
+export function beginMode2DViewportRaw(
+  offsetX: number, offsetY: number, targetX: number, targetY: number,
+  rotation: number, zoom: number, scaleX: number, scaleY: number,
+  originX: number, originY: number,
+  clipX: number, clipY: number, clipWidth: number, clipHeight: number,
+): void {
+  bloom_begin_mode_2d_viewport(
+    offsetX, offsetY, targetX, targetY, rotation, zoom,
+    scaleX, scaleY, originX, originY, clipX, clipY, clipWidth, clipHeight,
+  );
 }
 
 // Raw variant: takes primitives directly. Workaround for aarch64 Android

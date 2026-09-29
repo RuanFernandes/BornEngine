@@ -283,6 +283,7 @@ pub(super) struct DrawCall2D {
     pub(super) texture_idx: u32,
     pub(super) uniform_idx: u32,
     pub(super) index_start: u32,
+    pub(super) scissor: Option<[u32; 4]>,
 }
 
 pub(super) struct DrawCall3D {

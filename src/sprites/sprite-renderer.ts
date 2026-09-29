@@ -4,6 +4,7 @@ import type { Color, Rect, Vec2 } from '../core/types';
 import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
 import type { SpriteFrame } from './sprite-sheet';
+import { getParallaxOffset } from '../camera2d/parallax-layer-2d';
 
 export interface SpriteRendererOptions {
   /** Untrimmed frame size in world units. Defaults to the frame's original atlas size. */
@@ -225,6 +226,9 @@ export class SpriteRenderer extends GameComponent {
     if (originalSize.x <= 0 || originalSize.y <= 0) return;
     const transform = owner.transform;
     const worldPosition = transform.worldPosition;
+    const parallaxOffset = getParallaxOffset(owner, renderer.activeCamera2D);
+    worldPosition.x += parallaxOffset.x;
+    worldPosition.y += parallaxOffset.y;
     const worldScale = transform.worldScale;
     const worldRotation = transform.worldRotation;
     const scaleX = Math.abs(worldScale.x) * this.size.x / originalSize.x;

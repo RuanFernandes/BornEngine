@@ -1151,6 +1151,7 @@ pub struct Renderer {
 
     // State
     pub render_mode: RenderMode,
+    active_2d_scissor: Option<[u32; 4]>,
     clear_color: wgpu::Color,
     // Multi-skin per-frame staging.
     //
@@ -6774,6 +6775,7 @@ impl Renderer {
             foliage_shadow_motion: false,
             uniform_3d_layout,
             render_mode: RenderMode::ScreenSpace,
+            active_2d_scissor: None,
             pending_skin_groups: Vec::with_capacity(8),
             frame_joint_data: Vec::with_capacity(256),
             pending_skin_groups_prev: Vec::with_capacity(8),
@@ -10344,6 +10346,8 @@ impl Renderer {
             let texture_bind_groups = &self.texture_bind_groups;
             let draw_calls_2d      = &self.draw_calls_2d;
             let indices_2d_len     = self.indices_2d.len() as u32;
+            let surface_width     = self.surface_config.width.max(1);
+            let surface_height    = self.surface_config.height.max(1);
             let view_ref           = &view;
 
             struct OverlayCtx<'a> {
@@ -10390,6 +10394,11 @@ impl Renderer {
                             pass.set_bind_group(0, &uniform_bind_groups[call.uniform_idx as usize], &[]);
                             if (call.texture_idx as usize) < texture_bind_groups.len() {
                                 pass.set_bind_group(1, &texture_bind_groups[call.texture_idx as usize], &[]);
+                            }
+                            if let Some(scissor) = call.scissor {
+                                pass.set_scissor_rect(scissor[0], scissor[1], scissor[2], scissor[3]);
+                            } else {
+                                pass.set_scissor_rect(0, 0, surface_width, surface_height);
                             }
                             pass.draw_indexed(call.index_start..next_start, 0, 0..1);
                         }
@@ -10611,13 +10620,15 @@ impl Renderer {
         let needs_new = self.draw_calls_2d.is_empty()
             || {
                 let last = self.draw_calls_2d.last().unwrap();
-                last.texture_idx != texture_idx || last.uniform_idx != self.current_uniform_idx
+                last.texture_idx != texture_idx || last.uniform_idx != self.current_uniform_idx ||
+                    last.scissor != self.active_2d_scissor
             };
         if needs_new {
             self.draw_calls_2d.push(DrawCall2D {
                 texture_idx,
                 uniform_idx: self.current_uniform_idx,
                 index_start: self.indices_2d.len() as u32,
+                scissor: self.active_2d_scissor,
             });
         }
     }
@@ -10750,6 +10761,39 @@ impl Renderer {
     // ============================================================
 
     pub fn begin_mode_2d(&mut self, offset_x: f32, offset_y: f32, target_x: f32, target_y: f32, rotation: f32, zoom: f32) {
+        self.begin_mode_2d_with_viewport(
+            offset_x, offset_y, target_x, target_y, rotation, zoom,
+            1.0, 1.0, 0.0, 0.0, None,
+        );
+    }
+
+    pub fn begin_mode_2d_viewport(
+        &mut self,
+        offset_x: f32, offset_y: f32, target_x: f32, target_y: f32,
+        rotation: f32, zoom: f32, scale_x: f32, scale_y: f32,
+        origin_x: f32, origin_y: f32,
+        clip_x: f32, clip_y: f32, clip_width: f32, clip_height: f32,
+    ) {
+        if !scale_x.is_finite() || !scale_y.is_finite() || scale_x <= 0.0 || scale_y <= 0.0 ||
+            !origin_x.is_finite() || !origin_y.is_finite() ||
+            !clip_x.is_finite() || !clip_y.is_finite() ||
+            !clip_width.is_finite() || !clip_height.is_finite() ||
+            clip_width <= 0.0 || clip_height <= 0.0 {
+            return;
+        }
+        self.begin_mode_2d_with_viewport(
+            offset_x, offset_y, target_x, target_y, rotation, zoom,
+            scale_x, scale_y, origin_x, origin_y,
+            Some([clip_x, clip_y, clip_width, clip_height]),
+        );
+    }
+
+    fn begin_mode_2d_with_viewport(
+        &mut self,
+        offset_x: f32, offset_y: f32, target_x: f32, target_y: f32,
+        rotation: f32, zoom: f32, scale_x: f32, scale_y: f32,
+        origin_x: f32, origin_y: f32, clip: Option<[f32; 4]>,
+    ) {
         self.uniform_slot_count += 1;
         if self.uniform_slot_count >= MAX_UNIFORM_SLOTS { return; }
         self.current_uniform_idx = self.uniform_slot_count as u32;
@@ -10758,12 +10802,14 @@ impl Renderer {
         let sin_r = rotation.to_radians().sin();
         let tx = target_x;
         let ty = target_y;
+        let scale_x_zoom = scale_x * zoom;
+        let scale_y_zoom = scale_y * zoom;
         let view_proj: [[f32; 4]; 4] = [
-            [zoom * cos_r, -zoom * sin_r, 0.0, 0.0],
-            [zoom * sin_r,  zoom * cos_r, 0.0, 0.0],
+            [scale_x_zoom * cos_r, scale_y_zoom * sin_r, 0.0, 0.0],
+            [-scale_x_zoom * sin_r, scale_y_zoom * cos_r, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
-            [offset_x - zoom * (cos_r * tx + sin_r * ty),
-             offset_y + zoom * (sin_r * tx - cos_r * ty),
+            [origin_x + scale_x * (offset_x - zoom * (cos_r * tx - sin_r * ty)),
+             origin_y + scale_y * (offset_y - zoom * (sin_r * tx + cos_r * ty)),
              0.0, 1.0],
         ];
 
@@ -10775,11 +10821,28 @@ impl Renderer {
             0,
             bytemuck::bytes_of(&uniforms),
         );
+        let physical_width = self.surface_config.width;
+        let physical_height = self.surface_config.height;
+        let scissor = if let Some(bounds) = clip {
+            let physical_scale_x = physical_width as f32 / w.max(1.0);
+            let physical_scale_y = physical_height as f32 / h.max(1.0);
+            let x0 = (bounds[0] * physical_scale_x).floor().clamp(0.0, physical_width as f32) as u32;
+            let y0 = (bounds[1] * physical_scale_y).floor().clamp(0.0, physical_height as f32) as u32;
+            let x1 = ((bounds[0] + bounds[2]) * physical_scale_x)
+                .ceil().clamp(x0 as f32, physical_width as f32) as u32;
+            let y1 = ((bounds[1] + bounds[3]) * physical_scale_y)
+                .ceil().clamp(y0 as f32, physical_height as f32) as u32;
+            Some([x0, y0, x1.saturating_sub(x0), y1.saturating_sub(y0)])
+        } else {
+            None
+        };
+        self.active_2d_scissor = scissor;
         self.render_mode = RenderMode::Mode2D;
     }
 
     pub fn end_mode_2d(&mut self) {
         self.current_uniform_idx = 0;
+        self.active_2d_scissor = None;
         self.render_mode = RenderMode::ScreenSpace;
     }
 

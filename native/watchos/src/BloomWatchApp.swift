@@ -329,11 +329,27 @@ struct BloomRootView: View {
                         let k = ptr.pointee.kind
                         if k >= 20 && k <= 29 { continue }  // 3D — handled by SceneView
                         if k == K_BEGIN_2D {
+                            let scaleX = ptr.pointee.srcX > 0 ? ptr.pointee.srcX : 1
+                            let scaleY = ptr.pointee.srcY > 0 ? ptr.pointee.srcY : 1
+                            let originX = ptr.pointee.srcW
+                            let originY = ptr.pointee.srcH
                             let zoom = ptr.pointee.size
-                            var t = CGAffineTransform(translationX: ptr.pointee.x, y: ptr.pointee.y)
-                            t = t.scaledBy(x: zoom, y: zoom)
+                            var t = CGAffineTransform(
+                                translationX: originX + scaleX * ptr.pointee.x,
+                                y: originY + scaleY * ptr.pointee.y
+                            )
+                            t = t.scaledBy(x: scaleX * zoom, y: scaleY * zoom)
+                            t = t.rotated(by: ptr.pointee.rot * .pi / 180.0)
                             t = t.translatedBy(x: -ptr.pointee.w, y: -ptr.pointee.h)
                             var w = ctx
+                            if ptr.pointee.r > 0 && ptr.pointee.g > 0 {
+                                w.clip(to: Path(CGRect(
+                                    x: ptr.pointee.thickness,
+                                    y: ptr.pointee._pad2,
+                                    width: ptr.pointee.r,
+                                    height: ptr.pointee.g
+                                )))
+                            }
                             w.transform = t
                             active = w
                             continue

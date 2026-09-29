@@ -21,6 +21,12 @@ export const apiCoverage = [
     sections: ['Frame lifecycle', 'Input', 'Cameras and coordinates', 'Files and profiling'],
   },
   {
+    slug: 'camera2d',
+    file: 'api/camera2d.md',
+    href: '/docs/api/camera2d/',
+    sections: ['Camera rig', 'Viewport scaling and coordinates', 'Parallax layers'],
+  },
+  {
     slug: 'input',
     file: 'api/input.md',
     href: '/docs/api/input/',

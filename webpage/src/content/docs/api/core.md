@@ -90,7 +90,7 @@ game.run({
 
 ## Cameras and coordinates
 
-Pass plain camera records to `game.renderer.begin2D(camera)` or `begin3D(camera)` and close the pass with its matching end method. The renderer rejects overlapping or unbalanced passes. `game.input.screenToWorld(position, camera)` and `worldToScreen` convert between screen and world coordinates.
+Pass plain camera records to `game.renderer.begin2D(camera)` or `begin3D(camera)` and close the pass with its matching end method. The renderer rejects overlapping or unbalanced passes. Scene rendering can bind a camera rig and logical viewport; input conversions use that active scene mapping by default, or accept an explicit camera for a standalone conversion. See the [2D camera API](./camera2d/) for scale modes and letterbox behavior.
 
 ```ts
 import type { Camera2D } from '@bornengine/engine';
