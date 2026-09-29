@@ -2,7 +2,7 @@
 import { Colors, Game } from '@bornengine/engine';
 
 function cubeVerts(size: number): number[] {
-  const verts: number[] = [];
+  const verts: number[] = new Array<number>(6 * 4 * 12);
   const faces: [number[], number[]][] = [
     [[0, 0, 1], [1, 1, 1, 1]], [[0, 0, -1], [1, 1, 1, 1]],
     [[1, 0, 0], [1, 1, 1, 1]], [[-1, 0, 0], [1, 1, 1, 1]],
@@ -17,21 +17,39 @@ function cubeVerts(size: number): number[] {
     if (normal[1] === 1) return [[-size, size, size], [size, size, size], [size, size, -size], [-size, size, -size]][index];
     return [[-size, -size, -size], [size, -size, -size], [size, -size, size], [-size, -size, size]][index];
   };
+  let offset = 0;
   for (const [normal, color] of faces) {
     for (let index = 0; index < 4; index += 1) {
       const point = cornerFor(normal, index);
-      verts.push(point[0], point[1], point[2], normal[0], normal[1], normal[2],
-        color[0], color[1], color[2], color[3], quadUvs[index][0], quadUvs[index][1]);
+      verts[offset] = point[0];
+      verts[offset + 1] = point[1];
+      verts[offset + 2] = point[2];
+      verts[offset + 3] = normal[0];
+      verts[offset + 4] = normal[1];
+      verts[offset + 5] = normal[2];
+      verts[offset + 6] = color[0];
+      verts[offset + 7] = color[1];
+      verts[offset + 8] = color[2];
+      verts[offset + 9] = color[3];
+      verts[offset + 10] = quadUvs[index][0];
+      verts[offset + 11] = quadUvs[index][1];
+      offset += 12;
     }
   }
   return verts;
 }
 
 function cubeIndices(): number[] {
-  const indices: number[] = [];
+  const indices: number[] = new Array<number>(6 * 6);
   for (let face = 0; face < 6; face += 1) {
     const base = face * 4;
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    const offset = face * 6;
+    indices[offset] = base;
+    indices[offset + 1] = base + 1;
+    indices[offset + 2] = base + 2;
+    indices[offset + 3] = base;
+    indices[offset + 4] = base + 2;
+    indices[offset + 5] = base + 3;
   }
   return indices;
 }

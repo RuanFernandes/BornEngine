@@ -1,7 +1,7 @@
 {
-  "name": "kart-racer",
-  "version": "1.0.0",
-  "main": "main.ts",
+  "name": "bornengine-scene-graph-examples",
+  "version": "0.1.0",
+  "private": true,
   "dependencies": {
     "@bornengine/engine": "file:../../"
   },

@@ -1,5 +1,5 @@
 // ============================================================
-// Bloom Intel Sponza Stress Test
+// BornEngine Intel Sponza Stress Test
 // ============================================================
 // Intel's 2022 photogrammetry rework of Sponza — ~10M+ triangles,
 // 4K PBR textures, 68 materials. Stress-tests:
@@ -9,32 +9,8 @@
 //   - Auto-fit shadow bounds on a non-Khronos scene
 //   - TAA + GTAO stability under high-frequency detail
 
-import {
-  initWindow, windowShouldClose, beginDrawing, endDrawing, takeScreenshot,
-  setEnvClearFromHdr, setTargetFPS, getDeltaTime, getFPS,
-  isKeyDown, isKeyPressed,
-  getMouseDeltaX, getMouseDeltaY,
-  disableCursor, enableCursor,
-  beginMode3D, endMode3D,
-  setFog, setSunShafts, setVignette, setChromaticAberration,
-  setAutoExposure, setEnvIntensity, setManualExposure, setTaaEnabled,
-  setProfilerEnabled, printProfilerSummary,
-  getProfilerFrameCpuUs, getProfilerFrameGpuUs,
-  setQualityPreset, QualityPreset,
-  setShadowsEnabled, setSsaoEnabled, setSsrEnabled, setSsgiEnabled,
-  setRenderScale, setUpscaleMode, setCasStrength,
-} from "bloom/core";
-import { Key } from "bloom/core";
-import { drawText } from "bloom/text";
-import {
-  setAmbientLight, setDirectionalLight, loadModel,
-} from "bloom/models";
-import {
-  enableShadows, addDirectionalLight,
-  createSceneNode, attachModelToNode, setSceneNodeTransform,
-  setSceneNodeCastShadow, dumpShadowMap,
-} from "bloom/scene";
-import { clamp, mat4Identity } from "bloom/math";
+import { Game, Key, Matrix4, Model, Mathf, QualityPreset } from '@bornengine/engine';
+import type { Camera3D, Color, SceneNode, Vec3 } from '@bornengine/engine';
 
 const SCREEN_W = 800;
 const SCREEN_H = 450;
@@ -188,9 +164,112 @@ for (let i = 2; i < argv.length; i = i + 1) {
   }
 }
 
+let game: IntelSponzaGame;
+let elapsedSeconds = 0;
+const managedModels: Model[] = new Array<Model>(8);
+const managedNodes: SceneNode[] = new Array<SceneNode>(256);
+let managedModelCount = 0;
+let managedNodeCount = 0;
+let camX = initCamX !== null ? initCamX : 0.0;
+let camY = initCamY !== null ? initCamY : 2.0;
+let camZ = initCamZ !== null ? initCamZ : 0.0;
+let camYaw = initYaw;
+let camPitch = initPitch;
+let cursorLocked = false;
+let measureAccumS = 0.0;
+
+class IntelSponzaGame extends Game {
+  protected override loop(deltaTime: number): void { updateFrame(deltaTime); }
+  protected override render(): void { renderFrame(); }
+}
+
+function mat4Identity(): number[] { return Matrix4.identity().toArray(); }
+function clamp(value: number, min: number, max: number): number { return Mathf.clamp(value, min, max); }
+function getFPS(): number { return game.renderer.stats.fps; }
+function getTime(): number { return elapsedSeconds; }
+function isKeyDown(key: number): boolean { return game.input.isKeyDown(key); }
+function isKeyPressed(key: number): boolean { return game.input.isKeyPressed(key); }
+function getMouseDeltaX(): number { return game.input.getMouseDeltaX(); }
+function getMouseDeltaY(): number { return game.input.getMouseDeltaY(); }
+function disableCursor(): void { game.input.setCursorCaptured(true); }
+function enableCursor(): void { game.input.setCursorCaptured(false); }
+function takeScreenshot(path: string): void { game.renderer.screenshot(path); }
+function setEnvClearFromHdr(path: string): void { game.renderer.setEnvironmentFromHdr(path); }
+function enableShadows(): void { game.sceneGraph.setShadowsEnabled(true); }
+function setEnvIntensity(intensity: number): void { game.renderer.setEnvironmentIntensity(intensity); }
+function setAutoExposure(enabled: boolean): void { game.renderer.setAutoExposure(enabled); }
+function setManualExposure(value: number): void { game.renderer.setManualExposure(value); }
+function setTaaEnabled(enabled: boolean): void { game.renderer.setTaaEnabled(enabled); }
+function setFog(r: number, g: number, b: number, density: number, heightReference: number, heightFalloff: number): void {
+  game.renderer.setFog({ r: r * 255, g: g * 255, b: b * 255, a: 255 }, density, heightReference, heightFalloff);
+}
+function setSunShafts(strength: number, decay: number, r: number, g: number, b: number): void {
+  game.renderer.setSunShafts(strength, decay, { r: r * 255, g: g * 255, b: b * 255, a: 255 });
+}
+function setVignette(strength: number, softness: number): void { game.renderer.setVignette(strength, softness); }
+function setChromaticAberration(strength: number): void { game.renderer.setChromaticAberration(strength); }
+function setProfilerEnabled(enabled: boolean): void { game.renderer.setProfilerEnabled(enabled); }
+function getProfilerFrameCpuUs(): number { return game.renderer.getProfilerCpuTimeUs(); }
+function getProfilerFrameGpuUs(): number { return game.renderer.getProfilerGpuTimeUs(); }
+function printProfilerSummary(): void { game.renderer.printProfilerSummary(); }
+function setRenderScale(scale: number): void { game.renderer.setRenderScale(scale); }
+function setUpscaleMode(mode: 'catmull-rom' | 'bilinear'): void { game.renderer.setUpscaleMode(mode); }
+function setCasStrength(strength: number): void { game.renderer.setCasStrength(strength); }
+function setQualityPreset(preset: QualityPreset): void { game.renderer.setQualityPreset(preset); }
+function setShadowsEnabled(enabled: boolean): void { game.renderer.setShadowsEnabled(enabled); }
+function setSsaoEnabled(enabled: boolean): void { game.renderer.setSsaoEnabled(enabled); }
+function setSsrEnabled(enabled: boolean): void { game.renderer.setSsrEnabled(enabled); }
+function setSsgiEnabled(enabled: boolean): void { game.renderer.setSsgiEnabled(enabled); }
+function addDirectionalLight(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void {
+  game.sceneGraph.addDirectionalLight(
+    { x: dx, y: dy, z: dz }, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
+  );
+}
+function addPointLight(x: number, y: number, z: number, range: number, r: number, g: number, b: number, intensity: number): void {
+  game.sceneGraph.addPointLight(
+    { x, y, z }, range, { r: r * 255, g: g * 255, b: b * 255, a: 255 }, intensity,
+  );
+}
+function setAmbientLight(color: Color, intensity: number): void { game.sceneGraph.setAmbientLight(color, intensity); }
+function setDirectionalLight(direction: Vec3, color: Color, intensity: number): void {
+  game.sceneGraph.addDirectionalLight(direction, color, intensity);
+}
+function createSceneNode(): number {
+  const node = game.sceneGraph.createNode();
+  managedNodes[managedNodeCount] = node;
+  managedNodeCount += 1;
+  return managedNodeCount;
+}
+function attachModelToNode(nodeHandle: number, model: Model, meshIndex: number): void {
+  const node = managedNodes[nodeHandle - 1];
+  if (node !== undefined) node.attachModel(model, meshIndex);
+}
+function setSceneNodeTransform(nodeHandle: number, transform: number[]): void {
+  const node = managedNodes[nodeHandle - 1];
+  if (node !== undefined) node.setTransform(transform);
+}
+function setSceneNodeCastShadow(nodeHandle: number, enabled: boolean): void {
+  const node = managedNodes[nodeHandle - 1];
+  if (node !== undefined) node.setCastShadow(enabled);
+}
+function dumpShadowMap(path: string): void { game.sceneGraph.dumpShadowMap(path); }
+function loadModel(path: string): { model: Model; meshCount: number } {
+  const model = new Model(game, path);
+  managedModels[managedModelCount] = model;
+  managedModelCount += 1;
+  return { model, meshCount: model.meshCount };
+}
+function beginMode3D(camera: Camera3D): void { game.renderer.begin3D(camera); }
+function endMode3D(): void { game.renderer.end3D(); }
+function drawText(text: string, x: number, y: number, size: number, color: Color): void {
+  game.renderer.drawText(text, { x, y }, size, color);
+}
+
 // ---- Init ----
-initWindow(SCREEN_W, SCREEN_H, "Bloom Intel Sponza Stress", 0);
-setTargetFPS(60);
+game = new IntelSponzaGame({
+  window: { width: SCREEN_W, height: SCREEN_H, title: 'BornEngine Intel Sponza Stress' },
+  targetFps: 60,
+});
 setEnvClearFromHdr("assets/outdoor.hdr");
 enableShadows();
 
@@ -272,11 +351,12 @@ if (taaOverride === 1) { setTaaEnabled(true); }
 // Intel Sponza ships as loose glTF + .bin + 68 textures. The
 // filename in Intel's bundle is typically `NewSponza_Main_glTF_003.gltf`
 // or similar — adjust after extracting to match whatever it turns out to be.
-const sponza = loadModel("assets/NewSponza_Main_glTF_003.gltf");
+const sponzaData = loadModel("assets/NewSponza_Main_glTF_003.gltf");
+const sponza = sponzaData.model;
 const identity = mat4Identity();
-for (let i = 0; i < sponza.meshCount; i = i + 1) {
+for (let i = 0; i < sponzaData.meshCount; i = i + 1) {
   const node = createSceneNode();
-  attachModelToNode(node, sponza.handle, i);
+  attachModelToNode(node, sponza, i);
   setSceneNodeTransform(node, identity);
 }
 
@@ -284,21 +364,15 @@ for (let i = 0; i < sponza.meshCount; i = i + 1) {
 // Sponza courtyard center, looking down the main axis. CLI overrides
 // (--cam-x/y/z --yaw --pitch) replace the defaults so a headless
 // --capture can reproduce any player-visible pose.
-let camX = initCamX !== null ? initCamX : 0.0;
-let camY = initCamY !== null ? initCamY : 2.0;
-let camZ = initCamZ !== null ? initCamZ : 0.0;
-let camYaw = initYaw;
-let camPitch = initPitch;
-let cursorLocked = false;
-
 // Accumulates total elapsed time for short runs where getFPS() hasn't
 // yet ticked its 1 s rolling window (e.g. `--fps-only 60` at 60 fps
 // finishes in 1.0 s flat, which can round below the sampler threshold).
-let measureAccumS = 0.0;
-
 // ---- Main loop ----
-while (!windowShouldClose()) {
-  const dt = getDeltaTime();
+let lookX = 0.0;
+let lookY = 0.0;
+let lookZ = 0.0;
+function updateFrame(dt: number): void {
+  elapsedSeconds += dt;
   measureAccumS = measureAccumS + dt;
 
   // Shadow-drag repro: after `turnAt` frames at the initial yaw,
@@ -355,12 +429,14 @@ while (!windowShouldClose()) {
     );
   }
 
-  const lookX = camX + Math.cos(camPitch) * fwdX * 100;
-  const lookY = camY + Math.sin(camPitch) * 100;
-  const lookZ = camZ + Math.cos(camPitch) * fwdZ * 100;
+  lookX = camX + Math.cos(camPitch) * fwdX * 100;
+  lookY = camY + Math.sin(camPitch) * 100;
+  lookZ = camZ + Math.cos(camPitch) * fwdZ * 100;
 
-  // ---- Rendering ----
-  beginDrawing();
+}
+
+function renderFrame(): void {
+  const t = getTime();
 
   // Ambient swung from cool blue-grey (160,165,180) toward warm
   // stone-bounce (175,160,140). The cool tint was an artifact of the
@@ -393,7 +469,7 @@ while (!windowShouldClose()) {
   endMode3D();
 
   // HUD
-  drawText("Bloom Intel Sponza Stress", 10, 10, 20, { r: 255, g: 255, b: 255, a: 255 });
+  drawText("BornEngine Intel Sponza Stress", 10, 10, 20, { r: 255, g: 255, b: 255, a: 255 });
   const fps = getFPS();
   const ms = fps > 0.0 ? 1000.0 / fps : 0.0;
   // Color the FPS line based on perf bucket so glances give
@@ -411,16 +487,16 @@ while (!windowShouldClose()) {
   if (captureFrames > 0) {
     frameCount = frameCount + 1;
     if (frameCount === captureFrames) { takeScreenshot(capturePath); }
-    if (frameCount > captureFrames) { endDrawing(); break; }
+    if (frameCount > captureFrames) { game.stop(); return; }
   }
 
   // Shadow-map dump for diagnostics — dump cascade 0 after N frames then exit.
   if (dumpShadowFrames > 0) {
     frameCount = frameCount + 1;
     if (frameCount === dumpShadowFrames) {
-      endDrawing();
       dumpShadowMap(dumpShadowPath);
-      break;
+      game.stop();
+      return;
     }
   }
 
@@ -430,7 +506,6 @@ while (!windowShouldClose()) {
     frameCount = frameCount + 1;
     if (!noPan) { camYaw = camYaw + 0.005; }
     if (frameCount >= profileFrames) {
-      endDrawing();
       const cpuUs = getProfilerFrameCpuUs();
       const gpuUs = getProfilerFrameGpuUs();
       const rollingFps = getFPS();
@@ -443,7 +518,8 @@ while (!windowShouldClose()) {
       console.log(`Total CPU: ${(cpuUs / 1000).toFixed(2)} ms`);
       console.log(`Total GPU: ${(gpuUs / 1000).toFixed(2)} ms`);
       printProfilerSummary();
-      break;
+      game.stop();
+      return;
     }
   }
 
@@ -462,7 +538,6 @@ while (!windowShouldClose()) {
       sweepConfigStartS = measureAccumS;
     }
     if (sweepFrameInConfig >= sweepWarmup + sweepFramesPerConfig) {
-      endDrawing();
       const measFrames = sweepFramesPerConfig;
       const elapsedS = measureAccumS - sweepConfigStartS;
       const fps = elapsedS > 0 ? measFrames / elapsedS : 0;
@@ -483,7 +558,7 @@ while (!windowShouldClose()) {
         cpuUs.toFixed(0)
       );
       sweepConfigIdx = sweepConfigIdx + 1;
-      if (sweepConfigIdx >= sweepCount) { break; }
+      if (sweepConfigIdx >= sweepCount) { game.stop(); return; }
       // Apply next config — the next frame's first `sweepWarmup`
       // ticks absorb the resize cost.
       setRenderScale(sweepScale[sweepConfigIdx]);
@@ -500,7 +575,6 @@ while (!windowShouldClose()) {
     frameCount = frameCount + 1;
     if (!noPan) { camYaw = camYaw + 0.005; }
     if (frameCount >= fpsOnlyFrames) {
-      endDrawing();
       // Prefer the rolling-window sampler; fall back to cumulative
       // deltaTime when the run is shorter than one sampler tick.
       const rollingFps = getFPS();
@@ -510,9 +584,11 @@ while (!windowShouldClose()) {
       const measuredMs = measuredFps > 0 ? 1000 / measuredFps : 0;
       console.log(`\n=== FPS-ONLY (${frameCount} frames, no profiler) ===`);
       console.log(`FPS: ${measuredFps.toFixed(1)} (${measuredMs.toFixed(2)} ms/frame)`);
-      break;
+      game.stop();
+      return;
     }
   }
 
-  endDrawing();
 }
+
+game.run();
