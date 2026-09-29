@@ -465,18 +465,6 @@
 #[no_mangle] pub extern "C" fn bloom_get_model_bounds_max_z(_p0: f64) -> f64 {
     0.0
 }
-#[no_mangle] pub extern "C" fn bloom_storage_remove(_p0: i64) -> f64 {
-    0.0
-}
-#[no_mangle] pub extern "C" fn bloom_storage_write(_p0: i64, _p1: i64) -> f64 {
-    0.0
-}
-#[no_mangle] pub extern "C" fn bloom_storage_exists(_p0: i64) -> f64 {
-    0.0
-}
-#[no_mangle] pub extern "C" fn bloom_storage_read(_p0: i64) -> i64 {
-    0
-}
 #[no_mangle] pub extern "C" fn bloom_register_frame_callback(_p0: f64, _p1: i64) -> f64 {
     0.0
 }
