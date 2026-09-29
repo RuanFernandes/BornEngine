@@ -2502,35 +2502,21 @@
           ],
           "returns": "string"
         },
-        {
-          "name": "bloom_storage_remove",
-          "params": [
-            "string"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_storage_write",
-          "params": [
-            "string",
-            "string"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_storage_exists",
-          "params": [
-            "string"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_storage_read",
-          "params": [
-            "string"
-          ],
-          "returns": "string"
-        },
+        { "name": "bloom_database_scratch_reset", "params": [], "returns": "void" },
+        { "name": "bloom_database_scratch_push_f64", "params": ["f64"], "returns": "void" },
+        { "name": "bloom_database_scratch_push_string", "params": ["string"], "returns": "void" },
+        { "name": "bloom_database_scratch_push_byte", "params": ["f64"], "returns": "void" },
+        { "name": "bloom_database_submit", "params": ["f64", "f64", "f64"], "returns": "f64" },
+        { "name": "bloom_database_poll", "params": ["f64"], "returns": "f64" },
+        { "name": "bloom_database_status", "params": ["f64"], "returns": "f64" },
+        { "name": "bloom_database_result_rows", "params": ["f64"], "returns": "f64" },
+        { "name": "bloom_database_result_count", "params": ["f64"], "returns": "f64" },
+        { "name": "bloom_database_result_kind", "params": ["f64", "f64"], "returns": "f64" },
+        { "name": "bloom_database_result_number", "params": ["f64", "f64"], "returns": "f64" },
+        { "name": "bloom_database_result_string", "params": ["f64", "f64"], "returns": "string" },
+        { "name": "bloom_database_result_byte_count", "params": ["f64", "f64"], "returns": "f64" },
+        { "name": "bloom_database_result_byte", "params": ["f64", "f64", "f64"], "returns": "f64" },
+        { "name": "bloom_database_release", "params": ["f64"], "returns": "void" },
         {
           "name": "bloom_get_touch_x",
           "params": [

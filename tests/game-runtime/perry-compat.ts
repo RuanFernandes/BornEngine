@@ -12,8 +12,10 @@ import type { InputActionMap } from '@bornengine/engine/input';
 import type { ManagedSoundOptions as RootManagedSoundOptions, Vector2DLike } from '@bornengine/engine';
 import type { SoundManager as RootSoundManager } from '@bornengine/engine';
 import type { ManagedSoundOptions, SpatialSoundOptions } from '@bornengine/engine/audio';
+import type { DatabaseContractFixture } from './game-database-types';
 
 declare const process: { exit(code: number): never };
+type DatabaseContractIncluded = DatabaseContractFixture;
 
 const game = new Game();
 const zero2D = new Vector2D();
