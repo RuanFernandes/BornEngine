@@ -3,21 +3,23 @@
 //! The wire protocol deliberately contains typed values and finite schema
 //! operations only. No caller-authored SQL crosses this module.
 
+use rusqlite::backup::{Backup, StepResult};
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
     params_from_iter, Connection, Error as SqlError, ErrorCode, OptionalExtension,
     TransactionBehavior, MAIN_DB,
 };
-use std::collections::{BTreeMap, HashMap};
-use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 const MAX_WIRE_DEPTH: usize = 32;
+// Recursive collections are capped independently from byte-tag payloads.
+// Binary data has the same 256 MiB ceiling as SQLite export/import; the
+// scratch ByteRun is moved into the parsed value instead of copied.
 const MAX_WIRE_VALUES: usize = 1_000_000;
 const MAX_IMPORT_BYTES: usize = 256 * 1024 * 1024;
 
@@ -720,116 +722,61 @@ impl DatabaseStore {
         if image_version != handle.version {
             return DatabaseResponse::status(DatabaseStatus::UnsupportedVersion);
         }
-        let Some(path) = handle.path.clone() else {
+        match database_schema_matches(&validated, &handle.schema) {
+            Ok(true) => {}
+            Ok(false) | Err(_) => return DatabaseResponse::status(DatabaseStatus::CorruptData),
+        }
+        let Some(current) = handle.connection.as_ref() else {
+            return DatabaseResponse::status(DatabaseStatus::Closed);
+        };
+        match database_physical_schema_matches(&validated, current) {
+            Ok(true) => {}
+            Ok(false) | Err(_) => return DatabaseResponse::status(DatabaseStatus::CorruptData),
+        }
+        if handle.path.is_none() {
             handle.connection = Some(validated);
             return DatabaseResponse::ok(Vec::new());
+        }
+        let Some(destination) = handle.connection.as_mut() else {
+            return DatabaseResponse::status(DatabaseStatus::Closed);
         };
-        drop(validated);
-        import_database_file(handle, &path, bytes)
-    }
-}
-
-fn import_database_file(
-    handle: &mut DatabaseHandle,
-    path: &Path,
-    bytes: &[u8],
-) -> DatabaseResponse {
-    static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-    let Some(parent) = path.parent() else {
-        return DatabaseResponse::status(DatabaseStatus::StorageError);
-    };
-    let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
-    let stem = path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or("database");
-    let staged = parent.join(format!(
-        ".{stem}.import-{}-{serial}.tmp",
-        std::process::id()
-    ));
-    let backup = parent.join(format!(
-        ".{stem}.import-{}-{serial}.bak",
-        std::process::id()
-    ));
-    let mut staged_file = match OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&staged)
-    {
-        Ok(file) => file,
-        Err(_) => return DatabaseResponse::status(DatabaseStatus::StorageError),
-    };
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = staged_file.set_permissions(fs::Permissions::from_mode(0o600));
-    }
-    if staged_file.write_all(bytes).is_err() || staged_file.sync_all().is_err() {
-        drop(staged_file);
-        let _ = fs::remove_file(&staged);
-        return DatabaseResponse::status(DatabaseStatus::StorageError);
-    }
-    drop(staged_file);
-
-    let previous = handle.connection.take();
-    drop(previous);
-    if fs::rename(path, &backup).is_err() {
-        handle.connection = reopen_database(path).ok();
-        let _ = fs::remove_file(&staged);
-        return DatabaseResponse::status(DatabaseStatus::StorageError);
-    }
-    if fs::rename(&staged, path).is_err() {
-        let restored = fs::rename(&backup, path).is_ok();
-        if restored {
-            handle.connection = reopen_database(path).ok();
-        }
-        let _ = fs::remove_file(&staged);
-        return DatabaseResponse::status(DatabaseStatus::StorageError);
-    }
-    if sync_directory(parent).is_err() {
-        let _ = fs::remove_file(path);
-        let restored = fs::rename(&backup, path).is_ok();
-        if restored {
-            handle.connection = reopen_database(path).ok();
-        }
-        return DatabaseResponse::status(DatabaseStatus::StorageError);
-    }
-    let replacement = match reopen_database(path) {
-        Ok(connection) => connection,
-        Err(_) => {
-            let _ = fs::remove_file(path);
-            let restored = fs::rename(&backup, path).is_ok();
-            if restored {
-                handle.connection = reopen_database(path).ok();
+        let lock = match destination.transaction_with_behavior(TransactionBehavior::Immediate) {
+            Ok(lock) => lock,
+            Err(error) => {
+                return DatabaseResponse::status(map_sql_error(
+                    &error,
+                    DatabaseStatus::StorageError,
+                ))
             }
-            return DatabaseResponse::status(DatabaseStatus::StorageError);
+        };
+        if let Err(error) = lock.rollback() {
+            return DatabaseResponse::status(map_sql_error(&error, DatabaseStatus::StorageError));
         }
-    };
-    // The new image and directory entry were synced while the old image was
-    // still available as a backup. Backup cleanup is housekeeping: failure to
-    // unlink it must not turn a durable import into a reported failure.
-    let _ = fs::remove_file(&backup);
-    let _ = sync_directory(parent);
-    handle.connection = Some(replacement);
-    DatabaseResponse::ok(Vec::new())
-}
-
-fn reopen_database(path: &Path) -> rusqlite::Result<Connection> {
-    let connection = Connection::open(path)?;
-    connection.busy_timeout(Duration::ZERO)?;
-    configure_connection(&connection)?;
-    Ok(connection)
-}
-
-fn sync_directory(path: &Path) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        File::open(path)?.sync_all()
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-        Ok(())
+        let backup = match Backup::new(&validated, destination) {
+            Ok(backup) => backup,
+            Err(error) => {
+                return DatabaseResponse::status(map_sql_error(
+                    &error,
+                    DatabaseStatus::StorageError,
+                ))
+            }
+        };
+        loop {
+            match backup.step(128) {
+                Ok(StepResult::Done) => return DatabaseResponse::ok(Vec::new()),
+                Ok(StepResult::More) => {}
+                Ok(StepResult::Busy | StepResult::Locked) => {
+                    return DatabaseResponse::status(DatabaseStatus::Busy)
+                }
+                Ok(_) => return DatabaseResponse::status(DatabaseStatus::Busy),
+                Err(error) => {
+                    return DatabaseResponse::status(map_sql_error(
+                        &error,
+                        DatabaseStatus::StorageError,
+                    ))
+                }
+            }
+        }
     }
 }
 
@@ -850,6 +797,146 @@ fn validate_database_image(bytes: &[u8]) -> Result<(Connection, i64), DatabaseSt
         return Err(DatabaseStatus::UnsupportedVersion);
     }
     Ok((connection, version))
+}
+
+fn database_physical_schema_matches(
+    imported: &Connection,
+    current: &Connection,
+) -> Result<bool, DatabaseStatus> {
+    let imported_tables = read_physical_table_names(imported)?;
+    let current_tables = read_physical_table_names(current)?;
+    if imported_tables != current_tables {
+        return Ok(false);
+    }
+
+    for table in imported_tables {
+        let imported_sql = physical_table_sql(imported, &table)?;
+        let current_sql = physical_table_sql(current, &table)?;
+        if imported_sql != current_sql {
+            return Ok(false);
+        }
+
+        let imported_indexes = physical_index_fingerprints(imported, &table)?;
+        let current_indexes = physical_index_fingerprints(current, &table)?;
+        if imported_indexes != current_indexes {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn read_physical_table_names(connection: &Connection) -> Result<Vec<String>, DatabaseStatus> {
+    connection
+        .prepare(
+            "SELECT name FROM sqlite_master \
+             WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .map_err(|_| DatabaseStatus::CorruptData)?
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|_| DatabaseStatus::CorruptData)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|_| DatabaseStatus::CorruptData)
+}
+
+fn physical_table_sql(connection: &Connection, table: &str) -> Result<String, DatabaseStatus> {
+    connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [table],
+            |row| row.get(0),
+        )
+        .map_err(|_| DatabaseStatus::CorruptData)
+}
+
+fn physical_index_fingerprints(
+    connection: &Connection,
+    table: &str,
+) -> Result<Vec<(Option<String>, bool, Vec<String>)>, DatabaseStatus> {
+    let mut indexes = read_physical_indexes(connection, table)?
+        .into_iter()
+        .map(|index| {
+            let public_name =
+                (!index.name.starts_with("__bornengine_unique_")).then_some(index.name);
+            (public_name, index.unique, index.columns)
+        })
+        .collect::<Vec<_>>();
+    indexes.sort();
+    Ok(indexes)
+}
+
+fn database_schema_matches(
+    connection: &Connection,
+    expected: &DatabaseSchema,
+) -> Result<bool, DatabaseStatus> {
+    let mut physical_tables = {
+        let mut statement = connection
+            .prepare(
+                "SELECT name FROM sqlite_master \
+                 WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+            )
+            .map_err(|_| DatabaseStatus::CorruptData)?;
+        let tables = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|_| DatabaseStatus::CorruptData)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| DatabaseStatus::CorruptData)?;
+        tables
+    };
+    let expected_tables: Vec<String> = expected.tables.keys().cloned().collect();
+    physical_tables.sort();
+    if physical_tables != expected_tables {
+        return Ok(false);
+    }
+    let has_unsupported_objects: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master \
+             WHERE type IN ('view', 'trigger') AND name NOT LIKE 'sqlite_%')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| DatabaseStatus::CorruptData)?;
+    if has_unsupported_objects {
+        return Ok(false);
+    }
+
+    for (table, expected_table) in &expected.tables {
+        let physical_columns =
+            read_physical_columns(connection, table).map_err(|_| DatabaseStatus::CorruptData)?;
+        if physical_columns.len() != expected_table.columns.len() {
+            return Ok(false);
+        }
+        for (name, expected_column) in &expected_table.columns {
+            let Some((_, physical_column)) = physical_columns
+                .iter()
+                .find(|(physical_name, _)| physical_name == name)
+            else {
+                return Ok(false);
+            };
+            if physical_column.kind != expected_column.kind
+                || physical_column.primary_key != expected_column.primary_key
+                || physical_column.auto_increment != expected_column.auto_increment
+                || physical_column.not_null
+                    != (expected_column.not_null || expected_column.primary_key)
+            {
+                return Ok(false);
+            }
+        }
+
+        if expected_table.columns.values().any(|column| column.unique) {
+            let indexes = read_physical_indexes(connection, table)
+                .map_err(|_| DatabaseStatus::CorruptData)?;
+            for (column_name, column) in &expected_table.columns {
+                if column.unique
+                    && !indexes.iter().any(|index| {
+                        index.unique && index.columns.as_slice() == [column_name.as_str()]
+                    })
+                {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    Ok(true)
 }
 
 fn configure_connection(connection: &Connection) -> rusqlite::Result<()> {
@@ -1677,6 +1764,18 @@ fn rebuild_table(
     drop: Option<&str>,
 ) -> Result<(), DatabaseStatus> {
     let columns = read_physical_columns(connection, table)?;
+    let previous_sequence = if columns.iter().any(|(_, column)| column.auto_increment) {
+        connection
+            .query_row(
+                "SELECT seq FROM sqlite_sequence WHERE name = ?1",
+                [table],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?
+    } else {
+        None
+    };
     let mut rebuilt = columns.clone();
     if let Some((name, column)) = add.as_ref() {
         if !valid_identifier(name) || rebuilt.iter().any(|(existing, _)| existing == name) {
@@ -1781,6 +1880,34 @@ fn rebuild_table(
             quote_identifier(table)
         ))
         .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?;
+    if let Some(previous_sequence) = previous_sequence {
+        let current_sequence = connection
+            .query_row(
+                "SELECT seq FROM sqlite_sequence WHERE name = ?1",
+                [table],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?;
+        let sequence = current_sequence
+            .map(|current| current.max(previous_sequence))
+            .unwrap_or(previous_sequence);
+        if current_sequence.is_some() {
+            connection
+                .execute(
+                    "UPDATE sqlite_sequence SET seq = ?1 WHERE name = ?2",
+                    (sequence, table),
+                )
+                .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?;
+        } else {
+            connection
+                .execute(
+                    "INSERT INTO sqlite_sequence (name, seq) VALUES (?1, ?2)",
+                    (table, sequence),
+                )
+                .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?;
+        }
+    }
     for index in indexes {
         if index
             .columns
@@ -1899,6 +2026,7 @@ fn read_physical_indexes(
         .query([])
         .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?;
     let mut indexes = Vec::new();
+    let mut generated_names = HashSet::new();
     while let Some(row) = rows
         .next()
         .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?
@@ -1939,9 +2067,11 @@ fn read_physical_indexes(
             continue;
         }
         // Inline UNIQUE constraints become autoindexes whose names cannot be
-        // reused. Recreate them with a fresh deterministic internal name.
+        // reused. Allocate an internal name unused anywhere in this database.
         let name = if origin == "u" {
-            format!("__bornengine_unique_{}", indexes.len())
+            let name = fresh_unique_index_name(connection, &generated_names)?;
+            generated_names.insert(name.clone());
+            name
         } else {
             name
         };
@@ -1954,6 +2084,31 @@ fn read_physical_indexes(
     Ok(indexes)
 }
 
+fn fresh_unique_index_name(
+    connection: &Connection,
+    reserved: &HashSet<String>,
+) -> Result<String, DatabaseStatus> {
+    let mut serial = 0_u64;
+    loop {
+        let candidate = format!("__bornengine_unique_{serial}");
+        if !reserved.contains(&candidate) {
+            let exists: bool = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = ?1)",
+                    [&candidate],
+                    |row| row.get(0),
+                )
+                .map_err(|error| map_sql_error(&error, DatabaseStatus::MigrationError))?;
+            if !exists {
+                return Ok(candidate);
+            }
+        }
+        serial = serial
+            .checked_add(1)
+            .ok_or(DatabaseStatus::MigrationError)?;
+    }
+}
+
 // Perry's native database scratch frame is thread-local, so simultaneous game
 // threads cannot mix request values between reset and submit.
 #[derive(Clone, Debug)]
@@ -1964,7 +2119,7 @@ enum ScratchAtom {
 }
 
 thread_local! {
-    static SCRATCH: std::cell::RefCell<(Vec<ScratchAtom>, bool)> = const { std::cell::RefCell::new((Vec::new(), false)) };
+    static SCRATCH: std::cell::RefCell<(Vec<ScratchAtom>, bool, usize)> = const { std::cell::RefCell::new((Vec::new(), false, 0)) };
 }
 
 pub fn scratch_reset() {
@@ -1972,6 +2127,7 @@ pub fn scratch_reset() {
         let mut scratch = scratch.borrow_mut();
         scratch.0.clear();
         scratch.1 = false;
+        scratch.2 = 0;
     });
 }
 pub fn scratch_push_number(value: f64) {
@@ -1982,10 +2138,14 @@ pub fn scratch_push_byte(value: f64) {
         let mut scratch = scratch.borrow_mut();
         if !value.is_finite() || value.fract() != 0.0 || !(0.0..=255.0).contains(&value) {
             scratch.1 = true;
+        } else if scratch.2 >= MAX_IMPORT_BYTES {
+            scratch.1 = true;
         } else if let Some(ScratchAtom::ByteRun(bytes)) = scratch.0.last_mut() {
             bytes.push(value as u8);
+            scratch.2 += 1;
         } else {
             scratch.0.push(ScratchAtom::ByteRun(vec![value as u8]));
+            scratch.2 += 1;
         }
     });
 }
@@ -2004,12 +2164,19 @@ pub fn submit_scratch_args(argc: f64) -> Result<Vec<DatabaseValue>, DatabaseStat
         return Err(DatabaseStatus::InvalidData);
     }
     SCRATCH.with(|scratch| {
-        let (atoms, invalid) = std::mem::take(&mut *scratch.borrow_mut());
+        let (atoms, invalid) = {
+            let mut scratch = scratch.borrow_mut();
+            let atoms = std::mem::take(&mut scratch.0);
+            let invalid = scratch.1;
+            scratch.1 = false;
+            scratch.2 = 0;
+            (atoms, invalid)
+        };
         if invalid {
             return Err(DatabaseStatus::InvalidData);
         }
         let mut parser = ScratchParser {
-            atoms: &atoms,
+            atoms,
             index: 0,
             values: 0,
         };
@@ -2017,20 +2184,20 @@ pub fn submit_scratch_args(argc: f64) -> Result<Vec<DatabaseValue>, DatabaseStat
         for _ in 0..argc as usize {
             args.push(parser.read_value(0)?);
         }
-        if parser.index != atoms.len() {
+        if parser.index != parser.atoms.len() {
             return Err(DatabaseStatus::InvalidData);
         }
         Ok(args)
     })
 }
 
-struct ScratchParser<'a> {
-    atoms: &'a [ScratchAtom],
+struct ScratchParser {
+    atoms: Vec<ScratchAtom>,
     index: usize,
     values: usize,
 }
 
-impl ScratchParser<'_> {
+impl ScratchParser {
     fn atom(&mut self) -> Result<&ScratchAtom, DatabaseStatus> {
         let value = self
             .atoms
@@ -2047,16 +2214,28 @@ impl ScratchParser<'_> {
         }
     }
 
-    fn length(&mut self) -> Result<usize, DatabaseStatus> {
+    fn length(&mut self, maximum: usize) -> Result<usize, DatabaseStatus> {
         let value = self.number()?;
-        if value.fract() != 0.0 || value < 0.0 || value > MAX_WIRE_VALUES as f64 {
+        if value.fract() != 0.0 || value < 0.0 || value > maximum as f64 {
             return Err(DatabaseStatus::InvalidData);
         }
         let value = value as usize;
-        if value > MAX_WIRE_VALUES {
+        if value > maximum {
             return Err(DatabaseStatus::InvalidData);
         }
         Ok(value)
+    }
+
+    fn byte_run(&mut self, length: usize) -> Result<Vec<u8>, DatabaseStatus> {
+        let atom = self
+            .atoms
+            .get_mut(self.index)
+            .ok_or(DatabaseStatus::InvalidData)?;
+        self.index += 1;
+        match atom {
+            ScratchAtom::ByteRun(bytes) if bytes.len() == length => Ok(std::mem::take(bytes)),
+            _ => Err(DatabaseStatus::InvalidData),
+        }
     }
 
     fn read_value(&mut self, depth: usize) -> Result<DatabaseValue, DatabaseStatus> {
@@ -2085,22 +2264,16 @@ impl ScratchParser<'_> {
             3 if tag == 3.0 => Ok(DatabaseValue::Boolean(false)),
             4 if tag == 4.0 => Ok(DatabaseValue::Boolean(true)),
             5 if tag == 5.0 => {
-                let length = self.length()?;
-                if length > MAX_IMPORT_BYTES {
-                    return Err(DatabaseStatus::InvalidData);
-                }
+                let length = self.length(MAX_IMPORT_BYTES)?;
                 let bytes = if length == 0 {
                     Vec::new()
                 } else {
-                    match self.atom()? {
-                        ScratchAtom::ByteRun(bytes) if bytes.len() == length => bytes.clone(),
-                        _ => return Err(DatabaseStatus::InvalidData),
-                    }
+                    self.byte_run(length)?
                 };
                 Ok(DatabaseValue::Bytes(bytes))
             }
             6 if tag == 6.0 => {
-                let length = self.length()?;
+                let length = self.length(MAX_WIRE_VALUES)?;
                 let mut items = Vec::with_capacity(length);
                 for _ in 0..length {
                     items.push(self.read_value(depth + 1)?);
@@ -2108,7 +2281,7 @@ impl ScratchParser<'_> {
                 Ok(DatabaseValue::Array(items))
             }
             7 if tag == 7.0 => {
-                let length = self.length()?;
+                let length = self.length(MAX_WIRE_VALUES)?;
                 let mut object = BTreeMap::new();
                 for _ in 0..length {
                     let key = match self.atom()? {
@@ -2199,70 +2372,52 @@ pub fn native_poll(_ticket: f64) -> f64 {
 }
 
 pub fn native_status(ticket: f64) -> f64 {
-    native_response(ticket)
-        .map(|response| response.status as u8 as f64)
+    with_native_response(ticket, |response| response.status as u8 as f64)
         .unwrap_or(DatabaseStatus::StorageError as u8 as f64)
 }
 pub fn native_rows(ticket: f64) -> f64 {
-    native_response(ticket)
-        .map(|response| response.rows as f64)
-        .unwrap_or(0.0)
+    with_native_response(ticket, |response| response.rows as f64).unwrap_or(0.0)
 }
 pub fn native_count(ticket: f64) -> f64 {
-    native_response(ticket)
-        .map(|response| response.values.len() as f64)
-        .unwrap_or(0.0)
+    with_native_response(ticket, |response| response.values.len() as f64).unwrap_or(0.0)
 }
 pub fn native_kind(ticket: f64, index: f64) -> f64 {
-    native_value(ticket, index)
-        .map(|value| value_kind(&value) as f64)
-        .unwrap_or(-1.0)
+    with_native_value(ticket, index, |value| value_kind(value) as f64).unwrap_or(-1.0)
 }
 pub fn native_number(ticket: f64, index: f64) -> f64 {
-    native_value(ticket, index)
-        .and_then(|value| {
-            if let DatabaseValue::Number(value) = value {
-                Some(value)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(0.0)
+    with_native_value(ticket, index, |value| match value {
+        DatabaseValue::Number(value) => Some(*value),
+        _ => None,
+    })
+    .flatten()
+    .unwrap_or(0.0)
 }
 pub fn native_string(ticket: f64, index: f64) -> Option<String> {
-    native_value(ticket, index).and_then(|value| {
-        if let DatabaseValue::String(value) = value {
-            Some(value)
-        } else {
-            None
-        }
+    with_native_value(ticket, index, |value| match value {
+        DatabaseValue::String(value) => Some(value.clone()),
+        _ => None,
     })
+    .flatten()
 }
 pub fn native_byte_count(ticket: f64, index: f64) -> f64 {
-    native_value(ticket, index)
-        .and_then(|value| {
-            if let DatabaseValue::Bytes(value) = value {
-                Some(value.len() as f64)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(0.0)
+    with_native_value(ticket, index, |value| match value {
+        DatabaseValue::Bytes(value) => Some(value.len() as f64),
+        _ => None,
+    })
+    .flatten()
+    .unwrap_or(0.0)
 }
 pub fn native_byte(ticket: f64, index: f64, offset: f64) -> f64 {
     if !offset.is_finite() || offset.fract() != 0.0 || offset < 0.0 {
         return 0.0;
     }
-    native_value(ticket, index)
-        .and_then(|value| {
-            if let DatabaseValue::Bytes(value) = value {
-                value.get(offset as usize).copied()
-            } else {
-                None
-            }
-        })
-        .map(|value| value as f64)
-        .unwrap_or(0.0)
+    with_native_value(ticket, index, |value| match value {
+        DatabaseValue::Bytes(value) => value.get(offset as usize).copied(),
+        _ => None,
+    })
+    .flatten()
+    .map(|value| value as f64)
+    .unwrap_or(0.0)
 }
 pub fn native_release(ticket: f64) {
     if !valid_ticket(ticket) {
@@ -2275,7 +2430,7 @@ pub fn native_release(ticket: f64) {
     runtime.tickets.remove(&(ticket as u64));
 }
 
-fn native_response(ticket: f64) -> Option<DatabaseResponse> {
+fn with_native_response<R>(ticket: f64, read: impl FnOnce(&DatabaseResponse) -> R) -> Option<R> {
     if !valid_ticket(ticket) {
         return None;
     }
@@ -2283,14 +2438,21 @@ fn native_response(ticket: f64) -> Option<DatabaseResponse> {
         Ok(runtime) => runtime,
         Err(poisoned) => poisoned.into_inner(),
     };
-    runtime.tickets.get(&(ticket as u64)).cloned()
+    runtime.tickets.get(&(ticket as u64)).map(read)
 }
 
-fn native_value(ticket: f64, index: f64) -> Option<DatabaseValue> {
+fn with_native_value<R>(
+    ticket: f64,
+    index: f64,
+    read: impl FnOnce(&DatabaseValue) -> R,
+) -> Option<R> {
     if !index.is_finite() || index.fract() != 0.0 || index < 0.0 {
         return None;
     }
-    native_response(ticket)?.values.get(index as usize).cloned()
+    with_native_response(ticket, |response| {
+        response.values.get(index as usize).map(read)
+    })
+    .flatten()
 }
 
 fn valid_ticket(ticket: f64) -> bool {
