@@ -496,6 +496,10 @@ export class PhysicsWorld2D implements ContextResource {
         const end = body.position;
         const travel = { x: end.x - start.x, y: end.y - start.y };
         if (Math.hypot(travel.x, travel.y) >= body.ccdThreshold) {
+          if (body.isSensor) {
+            this.collectSweptSensorContacts(body, start, travel, active, sweptContacts);
+            continue;
+          }
           let position = start;
           let remaining = dt;
           let impacts = 0;
@@ -752,6 +756,34 @@ export class PhysicsWorld2D implements ContextResource {
       }
     }
     return nearest;
+  }
+
+  private collectSweptSensorContacts(body: PhysicsBody2D, start: Vector2DLike, travel: Vector2DLike,
+    active: PhysicsBody2D[], contacts: MutableContact[]): void {
+    const speed = Math.hypot(travel.x, travel.y);
+    if (speed <= 0.0000001) return;
+    for (let index = 0; index < active.length; index++) {
+      const target = active[index];
+      if (target === body || target.type !== 'static' || !filtersAllow(body, target)) continue;
+      const sweep = sweepAgainstStatic(body.shape, start, travel, target);
+      if (sweep === null) continue;
+      const oneWay = target.oneWay;
+      if (oneWay !== null && !oneWaySweepAllows(body.shape, start, travel, target,
+        oneWay.normal, oneWay.tolerance || 0)) continue;
+      const bodyA = body.id < target.id ? body : target;
+      const bodyB = body.id < target.id ? target : body;
+      if (this.findContact(contacts, bodyA, bodyB) !== null) continue;
+      const normal = bodyA === body ? { x: -sweep.normal.x, y: -sweep.normal.y } : sweep.normal;
+      contacts.push({
+        phase: this.findContact(this.activeContacts, bodyA, bodyB) === null ? 'enter' : 'stay',
+        bodyA,
+        bodyB,
+        normal: copyVec(normal),
+        point: copyVec(sweep.point),
+        penetration: 0,
+        isTrigger: true,
+      });
+    }
   }
 
   private isActiveBody(body: PhysicsBody2D): boolean {
@@ -1117,9 +1149,17 @@ function oneWayAllows(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeomet
 
 function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: number,
   surface: Vector2DLike[], segment: boolean): (AxisSweepHit & { point: Vector2DLike }) | null {
-  if (collideCircleSurface(start, radius, surface, segment) !== null) return null;
   const speed = Math.hypot(travel.x, travel.y);
   if (speed <= 0.0000001) return null;
+  const initialContact = collideCircleSurface(start, radius, surface, segment);
+  if (initialContact !== null) {
+    if (travel.x * initialContact.normal.x + travel.y * initialContact.normal.y <= 0.0000001) return null;
+    return {
+      distance: 0,
+      normal: { x: -initialContact.normal.x, y: -initialContact.normal.y },
+      point: copyVec(initialContact.point),
+    };
+  }
   let winding = 0;
   if (!segment) for (let index = 0; index < surface.length; index++) {
     const a = surface[index], b = surface[(index + 1) % surface.length];
@@ -1175,6 +1215,13 @@ function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: n
 function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: Vector2DLike,
   target: PhysicsBody2D): (AxisSweepHit & { point: Vector2DLike }) | null {
   if (shape.type !== 'box' && shape.type !== 'circle') return null;
+  const initialContact = collide({ shape, position: start }, target);
+  if (initialContact !== null) {
+    if (travel.x * initialContact.normal.x + travel.y * initialContact.normal.y <= 0.0000001) return null;
+    return { distance: 0,
+      normal: { x: -initialContact.normal.x, y: -initialContact.normal.y },
+      point: copyVec(initialContact.point) };
+  }
   const targetShape = target.shape;
   if (targetShape.type === 'circle') {
     if (shape.type === 'box') {
@@ -1194,8 +1241,18 @@ function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: 
     const a = travel.x * travel.x + travel.y * travel.y;
     const b = 2 * (ox * travel.x + oy * travel.y);
     const c = ox * ox + oy * oy - radius * radius;
+    if (a <= 0.0000001) return null;
+    if (c <= 0) {
+      const distance = Math.hypot(ox, oy);
+      const normal = distance > 0.0000001
+        ? { x: ox / distance, y: oy / distance }
+        : { x: -travel.x / Math.sqrt(a), y: -travel.y / Math.sqrt(a) };
+      if (travel.x * normal.x + travel.y * normal.y >= -0.0000001) return null;
+      return { distance: 0, normal,
+        point: { x: center.x + normal.x * targetShape.radius, y: center.y + normal.y * targetShape.radius } };
+    }
     const discriminant = b * b - 4 * a * c;
-    if (a <= 0.0000001 || c <= 0 || discriminant < 0) return null;
+    if (discriminant < 0) return null;
     const time = (-b - Math.sqrt(discriminant)) / (2 * a);
     if (time < 0 || time > 1) return null;
     const hitCenter = { x: start.x + travel.x * time, y: start.y + travel.y * time };
@@ -1226,7 +1283,8 @@ function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: 
     const first = (span.min - radius - center) / velocity;
     const second = (span.max + radius - center) / velocity;
     const near = Math.min(first, second), far = Math.max(first, second);
-    if (near > enter) {
+    if (near > enter || (normal.x === 0 && normal.y === 0 &&
+        Math.abs(near - enter) <= 0.0000001 && near >= 0)) {
       enter = near;
       normal = velocity > 0 ? { x: -axis.x, y: -axis.y } : { x: axis.x, y: axis.y };
     }

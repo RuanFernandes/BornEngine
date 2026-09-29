@@ -125,5 +125,6 @@ export class Window {
     native.closeWindow();
     this.closeCalled = true;
     this.openValue = false;
+    this.owner._onWindowClosed();
   }
 }

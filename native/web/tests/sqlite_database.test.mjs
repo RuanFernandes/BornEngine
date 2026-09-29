@@ -22,8 +22,13 @@ class ControlledWorker {
 }
 
 function harness() {
-  const worker = new ControlledWorker();
-  return { worker, bridge: createDatabaseBridge({ createWorker: () => worker }) };
+  const workers = [];
+  const bridge = createDatabaseBridge({ createWorker: () => {
+    const worker = new ControlledWorker();
+    workers.push(worker);
+    return worker;
+  } });
+  return { workers, get worker() { return workers[0]; }, bridge };
 }
 
 function push(bridge, value) {
@@ -65,35 +70,97 @@ function submit(bridge, op, handle, args) {
   return bridge.bloom_database_submit(op, handle, args.length);
 }
 
-test('requests keep distinct tickets and results despite out-of-order worker replies', () => {
-  const { worker, bridge } = harness();
+test('each open database gets an isolated worker and tickets keep out-of-order results distinct', () => {
+  const { workers, bridge } = harness();
   const one = submit(bridge, 1, 0, ['app', 'one', false, { saves: { columns: { id: { kind: 'integer', options: { primaryKey: true } } } } }]);
   const two = submit(bridge, 1, 0, ['app', 'two', false, { saves: { columns: { id: { kind: 'integer', options: { primaryKey: true } } } } }]);
-  assert.deepEqual(worker.messages.map((message) => message.args[1]), ['one', 'two']);
-  assert.equal(bridge.bloom_database_poll(one), 0);
-  worker.emit('message', { id: two, status: 0, rows: 0, values: [22, 0] });
-  assert.equal(bridge.bloom_database_poll(two), 1);
-  assert.equal(bridge.bloom_database_result_number(two, 0), 22);
-  assert.equal(bridge.bloom_database_poll(one), 0);
-  worker.emit('message', { id: one, status: 8, rows: 0, values: [] });
-  assert.equal(bridge.bloom_database_status(one), 8);
-  bridge.bloom_database_release(one);
-  assert.equal(bridge.bloom_database_poll(one), -1);
+  const [workerOne, workerTwo] = workers;
+  assert.notEqual(workerOne, workerTwo);
+  assert.equal(workerOne.messages[0].args[1], 'one');
+  assert.equal(workerTwo.messages[0].args[1], 'two');
+  workerTwo.emit('message', { id: two, status: 0, rows: 0, values: [22, 0] });
+  workerOne.emit('message', { id: one, status: 0, rows: 0, values: [11, 0] });
+  const publicOne = bridge.bloom_database_result_number(one, 0);
+  const publicTwo = bridge.bloom_database_result_number(two, 0);
+  assert.notEqual(publicOne, publicTwo);
+  const first = submit(bridge, 7, publicOne, []);
+  const second = submit(bridge, 7, publicTwo, []);
+  assert.equal(workerOne.messages[1].handle, 11);
+  assert.equal(workerTwo.messages[1].handle, 22);
+  assert.equal(bridge.bloom_database_poll(first), 0);
+  workerTwo.emit('message', { id: second, status: 0, rows: 0, values: [22] });
+  assert.equal(bridge.bloom_database_poll(second), 1);
+  assert.equal(bridge.bloom_database_result_number(second, 0), 22);
+  assert.equal(bridge.bloom_database_poll(first), 0);
+  workerOne.emit('message', { id: first, status: 0, rows: 0, values: [11] });
+  assert.equal(bridge.bloom_database_result_number(first, 0), 11);
+  const close = submit(bridge, 2, publicOne, []);
+  workerOne.emit('message', { id: close, status: 0, rows: 0, values: [] });
+  assert.equal(workerOne.terminated, true);
+  assert.equal(workerTwo.terminated, undefined, 'closing one database leaves the other worker alive');
+  assert.equal(bridge.bloom_database_status(submit(bridge, 7, publicOne, [])), 6);
+  bridge.bloom_database_release(first);
+  assert.equal(bridge.bloom_database_poll(first), -1);
+  bridge.shutdown();
+});
+
+test('a terminal close response disposes its worker and settles queued requests', () => {
+  for (const closeStatus of [0, 10]) {
+    const { workers, bridge } = harness();
+    const opened = submit(bridge, 1, 0, ['app', 'close-pending', false, {}]);
+    const worker = workers[0];
+    worker.emit('message', { id: opened, status: 0, rows: 0, values: [4, 0] });
+    const handle = bridge.bloom_database_result_number(opened, 0);
+    const closing = submit(bridge, 2, handle, []);
+    const pending = submit(bridge, 7, handle, []);
+
+    worker.emit('message', { id: closing, status: closeStatus, rows: 0, values: [] });
+
+    assert.equal(bridge.bloom_database_poll(closing), 1);
+    assert.equal(bridge.bloom_database_status(closing), closeStatus);
+    assert.equal(bridge.bloom_database_poll(pending), 1);
+    assert.equal(bridge.bloom_database_status(pending), 6);
+    assert.equal(worker.terminated, true);
+    bridge.shutdown();
+  }
+});
+
+test('a closed service response disposes its worker and settles sibling requests', () => {
+  const { workers, bridge } = harness();
+  const opened = submit(bridge, 1, 0, ['app', 'quarantined', false, {}]);
+  const worker = workers[0];
+  worker.emit('message', { id: opened, status: 0, rows: 0, values: [4, 0] });
+  const handle = bridge.bloom_database_result_number(opened, 0);
+  const failed = submit(bridge, 7, handle, []);
+  const pending = submit(bridge, 4, handle, ['saves', {}, ['id']]);
+
+  worker.emit('message', { id: failed, status: 6, rows: 0, values: [] });
+
+  assert.equal(bridge.bloom_database_status(failed), 6);
+  assert.equal(bridge.bloom_database_poll(pending), 1);
+  assert.equal(bridge.bloom_database_status(pending), 6);
+  assert.equal(worker.terminated, true);
+  bridge.shutdown();
 });
 
 test('scratch snapshots bytes and nested values before a later request resets the frame', () => {
-  const { worker, bridge } = harness();
+  const { workers, bridge } = harness();
+  const opened = submit(bridge, 1, 0, ['app', 'scratch', false, {}]);
+  const worker = workers[0];
+  worker.emit('message', { id: opened, status: 0, rows: 0, values: [47, 0] });
+  const handle = bridge.bloom_database_result_number(opened, 0);
   const bytes = new Uint8Array([0, 127, 255]);
-  submit(bridge, 12, 3, [bytes]);
+  submit(bridge, 12, handle, [bytes]);
   bytes[1] = 1;
-  submit(bridge, 4, 3, ['saves', { where: { id: { eq: 4 } } }, ['id']]);
-  assert.deepEqual(Array.from(worker.messages[0].args[0]), [0, 127, 255]);
-  assert.deepEqual(JSON.parse(JSON.stringify(worker.messages[1].args[1])), { where: { id: { eq: 4 } } });
-  assert.equal(worker.messages[1].handle, 3);
+  submit(bridge, 4, handle, ['saves', { where: { id: { eq: 4 } } }, ['id']]);
+  assert.deepEqual(Array.from(worker.messages[1].args[0]), [0, 127, 255]);
+  assert.deepEqual(JSON.parse(JSON.stringify(worker.messages[2].args[1])), { where: { id: { eq: 4 } } });
+  assert.equal(worker.messages[2].handle, 47);
+  bridge.shutdown();
 });
 
 test('invalid scratch payload produces a terminal typed error without posting', () => {
-  const { worker, bridge } = harness();
+  const { workers, bridge } = harness();
   bridge.bloom_database_scratch_reset();
   bridge.bloom_database_scratch_push_f64(5);
   bridge.bloom_database_scratch_push_f64(2);
@@ -101,34 +168,40 @@ test('invalid scratch payload produces a terminal typed error without posting', 
   const ticket = bridge.bloom_database_submit(12, 1, 1);
   assert.equal(bridge.bloom_database_poll(ticket), 1);
   assert.equal(bridge.bloom_database_status(ticket), 4);
-  assert.equal(worker.messages.length, 0);
+  assert.equal(workers.length, 0);
 });
 
 test('unsupported operations and malformed handles use frozen statuses', () => {
-  const { worker, bridge } = harness();
+  const { workers, bridge } = harness();
   assert.equal(bridge.bloom_database_status(submit(bridge, 99, 1, [])), 9);
   assert.equal(bridge.bloom_database_status(submit(bridge, 7, -1, [])), 5);
-  assert.equal(worker.messages.length, 0);
+  assert.equal(workers.length, 0);
 });
 
-test('worker failure resolves pending tickets and shutdown prevents further requests', () => {
-  const { worker, bridge } = harness();
-  const one = submit(bridge, 7, 1, []);
-  const two = submit(bridge, 7, 2, []);
-  worker.emit('error');
-  assert.equal(worker.terminated, true);
-  assert.equal(bridge.bloom_database_poll(one), 1);
-  assert.equal(bridge.bloom_database_status(one), 10);
+test('a worker failure is isolated to its database and shutdown resolves remaining tickets', () => {
+  const { workers, bridge } = harness();
+  const one = submit(bridge, 1, 0, ['app', 'one', false, {}]);
+  const two = submit(bridge, 1, 0, ['app', 'two', false, {}]);
+  const [workerOne, workerTwo] = workers;
+  workerTwo.emit('error');
+  assert.equal(workerTwo.terminated, true);
   assert.equal(bridge.bloom_database_status(two), 10);
+  workerOne.emit('message', { id: one, status: 0, rows: 0, values: [4, 0] });
+  assert.equal(bridge.bloom_database_status(one), 0);
+  const pending = submit(bridge, 1, 0, ['app', 'three', false, {}]);
+  const workerThree = workers[2];
   bridge.shutdown();
-  assert.equal(worker.terminated, true);
-  const after = submit(bridge, 7, 1, []);
+  assert.equal(workerOne.terminated, true);
+  assert.equal(workerThree.terminated, true);
+  assert.equal(bridge.bloom_database_status(pending), 10);
+  const after = submit(bridge, 1, 0, ['app', 'after', false, {}]);
   assert.equal(bridge.bloom_database_status(after), 10);
 });
 
 test('messageerror disposes the worker and ignores late replies', () => {
-  const { worker, bridge } = harness();
-  const ticket = submit(bridge, 7, 1, []);
+  const { workers, bridge } = harness();
+  const ticket = submit(bridge, 1, 0, ['app', 'messageerror', false, {}]);
+  const worker = workers[0];
   worker.emit('messageerror');
   assert.equal(worker.terminated, true);
   worker.emit('message', { id: ticket, status: 0, rows: 0, values: [] });
@@ -166,8 +239,11 @@ test('worker failure releases its persistent writer lock', async () => {
 });
 
 test('BFCache pagehide keeps the worker alive for a restored page', () => {
-  const { worker, bridge } = harness();
-  const first = submit(bridge, 7, 1, []);
+  const { workers, bridge } = harness();
+  const opened = submit(bridge, 1, 0, ['app', 'bfcache', false, {}]);
+  const worker = workers[0];
+  worker.emit('message', { id: opened, status: 0, rows: 0, values: [3, 0] });
+  const first = submit(bridge, 7, bridge.bloom_database_result_number(opened, 0), []);
   bridge.handlePageHide({ persisted: true });
   assert.equal(worker.terminated, undefined);
   worker.emit('message', { id: first, status: 0, rows: 0, values: [] });
@@ -177,14 +253,17 @@ test('BFCache pagehide keeps the worker alive for a restored page', () => {
 });
 
 test('abort leaves no late worker result and a competing writer receives busy', () => {
-  const { worker, bridge } = harness();
+  const { workers, bridge } = harness();
   const pending = submit(bridge, 1, 0, ['app', 'one', false, {}]);
+  const worker = workers[0];
   bridge.abort(pending);
+  assert.equal(worker.terminated, true);
   assert.equal(bridge.bloom_database_status(pending), 10);
   worker.emit('message', { id: pending, status: 0, rows: 0, values: [1, 0] });
   assert.equal(bridge.bloom_database_status(pending), 10);
   const rival = submit(bridge, 1, 0, ['app', 'one', false, {}]);
-  worker.emit('message', { id: rival, status: 8, rows: 0, values: [] });
+  const rivalWorker = workers[1];
+  rivalWorker.emit('message', { id: rival, status: 8, rows: 0, values: [] });
   assert.equal(bridge.bloom_database_status(rival), 8);
 });
 
@@ -410,24 +489,33 @@ test('public transaction keeps the failed durable commit status through rollback
   const { GameDatabase } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
   const operations = [];
   let failCommit = '';
-  const service = createDatabaseService({ sqlite, openPersistent: async () => ({
+  const makeService = () => createDatabaseService({ sqlite, openPersistent: async () => ({
     db: new sqlite.oo1.DB(),
     persist: async () => {
       if (failCommit) { const name = failCommit; failCommit = ''; throw Object.assign(Error('snapshot failed'), { name }); }
     },
   }) });
   class ServiceWorker extends ControlledWorker {
+    constructor(service) { super(); this.service = service; }
     postMessage(message) {
       operations.push(message.op);
       this.pending = (this.pending || Promise.resolve()).then(async () => {
-        const result = await service.execute(message);
+        const result = await this.service.execute(message);
         if (!this.terminated) this.emit('message', { id: message.id, ...result });
       });
     }
-    terminate() { super.terminate(); this.closed = service.shutdown(); }
+    terminate() {
+      if (this.terminated) return;
+      super.terminate();
+      this.closed = this.service.shutdown();
+    }
   }
-  const worker = new ServiceWorker();
-  const bridge = createDatabaseBridge({ createWorker: () => worker });
+  const workers = [];
+  const bridge = createDatabaseBridge({ createWorker: () => {
+    const worker = new ServiceWorker(makeService());
+    workers.push(worker);
+    return worker;
+  } });
   const names = Object.keys(bridge).filter((name) => name.startsWith('bloom_database_'));
   const previous = names.map((name) => globalThis[name]);
   for (const name of names) globalThis[name] = bridge[name];
@@ -452,7 +540,208 @@ test('public transaction keeps the failed durable commit status through rollback
       else globalThis[names[i]] = previous[i];
     }
     bridge.shutdown();
-    await worker.closed;
+    await Promise.all(workers.map((worker) => worker.closed));
+  }
+});
+
+test('public GameDatabase can reopen after a quarantined import closes its backend handle', async () => {
+  const sqlite = await sqlite3InitModule();
+  const compiled = await build({
+    entryPoints: [new URL('../../../src/storage/game-database.ts', import.meta.url).pathname],
+    bundle: true, format: 'esm', platform: 'node', write: false,
+  });
+  const { GameDatabase } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+  let storedImage = null;
+  let recoveryImage = null;
+  let failImport = true;
+  let failClose = false;
+  const openPersistent = async () => {
+    if (recoveryImage) {
+      storedImage = recoveryImage;
+      recoveryImage = null;
+    }
+    const db = storedImage ? openSnapshotDatabase(sqlite, storedImage) : new sqlite.oo1.DB();
+    return {
+      db,
+      persist: async (connection) => { storedImage = exportDatabase(sqlite, connection); },
+      prepareImport: async (bytes) => { recoveryImage = bytes.slice(); },
+      finishImport: async () => { recoveryImage = null; },
+      import: async (bytes) => {
+        storedImage = bytes.slice(0, 64);
+        if (failImport) {
+          failImport = false;
+          throw Error('simulated partial durable import');
+        }
+        storedImage = bytes.slice();
+      },
+      reopen: async () => openSnapshotDatabase(sqlite, storedImage),
+      close: async () => {
+        if (failClose) {
+          failClose = false;
+          throw Error('simulated close cleanup error');
+        }
+      },
+    };
+  };
+  class ServiceWorker extends ControlledWorker {
+    constructor(service) { super(); this.service = service; }
+    postMessage(message) {
+      this.pending = (this.pending || Promise.resolve()).then(async () => {
+        const response = await this.service.execute(message);
+        if (!this.terminated) this.emit('message', { id: message.id, ...response });
+      });
+    }
+    terminate() {
+      if (this.terminated) return;
+      super.terminate();
+      this.closed = this.service.shutdown();
+    }
+  }
+  const workers = [];
+  const bridge = createDatabaseBridge({ createWorker: () => {
+    const worker = new ServiceWorker(createDatabaseService({ sqlite, openPersistent }));
+    workers.push(worker);
+    return worker;
+  } });
+  const names = Object.keys(bridge).filter((name) => name.startsWith('bloom_database_'));
+  const previous = names.map((name) => globalThis[name]);
+  for (const name of names) globalThis[name] = bridge[name];
+  try {
+    const database = new GameDatabase({ appId: 'app', name: 'public-import-recovery', schema,
+      migrations: [{ version: 1, apply(builder) { builder.createTable('saves', schema.saves.columns); } }] });
+    assert.equal((await database.open()).status, 'ok');
+    assert.equal((await database.insert('saves', { label: 'preserved' })).status, 'ok');
+    const backup = await database.export();
+    assert.equal(backup.status, 'ok');
+    assert.equal((await database.update('saves', { label: 'current' }, { id: { eq: 1 } })).status, 'ok');
+
+    assert.equal((await database.import(backup.value)).status, 'storage_error');
+    assert.equal((await database.close()).status, 'closed');
+    assert.equal(database.state, 'closed');
+    assert.equal((await database.open()).status, 'ok');
+    assert.equal(workers.length, 2);
+    assert.equal(workers[0].terminated, true);
+    const rows = await database.select('saves');
+    assert.equal(rows.status, 'ok');
+    assert.deepEqual(rows.value, [{ id: 1, label: 'current', data: null, active: false }]);
+    failClose = true;
+    assert.equal((await database.close()).status, 'storage_error');
+    assert.equal(database.state, 'closed');
+    assert.equal(workers[1].terminated, true);
+    assert.equal((await database.open()).status, 'ok');
+    assert.equal(workers.length, 3);
+    assert.equal(workers[2].terminated, undefined);
+    const recoveredRows = await database.select('saves');
+    assert.equal(recoveredRows.status, 'ok');
+    assert.deepEqual(recoveredRows.value, [{ id: 1, label: 'current', data: null, active: false }]);
+    assert.equal((await database.close()).status, 'ok');
+  } finally {
+    for (let i = 0; i < names.length; i++) {
+      if (previous[i] === undefined) delete globalThis[names[i]];
+      else globalThis[names[i]] = previous[i];
+    }
+    bridge.shutdown();
+    await Promise.all(workers.map((worker) => worker.closed));
+  }
+});
+
+test('an old transaction cannot roll back a replacement handle after recovery', async () => {
+  const compiled = await build({
+    entryPoints: [new URL('../../../src/storage/game-database.ts', import.meta.url).pathname],
+    bundle: true, format: 'esm', platform: 'node', write: false,
+  });
+  const { GameDatabase } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+  const workers = [];
+  const events = [];
+  class TransactionWorker extends ControlledWorker {
+    constructor(index) {
+      super();
+      this.index = index;
+      this.handle = index * 100;
+      this.inTransaction = false;
+      this.backendClosed = false;
+    }
+    postMessage(message) {
+      this.messages.push(message);
+      this.pending = (this.pending || Promise.resolve()).then(() => {
+        let status = 0;
+        let values = [];
+        if (message.op === 1) values = [this.handle, 0];
+        else if (message.op === 7) {
+          if (this.backendClosed) status = 6;
+          else this.inTransaction = true;
+        } else if (message.op === 3) {
+          if (this.index === 1 && message.args[1].label === 'old generation') {
+            this.backendClosed = true;
+            this.inTransaction = false;
+            status = 6;
+          } else if (this.backendClosed) status = 6;
+          else values = [1];
+        } else if (message.op === 8) {
+          events.push({ worker: this.index, op: 8 });
+          if (!this.inTransaction || this.backendClosed) status = 6;
+          else this.inTransaction = false;
+        } else if (message.op === 9) {
+          events.push({ worker: this.index, op: 9 });
+          if (!this.inTransaction || this.backendClosed) status = 6;
+          else this.inTransaction = false;
+        }
+        if (!this.terminated) this.emit('message', { id: message.id, status, rows: 0, values });
+      });
+    }
+  }
+  const bridge = createDatabaseBridge({ createWorker: () => {
+    const worker = new TransactionWorker(workers.length + 1);
+    workers.push(worker);
+    return worker;
+  } });
+  const names = Object.keys(bridge).filter((name) => name.startsWith('bloom_database_'));
+  const previous = names.map((name) => globalThis[name]);
+  for (const name of names) globalThis[name] = bridge[name];
+  const deferred = () => {
+    let resolve;
+    const promise = new Promise((complete) => { resolve = complete; });
+    return { promise, resolve };
+  };
+  try {
+    const database = new GameDatabase({ appId: 'app', name: 'transaction-generation', schema });
+    assert.equal((await database.open()).status, 'ok');
+    const oldCallback = deferred();
+    const oldOperation = deferred();
+    const oldTransaction = database.transaction(async (transaction) => {
+      const inserted = await transaction.insert('saves', { label: 'old generation' });
+      oldOperation.resolve(inserted.status);
+      return oldCallback.promise;
+    });
+    assert.equal(await oldOperation.promise, 'closed');
+    assert.equal(database.state, 'closed');
+
+    assert.equal((await database.open()).status, 'ok');
+    assert.equal(workers.length, 2);
+    const newCallback = deferred();
+    const newOperation = deferred();
+    const newTransaction = database.transaction(async (transaction) => {
+      const inserted = await transaction.insert('saves', { label: 'new generation' });
+      newOperation.resolve(inserted.status);
+      return newCallback.promise;
+    });
+    assert.equal(await newOperation.promise, 'ok');
+
+    oldCallback.resolve({ ok: true, status: 'ok', value: null });
+    assert.equal((await oldTransaction).status, 'closed');
+    newCallback.resolve({ ok: true, status: 'ok', value: 1 });
+
+    assert.equal((await newTransaction).status, 'ok');
+    assert.equal(database.state, 'open');
+    assert.deepEqual(events, [{ worker: 2, op: 8 }]);
+    assert.equal((await database.close()).status, 'ok');
+  } finally {
+    for (let i = 0; i < names.length; i++) {
+      if (previous[i] === undefined) delete globalThis[names[i]];
+      else globalThis[names[i]] = previous[i];
+    }
+    bridge.shutdown();
+    await Promise.all(workers.map((worker) => worker.pending));
   }
 });
 
@@ -525,7 +814,192 @@ test('failed OPFS migration rollback also quarantines its connection', async () 
   assert.equal((await service.execute({ op: 11, handle, args: [] })).status, 6);
 });
 
-test('OPFS corruption does not fall back to an empty IndexedDB database', async () => {
+test('OPFS import journal survives partial overwrite and recovers after worker restart', async () => {
+  const sqlite = await sqlite3InitModule();
+  const files = new Map();
+  const held = new Set();
+  let imports = 0;
+  let poolPauses = 0;
+  let failRecoveryOnce = true;
+  let failConstructNext = false;
+  const locks = { request: async (name, _options, callback) => {
+    if (held.has(name)) return callback(null);
+    held.add(name);
+    try { return await callback({ name }); } finally { held.delete(name); }
+  } };
+  const installOpfsSAHPoolVfs = async () => {
+    let paused = false;
+    return {
+      OpfsSAHPoolDb: class {
+        constructor(filename) {
+          if (failConstructNext) {
+            failConstructNext = false;
+            throw Error('simulated OPFS reopen failure');
+          }
+          const connection = openSnapshotDatabase(sqlite, files.get(filename));
+          let closed = false;
+          return new Proxy(connection, { get(target, property) {
+            if (property === 'close') return () => {
+              if (closed) return;
+              files.set(filename, exportDatabase(sqlite, target));
+              closed = true;
+              target.close();
+            };
+            const value = target[property];
+            return typeof value === 'function' ? value.bind(target) : value;
+          } });
+        }
+      },
+      async importDb(filename, bytes) {
+        imports++;
+        if (imports === 1) {
+          files.set(filename, bytes.slice(0, 64));
+          throw Error('simulated partial OPFS overwrite');
+        }
+        if (imports === 2 && failRecoveryOnce) {
+          failRecoveryOnce = false;
+          throw Error('simulated interrupted recovery');
+        }
+        files.set(filename, new Uint8Array(bytes));
+      },
+      isPaused: () => paused,
+      async unpauseVfs() { paused = false; },
+      pauseVfs() { paused = true; poolPauses++; },
+    };
+  };
+  const environment = { sqlite: Object.assign(Object.create(sqlite), { installOpfsSAHPoolVfs }),
+    indexedDB: fakeIndexedDB, navigator: { locks }, opfsSupported: true };
+  let service = createDatabaseService({ sqlite,
+    openPersistent: createBrowserStorage(environment).open });
+  const opened = await service.execute({ op: 1, handle: 0, args: ['app', 'opfs-import-journal', false, schema] });
+  assert.equal(opened.status, 0);
+  let handle = opened.values[0];
+  assert.equal((await service.execute({ op: 10, handle, args: [1, migration] })).status, 0);
+  assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'before' }] })).status, 0);
+  const importImage = (await service.execute({ op: 11, handle, args: [] })).values[0];
+  assert.equal((await service.execute({ op: 5, handle, args: ['saves', { label: 'current' }, { id: { eq: 1 } }] })).status, 0);
+  assert.equal((await service.execute({ op: 12, handle, args: [importImage] })).status, 10);
+  assert.equal((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).status, 6);
+  assert.equal(held.size, 0);
+  assert.ok(poolPauses >= 1);
+
+  service = createDatabaseService({ sqlite,
+    openPersistent: createBrowserStorage(environment).open });
+  const interruptedRecovery = await service.execute({ op: 1, handle: 0,
+    args: ['app', 'opfs-import-journal', false, schema] });
+  assert.equal(interruptedRecovery.status, 10);
+  assert.equal(held.size, 0);
+
+  service = createDatabaseService({ sqlite,
+    openPersistent: createBrowserStorage(environment).open });
+  const recovered = await service.execute({ op: 1, handle: 0,
+    args: ['app', 'opfs-import-journal', false, schema] });
+  assert.equal(recovered.status, 0);
+  handle = recovered.values[0];
+  assert.deepEqual((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).values, ['current']);
+
+  failConstructNext = true;
+  assert.equal((await service.execute({ op: 12, handle, args: [importImage] })).status, 10);
+  assert.equal((await service.execute({ op: 11, handle, args: [] })).status, 6);
+  assert.equal(held.size, 0);
+
+  service = createDatabaseService({ sqlite,
+    openPersistent: createBrowserStorage(environment).open });
+  const recoveredAfterReopenFailure = await service.execute({ op: 1, handle: 0,
+    args: ['app', 'opfs-import-journal', false, schema] });
+  assert.equal(recoveredAfterReopenFailure.status, 0);
+  handle = recoveredAfterReopenFailure.values[0];
+  assert.deepEqual((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).values, ['current']);
+
+  assert.equal((await service.execute({ op: 12, handle, args: [importImage] })).status, 0);
+  assert.deepEqual((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).values, ['before']);
+  assert.equal((await service.execute({ op: 2, handle, args: [] })).status, 0);
+  service = createDatabaseService({ sqlite,
+    openPersistent: createBrowserStorage(environment).open });
+  const imported = await service.execute({ op: 1, handle: 0,
+    args: ['app', 'opfs-import-journal', false, schema] });
+  assert.equal(imported.status, 0);
+  assert.deepEqual((await service.execute({ op: 4, handle: imported.values[0], args: ['saves', {}, ['label']] })).values, ['before']);
+  assert.equal(imports, 6);
+  await service.shutdown();
+  assert.equal(held.size, 0);
+});
+
+test('OPFS import verification closes its reopened connection before releasing the pool', async () => {
+  const sqlite = await sqlite3InitModule();
+  const files = new Map();
+  const held = new Set();
+  let activeConnections = 0;
+  let failNextIntegrityCheck = false;
+  const locks = { request: async (name, _options, callback) => {
+    if (held.has(name)) return callback(null);
+    held.add(name);
+    try { return await callback({ name }); } finally { held.delete(name); }
+  } };
+  const installOpfsSAHPoolVfs = async () => {
+    let paused = false;
+    return {
+      OpfsSAHPoolDb: class {
+        constructor(filename) {
+          const connection = openSnapshotDatabase(sqlite, files.get(filename));
+          let closed = false;
+          const failIntegrityCheck = failNextIntegrityCheck;
+          failNextIntegrityCheck = false;
+          activeConnections++;
+          return new Proxy(connection, { get(target, property) {
+            if (property === 'selectValue') return (query) => {
+              if (failIntegrityCheck && query === 'PRAGMA integrity_check') throw Error('simulated reopened connection I/O error');
+              return target.selectValue(query);
+            };
+            if (property === 'close') return () => {
+              if (closed) return;
+              files.set(filename, exportDatabase(sqlite, target));
+              closed = true;
+              activeConnections--;
+              target.close();
+            };
+            const value = target[property];
+            return typeof value === 'function' ? value.bind(target) : value;
+          } });
+        }
+      },
+      async importDb(filename, bytes) { files.set(filename, new Uint8Array(bytes)); },
+      isPaused: () => paused,
+      async unpauseVfs() { paused = false; },
+      pauseVfs() {
+        if (activeConnections !== 0) throw Error('OPFS pool still has open database connections');
+        paused = true;
+      },
+    };
+  };
+  const environment = { sqlite: Object.assign(Object.create(sqlite), { installOpfsSAHPoolVfs }),
+    indexedDB: fakeIndexedDB, navigator: { locks }, opfsSupported: true };
+  const storage = createBrowserStorage(environment);
+  let service = createDatabaseService({ sqlite, openPersistent: storage.open });
+  const opened = await service.execute({ op: 1, handle: 0, args: ['app', 'opfs-reopen-verification', false, schema] });
+  assert.equal(opened.status, 0);
+  const handle = opened.values[0];
+  assert.equal((await service.execute({ op: 10, handle, args: [1, migration] })).status, 0);
+  assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'current' }] })).status, 0);
+  const backup = (await service.execute({ op: 11, handle, args: [] })).values[0];
+
+  failNextIntegrityCheck = true;
+  assert.equal((await service.execute({ op: 12, handle, args: [backup] })).status, 10);
+  assert.equal(activeConnections, 0);
+  assert.equal(held.size, 0);
+
+  await service.shutdown();
+  service = createDatabaseService({ sqlite, openPersistent: storage.open });
+  const recovered = await service.execute({ op: 1, handle: 0,
+    args: ['app', 'opfs-reopen-verification', false, schema] });
+  assert.equal(recovered.status, 0);
+  assert.deepEqual((await service.execute({ op: 4, handle: recovered.values[0], args: ['saves', {}, ['label']] })).values, ['current']);
+  assert.equal((await service.execute({ op: 2, handle: recovered.values[0], args: [] })).status, 0);
+  assert.equal(activeConnections, 0);
+  assert.equal(held.size, 0);
+});
+
+test('OPFS corruption is reported without falling back to an empty IndexedDB database', async () => {
   const sqlite = await sqlite3InitModule();
   let indexedOpens = 0;
   const brokenSqlite = Object.create(sqlite);
@@ -534,10 +1008,11 @@ test('OPFS corruption does not fall back to an empty IndexedDB database', async 
     pauseVfs() {},
   });
   const locks = { request: async (_name, _options, callback) => callback({}) };
+  const trackedIndexedDb = { open(...args) { indexedOpens++; return fakeIndexedDB.open(...args); } };
   const storage = createBrowserStorage({ sqlite: brokenSqlite, opfsSupported: true,
-    navigator: { locks }, indexedDB: { open() { indexedOpens++; throw Error('must not open IndexedDB'); } } });
+    navigator: { locks }, indexedDB: trackedIndexedDb });
   await assert.rejects(storage.open('app\0corrupt'), (error) => error.status === 13);
-  assert.equal(indexedOpens, 0);
+  assert.equal(indexedOpens, 1); // OPFS recovery journal; no IndexedDB database fallback.
 });
 
 test('recognized unsupported OPFS capability falls back to IndexedDB', async () => {

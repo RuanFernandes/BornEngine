@@ -121,7 +121,7 @@ import {
   defineTable,
   GameDatabase,
 } from '@bornengine/engine/storage';
-import type { Game } from '@bornengine/engine';
+import { Game, Key } from '@bornengine/engine';
 import type { InputActionMap, InputActionMapData } from '@bornengine/engine/input';
 
 const schema = defineSchema({
@@ -134,7 +134,23 @@ const migrations = [defineMigration(1, schema, (migration) => {
   migration.createTable('settings', schema.settings.columns);
 })];
 
-async function runWithControls(game: Game, controls: InputActionMap): Promise<void> {
+class MoonlitGame extends Game {
+  readonly controls: InputActionMap;
+  controlsSnapshot: InputActionMapData | null = null;
+
+  constructor() {
+    super();
+    this.controls = this.input.createActionMap();
+    this.controls.bindAction('confirm', [{ kind: 'key', key: Key.ENTER }]);
+  }
+
+  protected override onStop(): void {
+    // Game calls onStop before it disposes InputSystem and clears action maps.
+    this.controlsSnapshot = this.controls.toData();
+  }
+}
+
+async function runWithControls(game: MoonlitGame): Promise<void> {
   const database = new GameDatabase({
     appId: 'com.example.moonlit-pier', name: 'profile', schema, migrations,
   });
@@ -146,6 +162,7 @@ async function runWithControls(game: Game, controls: InputActionMap): Promise<vo
     return;
   }
 
+  const controls = game.controls;
   const saved = await database.findByPrimaryKey('settings', 'controls');
   if (saved.ok && saved.value !== null) {
     let parsed: InputActionMapData | null = null;
@@ -159,13 +176,17 @@ async function runWithControls(game: Game, controls: InputActionMap): Promise<vo
   await game.run();
   if (game.error !== null) console.error('The game stopped with an error:', game.error);
 
-  const encoded = JSON.stringify(controls.toData());
-  const write = await database.transaction(async (tx) => {
-    const removed = await tx.delete('settings', { key: { eq: 'controls' } });
-    if (!removed.ok) return removed;
-    return tx.insert('settings', { key: 'controls', value: encoded });
-  });
-  if (!write.ok) console.warn('Settings were not saved:', write.status);
+  // A failed startup may finish without invoking onStop, so only persist a
+  // snapshot captured while the game's InputSystem was still alive.
+  if (game.controlsSnapshot !== null) {
+    const encoded = JSON.stringify(game.controlsSnapshot);
+    const write = await database.transaction(async (tx) => {
+      const removed = await tx.delete('settings', { key: { eq: 'controls' } });
+      if (!removed.ok) return removed;
+      return tx.insert('settings', { key: 'controls', value: encoded });
+    });
+    if (!write.ok) console.warn('Settings were not saved:', write.status);
+  }
 
   const closed = await database.close();
   if (!closed.ok) console.warn('Could not close the profile database:', closed.status);

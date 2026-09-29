@@ -45,6 +45,19 @@ function commitSnapshot(database, key, bytes) {
   });
 }
 
+function deleteSnapshot(database, key) {
+  return new Promise((resolve, reject) => {
+    let transaction;
+    try {
+      transaction = database.transaction('databases', 'readwrite');
+      transaction.objectStore('databases').delete(key);
+    } catch (error) { reject(error); return; }
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = () => reject(transaction.error || Error('snapshot deletion aborted'));
+    transaction.onerror = () => reject(transaction.error || Error('snapshot deletion failed'));
+  });
+}
+
 async function writerLock(locks, key) {
   if (!locks?.request) throw Object.assign(Error('Web Locks unavailable'), { status: 10 });
   let acquired;
@@ -79,21 +92,47 @@ export function createBrowserStorage({ sqlite, indexedDB, navigator, crypto = gl
       if (supportsOpfs) {
         const name = await poolName(key, crypto);
         let pool = pools.get(name);
+        let journalDatabase;
+        let recoveryImage;
+        let recoveryConnection;
         try {
+          if (!indexedDB) throw Object.assign(Error('IndexedDB unavailable for OPFS recovery journal'), { status: 10 });
+          journalDatabase = await openIndexedDb(indexedDB);
+          const journalKey = `opfs-import:${key}`;
+          recoveryImage = await readSnapshot(journalDatabase, journalKey);
           if (!pool) {
             pool = await sqlite.installOpfsSAHPoolVfs({ name, initialCapacity: 8 });
             pools.set(name, pool);
           } else if (pool.isPaused?.()) await pool.unpauseVfs();
           const filename = '/main.sqlite3';
-          const db = new pool.OpfsSAHPoolDb(filename);
+          if (recoveryImage) {
+            await pool.importDb(filename, recoveryImage);
+            recoveryConnection = new pool.OpfsSAHPoolDb(filename);
+            if (recoveryConnection.selectValue('PRAGMA integrity_check') !== 'ok') {
+              throw Object.assign(Error('recovered OPFS database is corrupt'), { status: 13 });
+            }
+            await deleteSnapshot(journalDatabase, journalKey);
+          }
+          const db = recoveryConnection || new pool.OpfsSAHPoolDb(filename);
           return {
             db,
-            close: () => { try { pool.pauseVfs(); } finally { unlock(); } },
+            close: () => {
+              try { pool.pauseVfs(); }
+              finally {
+                try { journalDatabase.close(); }
+                finally { unlock(); }
+              }
+            },
+            prepareImport: async (bytes) => commitSnapshot(journalDatabase, journalKey, bytes),
+            finishImport: async () => deleteSnapshot(journalDatabase, journalKey),
             import: async (bytes) => pool.importDb(filename, bytes),
             reopen: async () => new pool.OpfsSAHPoolDb(filename),
           };
         } catch (error) {
+          try { recoveryConnection?.close(); } catch { /* preserve the recovery failure */ }
+          try { journalDatabase?.close(); } catch { /* preserve the storage failure */ }
           try { pool?.pauseVfs?.(); } catch { /* preserve the original failure */ }
+          if (recoveryImage) throw error;
           if (!unsupportedOpfs(error)) throw error;
         }
       }
@@ -106,7 +145,7 @@ export function createBrowserStorage({ sqlite, indexedDB, navigator, crypto = gl
       return {
         db,
         persist: async (connection) => commitSnapshot(database, key, exportDatabase(sqlite, connection)),
-        close: () => { database.close(); unlock(); },
+        close: () => { try { database.close(); } finally { unlock(); } },
       };
     } catch (error) {
       unlock();

@@ -34,7 +34,7 @@ if (!game.isReady) console.error(game.error || 'Engine startup failed');
 game.run();
 ```
 
-`Game.run()` owns frame setup and teardown. It calls `update(deltaTime)` and then `render()` once per frame; application code does not call `beginDrawing()` or `endDrawing()`. Native builds use the engine loop, while Web/WASM uses the browser frame scheduler.
+`Game.run()` owns frame setup and teardown. It calls `loop(deltaTime)` and then `render()` once per frame; application code does not call `beginDrawing()` or `endDrawing()`. Native builds use the engine loop, while Web/WASM uses the browser frame scheduler.
 
 ## Ownership and lifecycle
 
@@ -75,18 +75,45 @@ if (!player.isLoaded) {
 
 ## Save data
 
-Create storage with an application ID and optional slot. `write`, `read`, `exists`, and `remove` return status objects; check `status === 'unsupported'` on targets without a verified user-data adapter. Storage accepts JSON-safe payloads and keeps game-specific save schemas with the game.
+Use `GameDatabase` for typed SQLite saves and settings across native and Web targets. Declare the latest row shape, provide ordered migrations, and check each operation's result status.
 
 ```ts
-import { createGameStorage } from '@bornengine/engine';
+import {
+  columns,
+  defineMigration,
+  defineSchema,
+  defineTable,
+  GameDatabase,
+} from '@bornengine/engine/storage';
 
-const saves = createGameStorage('com.example.arena', 'profile-1');
-saves.write('settings', { music: 0.7, sfx: 0.9 });
-const loaded = saves.read<{ music: number; sfx: number }>('settings');
-if (loaded.ok && loaded.value !== null) console.log(loaded.value.music);
+const schema = defineSchema({
+  settings: defineTable({
+    columns: {
+      key: columns.text({ primaryKey: true }),
+      value: columns.text({ notNull: true }),
+    },
+  }),
+});
+
+const migrations = [defineMigration(1, schema, (builder) => {
+  builder.createTable('settings', schema.settings.columns);
+})];
+
+const saves = new GameDatabase({
+  appId: 'org.example.arena',
+  name: 'profile',
+  schema,
+  migrations,
+});
+
+const opened = await saves.open();
+if (opened.ok) {
+  await saves.insert('settings', { key: 'music', value: '0.7' });
+  await saves.close();
+}
 ```
 
-The built-in adapter currently supports Web through one atomic `localStorage` key per record. It reports `unsupported` on macOS, Windows, Linux, Android, iOS, tvOS, visionOS, and watchOS. It never saves to the working directory or an asset path. JSON-safe World2D documents can be saved directly; custom serializers can pass their JSON text as a string. To persist a 3D `WorldDocument`, pass `WorldData.serialize(document)` so the world's custom serializer is preserved.
+Persistent storage is the default. Set `inMemory: true` only for deliberately temporary data. JSON-safe `World2D` documents can be stored in declared text columns; pass `WorldData.serialize(document)` to retain a 3D world's custom serializer.
 
 Use `InputActionMap.toData()` and `loadData()` to persist rebindable controls. Import validates the complete versioned record before replacing current bindings and suppresses input edges until held controls return to neutral.
 

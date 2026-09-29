@@ -181,6 +181,105 @@ expect(bouncing.position.x >= 0.249 && bouncing.position.x <= 1.751 &&
   bouncing.velocity.x === 0 && bounceWorld.popContacts().length === 2,
   'CCD discards unresolved time and velocity safely after eight corridor impacts');
 bounceWorld.dispose();
+const sensorWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+sensorWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } } });
+const sensor = sensorWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -10, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0,
+  ccd: true, isSensor: true });
+sensorWorld.step(0.1);
+const sensorContacts = sensorWorld.popContacts();
+expect(sensor.position.x > 9.99 && Math.abs(sensor.velocity.x - 200) < 0.0001 &&
+  sensorContacts.length === 1 && sensorContacts[0].isTrigger,
+  'CCD sensor passes through a solid surface and reports a swept trigger');
+sensorWorld.dispose();
+const touchingCircleWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+touchingCircleWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } } });
+const touchingCircle = touchingCircleWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -0.5, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+touchingCircleWorld.step(0.1);
+expect(touchingCircle.position.x <= -0.4999 && touchingCircle.velocity.x <= 0 &&
+  touchingCircleWorld.popContacts().length === 1,
+  'CCD circle moving into a surface from exact contact is resolved at time zero');
+touchingCircleWorld.dispose();
+const touchingBoxWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+touchingBoxWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } } });
+const touchingBox = touchingBoxWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: -0.5, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+touchingBoxWorld.step(0.1);
+expect(touchingBox.position.x <= -0.4999 && touchingBox.velocity.x <= 0 &&
+  touchingBoxWorld.popContacts().length === 1,
+  'CCD box moving into a surface from exact contact is resolved at time zero');
+touchingBoxWorld.dispose();
+const embeddedBoxWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+embeddedBoxWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } } });
+const embeddedBox = embeddedBoxWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: -0.25, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+embeddedBoxWorld.step(0.1);
+expect(embeddedBox.position.x < 0 && embeddedBox.velocity.x <= 0 && embeddedBoxWorld.popContacts().length === 1,
+  'CCD resolves an initially penetrating box instead of allowing it to tunnel deeper');
+embeddedBoxWorld.dispose();
+const touchingCirclePairWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+touchingCirclePairWorld.createBody({ type: 'static', shape: { type: 'circle', radius: 1 } });
+const touchingCirclePair = touchingCirclePairWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -1.5, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+touchingCirclePairWorld.step(0.1);
+expect(touchingCirclePair.position.x <= -1.4999 && touchingCirclePair.velocity.x <= 0 &&
+  touchingCirclePairWorld.popContacts().length === 1,
+  'CCD circle pair moving into exact contact is resolved at time zero');
+touchingCirclePairWorld.dispose();
+const touchingBoxCircleWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+touchingBoxCircleWorld.createBody({ type: 'static', shape: { type: 'circle', radius: 1 } });
+const touchingBoxCircle = touchingBoxCircleWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: -1.5, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+touchingBoxCircleWorld.step(0.1);
+expect(touchingBoxCircle.position.x <= -1.4999 && touchingBoxCircle.velocity.x <= 0 &&
+  touchingBoxCircleWorld.popContacts().length === 1,
+  'CCD box moving into a circle from exact contact is resolved at time zero');
+touchingBoxCircleWorld.dispose();
+const touchingCircleConvexWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+touchingCircleConvexWorld.createBody({ type: 'static', shape: { type: 'convex', vertices: [
+  { x: 0, y: -10 }, { x: 1, y: -10 }, { x: 1, y: 10 }, { x: 0, y: 10 },
+] } });
+const touchingCircleConvex = touchingCircleConvexWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -0.5, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+touchingCircleConvexWorld.step(0.1);
+expect(touchingCircleConvex.position.x <= -0.4999 && touchingCircleConvex.velocity.x <= 0 &&
+  touchingCircleConvexWorld.popContacts().length === 1,
+  'CCD circle moving into exact contact with a convex surface is resolved at time zero');
+touchingCircleConvexWorld.dispose();
+const touchingBoxConvexWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+touchingBoxConvexWorld.createBody({ type: 'static', shape: { type: 'convex', vertices: [
+  { x: 0, y: -10 }, { x: 1, y: -10 }, { x: 1, y: 10 }, { x: 0, y: 10 },
+] } });
+const touchingBoxConvex = touchingBoxConvexWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: -0.5, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+touchingBoxConvexWorld.step(0.1);
+expect(touchingBoxConvex.position.x <= -0.4999 && touchingBoxConvex.velocity.x <= 0 &&
+  touchingBoxConvexWorld.popContacts().length === 1,
+  'CCD box moving into exact contact with a convex surface is resolved at time zero');
+touchingBoxConvexWorld.dispose();
+const separatingWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+separatingWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } } });
+const separatingCircle = separatingWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -0.5, y: 0 }, velocity: { x: -200, y: 0 }, gravityScale: 0, ccd: true });
+separatingWorld.step(0.1);
+expect(separatingCircle.position.x < -20 && separatingWorld.popContacts().length === 0,
+  'CCD circle moves freely away from a surface at exact contact');
+separatingWorld.dispose();
+const separatingBoxWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+separatingBoxWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } } });
+const separatingBox = separatingBoxWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: -0.5, y: 0 }, velocity: { x: -200, y: 0 }, gravityScale: 0, ccd: true });
+separatingBoxWorld.step(0.1);
+expect(separatingBox.position.x < -20 && separatingBoxWorld.popContacts().length === 0,
+  'CCD box moves freely away from a surface at exact contact');
+separatingBoxWorld.dispose();
 world.dispose();
 context.dispose();
 console.log('Physics2D CCD checks passed.');

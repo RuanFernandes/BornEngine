@@ -129,8 +129,8 @@ Persistent mode is the default. Set `inMemory: true` only when a deliberately vo
 | Linux | SQLite under `$XDG_DATA_HOME/{appId}` or `$HOME/.local/share/{appId}`. |
 | Windows | SQLite under `%LOCALAPPDATA%/{appId}`; `%APPDATA%` is used when the local-data variable is unavailable. |
 | Android | SQLite under the app-private files directory configured by the Android host. |
-| Web/WASM | SQLite in a dedicated worker. The worker uses OPFS when available and falls back to an IndexedDB SQLite snapshot when OPFS capability is unsupported. |
+| Web/WASM | Each open database owns a dedicated worker. It uses OPFS when available and falls back to an IndexedDB SQLite snapshot when OPFS capability is unsupported. |
 
-Web persistent mode takes an exclusive Web Locks API lock for a database identity so another tab cannot write concurrently. Browser storage is subject to quota and browser eviction policy; it is not a guaranteed backup. If durable writes fail, inspect `quota_exceeded` or `storage_error`, offer a backup/export path, and avoid assuming a later retry will preserve data.
+Web persistent mode gives each open database its own request queue and takes an exclusive Web Locks API lock for its identity so another tab cannot write concurrently. Close each database when finished to release its worker and memory. Browser storage is subject to quota and browser eviction policy; it is not a guaranteed backup. If durable writes fail, inspect `quota_exceeded` or `storage_error`, offer a backup/export path, and avoid assuming a later retry will preserve data.
 
 See the [Web/WASM storage notes](../../platforms/web-wasm/) and [Apple platform guide](../../platforms/apple/) for platform details, or the [2D production workflow](../../guides/2d-production-workflow/) for a game save example.

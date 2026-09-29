@@ -4,51 +4,89 @@ const MAX_BYTES = 256 * 1024 * 1024;
 const MAX_DEPTH = 32;
 
 export function createDatabaseBridge({ createWorker }) {
-  let worker;
   let stopped = false;
-  let failed = false;
   let nextTicket = 1;
+  let nextHandle = 1;
   let scratch = [];
   const tickets = new Map();
+  const workers = new Set();
+  const handleOwners = new Map();
 
   function terminal(ticket, status) {
+    const existing = tickets.get(ticket);
+    if (existing?.worker) existing.worker.pending.delete(ticket);
     tickets.set(ticket, { pending: false, status, rows: 0, values: [] });
     return ticket;
   }
-  function workerFailure() {
-    if (failed) return;
-    failed = true;
-    for (const [id, result] of tickets) if (result.pending) terminal(id, 10);
-    if (worker) {
-      worker.removeEventListener?.('message', onMessage);
-      worker.removeEventListener?.('error', workerFailure);
-      worker.removeEventListener?.('messageerror', workerFailure);
-      worker.terminate();
-      worker = undefined;
+  function disposeWorker(record, pendingStatus) {
+    if (record.closed) return;
+    if (pendingStatus !== undefined) {
+      for (const id of [...record.pending]) terminal(id, pendingStatus);
     }
+    record.closed = true;
+    try { record.worker.removeEventListener?.('message', record.onMessage); } catch { /* best-effort detach */ }
+    try { record.worker.removeEventListener?.('error', record.onFailure); } catch { /* best-effort detach */ }
+    try { record.worker.removeEventListener?.('messageerror', record.onFailure); } catch { /* best-effort detach */ }
+    try { record.worker.terminate(); } catch { /* release routing even if the host rejects termination */ }
+    workers.delete(record);
+    for (const handle of record.handles) handleOwners.delete(handle);
+    record.handles.clear();
   }
-  function onMessage(event) {
+  function workerFailure(record) {
+    if (record.closed) return;
+    for (const id of [...record.pending]) terminal(id, 10);
+    disposeWorker(record);
+  }
+  function onMessage(record, event) {
     const message = event.data;
     if (!message || !Number.isSafeInteger(message.id)) return;
     const existing = tickets.get(message.id);
-    if (!existing?.pending) return;
+    if (!existing?.pending || existing.worker !== record || record.closed) return;
     if (!Number.isInteger(message.status) || message.status < 0 || message.status > 15 ||
         !Number.isSafeInteger(message.rows) || message.rows < 0 || !Array.isArray(message.values) ||
         message.values.length > MAX_ITEMS || !message.values.every(validResultValue)) {
       terminal(message.id, 10);
       return;
     }
-    tickets.set(message.id, { pending: false, status: message.status, rows: message.rows, values: message.values });
+    let values = message.values;
+    if (existing.op === 1 && message.status === 0) {
+      const internalHandle = values[0];
+      if (!Number.isSafeInteger(internalHandle) || internalHandle < 1 || nextHandle > Number.MAX_SAFE_INTEGER) {
+        terminal(message.id, 10);
+        workerFailure(record);
+        return;
+      }
+      const publicHandle = nextHandle++;
+      handleOwners.set(publicHandle, { worker: record, internalHandle });
+      record.handles.add(publicHandle);
+      values = [publicHandle, ...values.slice(1)];
+    }
+    tickets.set(message.id, {
+      pending: false, status: message.status, rows: message.rows, values,
+    });
+    record.pending.delete(message.id);
+    if (existing.op === 2 || message.status === 6) disposeWorker(record, 6);
+    else if (existing.op === 1 && message.status !== 0) disposeWorker(record, 10);
   }
-  function ensureWorker() {
-    if (worker || stopped || failed) return worker;
+  function createWorkerRecord() {
+    if (stopped) return null;
+    let record;
     try {
-      worker = createWorker();
-      worker.addEventListener('message', onMessage);
-      worker.addEventListener('error', workerFailure);
-      worker.addEventListener('messageerror', workerFailure);
-    } catch { workerFailure(); }
-    return worker;
+      record = {
+        worker: createWorker(), pending: new Set(), handles: new Set(), closed: false,
+        onMessage: null, onFailure: null,
+      };
+      record.onMessage = (event) => onMessage(record, event);
+      record.onFailure = () => workerFailure(record);
+      record.worker.addEventListener('message', record.onMessage);
+      record.worker.addEventListener('error', record.onFailure);
+      record.worker.addEventListener('messageerror', record.onFailure);
+      workers.add(record);
+      return record;
+    } catch {
+      if (record) disposeWorker(record);
+      return null;
+    }
   }
   function parseFrame(argc) {
     if (!Number.isSafeInteger(argc) || argc < 0 || argc > MAX_ITEMS) return null;
@@ -124,10 +162,16 @@ export function createDatabaseBridge({ createWorker }) {
       if (!args) return terminal(id, 4);
       if (!Number.isSafeInteger(op) || op < 1 || op > 12) return terminal(id, 9);
       if (!Number.isSafeInteger(handle) || handle < 0) return terminal(id, 5);
-      if (stopped || failed || !ensureWorker()) return terminal(id, 10);
-      tickets.set(id, { pending: true, status: 10, rows: 0, values: [] });
-      try { worker.postMessage({ id, op, handle, args }); }
-      catch { workerFailure(); }
+      if (stopped) return terminal(id, 10);
+      const route = op === 1 ? null : handleOwners.get(handle);
+      if (op !== 1 && !route) return terminal(id, 6);
+      const record = op === 1 ? createWorkerRecord() : route.worker;
+      if (!record || record.closed) return terminal(id, 10);
+      tickets.set(id, { pending: true, status: 10, rows: 0, values: [], worker: record, op });
+      record.pending.add(id);
+      try {
+        record.worker.postMessage({ id, op, handle: op === 1 ? 0 : route.internalHandle, args });
+      } catch { workerFailure(record); }
       return id;
     },
     bloom_database_poll(ticket) { const item = result(ticket); return item ? (item.pending ? 0 : 1) : -1; },
@@ -152,10 +196,15 @@ export function createDatabaseBridge({ createWorker }) {
       return value instanceof Uint8Array && Number.isInteger(offset) ? (value[offset] ?? 0) : 0;
     },
     bloom_database_release(ticket) { tickets.delete(ticket); },
-    abort(ticket) { if (tickets.get(ticket)?.pending) terminal(ticket, 10); },
+    abort(ticket) {
+      const item = tickets.get(ticket);
+      if (!item?.pending) return;
+      if (item.op === 1 || item.op === 2) workerFailure(item.worker);
+      else terminal(ticket, 10);
+    },
     shutdown() {
       stopped = true;
-      workerFailure();
+      for (const record of [...workers]) workerFailure(record);
     },
     handlePageHide(event) { if (!event?.persisted) bridge.shutdown(); },
   };

@@ -5,7 +5,7 @@ section: API / Input
 order: 33
 ---
 
-`InputSystem` is available from `game.input`. For gameplay bindings, create an action map from that system. The Game loop polls it once per frame before calling update.
+`InputSystem` is available from `game.input`. For gameplay bindings, create an action map from that system. The game loop polls it once per frame before calling `loop(deltaTime)`.
 
 ## Actions and bindings
 
@@ -56,11 +56,11 @@ const movement = controls.readVector2('move', 'move-y');
 const normalizedMovement = Vector2D.clampMagnitude(movement, 1);
 ```
 
-`readVector2()` returns a `Vector2D` value, ready for vector math. Use `toData()` and `loadData()` to save and restore bindings. `loadData()` validates the full versioned record before replacing anything, then resets edge state so held inputs do not appear as new presses after rebinding. See [Game storage](../storage/) for persistent JSON saves on Web.
+`readVector2()` returns a `Vector2D` value, ready for vector math. Use `toData()` and `loadData()` to save and restore bindings. `loadData()` validates the full versioned record before replacing anything, then resets edge state so held inputs do not appear as new presses after rebinding. See [GameDatabase](../storage/) to store settings alongside other persistent game data.
 
 ## Frame loop
 
-`Game.run()` polls input before `update(deltaTime)`. Prefer that lifecycle so keyboard, mouse, gamepad, touch, and action-map snapshots share a single frame boundary.
+`Game.run()` polls input before `loop(deltaTime)`. Prefer that lifecycle so keyboard, mouse, gamepad, touch, and action-map snapshots share a single frame boundary. Capture action-map data in `onStop()` if it must survive Game disposal; `InputSystem` clears its maps during cleanup.
 
 Capture the pointer for mouse-look controls and release it when opening menus:
 

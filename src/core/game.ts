@@ -202,6 +202,11 @@ export class Game {
     if (this.webRuntime) this.completeRun();
   }
 
+  /** @internal Window calls this when its public close method is used. */
+  _onWindowClosed(): void {
+    if (this.standaloneRun && !this.runCompleted) this.stop();
+  }
+
   /** Close the runtime and release all resources still owned by this Game. */
   dispose(): void {
     if (this.disposed) return;

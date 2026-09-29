@@ -377,7 +377,7 @@ function buildFfiImports(colyseusBridge) {
 
   Object.assign(imports, colyseusBridge);
 
-  // Database operations use a dedicated worker. The Perry thread sees only
+  // Each open database uses its own worker. The Perry thread sees only
   // tickets and polls terminal results through the bounded scratch protocol.
   const databaseBridge = createDatabaseBridge({
     createWorker: () => new Worker(new URL('./sqlite_database_worker.js', import.meta.url), { type: 'module' }),

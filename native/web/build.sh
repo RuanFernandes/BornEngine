@@ -167,6 +167,19 @@ echo "=== Bloom Web Build ==="
 echo "  Profile: $BUILD_PROFILE"
 echo ""
 
+# Resolve the complete locked JavaScript toolchain before any generated output
+# can be removed. Checking esbuild alone misses partial installs that lack the
+# pinned SQLite WASM file copied into every Web build.
+if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ||
+      ! -f "$WEB_CRATE/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm" ]]; then
+  npm ci --prefix "$WEB_CRATE"
+fi
+if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ||
+      ! -s "$WEB_CRATE/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm" ]]; then
+  echo "ERROR: Web dependencies are incomplete after npm ci" >&2
+  exit 1
+fi
+
 # 1. Build Bloom WASM via wasm-pack
 echo "[1/3] Building bloom_web.wasm..."
 cd "$WEB_CRATE"
@@ -225,9 +238,6 @@ cp "$WEB_CRATE/database_bridge.js" "$OUTPUT_DIR/database_bridge.js"
 # Bundle the official TypeScript SDK behind the same bloom_colyseus_* FFI
 # consumed by native builds. The adapter itself stays dependency-free so its
 # event and payload contract can be unit-tested with an injected fake client.
-if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ]]; then
-  npm ci --prefix "$WEB_CRATE"
-fi
 "$WEB_CRATE/node_modules/.bin/esbuild" "$WEB_CRATE/colyseus_bridge.entry.js" \
   --bundle --format=esm --platform=browser --target=es2022 \
   --outfile="$OUTPUT_DIR/colyseus_bridge.bundle.js"

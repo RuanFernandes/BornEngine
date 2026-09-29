@@ -32,10 +32,29 @@ class Service {
   clear() {}
   _beginFrame() {}
 }
+class ActionMap {
+  constructor() { this.actions = []; }
+  bindAction(name, bindings) { this.actions.push({ name, bindings }); }
+  toData() { return { version: 1, actions: this.actions.slice(), axes: [] }; }
+  clear() { this.actions.length = 0; }
+}
+class InputSystem extends Service {
+  constructor() { super(); this.actionMaps = []; }
+  createActionMap() { const map = new ActionMap(); this.actionMaps.push(map); return map; }
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const map of this.actionMaps) map.clear();
+    this.actionMaps.length = 0;
+    events.push(this.constructor.name + '.dispose');
+    if (this.constructor.name === failingDisposer) throw new Error('service disposal failed');
+  }
+}
 class SceneManager extends Service {}
 class SceneGraph extends Service {}
 class Window {
   constructor(owner, options = {}) {
+    this.owner = owner;
     this.context = contexts.get(owner);
     this.mode = options.mode || 'windowed';
     this.open = this.mode !== 'embedded';
@@ -43,14 +62,17 @@ class Window {
   }
   get isOpen() { return this.open && this.context.isReady && !this.context.isDisposed; }
   shouldClose() { return !this.isOpen; }
-  close() { events.push('window.close'); this.open = false; }
+  close() {
+    events.push('window.close'); this.open = false;
+    this.owner._onWindowClosed?.();
+  }
 }
 let platform = 1;
 let webFrame;
 const sandbox = {
   GameContext: Context, CONTEXT_ALREADY_ACTIVE_ERROR: 'active',
   bindGameContext: (g,c) => contexts.set(g,c), getGameContext: g => contexts.get(g),
-  Window, Renderer: Service, InputSystem: Service, AudioSystem: Service,
+  Window, Renderer: Service, InputSystem, AudioSystem: Service,
   SceneManager, SceneGraph, TouchControls: Service,
   Ui: Service, DebugUi: Service, GameInspector: Service, AssetManager: Service,
   beginDrawing: () => events.push('begin'), endDrawing: () => events.push('end'),
@@ -133,6 +155,23 @@ async function main() {
   assert.deepEqual(events.filter(x => ['start','loop','render','stop'].includes(x)), ['start','loop','render','stop']);
   assert.equal(game.isDisposed, true, 'completion follows disposal');
   game.stop(); game.dispose(); assert.equal(game.stops, 1);
+  class SavesControls extends Game {
+    constructor() {
+      super();
+      this.controls = this.input.createActionMap();
+      this.controls.bindAction('confirm', [{kind:'key', key:13}]);
+      this.controlsSnapshot = null;
+    }
+    onStop() { this.controlsSnapshot = this.controls.toData(); }
+    render() { this.stop(); }
+  }
+  const savesControls = new SavesControls();
+  const liveControls = savesControls.controls;
+  await savesControls.run();
+  assert.deepEqual(savesControls.controlsSnapshot, {
+    version: 1, actions: [{name:'confirm', bindings:[{kind:'key', key:13}]}], axes: [],
+  }, 'onStop captures the action map before InputSystem clears it');
+  assert.deepEqual(liveControls.toData(), {version:1, actions:[], axes:[]}, 'the live map is cleared during disposal');
   events.length = 0;
   class BadStart extends Probe { onStart() { throw new Error('start failed'); } }
   const bad = new BadStart(); await bad.run();
@@ -174,6 +213,30 @@ async function main() {
   let settled = false; const pending = web.run().then(() => settled = true);
   assert.equal(settled, false); webFrame(1/60); await pending;
   assert.equal(settled, true); assert.equal(web.isDisposed, true);
+  events.length = 0;
+  class CloseDuringFrame extends Game {
+    constructor() { super(); this.stops = 0; }
+    loop() { this.window.close(); }
+    render() {}
+    onStop() { this.stops++; }
+  }
+  const closeDuringFrame = new CloseDuringFrame();
+  let frameSettled = false;
+  const frameCompletion = closeDuringFrame.run().then(() => frameSettled = true);
+  webFrame(1/60); await Promise.resolve(); await Promise.resolve();
+  assert.equal(frameSettled, true, 'closing during a Web frame settles run');
+  await frameCompletion;
+  assert.equal(closeDuringFrame.stops, 1);
+  assert.equal(closeDuringFrame.isDisposed, true);
+  events.length = 0;
+  const closeBetweenFrames = new CloseDuringFrame();
+  let betweenSettled = false;
+  const betweenCompletion = closeBetweenFrames.run().then(() => betweenSettled = true);
+  closeBetweenFrames.window.close(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(betweenSettled, true, 'closing between Web frames settles run');
+  await betweenCompletion;
+  assert.equal(closeBetweenFrames.stops, 1);
+  assert.equal(closeBetweenFrames.isDisposed, true);
   console.log('PASS: invalid start, native, Web, hook errors, cleanup failures, idempotence, embedded callbacks');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

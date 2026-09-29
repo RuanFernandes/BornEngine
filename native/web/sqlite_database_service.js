@@ -187,6 +187,14 @@ function checkImage(sqlite, bytes, current) {
   } catch { candidate.close(); return { status: 13 }; }
 }
 
+function verifyImportedConnection(db, expected) {
+  if (db.selectValue('PRAGMA integrity_check') !== 'ok' ||
+      db.selectValue('PRAGMA user_version') !== expected.selectValue('PRAGMA user_version')) return false;
+  const physical = (connection) => run(connection,
+    "SELECT type, name, tbl_name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name");
+  return JSON.stringify(physical(db)) === JSON.stringify(physical(expected));
+}
+
 export function createDatabaseService({ sqlite, openPersistent } = {}) {
   let nextHandle = 1;
   const handles = new Map(), keys = new Map();
@@ -321,18 +329,45 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
       if (validated.status !== 0) return fail(validated.status);
       const candidate = validated.candidate;
       let previous;
+      let backupExpectation;
+      let requiresQuarantine = false;
       try {
         if (handle.import) {
           const backup = exportDatabase(sqlite, handle.db);
-          handle.db.close();
+          const hasDurableJournal = typeof handle.prepareImport === 'function' &&
+            typeof handle.finishImport === 'function';
+          if ((typeof handle.prepareImport === 'function') !== (typeof handle.finishImport === 'function')) {
+            candidate.close();
+            return fail(10);
+          }
+          if (!hasDurableJournal) backupExpectation = openSnapshotDatabase(sqlite, backup);
+          if (hasDurableJournal) await handle.prepareImport(backup);
+          const priorConnection = handle.db;
+          requiresQuarantine = true;
+          priorConnection.close();
           try { await handle.import(args[0]); }
           catch (error) {
-            await handle.import(backup);
-            handle.db = await handle.reopen();
+            if (hasDurableJournal) throw error;
+            try {
+              await handle.import(backup);
+              handle.db = await handle.reopen();
+              if (!verifyImportedConnection(handle.db, backupExpectation)) throw Error('OPFS restore verification failed');
+              backupExpectation.close();
+              backupExpectation = undefined;
+              requiresQuarantine = false;
+            } catch {
+              throw error;
+            }
             throw error;
           }
-          handle.db = await handle.reopen();
+          const reopened = await handle.reopen();
+          handle.db = reopened;
+          if (!verifyImportedConnection(reopened, candidate)) throw Error('imported database verification failed');
           candidate.close();
+          backupExpectation?.close();
+          backupExpectation = undefined;
+          if (hasDurableJournal) await handle.finishImport();
+          requiresQuarantine = false;
         } else {
           previous = handle.db;
           handle.db = candidate;
@@ -343,7 +378,9 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
         return ok();
       } catch (error) {
         if (previous) handle.db = previous;
+        backupExpectation?.close();
         candidate?.close();
+        if (requiresQuarantine) await quarantine(handleId, handle);
         return fail(durableError(error));
       }
     }

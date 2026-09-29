@@ -200,7 +200,7 @@ export class GameDatabase<S extends DatabaseSchema> {
   readonly inMemory: boolean;
   private handle = 0;
   private lifecycle: DatabaseState = 'new';
-  private transactionActive = false;
+  private activeTransactionToken: object | null = null;
   private opening = false;
 
   constructor(options: GameDatabaseOptions<S>) {
@@ -213,6 +213,21 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   get state(): DatabaseState { return this.lifecycle; }
+
+  private async request(op: number, handle: number, args: unknown[]): Promise<WireResponse> {
+    const response = await send(op, handle, args);
+    if (this.lifecycle === 'open' && handle > 0 && handle === this.handle &&
+        (response.status === 'closed' || op === OP_CLOSE)) {
+      this.handle = 0;
+      this.lifecycle = 'closed';
+      this.activeTransactionToken = null;
+    }
+    return response;
+  }
+
+  private ownsTransaction(transactionToken: object, handle: number): boolean {
+    return this.lifecycle === 'open' && this.handle === handle && this.activeTransactionToken === transactionToken;
+  }
 
   async open(): Promise<DatabaseResult<void>> {
     if (this.lifecycle === 'open') return result('ok');
@@ -229,13 +244,13 @@ export class GameDatabase<S extends DatabaseSchema> {
     const currentVersion = Number(readValue(opened.ticket, 1));
     release(opened);
     if (!Number.isSafeInteger(this.handle) || this.handle <= 0 || !Number.isSafeInteger(currentVersion)) {
-      if (this.handle > 0) { const closed = await send(OP_CLOSE, this.handle, []); release(closed); this.handle = 0; }
+      if (this.handle > 0) { const closed = await this.request(OP_CLOSE, this.handle, []); release(closed); this.handle = 0; }
       this.opening = false;
       return result('storage_error');
     }
     const latestVersion = this.migrations.length > 0 ? this.migrations[this.migrations.length - 1].version : 0;
     if (currentVersion > latestVersion || currentVersion < 0) {
-      const closed = await send(OP_CLOSE, this.handle, []);
+      const closed = await this.request(OP_CLOSE, this.handle, []);
       release(closed);
       this.handle = 0;
       this.opening = false;
@@ -243,11 +258,11 @@ export class GameDatabase<S extends DatabaseSchema> {
     }
     for (let i = 0; i < this.migrations.length; i++) {
       if (this.migrations[i].version <= currentVersion) continue;
-      const migrated = await send(OP_MIGRATE, this.handle, [this.migrations[i].version, groups[i]]);
+      const migrated = await this.request(OP_MIGRATE, this.handle, [this.migrations[i].version, groups[i]]);
       const status = migrated.status;
       release(migrated);
       if (status !== 'ok') {
-        const closed = await send(OP_CLOSE, this.handle, []);
+        const closed = await this.request(OP_CLOSE, this.handle, []);
         release(closed);
         this.handle = 0;
         this.opening = false;
@@ -261,30 +276,31 @@ export class GameDatabase<S extends DatabaseSchema> {
 
   async close(): Promise<DatabaseResult<void>> {
     if (this.lifecycle !== 'open') return result(this.lifecycle === 'closed' ? 'closed' : 'not_open');
-    if (this.transactionActive) return result('busy');
-    const response = await send(OP_CLOSE, this.handle, []);
+    if (this.activeTransactionToken !== null) return result('busy');
+    const response = await this.request(OP_CLOSE, this.handle, []);
     const status = response.status;
     release(response);
     if (status === 'ok') { this.handle = 0; this.lifecycle = 'closed'; }
     return result(status);
   }
 
-  private ready(inTransaction: boolean): DatabaseStatus {
+  private ready(transactionToken: object | null = null): DatabaseStatus {
     if (this.lifecycle !== 'open') return this.lifecycle === 'closed' ? 'closed' : 'not_open';
-    if (inTransaction && !this.transactionActive) return 'closed';
-    if (this.transactionActive && !inTransaction) return 'busy';
+    if (transactionToken !== null && transactionToken !== this.activeTransactionToken) return 'closed';
+    if (transactionToken === null && this.activeTransactionToken !== null) return 'busy';
     return 'ok';
   }
 
   async insert<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>): Promise<DatabaseResult<number>> {
-    return this.insertInternal(table, values, false);
+    return this.insertInternal(table, values);
   }
 
-  async insertInternal<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>, inTransaction: boolean): Promise<DatabaseResult<number>> {
-    const state = this.ready(inTransaction);
+  /** @internal Transaction operations must provide the active transaction token. */
+  async insertInternal<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>, transactionToken: object | null = null): Promise<DatabaseResult<number>> {
+    const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateValues(this.schema, table, values as Record<string, unknown>, true)) return result('invalid_data');
-    const response = await send(OP_INSERT, this.handle, [table, values]);
+    const response = await this.request(OP_INSERT, this.handle, [table, values]);
     const value = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
     const output = result<number>(response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
       Number.isSafeInteger(value) ? value as number : null);
@@ -293,15 +309,16 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   async select<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>> = {}): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
-    return this.selectInternal(table, options, false);
+    return this.selectInternal(table, options);
   }
 
-  async selectInternal<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>>, inTransaction: boolean): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
-    const state = this.ready(inTransaction);
+  /** @internal Transaction operations must provide the active transaction token. */
+  async selectInternal<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>>, transactionToken: object | null = null): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
+    const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateSelect(this.schema, table, options)) return result('invalid_query');
     const names = Object.keys(this.schema[table].columns);
-    const response = await send(OP_SELECT, this.handle, [table, options, names]);
+    const response = await this.request(OP_SELECT, this.handle, [table, options, names]);
     if (response.status !== 'ok') { release(response); return result(response.status); }
     if (!Number.isSafeInteger(response.rows) || response.rows < 0 ||
         !Number.isSafeInteger(response.count) || response.count !== response.rows * names.length) {
@@ -322,7 +339,7 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   async findByPrimaryKey<T extends Extract<keyof S, string>>(table: T, key: string | number): Promise<DatabaseResult<DatabaseRow<S, T> | null>> {
-    const state = this.ready(false);
+    const state = this.ready();
     if (state !== 'ok') return result(state);
     const descriptor = Object.prototype.hasOwnProperty.call(this.schema, table) ? this.schema[table] : undefined;
     if (!descriptor) return result('invalid_query');
@@ -334,15 +351,16 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   async update<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
-    return this.updateInternal(table, values, where, false);
+    return this.updateInternal(table, values, where);
   }
 
-  async updateInternal<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>, inTransaction: boolean): Promise<DatabaseResult<number>> {
-    const state = this.ready(inTransaction);
+  /** @internal Transaction operations must provide the active transaction token. */
+  async updateInternal<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>, transactionToken: object | null = null): Promise<DatabaseResult<number>> {
+    const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateValues(this.schema, table, values as Record<string, unknown>, false) || Object.keys(values).length === 0) return result('invalid_data');
     if (!validateFilter(this.schema, table, where)) return result('invalid_query');
-    const response = await send(OP_UPDATE, this.handle, [table, values, where]);
+    const response = await this.request(OP_UPDATE, this.handle, [table, values, where]);
     const value = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
     const output = result<number>(response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
       Number.isSafeInteger(value) ? value as number : null);
@@ -351,14 +369,15 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   async delete<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
-    return this.deleteInternal(table, where, false);
+    return this.deleteInternal(table, where);
   }
 
-  async deleteInternal<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>, inTransaction: boolean): Promise<DatabaseResult<number>> {
-    const state = this.ready(inTransaction);
+  /** @internal Transaction operations must provide the active transaction token. */
+  async deleteInternal<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>, transactionToken: object | null = null): Promise<DatabaseResult<number>> {
+    const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateFilter(this.schema, table, where)) return result('invalid_query');
-    const response = await send(OP_DELETE, this.handle, [table, where]);
+    const response = await this.request(OP_DELETE, this.handle, [table, where]);
     const value = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
     const output = result<number>(response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
       Number.isSafeInteger(value) ? value as number : null);
@@ -367,57 +386,68 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   async transaction<T>(callback: (tx: DatabaseTransaction<S>) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>> {
-    const state = this.ready(false);
+    const state = this.ready();
     if (state !== 'ok') return result(state);
-    this.transactionActive = true;
-    const begun = await send(OP_BEGIN, this.handle, []);
-    const beginStatus = begun.status;
-    release(begun);
-    if (beginStatus !== 'ok') { this.transactionActive = false; return result(beginStatus); }
-    const tx = new DatabaseTransaction(this);
-    let value: DatabaseResult<T>;
-    try { value = normalizeCallbackResult<T>(await callback(tx)); } catch (_error) { value = result('storage_error'); }
-    if (!value.ok || tx.failed) {
-      const rolled = await send(OP_ROLLBACK, this.handle, []);
+    const transactionToken = {};
+    const transactionHandle = this.handle;
+    this.activeTransactionToken = transactionToken;
+    try {
+      const begun = await this.request(OP_BEGIN, transactionHandle, []);
+      const beginStatus = begun.status;
+      release(begun);
+      if (beginStatus !== 'ok') return result(beginStatus);
+      if (!this.ownsTransaction(transactionToken, transactionHandle)) return result('closed');
+      const tx = new DatabaseTransaction(this, transactionToken);
+      let value: DatabaseResult<T>;
+      try { value = normalizeCallbackResult<T>(await callback(tx)); } catch (_error) { value = result('storage_error'); }
+      if (!value.ok || tx.failed) {
+        const failure = tx.failed || value.status;
+        if (!this.ownsTransaction(transactionToken, transactionHandle)) return result(failure);
+        const rolled = await this.request(OP_ROLLBACK, transactionHandle, []);
+        const rollbackStatus = rolled.status;
+        release(rolled);
+        if (rollbackStatus !== 'ok') {
+          if (!this.ownsTransaction(transactionToken, transactionHandle)) return result(rollbackStatus);
+          await this.quarantine(transactionHandle, transactionToken);
+          return result('storage_error');
+        }
+        return result(failure);
+      }
+      if (!this.ownsTransaction(transactionToken, transactionHandle)) return result('closed');
+      const committed = await this.request(OP_COMMIT, transactionHandle, []);
+      const commitStatus = committed.status;
+      release(committed);
+      if (commitStatus === 'ok') return this.ownsTransaction(transactionToken, transactionHandle) ? value : result('closed');
+      if (!this.ownsTransaction(transactionToken, transactionHandle)) return result(commitStatus);
+      const rolled = await this.request(OP_ROLLBACK, transactionHandle, []);
       const rollbackStatus = rolled.status;
       release(rolled);
       if (rollbackStatus !== 'ok') {
-        await this.quarantine();
+        if (!this.ownsTransaction(transactionToken, transactionHandle)) return result(rollbackStatus);
+        await this.quarantine(transactionHandle, transactionToken);
         return result('storage_error');
       }
-      this.transactionActive = false;
-      return result(tx.failed || value.status);
+      return result(commitStatus);
+    } finally {
+      if (this.activeTransactionToken === transactionToken) this.activeTransactionToken = null;
     }
-    const committed = await send(OP_COMMIT, this.handle, []);
-    const commitStatus = committed.status;
-    release(committed);
-    if (commitStatus === 'ok') {
-      this.transactionActive = false;
-      return value;
-    }
-    const rolled = await send(OP_ROLLBACK, this.handle, []);
-    const rollbackStatus = rolled.status;
-    release(rolled);
-    if (rollbackStatus !== 'ok') {
-      await this.quarantine();
-      return result('storage_error');
-    }
-    this.transactionActive = false;
-    return result(commitStatus);
   }
 
-  private async quarantine(): Promise<void> {
-    const closed = await send(OP_CLOSE, this.handle, []);
+  private async quarantine(handle: number, transactionToken: object): Promise<void> {
+    if (!this.ownsTransaction(transactionToken, handle)) return;
+    const closed = await this.request(OP_CLOSE, handle, []);
     release(closed);
-    this.handle = 0;
-    this.transactionActive = false;
-    this.lifecycle = 'closed';
+    if (this.handle === handle && this.activeTransactionToken === transactionToken) {
+      this.handle = 0;
+      this.activeTransactionToken = null;
+      this.lifecycle = 'closed';
+    }
   }
 
   async export(): Promise<DatabaseResult<Uint8Array>> {
-    const state = this.ready(false);
+    const state = this.ready();
     if (state !== 'ok') return result(state);
-    const response = await send(OP_EXPORT, this.handle, []);
+    const response = await this.request(OP_EXPORT, this.handle, []);
     const bytes = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
     const output = bytes instanceof Uint8Array ? result('ok', bytes) : result<Uint8Array>(response.status === 'ok' ? 'corrupt_data' : response.status);
     release(response);
@@ -425,12 +455,12 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 
   async import(bytes: Uint8Array): Promise<DatabaseResult<void>> {
-    const state = this.ready(false);
+    const state = this.ready();
     if (state !== 'ok') return result(state);
     if (!(bytes instanceof Uint8Array) || bytes.length < 100) return result('invalid_data');
     const header = 'SQLite format 3\u0000';
     for (let i = 0; i < header.length; i++) if (bytes[i] !== header.charCodeAt(i)) return result('corrupt_data');
-    const response = await send(OP_IMPORT, this.handle, [bytes]);
+    const response = await this.request(OP_IMPORT, this.handle, [bytes]);
     const status = response.status;
     release(response);
     return result(status);
@@ -439,21 +469,21 @@ export class GameDatabase<S extends DatabaseSchema> {
 
 export class DatabaseTransaction<S extends DatabaseSchema> {
   failed: DatabaseStatus | null = null;
-  constructor(private readonly database: GameDatabase<S>) {}
+  constructor(private readonly database: GameDatabase<S>, private readonly token: object) {}
   private observe<T>(value: DatabaseResult<T>): DatabaseResult<T> {
     if (!value.ok && this.failed === null) this.failed = value.status;
     return value;
   }
   async insert<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>): Promise<DatabaseResult<number>> {
-    return this.observe(await this.database.insertInternal(table, values, true));
+    return this.observe(await this.database.insertInternal(table, values, this.token));
   }
   async select<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>> = {}): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
-    return this.observe(await this.database.selectInternal(table, options, true));
+    return this.observe(await this.database.selectInternal(table, options, this.token));
   }
   async update<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
-    return this.observe(await this.database.updateInternal(table, values, where, true));
+    return this.observe(await this.database.updateInternal(table, values, where, this.token));
   }
   async delete<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
-    return this.observe(await this.database.deleteInternal(table, where, true));
+    return this.observe(await this.database.deleteInternal(table, where, this.token));
   }
 }
