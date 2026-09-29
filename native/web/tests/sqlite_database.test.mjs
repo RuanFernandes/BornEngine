@@ -5,6 +5,7 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { createDatabaseService, openSnapshotDatabase, exportDatabase } from '../sqlite_database_service.js';
 import { indexedDB as fakeIndexedDB } from 'fake-indexeddb';
 import { createBrowserStorage } from '../database_storage.js';
+import { build } from 'esbuild';
 
 class ControlledWorker {
   messages = [];
@@ -115,6 +116,7 @@ test('worker failure resolves pending tickets and shutdown prevents further requ
   const one = submit(bridge, 7, 1, []);
   const two = submit(bridge, 7, 2, []);
   worker.emit('error');
+  assert.equal(worker.terminated, true);
   assert.equal(bridge.bloom_database_poll(one), 1);
   assert.equal(bridge.bloom_database_status(one), 10);
   assert.equal(bridge.bloom_database_status(two), 10);
@@ -122,6 +124,45 @@ test('worker failure resolves pending tickets and shutdown prevents further requ
   assert.equal(worker.terminated, true);
   const after = submit(bridge, 7, 1, []);
   assert.equal(bridge.bloom_database_status(after), 10);
+});
+
+test('messageerror disposes the worker and ignores late replies', () => {
+  const { worker, bridge } = harness();
+  const ticket = submit(bridge, 7, 1, []);
+  worker.emit('messageerror');
+  assert.equal(worker.terminated, true);
+  worker.emit('message', { id: ticket, status: 0, rows: 0, values: [] });
+  assert.equal(bridge.bloom_database_status(ticket), 10);
+});
+
+test('worker failure releases its persistent writer lock', async () => {
+  const sqlite = await sqlite3InitModule();
+  const held = new Set();
+  const locks = { request: async (name, _options, callback) => {
+    if (held.has(name)) return callback(null);
+    held.add(name);
+    try { return await callback({ name }); } finally { held.delete(name); }
+  } };
+  const environment = { sqlite, indexedDB: fakeIndexedDB, navigator: { locks }, opfsSupported: false };
+  const service = createDatabaseService({ sqlite, openPersistent: createBrowserStorage(environment).open });
+  const rival = createDatabaseService({ sqlite, openPersistent: createBrowserStorage(environment).open });
+  class ServiceWorker extends ControlledWorker {
+    postMessage(message) {
+      this.pending = service.execute(message).then((result) => this.emit('message', { id: message.id, ...result }));
+    }
+    terminate() { super.terminate(); this.closed = service.shutdown(); }
+  }
+  const worker = new ServiceWorker();
+  const bridge = createDatabaseBridge({ createWorker: () => worker });
+  const ticket = submit(bridge, 1, 0, ['app', 'worker-lock', false, schema]);
+  await worker.pending;
+  assert.equal(bridge.bloom_database_status(ticket), 0);
+  assert.equal((await rival.execute({ op: 1, handle: 0, args: ['app', 'worker-lock', false, schema] })).status, 8);
+  worker.emit('error');
+  await worker.closed;
+  assert.equal(worker.terminated, true);
+  assert.equal((await rival.execute({ op: 1, handle: 0, args: ['app', 'worker-lock', false, schema] })).status, 0);
+  await rival.shutdown();
 });
 
 test('BFCache pagehide keeps the worker alive for a restored page', () => {
@@ -333,4 +374,188 @@ test('invalid SQLite import bytes report corrupt_data', async () => {
   const service = createDatabaseService({ sqlite });
   const handle = (await service.execute({ op: 1, handle: 0, args: ['app', 'corrupt', true, schema] })).values[0];
   assert.equal((await service.execute({ op: 12, handle, args: [new Uint8Array([1, 2, 3])] })).status, 13);
+});
+
+test('public transaction keeps the failed durable commit status through rollback and close', async () => {
+  const sqlite = await sqlite3InitModule();
+  const compiled = await build({
+    entryPoints: [new URL('../../../src/storage/game-database.ts', import.meta.url).pathname],
+    bundle: true, format: 'esm', platform: 'node', write: false,
+  });
+  const { GameDatabase } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+  const operations = [];
+  let failCommit = '';
+  const service = createDatabaseService({ sqlite, openPersistent: async () => ({
+    db: new sqlite.oo1.DB(),
+    persist: async () => {
+      if (failCommit) { const name = failCommit; failCommit = ''; throw Object.assign(Error('snapshot failed'), { name }); }
+    },
+  }) });
+  class ServiceWorker extends ControlledWorker {
+    postMessage(message) {
+      operations.push(message.op);
+      this.pending = (this.pending || Promise.resolve()).then(async () => {
+        const result = await service.execute(message);
+        if (!this.terminated) this.emit('message', { id: message.id, ...result });
+      });
+    }
+    terminate() { super.terminate(); this.closed = service.shutdown(); }
+  }
+  const worker = new ServiceWorker();
+  const bridge = createDatabaseBridge({ createWorker: () => worker });
+  const names = Object.keys(bridge).filter((name) => name.startsWith('bloom_database_'));
+  const previous = names.map((name) => globalThis[name]);
+  for (const name of names) globalThis[name] = bridge[name];
+  try {
+    const database = new GameDatabase({ appId: 'app', name: 'public-commit', schema,
+      migrations: [{ version: 1, apply(builder) { builder.createTable('saves', schema.saves.columns); } }] });
+    const opened = await database.open();
+    assert.equal(opened.status, 'ok');
+    failCommit = 'QuotaExceededError';
+    const result = await database.transaction(async (transaction) => transaction.insert('saves', { label: 'new' }));
+    assert.equal(result.status, 'quota_exceeded');
+    assert.deepEqual(operations.slice(-2), [8, 9]);
+    assert.equal((await database.close()).status, 'ok');
+    assert.deepEqual(operations.slice(-3), [8, 9, 2]);
+    const migrationFailure = new GameDatabase({ appId: 'app', name: 'public-migration', schema,
+      migrations: [{ version: 1, apply(builder) { builder.createTable('saves', schema.saves.columns); } }] });
+    failCommit = 'AbortError';
+    assert.equal((await migrationFailure.open()).status, 'storage_error');
+  } finally {
+    for (let i = 0; i < names.length; i++) {
+      if (previous[i] === undefined) delete globalThis[names[i]];
+      else globalThis[names[i]] = previous[i];
+    }
+    bridge.shutdown();
+    await worker.closed;
+  }
+});
+
+test('failed OPFS-style commit rolls back uncommitted rows before later reads', async () => {
+  const sqlite = await sqlite3InitModule();
+  let failCommit = false;
+  const service = createDatabaseService({ sqlite, openPersistent: async () => {
+    const db = new sqlite.oo1.DB();
+    return { db: new Proxy(db, { get(target, property) {
+      if (property === 'exec') return (...args) => {
+        if (args[0] === 'COMMIT' && failCommit) { failCommit = false; throw Error('OPFS commit failed'); }
+        return target.exec(...args);
+      };
+      const value = target[property];
+      return typeof value === 'function' ? value.bind(target) : value;
+    } }), close: () => {} };
+  } });
+  const handle = (await service.execute({ op: 1, handle: 0, args: ['app', 'opfs-commit', false, schema] })).values[0];
+  assert.equal((await service.execute({ op: 10, handle, args: [1, migration] })).status, 0);
+  assert.equal((await service.execute({ op: 7, handle, args: [] })).status, 0);
+  assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'uncommitted' }] })).status, 0);
+  failCommit = true;
+  assert.equal((await service.execute({ op: 8, handle, args: [] })).status, 10);
+  assert.equal((await service.execute({ op: 9, handle, args: [] })).status, 0);
+  assert.deepEqual((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).values, []);
+  assert.equal((await service.execute({ op: 2, handle, args: [] })).status, 0);
+});
+
+test('failed OPFS rollback quarantines the handle and releases its writer', async () => {
+  const sqlite = await sqlite3InitModule();
+  let closes = 0;
+  const service = createDatabaseService({ sqlite, openPersistent: async () => {
+    const db = new sqlite.oo1.DB();
+    return { db: new Proxy(db, { get(target, property) {
+      if (property === 'exec') return (...args) => {
+        if (args[0] === 'COMMIT' || args[0] === 'ROLLBACK') throw Error('OPFS I/O failed');
+        return target.exec(...args);
+      };
+      const value = target[property];
+      return typeof value === 'function' ? value.bind(target) : value;
+    } }), close: () => { closes++; } };
+  } });
+  const handle = (await service.execute({ op: 1, handle: 0, args: ['app', 'rollback-failure', false, schema] })).values[0];
+  assert.equal((await service.execute({ op: 7, handle, args: [] })).status, 0);
+  assert.equal((await service.execute({ op: 8, handle, args: [] })).status, 10);
+  assert.equal(closes, 1);
+  assert.equal((await service.execute({ op: 9, handle, args: [] })).status, 6);
+  assert.equal((await service.execute({ op: 4, handle, args: ['saves', {}, ['label']] })).status, 6);
+  assert.equal((await service.execute({ op: 1, handle: 0, args: ['app', 'rollback-failure', false, schema] })).status, 0);
+  await service.shutdown();
+});
+
+test('failed OPFS migration rollback also quarantines its connection', async () => {
+  const sqlite = await sqlite3InitModule();
+  let closes = 0;
+  const service = createDatabaseService({ sqlite, openPersistent: async () => {
+    const db = new sqlite.oo1.DB();
+    return { db: new Proxy(db, { get(target, property) {
+      if (property === 'exec') return (...args) => {
+        if (args[0] === 'ROLLBACK') throw Error('OPFS rollback failed');
+        return target.exec(...args);
+      };
+      const value = target[property];
+      return typeof value === 'function' ? value.bind(target) : value;
+    } }), close: () => { closes++; } };
+  } });
+  const handle = (await service.execute({ op: 1, handle: 0, args: ['app', 'migration-rollback-failure', false, schema] })).values[0];
+  assert.equal((await service.execute({ op: 10, handle, args: [1, [...migration, ...migration]] })).status, 10);
+  assert.equal(closes, 1);
+  assert.equal((await service.execute({ op: 11, handle, args: [] })).status, 6);
+});
+
+test('OPFS corruption does not fall back to an empty IndexedDB database', async () => {
+  const sqlite = await sqlite3InitModule();
+  let indexedOpens = 0;
+  const brokenSqlite = Object.create(sqlite);
+  brokenSqlite.installOpfsSAHPoolVfs = async () => ({
+    OpfsSAHPoolDb: class { constructor() { throw Object.assign(Error('database disk image is malformed'), { resultCode: 11 }); } },
+    pauseVfs() {},
+  });
+  const locks = { request: async (_name, _options, callback) => callback({}) };
+  const storage = createBrowserStorage({ sqlite: brokenSqlite, opfsSupported: true,
+    navigator: { locks }, indexedDB: { open() { indexedOpens++; throw Error('must not open IndexedDB'); } } });
+  await assert.rejects(storage.open('app\0corrupt'), (error) => error.status === 13);
+  assert.equal(indexedOpens, 0);
+});
+
+test('recognized unsupported OPFS capability falls back to IndexedDB', async () => {
+  const sqlite = await sqlite3InitModule();
+  const unsupported = Object.create(sqlite);
+  unsupported.installOpfsSAHPoolVfs = async () => { throw Object.assign(Error('unsupported'), { name: 'NotSupportedError' }); };
+  const locks = { request: async (_name, _options, callback) => callback({}) };
+  const storage = createBrowserStorage({ sqlite: unsupported, opfsSupported: true,
+    navigator: { locks }, indexedDB: fakeIndexedDB });
+  const opened = await storage.open('app\0unsupported');
+  assert.ok(opened.db);
+  opened.db.close();
+  opened.close();
+});
+
+test('durable snapshot errors retain storage and quota statuses across write, migration, import, and commit', async () => {
+  const sqlite = await sqlite3InitModule();
+  for (const [name, expected] of [['AbortError', 10], ['QuotaExceededError', 11]]) {
+    let saved;
+    let failNext = false;
+    const service = createDatabaseService({ sqlite, openPersistent: async () => ({
+      db: openSnapshotDatabase(sqlite, saved),
+      persist: async (db) => {
+        if (failNext) { failNext = false; throw Object.assign(Error('snapshot failed'), { name }); }
+        saved = exportDatabase(sqlite, db);
+      },
+    }) });
+    const handle = (await service.execute({ op: 1, handle: 0, args: ['app', `statuses-${name}`, false, schema] })).values[0];
+    failNext = true;
+    assert.equal((await service.execute({ op: 10, handle, args: [1, migration] })).status, expected, `${name} migration`);
+    assert.equal((await service.execute({ op: 10, handle, args: [1, migration] })).status, 0);
+    failNext = true;
+    assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'write' }] })).status, expected, `${name} write`);
+    assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'saved' }] })).status, 0);
+    const image = (await service.execute({ op: 11, handle, args: [] })).values[0];
+    assert.equal((await service.execute({ op: 5, handle, args: ['saves', { label: 'changed' }, { id: { eq: 1 } }] })).status, 0);
+    failNext = true;
+    assert.equal((await service.execute({ op: 12, handle, args: [image] })).status, expected, `${name} import`);
+    assert.equal((await service.execute({ op: 7, handle, args: [] })).status, 0);
+    assert.equal((await service.execute({ op: 3, handle, args: ['saves', { label: 'pending' }] })).status, 0);
+    failNext = true;
+    assert.equal((await service.execute({ op: 8, handle, args: [] })).status, expected, `${name} commit`);
+    assert.equal((await service.execute({ op: 9, handle, args: [] })).status, 0);
+    await service.shutdown();
+  }
 });

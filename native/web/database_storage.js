@@ -4,8 +4,11 @@ function storageFailure(error) {
   const name = error?.name;
   if (name === 'QuotaExceededError') return 11;
   if (name === 'NoModificationAllowedError' || name === 'InvalidModificationError') return 8;
+  if ([11, 26].includes(error?.resultCode & 255)) return 13;
   return 10;
 }
+
+function unsupportedOpfs(error) { return error?.name === 'NotSupportedError'; }
 
 function openIndexedDb(indexedDB) {
   return new Promise((resolve, reject) => {
@@ -90,9 +93,8 @@ export function createBrowserStorage({ sqlite, indexedDB, navigator, crypto = gl
             reopen: async () => new pool.OpfsSAHPoolDb(filename),
           };
         } catch (error) {
-          if (['NotAllowedError', 'SecurityError', 'QuotaExceededError', 'NoModificationAllowedError'].includes(error?.name)) throw error;
-          // Unsupported OPFS implementations can still use durable IndexedDB.
-          pool?.pauseVfs?.();
+          try { pool?.pauseVfs?.(); } catch { /* preserve the original failure */ }
+          if (!unsupportedOpfs(error)) throw error;
         }
       }
       if (!indexedDB) throw Object.assign(Error('IndexedDB unavailable'), { status: 10 });

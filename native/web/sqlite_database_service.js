@@ -149,6 +149,7 @@ function mapError(error, fallback) {
   if (typeof error?.message === 'string' && error.message.includes('no such table')) return 7;
   return fallback;
 }
+function durableError(error) { return error?.name === 'QuotaExceededError' || (error?.resultCode & 255) === 13 ? 11 : 10; }
 
 export function exportDatabase(sqlite, db) { return sqlite.capi.sqlite3_js_db_export(db.pointer); }
 
@@ -190,17 +191,36 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
   let nextHandle = 1;
   const handles = new Map(), keys = new Map();
   async function persist(handle) { if (handle.persist) await handle.persist(handle.db); }
-  async function write(handle, action, fallback = 10) {
-    const snapshot = handle.persist && !handle.transaction ? exportDatabase(sqlite, handle.db) : null;
+  async function quarantine(handleId, handle) {
+    try { handle.db.close(); } catch { /* release the writer lock below */ }
+    try { await handle.close?.(); } catch { /* the connection is unusable */ }
+    handles.delete(handleId);
+    keys.delete(handle.key);
+  }
+  async function restore(handleId, handle, snapshot) {
     try {
-      const response = action();
-      if (response.status === 0 && !handle.transaction) await persist(handle);
-      return response;
+      handle.db.close();
+      handle.db = openSnapshotDatabase(sqlite, snapshot);
+      return true;
+    } catch {
+      await quarantine(handleId, handle);
+      return false;
+    }
+  }
+  async function write(handleId, handle, action, fallback = 10) {
+    const snapshot = handle.persist && !handle.transaction ? exportDatabase(sqlite, handle.db) : null;
+    let response;
+    try {
+      response = action();
     } catch (error) {
-      if (snapshot) {
-        try { handle.db.close(); handle.db = openSnapshotDatabase(sqlite, snapshot); } catch { /* handle quarantined below */ }
-      }
+      if (snapshot && !await restore(handleId, handle, snapshot)) return fail(10);
       return fail(mapError(error, fallback));
+    }
+    if (response.status !== 0 || handle.transaction) return response;
+    try { await persist(handle); return response; }
+    catch (error) {
+      if (snapshot && !await restore(handleId, handle, snapshot)) return fail(10);
+      return fail(durableError(error));
     }
   }
   async function execute({ op, handle: handleId, args }) {
@@ -237,9 +257,12 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
     const handle = handles.get(handleId);
     if (!handle) return fail(6);
     if (op === 2) {
-      try { if (handle.transaction) handle.db.exec('ROLLBACK'); handle.db.close(); handle.close?.(); }
-      catch (error) { return fail(mapError(error, 10)); }
-      handles.delete(handleId); keys.delete(handle.key); return ok();
+      let error;
+      try { if (handle.transaction) handle.db.exec('ROLLBACK'); } catch (failure) { error = failure; }
+      try { handle.db.close(); } catch (failure) { error ||= failure; }
+      try { await handle.close?.(); } catch (failure) { error ||= failure; }
+      handles.delete(handleId); keys.delete(handle.key);
+      return error ? fail(mapError(error, 10)) : ok();
     }
     if (op === 7) {
       if (handle.transaction) return fail(8);
@@ -250,21 +273,35 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
       catch (error) { return fail(mapError(error, 10)); }
     }
     if (op === 8 || op === 9) {
+      if (op === 9 && handle.rollbackAcknowledgment) {
+        handle.rollbackAcknowledgment = false;
+        return ok();
+      }
       if (!handle.transaction) return fail(6);
-      try {
-        handle.db.exec(op === 8 ? 'COMMIT' : 'ROLLBACK');
+      if (op === 9) {
+        try { handle.db.exec('ROLLBACK'); }
+        catch { await quarantine(handleId, handle); return fail(10); }
         handle.transaction = false;
-        if (op === 8) await persist(handle);
         handle.transactionSnapshot = null;
         return ok();
-      } catch (error) {
-        if (handle.transactionSnapshot) {
-          try { handle.db.close(); handle.db = openSnapshotDatabase(sqlite, handle.transactionSnapshot); }
-          catch { /* storage failure is already reported */ }
-        }
+      }
+      try { handle.db.exec('COMMIT'); }
+      catch (error) {
+        try { handle.db.exec('ROLLBACK'); }
+        catch { await quarantine(handleId, handle); return fail(10); }
         handle.transaction = false;
         handle.transactionSnapshot = null;
+        handle.rollbackAcknowledgment = true;
         return fail(mapError(error, 10));
+      }
+      handle.transaction = false;
+      try { await persist(handle); handle.transactionSnapshot = null; return ok(); }
+      catch (error) {
+        const snapshot = handle.transactionSnapshot;
+        handle.transactionSnapshot = null;
+        if (snapshot && !await restore(handleId, handle, snapshot)) return fail(10);
+        handle.rollbackAcknowledgment = true;
+        return fail(durableError(error));
       }
     }
     if (op === 11) {
@@ -275,12 +312,13 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
     if (op === 12) {
       if (args.length !== 1 || !(args[0] instanceof Uint8Array)) return fail(4);
       if (handle.transaction) return fail(8);
-      let candidate;
+      let validated;
+      try { validated = checkImage(sqlite, args[0], handle); }
+      catch (error) { return fail(mapError(error, 13)); }
+      if (validated.status !== 0) return fail(validated.status);
+      const candidate = validated.candidate;
       let previous;
       try {
-        const validated = checkImage(sqlite, args[0], handle);
-        if (validated.status !== 0) return fail(validated.status);
-        candidate = validated.candidate;
         if (handle.import) {
           const backup = exportDatabase(sqlite, handle.db);
           handle.db.close();
@@ -303,7 +341,7 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
       } catch (error) {
         if (previous) handle.db = previous;
         candidate?.close();
-        return fail(mapError(error, 10));
+        return fail(durableError(error));
       }
     }
     if (op === 10) {
@@ -317,14 +355,20 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
         for (const step of steps) applyMigration(handle.db, step);
         handle.db.exec(`PRAGMA user_version = ${version}`);
         handle.db.exec('COMMIT');
-        await persist(handle);
-        handle.version = version;
-        return ok();
       } catch (error) {
-        try { handle.db.exec('ROLLBACK'); } catch { /* commit may have completed */ }
-        if (snapshot) { try { handle.db.close(); handle.db = openSnapshotDatabase(sqlite, snapshot); } catch { /* persistent storage remains authoritative */ } }
+        let rolledBack = false;
+        try { handle.db.exec('ROLLBACK'); rolledBack = true; } catch { /* recovery below */ }
+        if (snapshot && !await restore(handleId, handle, snapshot)) return fail(10);
+        if (!snapshot && !rolledBack) { await quarantine(handleId, handle); return fail(10); }
         return fail(mapError(error, 12));
       }
+      try { await persist(handle); }
+      catch (error) {
+        if (snapshot && !await restore(handleId, handle, snapshot)) return fail(10);
+        return fail(durableError(error));
+      }
+      handle.version = version;
+      return ok();
     }
     if (![3, 4, 5, 6].includes(op)) return fail(9);
     const expected = { 3: 2, 4: 3, 5: 3, 6: 2 }[op];
@@ -341,7 +385,7 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
       const names = sorted(values);
       const sql = names.length ? `INSERT INTO ${quote(table)} (${names.map(quote).join(', ')}) VALUES (${names.map(() => '?').join(', ')})` :
         `INSERT INTO ${quote(table)} DEFAULT VALUES`;
-      return write(handle, () => {
+      return write(handleId, handle, () => {
         run(handle.db, sql, names.map((name) => dbValue(columns[name], values[name])));
         return ok([handle.db.selectValue('SELECT last_insert_rowid()')]);
       }, 4);
@@ -383,19 +427,18 @@ export function createDatabaseService({ sqlite, openPersistent } = {}) {
       if (!filter) return fail(3);
       const names = sorted(values);
       const sql = `UPDATE ${quote(table)} SET ${names.map((name) => `${quote(name)} = ?`).join(', ')}` + (filter.sql ? ` WHERE ${filter.sql}` : '');
-      return write(handle, () => { run(handle.db, sql, [...names.map((name) => dbValue(columns[name], values[name])), ...filter.bind]); return ok([handle.db.changes()]); }, 4);
+      return write(handleId, handle, () => { run(handle.db, sql, [...names.map((name) => dbValue(columns[name], values[name])), ...filter.bind]); return ok([handle.db.changes()]); }, 4);
     }
     const filter = filterSql(args[1], columns);
     if (!filter) return fail(3);
     const sql = `DELETE FROM ${quote(table)}` + (filter.sql ? ` WHERE ${filter.sql}` : '');
-    return write(handle, () => { run(handle.db, sql, filter.bind); return ok([handle.db.changes()]); }, 3);
+    return write(handleId, handle, () => { run(handle.db, sql, filter.bind); return ok([handle.db.changes()]); }, 3);
   }
   return { execute, shutdown: async () => {
     for (const [id, handle] of handles) {
-      try { if (handle.transaction) handle.db.exec('ROLLBACK'); handle.db.close(); handle.close?.(); } catch { /* worker exits */ }
-      handles.delete(id);
+      try { if (handle.transaction) handle.db.exec('ROLLBACK'); } catch { /* closing follows */ }
+      await quarantine(id, handle);
     }
-    keys.clear();
   } };
 }
 

@@ -16,8 +16,16 @@ export function createDatabaseBridge({ createWorker }) {
     return ticket;
   }
   function workerFailure() {
+    if (failed) return;
     failed = true;
     for (const [id, result] of tickets) if (result.pending) terminal(id, 10);
+    if (worker) {
+      worker.removeEventListener?.('message', onMessage);
+      worker.removeEventListener?.('error', workerFailure);
+      worker.removeEventListener?.('messageerror', workerFailure);
+      worker.terminate();
+      worker = undefined;
+    }
   }
   function onMessage(event) {
     const message = event.data;
@@ -119,7 +127,7 @@ export function createDatabaseBridge({ createWorker }) {
       if (stopped || failed || !ensureWorker()) return terminal(id, 10);
       tickets.set(id, { pending: true, status: 10, rows: 0, values: [] });
       try { worker.postMessage({ id, op, handle, args }); }
-      catch { terminal(id, 10); }
+      catch { workerFailure(); }
       return id;
     },
     bloom_database_poll(ticket) { const item = result(ticket); return item ? (item.pending ? 0 : 1) : -1; },
@@ -148,8 +156,6 @@ export function createDatabaseBridge({ createWorker }) {
     shutdown() {
       stopped = true;
       workerFailure();
-      worker?.terminate();
-      worker = undefined;
     },
     handlePageHide(event) { if (!event?.persisted) bridge.shutdown(); },
   };
