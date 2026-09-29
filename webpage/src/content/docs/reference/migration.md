@@ -12,10 +12,10 @@ BornEngine 0.6 changes the public TypeScript surface to classes owned by a `Game
 | 0.5 | 0.6 |
 | --- | --- |
 | `initWindow(width, height, title)` | `new Game({ window: { width, height, title } })` |
-| `while (!windowShouldClose())` | `game.run({ update, render, onStop })` |
+| `while (!windowShouldClose())` | `game.run()` on a `Game` subclass |
 | `beginDrawing()` / `endDrawing()` | Managed by `Game.run()` |
 | `closeWindow()` | `game.dispose()` |
-| `runGame(update)` | `game.run({ update, render })` |
+| `runGame(update)` | `game.run()` on a `Game` subclass |
 | `setWindowTitle(title)` | `game.window.setTitle(title)` |
 
 ## Services and resources
@@ -49,7 +49,7 @@ The existing full-window coordinate behavior stays in place when `viewport2D` is
 ## Migration sequence
 
 1. Create `Game` and move window configuration into its options.
-2. Split the old drawing loop into `update` and `render`; remove manual begin/end calls.
+2. Move the old drawing loop into a subclass `loop(deltaTime)` and `render()`; remove manual begin/end calls.
 3. Move free functions to `game.renderer`, `game.input`, `game.audio`, or the owning resource class.
 4. Replace public numeric handles with resource instances.
 5. Add explicit disposal and startup/load error checks.

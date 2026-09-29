@@ -283,7 +283,106 @@ function getTileColor(tile: number, vis: boolean, exp: boolean): Color {
   return { r: Math.floor(40 * dim), g: Math.floor(40 * dim), b: Math.floor(50 * dim), a: 255 };
 }
 
-const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Dungeon Crawl" }, targetFps: 60 });
+class DungeonCrawlGame extends Game {
+  protected override loop(dt: number): void {
+    if (player.hp > 0) {
+      // Turn-based input
+      if (this.input.isKeyPressed(Key.UP) || this.input.isKeyPressed(Key.W)) tryMove(0, -1);
+      if (this.input.isKeyPressed(Key.DOWN) || this.input.isKeyPressed(Key.S)) tryMove(0, 1);
+      if (this.input.isKeyPressed(Key.LEFT) || this.input.isKeyPressed(Key.A)) tryMove(-1, 0);
+      if (this.input.isKeyPressed(Key.RIGHT) || this.input.isKeyPressed(Key.D)) tryMove(1, 0);
+      // Wait
+      if (this.input.isKeyPressed(Key.PERIOD)) tryMove(0, 0);
+    } else {
+      if (this.input.isKeyPressed(Key.ENTER)) {
+        player.hp = player.maxHp;
+        floor = 1;
+        turnCount = 0;
+        generateDungeon();
+        computeVisibility();
+        showMessage("You rise again...");
+      }
+    }
+
+    // Camera zoom
+    if (this.input.isKeyDown(Key.EQUAL)) camera.zoom = Mathf.clamp(camera.zoom + dt, 0.5, 3.0);
+    if (this.input.isKeyDown(Key.MINUS)) camera.zoom = Mathf.clamp(camera.zoom - dt, 0.5, 3.0);
+
+    // Smooth camera follow
+    const targetCamX = player.x * TILE_SIZE + TILE_SIZE / 2;
+    const targetCamY = player.y * TILE_SIZE + TILE_SIZE / 2;
+    camera.target.x = camera.target.x + (targetCamX - camera.target.x) * 8 * dt;
+    camera.target.y = camera.target.y + (targetCamY - camera.target.y) * 8 * dt;
+
+    // Message timer
+    if (messageTimer > 0) messageTimer = messageTimer - dt;
+
+    // Drawing
+  }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 10, g: 10, b: 15, a: 255 });
+
+    this.renderer.begin2D(camera);
+
+    // Draw tiles
+    const viewTiles = Math.ceil(SCREEN_WIDTH / TILE_SIZE / camera.zoom) + 2;
+    const camTileX = Math.floor(camera.target.x / TILE_SIZE);
+    const camTileY = Math.floor(camera.target.y / TILE_SIZE);
+    for (let dy = -viewTiles; dy <= viewTiles; dy++) {
+      for (let dx = -viewTiles; dx <= viewTiles; dx++) {
+        const tx = camTileX + dx;
+        const ty = camTileY + dy;
+        if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) continue;
+        const tile = map[ty * MAP_WIDTH + tx];
+        const vis = isVisible(tx, ty);
+        const exp = isExplored(tx, ty);
+        if (!vis && !exp) continue;
+        const color = getTileColor(tile, vis, exp);
+        this.renderer.drawRectangle({ x: tx * TILE_SIZE, y: ty * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }, color);
+      }
+    }
+
+    // Draw enemies
+    for (let i = 0; i < enemies.length; i++) {
+      if (!enemies[i].active) continue;
+      if (!isVisible(enemies[i].x, enemies[i].y)) continue;
+      this.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE + 4, y: enemies[i].y * TILE_SIZE + 4, width: TILE_SIZE - 8, height: TILE_SIZE - 8 }, { r: 200, g: 50, b: 50, a: 255 });
+      // HP bar
+      const hpRatio = enemies[i].hp / enemies[i].maxHp;
+      this.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE, y: enemies[i].y * TILE_SIZE - 4, width: Math.floor(TILE_SIZE * hpRatio), height: 3 }, Colors.RED);
+    }
+
+    // Draw player
+    this.renderer.drawRectangle({ x: player.x * TILE_SIZE + 2, y: player.y * TILE_SIZE + 2, width: TILE_SIZE - 4, height: TILE_SIZE - 4 }, { r: 50, g: 150, b: 255, a: 255 });
+
+    this.renderer.end2D();
+
+    // HUD
+    this.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 35 }, { r: 0, g: 0, b: 0, a: 180 });
+    this.renderer.drawText("HP: " + player.hp.toString() + "/" + player.maxHp.toString(), { x: 10, y: 8 }, 20, player.hp > player.maxHp / 3 ? Colors.GREEN : Colors.RED);
+    this.renderer.drawText("Floor: " + floor.toString(), { x: 200, y: 8 }, 20, Colors.WHITE);
+    this.renderer.drawText("Turns: " + turnCount.toString(), { x: 350, y: 8 }, 20, Colors.LIGHTGRAY);
+
+    // Message log
+    if (messageTimer > 0) {
+      const alpha = Math.floor(Mathf.clamp(messageTimer * 255, 0, 255));
+      this.renderer.drawText(message, { x: 10, y: SCREEN_HEIGHT - 30 }, 18, { r: 255, g: 255, b: 200, a: alpha });
+    }
+
+    // Death screen
+    if (player.hp <= 0) {
+      this.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 50, width: SCREEN_WIDTH, height: 100 }, { r: 0, g: 0, b: 0, a: 200 });
+      const deathMsg = "You have perished on floor " + floor.toString();
+      this.renderer.drawText(deathMsg, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(deathMsg, 24) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 24, Colors.RED);
+      const restartMsg = "Press ENTER to try again";
+      this.renderer.drawText(restartMsg, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(restartMsg, 18) / 2, y: SCREEN_HEIGHT / 2 + 15 }, 18, Colors.LIGHTGRAY);
+    }
+
+  }
+}
+
+const game = new DungeonCrawlGame({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Dungeon Crawl" }, targetFps: 60 });
 
 // Initialize arrays
 for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
@@ -303,102 +402,4 @@ const camera: Camera2D = {
 };
 
 // Main game loop
-game.run({
-  update(dt) {
-
-  if (player.hp > 0) {
-    // Turn-based input
-    if (game.input.isKeyPressed(Key.UP) || game.input.isKeyPressed(Key.W)) tryMove(0, -1);
-    if (game.input.isKeyPressed(Key.DOWN) || game.input.isKeyPressed(Key.S)) tryMove(0, 1);
-    if (game.input.isKeyPressed(Key.LEFT) || game.input.isKeyPressed(Key.A)) tryMove(-1, 0);
-    if (game.input.isKeyPressed(Key.RIGHT) || game.input.isKeyPressed(Key.D)) tryMove(1, 0);
-    // Wait
-    if (game.input.isKeyPressed(Key.PERIOD)) tryMove(0, 0);
-  } else {
-    if (game.input.isKeyPressed(Key.ENTER)) {
-      player.hp = player.maxHp;
-      floor = 1;
-      turnCount = 0;
-      generateDungeon();
-      computeVisibility();
-      showMessage("You rise again...");
-    }
-  }
-
-  // Camera zoom
-  if (game.input.isKeyDown(Key.EQUAL)) camera.zoom = Mathf.clamp(camera.zoom + dt, 0.5, 3.0);
-  if (game.input.isKeyDown(Key.MINUS)) camera.zoom = Mathf.clamp(camera.zoom - dt, 0.5, 3.0);
-
-  // Smooth camera follow
-  const targetCamX = player.x * TILE_SIZE + TILE_SIZE / 2;
-  const targetCamY = player.y * TILE_SIZE + TILE_SIZE / 2;
-  camera.target.x = camera.target.x + (targetCamX - camera.target.x) * 8 * dt;
-  camera.target.y = camera.target.y + (targetCamY - camera.target.y) * 8 * dt;
-
-  // Message timer
-  if (messageTimer > 0) messageTimer = messageTimer - dt;
-
-  // Drawing
-  },
-  render() {
-  game.renderer.clear({ r: 10, g: 10, b: 15, a: 255 });
-
-  game.renderer.begin2D(camera);
-
-  // Draw tiles
-  const viewTiles = Math.ceil(SCREEN_WIDTH / TILE_SIZE / camera.zoom) + 2;
-  const camTileX = Math.floor(camera.target.x / TILE_SIZE);
-  const camTileY = Math.floor(camera.target.y / TILE_SIZE);
-  for (let dy = -viewTiles; dy <= viewTiles; dy++) {
-    for (let dx = -viewTiles; dx <= viewTiles; dx++) {
-      const tx = camTileX + dx;
-      const ty = camTileY + dy;
-      if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) continue;
-      const tile = map[ty * MAP_WIDTH + tx];
-      const vis = isVisible(tx, ty);
-      const exp = isExplored(tx, ty);
-      if (!vis && !exp) continue;
-      const color = getTileColor(tile, vis, exp);
-      game.renderer.drawRectangle({ x: tx * TILE_SIZE, y: ty * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }, color);
-    }
-  }
-
-  // Draw enemies
-  for (let i = 0; i < enemies.length; i++) {
-    if (!enemies[i].active) continue;
-    if (!isVisible(enemies[i].x, enemies[i].y)) continue;
-    game.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE + 4, y: enemies[i].y * TILE_SIZE + 4, width: TILE_SIZE - 8, height: TILE_SIZE - 8 }, { r: 200, g: 50, b: 50, a: 255 });
-    // HP bar
-    const hpRatio = enemies[i].hp / enemies[i].maxHp;
-    game.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE, y: enemies[i].y * TILE_SIZE - 4, width: Math.floor(TILE_SIZE * hpRatio), height: 3 }, Colors.RED);
-  }
-
-  // Draw player
-  game.renderer.drawRectangle({ x: player.x * TILE_SIZE + 2, y: player.y * TILE_SIZE + 2, width: TILE_SIZE - 4, height: TILE_SIZE - 4 }, { r: 50, g: 150, b: 255, a: 255 });
-
-  game.renderer.end2D();
-
-  // HUD
-  game.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 35 }, { r: 0, g: 0, b: 0, a: 180 });
-  game.renderer.drawText("HP: " + player.hp.toString() + "/" + player.maxHp.toString(), { x: 10, y: 8 }, 20, player.hp > player.maxHp / 3 ? Colors.GREEN : Colors.RED);
-  game.renderer.drawText("Floor: " + floor.toString(), { x: 200, y: 8 }, 20, Colors.WHITE);
-  game.renderer.drawText("Turns: " + turnCount.toString(), { x: 350, y: 8 }, 20, Colors.LIGHTGRAY);
-
-  // Message log
-  if (messageTimer > 0) {
-    const alpha = Math.floor(Mathf.clamp(messageTimer * 255, 0, 255));
-    game.renderer.drawText(message, { x: 10, y: SCREEN_HEIGHT - 30 }, 18, { r: 255, g: 255, b: 200, a: alpha });
-  }
-
-  // Death screen
-  if (player.hp <= 0) {
-    game.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 50, width: SCREEN_WIDTH, height: 100 }, { r: 0, g: 0, b: 0, a: 200 });
-    const deathMsg = "You have perished on floor " + floor.toString();
-    game.renderer.drawText(deathMsg, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(deathMsg, 24) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 24, Colors.RED);
-    const restartMsg = "Press ENTER to try again";
-    game.renderer.drawText(restartMsg, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(restartMsg, 18) / 2, y: SCREEN_HEIGHT / 2 + 15 }, 18, Colors.LIGHTGRAY);
-  }
-
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

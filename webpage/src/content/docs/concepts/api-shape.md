@@ -35,7 +35,7 @@ class SpriteGame extends Game {
 new SpriteGame().run();
 ```
 
-`run()` calls `onStart` once, then `loop(deltaTime)` and `render()` for each frame. When the game stops, `onStop()` runs before the runtime disposes its owned resources. Use `run({ update, render, onStop })` when callback composition is a better fit; the callback form keeps the same owner and explicit resource lifetimes.
+`run()` calls `onStart` once, then `loop(deltaTime)` and `render()` for each frame. When the game stops, `onStop()` runs before the runtime disposes its owned resources. An embedded host with its own frame scheduler can drive `runFrame(deltaTime, callbacks)`.
 
 ## Ownership
 

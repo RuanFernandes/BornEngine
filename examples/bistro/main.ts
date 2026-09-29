@@ -50,7 +50,90 @@ for (let i = 2; i < argv.length; i = i + 1) {
 }
 
 // ---- Init ----
-const game = new Game({ window: { width: SCREEN_W, height: SCREEN_H, title: "BornEngine Bistro" }, targetFps: 60 });
+class BistroGame extends Game {
+  private lookX = 0;
+  private lookY = 0;
+  private lookZ = 0;
+
+  protected override loop(dt: number): void {
+    frameDeltaTime = dt;
+
+    if (cursorLocked) {
+      camYaw = camYaw - this.input.getMouseDeltaX() * MOUSE_SENS;
+      camPitch = camPitch - this.input.getMouseDeltaY() * MOUSE_SENS;
+      camPitch = Mathf.clamp(camPitch, -1.4, 1.4);
+    }
+
+    const speed = this.input.isKeyDown(Key.LEFT_SHIFT) ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED;
+    const fwdX = -Math.sin(camYaw);
+    const fwdZ = -Math.cos(camYaw);
+    const rightX = Math.cos(camYaw);
+    const rightZ = -Math.sin(camYaw);
+
+    if (this.input.isKeyDown(Key.W) || this.input.isKeyDown(Key.UP))    { camX = camX + fwdX * speed * dt; camZ = camZ + fwdZ * speed * dt; }
+    if (this.input.isKeyDown(Key.S) || this.input.isKeyDown(Key.DOWN))   { camX = camX - fwdX * speed * dt; camZ = camZ - fwdZ * speed * dt; }
+    if (this.input.isKeyDown(Key.A) || this.input.isKeyDown(Key.LEFT))   { camX = camX - rightX * speed * dt; camZ = camZ - rightZ * speed * dt; }
+    if (this.input.isKeyDown(Key.D) || this.input.isKeyDown(Key.RIGHT))  { camX = camX + rightX * speed * dt; camZ = camZ + rightZ * speed * dt; }
+    if (this.input.isKeyDown(Key.SPACE))        { camY = camY + speed * dt; }
+    if (this.input.isKeyDown(Key.C))            { camY = camY - speed * dt; }
+
+    if (this.input.isKeyPressed(Key.TAB)) {
+      cursorLocked = !cursorLocked;
+      this.input.setCursorCaptured(cursorLocked);
+    }
+
+    this.lookX = camX + Math.cos(camPitch) * fwdX * 100;
+    this.lookY = camY + Math.sin(camPitch) * 100;
+    this.lookZ = camZ + Math.cos(camPitch) * fwdZ * 100;
+
+  }
+
+  protected override render(): void {
+    this.sceneGraph.setAmbientLight({ r: 150, g: 160, b: 180, a: 255 }, 0.3);
+    // Parisian afternoon sun — warm, angled slightly from the side.
+    // 3.0 intensity gives a stronger sun-to-ambient ratio, matching
+    // the Cycles reference's dominant directional light (Cycles uses
+    // ~5 W/m² sun vs 1.2× HDR env — our ratio was previously too
+    // flat, leaving sunlit and shaded surfaces in a narrow tonal band).
+    this.sceneGraph.addDirectionalLight({ x: -0.5, y: 0.75, z: 0.4 }, { r: 255, g: 240, b: 220, a: 255 }, 3.0);
+    // Tiny fill from below — same trick as Sponza, keeps overhangs
+    // and awnings from bottoming out when SSGI misses them.
+    this.sceneGraph.addDirectionalLight({ x: 0.0, y: -1.0, z: 0.0 }, { r: 127.5, g: 140.25, b: 178.5, a: 255 }, 0.4);
+
+    this.renderer.begin3D({
+      position: { x: camX, y: camY, z: camZ },
+      target: { x: this.lookX, y: this.lookY, z: this.lookZ },
+      up: { x: 0, y: 1, z: 0 },
+      fovy: 60,
+      projection: "perspective",
+    });
+
+    this.renderer.end3D();
+
+    // HUD
+    this.renderer.drawText("BornEngine Bistro", { x: 10, y: 10 }, 20, { r: 255, g: 255, b: 255, a: 255 });
+    const fps = frameDeltaTime > 0 ? 1 / frameDeltaTime : 0;
+    const ms = fps > 0.0 ? 1000.0 / fps : 0.0;
+    const fpsColor = fps >= 55.0
+      ? { r: 120, g: 230, b: 120, a: 255 }
+      : fps >= 30.0
+        ? { r: 230, g: 220, b: 120, a: 255 }
+        : { r: 230, g: 120, b: 120, a: 255 };
+    const fpsText = `FPS ${Math.round(fps)}  (${ms.toFixed(1)} ms)`;
+    this.renderer.drawText(fpsText, { x: 10, y: 35 }, 16, fpsColor);
+    this.renderer.drawText("WASD move / Mouse look / Tab cursor", { x: 10, y: SCREEN_H - 30 }, 14, { r: 180, g: 180, b: 180, a: 255 });
+
+    if (captureFrames > 0) {
+      frameCount = frameCount + 1;
+      if (frameCount >= captureFrames) {
+        this.renderer.screenshot(capturePath);
+        this.stop();
+      }
+    }
+  }
+}
+
+const game = new BistroGame({ window: { width: SCREEN_W, height: SCREEN_H, title: "BornEngine Bistro" }, targetFps: 60 });
 game.renderer.setEnvironmentFromHdr("assets/outdoor.hdr");
 game.sceneGraph.setShadowsEnabled(true);
 
@@ -97,84 +180,4 @@ let camPitch = 0.0;
 let cursorLocked = false;
 
 // ---- Main loop ----
-game.run({
-  update(dt) {
-    frameDeltaTime = dt;
-
-    if (cursorLocked) {
-      camYaw = camYaw - game.input.getMouseDeltaX() * MOUSE_SENS;
-      camPitch = camPitch - game.input.getMouseDeltaY() * MOUSE_SENS;
-      camPitch = Mathf.clamp(camPitch, -1.4, 1.4);
-    }
-
-    const speed = game.input.isKeyDown(Key.LEFT_SHIFT) ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED;
-    const fwdX = -Math.sin(camYaw);
-    const fwdZ = -Math.cos(camYaw);
-    const rightX = Math.cos(camYaw);
-    const rightZ = -Math.sin(camYaw);
-
-    if (game.input.isKeyDown(Key.W) || game.input.isKeyDown(Key.UP))    { camX = camX + fwdX * speed * dt; camZ = camZ + fwdZ * speed * dt; }
-    if (game.input.isKeyDown(Key.S) || game.input.isKeyDown(Key.DOWN))   { camX = camX - fwdX * speed * dt; camZ = camZ - fwdZ * speed * dt; }
-    if (game.input.isKeyDown(Key.A) || game.input.isKeyDown(Key.LEFT))   { camX = camX - rightX * speed * dt; camZ = camZ - rightZ * speed * dt; }
-    if (game.input.isKeyDown(Key.D) || game.input.isKeyDown(Key.RIGHT))  { camX = camX + rightX * speed * dt; camZ = camZ + rightZ * speed * dt; }
-    if (game.input.isKeyDown(Key.SPACE))        { camY = camY + speed * dt; }
-    if (game.input.isKeyDown(Key.C))            { camY = camY - speed * dt; }
-
-    if (game.input.isKeyPressed(Key.TAB)) {
-      cursorLocked = !cursorLocked;
-      game.input.setCursorCaptured(cursorLocked);
-    }
-
-    const lookX = camX + Math.cos(camPitch) * fwdX * 100;
-    const lookY = camY + Math.sin(camPitch) * 100;
-    const lookZ = camZ + Math.cos(camPitch) * fwdZ * 100;
-
-  },
-  render() {
-
-    game.sceneGraph.setAmbientLight({ r: 150, g: 160, b: 180, a: 255 }, 0.3);
-    // Parisian afternoon sun — warm, angled slightly from the side.
-    // 3.0 intensity gives a stronger sun-to-ambient ratio, matching
-    // the Cycles reference's dominant directional light (Cycles uses
-    // ~5 W/m² sun vs 1.2× HDR env — our ratio was previously too
-    // flat, leaving sunlit and shaded surfaces in a narrow tonal band).
-    game.sceneGraph.addDirectionalLight({ x: -0.5, y: 0.75, z: 0.4 }, { r: 255, g: 240, b: 220, a: 255 }, 3.0);
-    // Tiny fill from below — same trick as Sponza, keeps overhangs
-    // and awnings from bottoming out when SSGI misses them.
-    game.sceneGraph.addDirectionalLight({ x: 0.0, y: -1.0, z: 0.0 }, { r: 127.5, g: 140.25, b: 178.5, a: 255 }, 0.4);
-
-    game.renderer.begin3D({
-      position: { x: camX, y: camY, z: camZ },
-      target: { x: lookX, y: lookY, z: lookZ },
-      up: { x: 0, y: 1, z: 0 },
-      fovy: 60,
-      projection: "perspective",
-    });
-
-    game.renderer.end3D();
-
-    // HUD
-    game.renderer.drawText("BornEngine Bistro", { x: 10, y: 10 }, 20, { r: 255, g: 255, b: 255, a: 255 });
-    const fps = frameDeltaTime > 0 ? 1 / frameDeltaTime : 0;
-    const ms = fps > 0.0 ? 1000.0 / fps : 0.0;
-    const fpsColor = fps >= 55.0
-      ? { r: 120, g: 230, b: 120, a: 255 }
-      : fps >= 30.0
-        ? { r: 230, g: 220, b: 120, a: 255 }
-        : { r: 230, g: 120, b: 120, a: 255 };
-    const fpsText = `FPS ${Math.round(fps)}  (${ms.toFixed(1)} ms)`;
-    game.renderer.drawText(fpsText, { x: 10, y: 35 }, 16, fpsColor);
-    game.renderer.drawText("WASD move / Mouse look / Tab cursor", { x: 10, y: SCREEN_H - 30 }, 14, { r: 180, g: 180, b: 180, a: 255 });
-
-    if (captureFrames > 0) {
-      frameCount = frameCount + 1;
-      if (frameCount >= captureFrames) {
-        game.renderer.screenshot(capturePath);
-        game.stop();
-      }
-    }
-  },
-  onStop() {
-    game.dispose();
-  },
-});
+game.run();

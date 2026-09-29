@@ -94,7 +94,7 @@ const homeJsonLd = {
           <div>
             <p class="eyebrow eyebrow--acid">One code shape, many targets</p>
             <h2 id="api-heading">Keep the whole game in one class.</h2>
-            <p>Override <code>onStart</code>, <code>loop</code>, and <code>render</code>, then start the engine with <code>run()</code>. The same instance owns the renderer and shared assets through <code>this.assets</code>. Use <code>run(callbacks)</code> when you need direct frame control.</p>
+            <p>Override <code>onStart</code>, <code>loop</code>, and <code>render</code>, then start the engine with <code>run()</code>. The same instance owns the renderer and shared assets through <code>this.assets</code>. For embedded hosts that own their frame scheduler, use <code>runFrame(deltaTime, callbacks)</code>.</p>
             <a class="text-link text-link--acid" href={withBase('/docs/api/')}>Browse the API <span aria-hidden="true">→</span></a>
             {' '}
             <a class="text-link text-link--acid" href={withBase('/docs/api/core/')}>Game lifecycle <span aria-hidden="true">→</span></a>

@@ -65,4 +65,4 @@ class MyGame extends Game {
 new MyGame().run();
 ```
 
-The engine opens and closes the drawing frame around your hooks. The same pattern works on native and Web/WASM; the platform supplies the frame schedule. Use `game.run({ update, render, onStop })` when callback composition is more useful than subclass hooks.
+The engine opens and closes the drawing frame around your hooks. The same pattern works on native and Web/WASM; the platform supplies the frame schedule. `run()` resolves after `onStop()` and resource cleanup. Inspect `game.error` after it resolves when handling a runtime failure.

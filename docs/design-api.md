@@ -17,21 +17,21 @@ BornEngine presents a class-first TypeScript API for building native and Web/WAS
 ```ts
 import { Colors, Game } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'Arena', width: 960, height: 640 } });
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    // Advance simulation using elapsed seconds.
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.DARKBLUE);
+    this.renderer.drawText('Arena', { x: 24, y: 24 }, 24, Colors.WHITE);
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'Arena', width: 960, height: 640 } });
 if (!game.isReady) console.error(game.error || 'Engine startup failed');
 
-game.run({
-  update(deltaTime) {
-    // Advance simulation using elapsed seconds.
-  },
-  render() {
-    game.renderer.clear(Colors.DARKBLUE);
-    game.renderer.drawText('Arena', { x: 24, y: 24 }, 24, Colors.WHITE);
-  },
-  onStop() {
-    game.dispose();
-  },
-});
+game.run();
 ```
 
 `Game.run()` owns frame setup and teardown. It calls `update(deltaTime)` and then `render()` once per frame; application code does not call `beginDrawing()` or `endDrawing()`. Native builds use the engine loop, while Web/WASM uses the browser frame scheduler.

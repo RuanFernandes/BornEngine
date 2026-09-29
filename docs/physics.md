@@ -7,7 +7,23 @@ BornEngine physics uses Jolt through a game-owned `PhysicsWorld`. Collider, body
 ```ts
 import { Game, MotionType, PhysicsWorld, SphereCollider } from '@bornengine/engine';
 
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    physics.step(Math.min(deltaTime, 0.25));
+    const hit = physics.raycast(
+      { x: 0, y: 5, z: 0 },
+      { x: 0, y: -1, z: 0 },
+      10,
+    );
+    if (hit !== null) console.log('hit body', hit.body);
+  }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 16, g: 20, b: 28, a: 255 });
+  }
+}
+
+const game = new ExampleGame();
 const physics = new PhysicsWorld(game, { gravity: { x: 0, y: -9.81, z: 0 } });
 physics.setFixedTimestep(60, 4);
 physics.setInterpolation(true);
@@ -25,21 +41,7 @@ Keep the world, colliders, and bodies alive for as long as they participate in t
 ## Step the simulation
 
 ```ts
-game.run({
-  update(deltaTime) {
-    physics.step(Math.min(deltaTime, 0.25));
-    const hit = physics.raycast(
-      { x: 0, y: 5, z: 0 },
-      { x: 0, y: -1, z: 0 },
-      10,
-    );
-    if (hit !== null) console.log('hit body', hit.body);
-  },
-  render() {
-    game.renderer.clear({ r: 16, g: 20, b: 28, a: 255 });
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 `PhysicsWorld.step()` owns its fixed-step accumulator and synchronizes a configured scene manager before and after simulation. Dynamic body transforms flow back into attached game objects. Call one world step per gameplay frame; use `stepVariable()` only when your application owns the accumulator.

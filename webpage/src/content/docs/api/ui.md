@@ -5,28 +5,28 @@ section: API / UI
 order: 45
 ---
 
-`game.ui` is a player-facing immediate UI surface. Describe widgets during the render callback with stable numeric IDs; the backend processes commands after the callback and reports responses on the next frame.
+`game.ui` is a player-facing immediate UI surface. Describe widgets during the `render()` hook with stable numeric IDs; the backend processes commands after the callback and reports responses on the next frame.
 
 ## Player UI
 
 ```ts
 import { Game } from '@bornengine/engine';
-const game = new Game({ window: { title: 'Settings' } });
+class ExampleGame extends Game {
+  protected override render(): void {
+    this.renderer.clear({ r: 16, g: 20, b: 28, a: 255 });
+    this.ui.beginWindow(100, 'Audio', 24, 24, 340, 220);
+    volume = this.ui.sliderFloat(101, 'Volume', volume, 0, 1);
+    muted = this.ui.checkbox(102, 'Mute', muted);
+    if (this.ui.button(103, 'Apply')) saveSettings(volume, muted);
+    this.ui.endWindow(100);
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'Settings' } });
 let volume = 0.7;
 let muted = false;
 
-game.run({
-  update() {},
-  render() {
-    game.renderer.clear({ r: 16, g: 20, b: 28, a: 255 });
-    game.ui.beginWindow(100, 'Audio', 24, 24, 340, 220);
-    volume = game.ui.sliderFloat(101, 'Volume', volume, 0, 1);
-    muted = game.ui.checkbox(102, 'Mute', muted);
-    if (game.ui.button(103, 'Apply')) saveSettings(volume, muted);
-    game.ui.endWindow(100);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 Give each interactive widget a stable ID. A widget can return its previous value for one frame while the completed UI response is being applied.

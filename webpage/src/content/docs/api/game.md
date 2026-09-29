@@ -42,14 +42,16 @@ A GameScene binds gameplay objects to one Game. Adding a root attaches its subtr
 ```ts
 import { Game, GameObject, GameScene } from '@bornengine/engine';
 
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { scene.update(deltaTime); }
+
+  protected override render(): void {}
+}
+
+const game = new ExampleGame();
 const scene = new GameScene(game);
 scene.add(new GameObject({ name: 'Marker' }));
-game.run({
-  update(deltaTime) { scene.update(deltaTime); },
-  render() {},
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 ## Scene manager

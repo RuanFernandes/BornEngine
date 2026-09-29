@@ -15,7 +15,35 @@ import type { SceneNode } from '@bornengine/engine';
 // Setup
 // ============================================================
 
-const game = new Game({ window: { width: 1280, height: 720, title: "BornEngine — Shadows + GLTF (Phase 4)" }, targetFps: 60 });
+class SceneGraphGame extends Game {
+  protected override loop(dt: number): void { angle += dt * 0.15; }
+
+  protected override render(): void {
+      this.sceneGraph.setAmbientLight({ r: 255, g: 255, b: 255, a: 255 }, 0.2);
+      this.renderer.clear(Colors.SNOW);
+
+    const camX = Math.cos(angle) * 12;
+    const camZ = Math.sin(angle) * 12;
+    this.renderer.begin3D({
+      position: { x: camX, y: 8, z: camZ },
+      target: { x: 0, y: 1, z: 0 },
+      up: { x: 0, y: 1, z: 0 },
+      fovy: 45,
+      projection: "perspective",
+    });
+
+    this.renderer.drawGrid(20, 1.0);
+    this.renderer.end3D();
+
+    this.renderer.drawText("BornEngine — Shadow Mapping + GLTF (Phase 4)", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+    this.renderer.drawText("Scene nodes: " + String(this.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
+    this.renderer.drawText("Directional light shadows (2048x2048 PCF)", { x: 10, y: 55 }, 16, Colors.GRAY);
+    this.renderer.drawText("Room with table + chair (extruded polygons)", { x: 10, y: 75 }, 16, Colors.GRAY);
+
+  }
+}
+
+const game = new SceneGraphGame({ window: { width: 1280, height: 720, title: "BornEngine — Shadows + GLTF (Phase 4)" }, targetFps: 60 });
 
 // Enable shadow mapping
 game.sceneGraph.setShadowsEnabled(true);
@@ -103,30 +131,4 @@ game.sceneGraph.onFrame(() => {
 
 let angle = 0;
 
-game.run({
-  update(dt) { angle += dt * 0.15; },
-  render() {
-    game.sceneGraph.setAmbientLight({ r: 255, g: 255, b: 255, a: 255 }, 0.2);
-    game.renderer.clear(Colors.SNOW);
-
-  const camX = Math.cos(angle) * 12;
-  const camZ = Math.sin(angle) * 12;
-  game.renderer.begin3D({
-    position: { x: camX, y: 8, z: camZ },
-    target: { x: 0, y: 1, z: 0 },
-    up: { x: 0, y: 1, z: 0 },
-    fovy: 45,
-    projection: "perspective",
-  });
-
-  game.renderer.drawGrid(20, 1.0);
-  game.renderer.end3D();
-
-  game.renderer.drawText("BornEngine — Shadow Mapping + GLTF (Phase 4)", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
-  game.renderer.drawText("Scene nodes: " + String(game.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
-  game.renderer.drawText("Directional light shadows (2048x2048 PCF)", { x: 10, y: 55 }, 16, Colors.GRAY);
-  game.renderer.drawText("Room with table + chair (extruded polygons)", { x: 10, y: 75 }, 16, Colors.GRAY);
-
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
