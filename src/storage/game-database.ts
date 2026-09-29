@@ -1,5 +1,5 @@
-import type { DatabaseSchema, DatabaseRow, DatabaseInsert, DatabaseUpdate } from './schema';
-import { validNamespace, validateSchema } from './schema';
+import type { ColumnDescriptor, DatabaseSchema, DatabaseRow, DatabaseInsert, DatabaseUpdate } from './schema';
+import { validColumnValue, validNamespace, validateSchema } from './schema';
 import type { DatabaseFilter, DatabaseSelect } from './query';
 import { validateFilter, validateSelect, validateValues } from './query';
 import type { DatabaseMigration, MigrationStep } from './migrations';
@@ -18,7 +18,10 @@ const STATUS: DatabaseStatus[] = [
   'constraint_error',
 ];
 
-export interface DatabaseResult<T> { ok: boolean; status: DatabaseStatus; value: T | null; }
+export type DatabaseFailureStatus = Exclude<DatabaseStatus, 'ok'>;
+export type DatabaseResult<T> =
+  | { ok: true; status: 'ok'; value: T | null }
+  | { ok: false; status: DatabaseFailureStatus; value: null };
 export type DatabaseState = 'new' | 'open' | 'closed';
 
 export interface GameDatabaseOptions<S extends DatabaseSchema> {
@@ -31,7 +34,20 @@ export interface GameDatabaseOptions<S extends DatabaseSchema> {
 }
 
 function result<T>(status: DatabaseStatus, value: T | null = null): DatabaseResult<T> {
-  return { ok: status === 'ok', status, value };
+  if (status === 'ok') return { ok: true, status: 'ok', value };
+  return { ok: false, status, value: null };
+}
+
+function normalizeCallbackResult<T>(value: unknown): DatabaseResult<T> {
+  if (!value || typeof value !== 'object') return result('storage_error');
+  const candidate = value as { ok?: unknown; status?: unknown; value?: unknown };
+  if (!Object.prototype.hasOwnProperty.call(candidate, 'value')) return result('storage_error');
+  if (candidate.ok === true && candidate.status === 'ok') return result('ok', candidate.value as T);
+  if (candidate.ok === false && typeof candidate.status === 'string' && candidate.status !== 'ok' &&
+      STATUS.indexOf(candidate.status as DatabaseStatus) >= 0 && candidate.value === null) {
+    return result(candidate.status as DatabaseFailureStatus);
+  }
+  return result('storage_error');
 }
 
 /**
@@ -51,6 +67,8 @@ function result<T>(status: DatabaseStatus, value: T | null = null): DatabaseResu
  * begin/commit/rollback []; migrate [version,steps]; export [] -> [bytes];
  * import [bytes]. Migration is one atomic backend transaction including the
  * version record. Commit/import report success only after durable persistence.
+ * Close aborts an unfinished transaction so failed rollback/commit can safely
+ * quarantine a handle without exposing uncommitted writes to later requests.
  */
 declare function bloom_database_scratch_reset(): void;
 declare function bloom_database_scratch_push_f64(value: number): void;
@@ -130,6 +148,20 @@ function readValue(ticket: number, index: number): unknown {
     return bytes;
   }
   return null;
+}
+
+function readRowValue(ticket: number, index: number, descriptor: ColumnDescriptor): { valid: boolean; value: unknown } {
+  const kind = bloom_database_result_kind(ticket, index);
+  if (kind === 0) {
+    return { valid: !(descriptor.options.notNull || descriptor.options.primaryKey), value: null };
+  }
+  const expectedKind = descriptor.kind === 'text' ? 2 : descriptor.kind === 'blob' ? 5 :
+    descriptor.kind === 'boolean' ? -1 : 1;
+  if (descriptor.kind === 'boolean' ? kind !== 3 && kind !== 4 : kind !== expectedKind) {
+    return { valid: false, value: null };
+  }
+  const value = readValue(ticket, index);
+  return { valid: validColumnValue(descriptor.kind, value), value };
 }
 
 interface WireResponse { status: DatabaseStatus; ticket: number; rows: number; count: number; }
@@ -278,7 +310,11 @@ export class GameDatabase<S extends DatabaseSchema> {
     const rows: DatabaseRow<S, T>[] = [];
     for (let i = 0; i < response.rows; i++) {
       const row: Record<string, unknown> = {};
-      for (let j = 0; j < names.length; j++) row[names[j]] = readValue(response.ticket, i * names.length + j);
+      for (let j = 0; j < names.length; j++) {
+        const cell = readRowValue(response.ticket, i * names.length + j, this.schema[table].columns[names[j]]);
+        if (!cell.valid) { release(response); return result('corrupt_data'); }
+        row[names[j]] = cell.value;
+      }
       rows.push(row as DatabaseRow<S, T>);
     }
     release(response);
@@ -288,7 +324,7 @@ export class GameDatabase<S extends DatabaseSchema> {
   async findByPrimaryKey<T extends Extract<keyof S, string>>(table: T, key: string | number): Promise<DatabaseResult<DatabaseRow<S, T> | null>> {
     const state = this.ready(false);
     if (state !== 'ok') return result(state);
-    const descriptor = this.schema[table];
+    const descriptor = Object.prototype.hasOwnProperty.call(this.schema, table) ? this.schema[table] : undefined;
     if (!descriptor) return result('invalid_query');
     let primary = '';
     for (const name in descriptor.columns) if (descriptor.columns[name].options.primaryKey) primary = name;
@@ -340,18 +376,42 @@ export class GameDatabase<S extends DatabaseSchema> {
     if (beginStatus !== 'ok') { this.transactionActive = false; return result(beginStatus); }
     const tx = new DatabaseTransaction(this);
     let value: DatabaseResult<T>;
-    try { value = await callback(tx); } catch (_error) { value = result('storage_error'); }
-    if (!value || !value.ok || tx.failed) {
+    try { value = normalizeCallbackResult<T>(await callback(tx)); } catch (_error) { value = result('storage_error'); }
+    if (!value.ok || tx.failed) {
       const rolled = await send(OP_ROLLBACK, this.handle, []);
+      const rollbackStatus = rolled.status;
       release(rolled);
+      if (rollbackStatus !== 'ok') {
+        await this.quarantine();
+        return result('storage_error');
+      }
       this.transactionActive = false;
-      return result(tx.failed || (value ? value.status : 'storage_error'));
+      return result(tx.failed || value.status);
     }
     const committed = await send(OP_COMMIT, this.handle, []);
     const commitStatus = committed.status;
     release(committed);
+    if (commitStatus === 'ok') {
+      this.transactionActive = false;
+      return value;
+    }
+    const rolled = await send(OP_ROLLBACK, this.handle, []);
+    const rollbackStatus = rolled.status;
+    release(rolled);
+    if (rollbackStatus !== 'ok') {
+      await this.quarantine();
+      return result('storage_error');
+    }
     this.transactionActive = false;
-    return commitStatus === 'ok' ? value : result(commitStatus);
+    return result(commitStatus);
+  }
+
+  private async quarantine(): Promise<void> {
+    const closed = await send(OP_CLOSE, this.handle, []);
+    release(closed);
+    this.handle = 0;
+    this.transactionActive = false;
+    this.lifecycle = 'closed';
   }
 
   async export(): Promise<DatabaseResult<Uint8Array>> {

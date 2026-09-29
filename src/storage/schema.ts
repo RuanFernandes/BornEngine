@@ -95,8 +95,8 @@ export function validateSchema(schema: DatabaseSchema): boolean {
       if (!validIdentifier(columnName)) return false;
       const descriptor = table.columns[columnName];
       if (!descriptor || !['integer', 'real', 'text', 'blob', 'boolean'].includes(descriptor.kind)) return false;
-      const options = descriptor.options || {};
-      if (typeof options !== 'object') return false;
+      const options = descriptor.options;
+      if (!options || typeof options !== 'object' || Array.isArray(options)) return false;
       const flags = ['primaryKey', 'autoIncrement', 'notNull', 'nullable', 'unique'];
       for (const option in options) {
         if (option !== 'default' && flags.indexOf(option) < 0) return false;

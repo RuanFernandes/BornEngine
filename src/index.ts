@@ -61,7 +61,7 @@ export type {
   InputActionMapActionData, InputActionMapAxisData, InputActionMapData,
 } from './input';
 export { GameDatabase, DatabaseTransaction, columns, defineTable, defineSchema, defineMigration, MigrationBuilder } from './storage';
-export type { DatabaseResult, DatabaseStatus, DatabaseState, GameDatabaseOptions, ColumnDescriptor,
+export type { DatabaseResult, DatabaseStatus, DatabaseFailureStatus, DatabaseState, GameDatabaseOptions, ColumnDescriptor,
   ColumnOptions, ColumnKind, ColumnValue, TableDescriptor, IndexDescriptor, DatabaseSchema,
   DatabaseRow, DatabaseInsert, DatabaseUpdate, Comparison, DatabaseFilter, DatabaseOrder,
   DatabaseSelect, DatabaseMigration, MigrationStep } from './storage';

@@ -37,7 +37,12 @@ export function defineMigration<S extends DatabaseSchema>(version: number, _sche
 
 export function validateMigrations<S extends DatabaseSchema>(schema: S, migrations: readonly DatabaseMigration<S>[]): MigrationStep[][] | null {
   const groups: MigrationStep[][] = [];
-  const createdTables: Record<string, Record<string, ColumnDescriptor>> = {};
+  const createdTables: Record<string, Record<string, ColumnDescriptor>> = Object.create(null);
+  const droppedTables: string[] = [];
+  const droppedColumns: string[] = [];
+  const addedColumns: string[] = [];
+  const createdIndexes: Record<string, string> = Object.create(null);
+  const droppedIndexes: string[] = [];
   let previous = 0;
   for (let i = 0; i < migrations.length; i++) {
     const migration = migrations[i];
@@ -49,34 +54,84 @@ export function validateMigrations<S extends DatabaseSchema>(schema: S, migratio
     if (builder.steps.length === 0) return null;
     for (let j = 0; j < builder.steps.length; j++) {
       const step = builder.steps[j];
-      if (!validIdentifier(step.table)) return null;
+      if (!step || !validIdentifier(step.table) || !step.values || typeof step.values !== 'object' ||
+          !['createTable', 'dropTable', 'addColumn', 'dropColumn', 'createIndex', 'dropIndex', 'transform'].includes(step.op)) return null;
       const table = Object.prototype.hasOwnProperty.call(schema, step.table) ? schema[step.table] : undefined;
       if (step.name && !validIdentifier(step.name)) return null;
+      const available = createdTables[step.table] ||
+        (table && droppedTables.indexOf(step.table) < 0 ? table.columns : undefined);
       if (step.op === 'createTable') {
+        if (createdTables[step.table]) return null;
         if (!validateSchema({ [step.table]: { columns: step.values as Record<string, ColumnDescriptor> } })) return null;
-        createdTables[step.table] = step.values as Record<string, ColumnDescriptor>;
-      }
-      if (step.op === 'dropTable') delete createdTables[step.table];
-      if (step.op === 'addColumn') {
-        if (!table || !table.columns[step.name]) return null;
-        if (step.values.descriptor !== table.columns[step.name]) {
-          const descriptor = step.values.descriptor as ColumnDescriptor;
-          if (!descriptor || !validateSchema({ [step.table]: { columns: { [step.name]: descriptor } } })) return null;
+        createdTables[step.table] = { ...step.values } as Record<string, ColumnDescriptor>;
+        const dropped = droppedTables.indexOf(step.table);
+        if (dropped >= 0) droppedTables.splice(dropped, 1);
+        for (let k = droppedColumns.length - 1; k >= 0; k--) {
+          if (droppedColumns[k].indexOf(step.table + '\u0000') === 0) droppedColumns.splice(k, 1);
         }
+        for (let k = addedColumns.length - 1; k >= 0; k--) {
+          if (addedColumns[k].indexOf(step.table + '\u0000') === 0) addedColumns.splice(k, 1);
+        }
+      }
+      if (step.op === 'dropTable') {
+        if (!available) return null;
+        delete createdTables[step.table];
+        droppedTables.push(step.table);
+        for (const indexName in createdIndexes) {
+          if (createdIndexes[indexName] === step.table) delete createdIndexes[indexName];
+        }
+      }
+      if (step.op === 'addColumn') {
+        if (!available || !table || !Object.prototype.hasOwnProperty.call(table.columns, step.name)) return null;
+        const descriptor = step.values.descriptor as ColumnDescriptor;
+        if (!descriptor || !validateSchema({ [step.table]: { columns: { [step.name]: descriptor } } })) return null;
+        const key = step.table + '\u0000' + step.name;
+        if (createdTables[step.table] && Object.prototype.hasOwnProperty.call(createdTables[step.table], step.name) &&
+            droppedColumns.indexOf(key) < 0) return null;
+        if (addedColumns.indexOf(key) >= 0) return null;
+        addedColumns.push(key);
+        if (createdTables[step.table]) createdTables[step.table][step.name] = descriptor;
+        const dropped = droppedColumns.indexOf(key);
+        if (dropped >= 0) droppedColumns.splice(dropped, 1);
+      }
+      if (step.op === 'dropColumn') {
+        const key = step.table + '\u0000' + step.name;
+        if (!available || !Object.prototype.hasOwnProperty.call(available, step.name) || droppedColumns.indexOf(key) >= 0) return null;
+        droppedColumns.push(key);
+        if (createdTables[step.table]) delete createdTables[step.table][step.name];
+        const added = addedColumns.indexOf(key);
+        if (added >= 0) addedColumns.splice(added, 1);
       }
       if (step.op === 'createIndex') {
           const descriptor = step.values.descriptor as IndexDescriptor;
-          if (!descriptor || descriptor.name !== step.name || !descriptor.columns || descriptor.columns.length === 0) return null;
-          const available = createdTables[step.table] || (table ? table.columns : null);
-          if (!available) return null;
+          if (!descriptor || !validIdentifier(step.name) || descriptor.name !== step.name ||
+              !Array.isArray(descriptor.columns) || descriptor.columns.length === 0 ||
+              (descriptor.unique !== undefined && typeof descriptor.unique !== 'boolean') ||
+              Object.prototype.hasOwnProperty.call(createdIndexes, step.name) || !available) return null;
           for (let k = 0; k < descriptor.columns.length; k++) {
-            if (!validIdentifier(descriptor.columns[k]) || !Object.prototype.hasOwnProperty.call(available, descriptor.columns[k])) return null;
+            if (!validIdentifier(descriptor.columns[k]) || !Object.prototype.hasOwnProperty.call(available, descriptor.columns[k]) ||
+                droppedColumns.indexOf(step.table + '\u0000' + descriptor.columns[k]) >= 0) return null;
           }
+          createdIndexes[step.name] = step.table;
+          const dropped = droppedIndexes.indexOf(step.name);
+          if (dropped >= 0) droppedIndexes.splice(dropped, 1);
+      }
+      if (step.op === 'dropIndex') {
+        let finalIndex = false;
+        if (table && table.indexes) for (let k = 0; k < table.indexes.length; k++) {
+          if (table.indexes[k].name === step.name) finalIndex = true;
+        }
+        const createdHere = Object.prototype.hasOwnProperty.call(createdIndexes, step.name) &&
+          createdIndexes[step.name] === step.table;
+        if (!available || droppedIndexes.indexOf(step.name) >= 0 ||
+            (!finalIndex && !createdHere)) return null;
+        delete createdIndexes[step.name];
+        droppedIndexes.push(step.name);
       }
       if (step.op === 'transform') {
-        if (!table) return null;
+        if (!table || !available) return null;
         for (const key in step.values) {
-          const column = table.columns[key];
+          const column = Object.prototype.hasOwnProperty.call(table.columns, key) ? table.columns[key] : undefined;
           if (!column || (step.values[key] === null ? !!(column.options.notNull || column.options.primaryKey) :
               !validColumnValue(column.kind, step.values[key]))) return null;
         }

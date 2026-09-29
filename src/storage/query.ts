@@ -16,7 +16,8 @@ export interface DatabaseSelect<R> {
 export function validateValues<S extends DatabaseSchema, T extends keyof S>(
   schema: S, tableName: T, values: Record<string, unknown>, requireRequired: boolean,
 ): boolean {
-  const table = schema[tableName];
+  if (!schema || typeof schema !== 'object') return false;
+  const table = Object.prototype.hasOwnProperty.call(schema, tableName) ? schema[tableName] : undefined;
   if (!table || !values || typeof values !== 'object' || Array.isArray(values)) return false;
   for (const key in values) {
     if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
@@ -37,7 +38,8 @@ export function validateValues<S extends DatabaseSchema, T extends keyof S>(
 }
 
 export function validateFilter<S extends DatabaseSchema, T extends keyof S>(schema: S, tableName: T, filter: unknown, depth = 0, seen: unknown[] = []): boolean {
-  const table = schema[tableName];
+  if (!schema || typeof schema !== 'object') return false;
+  const table = Object.prototype.hasOwnProperty.call(schema, tableName) ? schema[tableName] : undefined;
   if (!table || !filter || typeof filter !== 'object' || Array.isArray(filter) || depth > 32 || seen.indexOf(filter) >= 0) return false;
   seen.push(filter);
   const record = filter as Record<string, unknown>;
@@ -83,7 +85,8 @@ function validCompared(column: ColumnDescriptor, value: unknown): boolean {
 export function validateSelect<S extends DatabaseSchema, T extends keyof S>(
   schema: S, tableName: T, options: DatabaseSelect<DatabaseRow<S, T>>,
 ): boolean {
-  if (!schema[tableName] || !options || typeof options !== 'object') return false;
+  if (!schema || typeof schema !== 'object' || !Object.prototype.hasOwnProperty.call(schema, tableName) ||
+      !options || typeof options !== 'object' || Array.isArray(options)) return false;
   for (const key in options) {
     if (!Object.prototype.hasOwnProperty.call(options, key)) continue;
     if (key !== 'where' && key !== 'orderBy' && key !== 'limit' && key !== 'offset') return false;

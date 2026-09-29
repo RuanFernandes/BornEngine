@@ -1,5 +1,5 @@
 import { GameDatabase, columns, defineSchema, defineTable, defineMigration } from '../../src/storage';
-import type { DatabaseResult, DatabaseRow, DatabaseFilter } from '../../src/storage';
+import type { DatabaseResult, DatabaseRow, DatabaseFilter, DatabaseInsert } from '../../src/storage';
 
 const initialColumns = {
   id: columns.integer({ primaryKey: true, autoIncrement: true }),
@@ -23,6 +23,8 @@ const schema = defineSchema({
 type Save = DatabaseRow<typeof schema, 'saves'>;
 declare const saved: Save;
 const slot: string = saved.slot;
+const id: number = saved.id;
+const level: number = saved.level;
 const score: number = saved.score;
 const payload: Uint8Array | null = saved.payload;
 const notes: string | null = saved.notes;
@@ -34,6 +36,13 @@ const filter: DatabaseFilter<Save> = {
 };
 // @ts-expect-error score comparisons require numbers
 const invalidFilter: DatabaseFilter<Save> = { score: { gte: 'high' } };
+const defaultedInsert: DatabaseInsert<typeof schema, 'saves'> = { slot: 'main', score: 1 };
+// @ts-expect-error non-defaulted not-null score is required on insert
+const missingRequired: DatabaseInsert<typeof schema, 'saves'> = { slot: 'main' };
+// @ts-expect-error primary keys cannot be null when explicitly inserted
+const nullPrimaryKey: DatabaseInsert<typeof schema, 'saves'> = { id: null, slot: 'main', score: 1 };
+// @ts-expect-error successful results cannot carry a failure status
+const malformedResult: DatabaseResult<number> = { ok: true, status: 'invalid_data', value: 1 };
 
 const migrations = [
   defineMigration(1, schema, (migration) => {
@@ -84,4 +93,6 @@ async function contract(): Promise<DatabaseResult<Uint8Array>> {
   return backup;
 }
 
-export type DatabaseContractFixture = [typeof slot, typeof score, typeof payload, typeof notes, typeof completed, typeof contract];
+export type DatabaseContractFixture = [typeof id, typeof slot, typeof level, typeof score, typeof payload,
+  typeof notes, typeof completed, typeof defaultedInsert, typeof missingRequired, typeof nullPrimaryKey,
+  typeof malformedResult, typeof contract];
