@@ -42,3 +42,25 @@ const released = game.assets.releaseTexture('assets/textures/player.png');
 The manager is owned by `Game`; Game shutdown releases its cache. A loading scene can call `releaseTexture(path)` when that asset should be removed before the whole Game shuts down. If other gameplay code still holds the released `Texture`, it must stop using it. Use `new Texture(game, path)` for an uncached resource with its own explicit `dispose()` lifecycle.
 
 See [Textures](../textures/) for filtering, drawing, and render targets, and [Assets guide](../../guides/assets/) for project paths and packaging.
+
+## Preload groups
+
+Use `createGroup()` to track textures, sounds, and music needed by a scene. The group reports aggregate progress and an entry result for each path; it does not take ownership away from `AssetManager` or `AudioSystem`.
+
+```ts
+const levelAssets = game.assets.createGroup('forest-level');
+if (levelAssets !== null) {
+  levelAssets.addTexture('assets/forest/atlas.png');
+  levelAssets.addSound('assets/audio/step.wav');
+  levelAssets.addMusic('assets/audio/forest.ogg');
+
+  const state = await levelAssets.load();
+  if (state === 'ready') {
+    startForestLevel();
+  } else {
+    console.error(levelAssets.entries);
+  }
+}
+```
+
+`load()` starts each entry once and resolves to `ready`, `failed`, `cancelled`, or `disposed`. Inspect `progress`, `state`, and `entries` to show loading UI or handle individual failures. `cancel()` settles pending entries, while `dispose()` releases the group's references; cached and loaded resources remain owned by the Game's asset and audio services.

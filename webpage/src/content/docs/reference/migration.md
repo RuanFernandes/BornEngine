@@ -40,6 +40,12 @@ Construct runtime resources with their owning `Game`. Check `isLoaded` and `erro
 
 The engine currently permits one active native runtime at a time. Dispose one `Game` before constructing the next. For host-owned native windows, use embedded mode and call `runFrame()` from the host scheduler.
 
+## 2D camera and coordinates
+
+`Camera2D` remains a plain record for direct `renderer.begin2D(camera)` passes. For a scene camera that follows a target, attach `CameraRig2D` to a `GameObject` and bind it with `scene.bindCameraRig2D(rig)`. Set `scene.viewport2D` to a `Viewport2D` when the game uses a fixed logical resolution. Input conversion then uses the active scene camera and viewport by default; a caller may still pass an explicit camera. Positions inside letterbox bars return `null` from `screenToWorld()`.
+
+The existing full-window coordinate behavior stays in place when `viewport2D` is unset. See the [2D camera API](../../api/camera2d/) for dead zones, bounds, zoom, shake, scale modes, and parallax.
+
 ## Migration sequence
 
 1. Create `Game` and move window configuration into its options.

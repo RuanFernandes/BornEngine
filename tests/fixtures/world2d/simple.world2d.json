@@ -1,0 +1,16 @@
+{
+  "format": "bornengine.world2d",
+  "version": 1,
+  "id": "empty-meadow",
+  "name": "Empty Meadow",
+  "assets": [],
+  "tilesets": [],
+  "layers": [],
+  "metadata": {
+    "editor": {
+      "name": "hand-authored",
+      "version": 1
+    },
+    "notes": ["stable", "ordered"]
+  }
+}

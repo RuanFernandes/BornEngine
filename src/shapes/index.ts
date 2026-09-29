@@ -1,2 +1,2 @@
 export { Collision } from '../math';
-export type { Rect, Vec2 } from '../core/types';
+export type { Rect, Vector2DLike } from '../core/types';

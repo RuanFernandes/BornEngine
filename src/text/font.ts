@@ -1,8 +1,9 @@
 import type { Game } from '../core/game';
 import { GameContext, ContextResource, getGameContext } from '../core/context';
 import * as operations from './internal';
+import { Vector2D } from '../math/vector2d';
 import type { Renderer } from '../core/renderer';
-import type { Color, Vec2 } from '../core/types';
+import type { Color, Vector2DLike } from '../core/types';
 
 /** A game-owned font resource. Draw it through the owning Renderer. */
 export class Font implements ContextResource {
@@ -26,17 +27,17 @@ export class Font implements ContextResource {
   get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
   get isDisposed(): boolean { return this.disposed; }
 
-  measureText(text: string, size = this.size, spacing = 0): Vec2 {
-    if (!this.isLoaded) return { x: 0, y: 0 };
-    return operations.measureTextEx(this.toNativeFont(), text, size, spacing);
+  measureText(text: string, size = this.size, spacing = 0): Vector2D {
+    if (!this.isLoaded) return Vector2D.zero();
+    return Vector2D.from(operations.measureTextEx(this.toNativeFont(), text, size, spacing));
   }
 
-  draw(renderer: Renderer, text: string, position: Vec2, size: number, color: Color, spacing = 0): boolean {
+  draw(renderer: Renderer, text: string, position: Vector2DLike, size: number, color: Color, spacing = 0): boolean {
     return renderer.drawText(text, position, size, color, this, spacing);
   }
 
   /** @internal Renderer entry point; does not expose the native handle. */
-  drawNative(text: string, position: Vec2, size: number, spacing: number, color: Color): boolean {
+  drawNative(text: string, position: Vector2DLike, size: number, spacing: number, color: Color): boolean {
     if (!this.isLoaded || !this.context.owns(this)) return false;
     operations.drawTextEx(this.toNativeFont(), text, position, size, spacing, color);
     return true;

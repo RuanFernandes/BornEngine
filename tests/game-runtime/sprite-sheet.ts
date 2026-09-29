@@ -1,13 +1,14 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
-import type { Color, Rect, Vec2 } from '../../src/core/types';
+import type { Color, Rect, Vector2DLike } from '../../src/core/types';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
 import { SpriteRenderer } from '../../src/sprites/sprite-renderer';
 import { SpriteSheet } from '../../src/sprites/sprite-sheet';
 import type { SpriteFrame } from '../../src/sprites/sprite-sheet';
 import type { Texture } from '../../src/textures/texture';
+import { Vector2D } from '../../src/math/vector2d';
 
 function expect(value: boolean, label: string): void {
   if (!value) {
@@ -19,7 +20,7 @@ function expect(value: boolean, label: string): void {
 interface DrawCall {
   source: Rect;
   destination: Rect;
-  origin: Vec2;
+  origin: Vector2DLike;
   rotation: number;
   tint: Color;
 }
@@ -40,7 +41,7 @@ const texture = {
   height: 70,
   isLoaded: true,
   dispose(): void { disposeCalls++; },
-  drawRegion(source: Rect, destination: Rect, origin: Vec2, rotation: number, tint: Color): boolean {
+  drawRegion(source: Rect, destination: Rect, origin: Vector2DLike, rotation: number, tint: Color): boolean {
     calls.push({ source, destination, origin, rotation, tint });
     return true;
   },
@@ -55,6 +56,14 @@ const grid = new SpriteSheet(texture, {
 });
 expect(grid.error === null && grid.columns === 5 && grid.rows === 4,
   'grid dimensions account for margins and spacing');
+expect(grid.margin instanceof Vector2D && grid.spacing instanceof Vector2D &&
+  grid.margin.magnitude === Math.sqrt(13) && grid.spacing.distanceTo({ x: 1, y: 2 }) === 0,
+  'atlas margins and spacing expose Vector2D values');
+grid.margin.set(100, 100);
+grid.spacing.set(100, 100);
+const topLeftGridFrame = grid.gridFrame(0, 0);
+expect(topLeftGridFrame !== null && topLeftGridFrame.source.x === 2 && topLeftGridFrame.source.y === 3,
+  'mutating a returned atlas vector cannot alter internal frame geometry');
 const gridFrame = grid.gridFrame(4, 3);
 expect(gridFrame !== null && gridFrame.source.x === 70 && gridFrame.source.y === 45,
   'grid frame uses the correct atlas coordinates');
@@ -74,6 +83,15 @@ expect(sheet.error === null && frame !== null && sheet.getFrame('missing') === n
   'named frames are available by name');
 expect(frame !== null && frame.source.x === 4 && frame.trim !== null && frame.originalSize.x === 32,
   'frame retains source, trim, and original-size metadata');
+expect(frame !== null && frame.pivot instanceof Vector2D && frame.pivot.clamped({ x: 0, y: 0 }, { x: 1, y: 1 }).equals({ x: 0.25, y: 0.75 }) &&
+  frame.originalSize instanceof Vector2D && frame.originalSize.distanceTo({ x: 32, y: 16 }) === 0 &&
+  frame.trim !== null && frame.trim.offset instanceof Vector2D &&
+  frame.trim.offset.distanceTo({ x: 3, y: 1 }) === 0 &&
+  frame.trim.originalSize instanceof Vector2D,
+  'frame metadata exposes Vector2D values and methods');
+if (frame !== null) frame.pivot.set(0, 0);
+expect(frame !== null && frame.pivot.x === 0.25 && frame.pivot.y === 0.75,
+  'mutating a returned frame vector cannot alter immutable atlas metadata');
 const invalid = new SpriteSheet(texture, {
   frames: [{ name: 'outside', source: { x: 96, y: 68, width: 8, height: 8 } }],
 });

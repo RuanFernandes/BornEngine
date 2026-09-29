@@ -5,7 +5,7 @@ section: API / Sprites
 order: 36
 ---
 
-`Tilemap` is a `GameComponent` that draws a row-major grid from a `SpriteSheet`. Add it to a `GameObject` in a Scene; active scene rendering draws occupied cells and culls tiles outside the 2D camera.
+`Tilemap` is a `GameComponent` that draws a row-major grid from a `SpriteSheet`. Add it to a `GameObject` in a Scene; active scene rendering indexes cells in 16-by-16 chunks and culls offscreen chunk bounds before visiting their cells.
 
 ## Tile definitions
 
@@ -34,17 +34,34 @@ function createLevelMap(texture: Texture, levelCells: number[]): Tilemap | null 
 }
 ```
 
-Each definition may use a `SpriteFrame` or a named frame string. The initial `data` array must contain exactly `columns * rows` IDs in row-major order. Without `data`, all cells start empty. `setTile(column, row, id)`, `getTile()`, and `fill(id)` update cells after construction and reject invalid coordinates or IDs safely.
+Each definition may use a `SpriteFrame` or a named frame string. The initial `data` array must contain exactly `columns * rows` IDs in row-major order. Without `data`, all cells start empty. `setTile(column, row, id)`, `getTile()`, and `fill(id)` update cells after construction and reject invalid coordinates or IDs safely. `setTile` marks the owning chunk dirty; `fill` marks all chunks dirty. A visible chunk clears its dirty state after rendering. `chunkCount`, `dirtyChunkCount`, `lastRenderVisibleChunkCount`, and `lastRenderVisitedCellCount` expose deterministic counts; only occupied cells in visible chunks are visited.
+
+`TilemapCellFlip` stores optional `flipX`, `flipY`, and `flipDiagonal` flags for one cell. Pass a row-major `cellFlips` array with `columns * rows` entries when constructing a map, or pass the flags as the final `setTile` argument. Flags use Tiled's orthogonal order: diagonal first, then horizontal, then vertical. Omitting the `setTile` flags resets that cell to the default transform.
+
+```ts
+import { Tilemap } from '@bornengine/engine';
+import type { TilemapCellFlip } from '@bornengine/engine';
+
+const flips: TilemapCellFlip[] = [
+  {},
+  { flipX: true },
+  { flipY: true },
+  { flipDiagonal: true, flipX: true },
+];
+const map = new Tilemap(sheet, { columns: 4, rows: 1, tileWidth: 16, tileHeight: 16,
+  tiles, data: [1, 1, 1, 1], cellFlips: flips });
+map.setTile(0, 0, 1, { flipDiagonal: true, flipY: true });
+```
 
 ## Render and update
 
 The tilemap's GameObject world position is the map's top-left origin. Its world scale and Z rotation transform each cell. `tint`, `visible`, and `renderOrder` control draw appearance and ordering. A `Scene.camera2D` activates camera culling; an uncamerad scene draws every occupied tile.
 
-The renderer currently checks each map cell on every render and skips draw submission for offscreen tiles. For very large levels, split content into smaller tilemap components or chunks so iteration cost also stays bounded.
+Chunk culling happens before cell traversal, so offscreen chunks do not add per-cell iteration work. `Renderer.stats.spritesCulled` still counts the occupied cells skipped when a whole chunk falls outside the camera.
 
 ## Collision data
 
-`getSolidTiles()` returns row-major rectangles in map-local pixels. A full-cell solid tile uses its tile dimensions. A custom `collision` rectangle both marks the tile solid and replaces the full-cell bounds. Tilemap collision data is not automatically connected to a physics world; create static `PhysicsBody2D` components from these rectangles as needed. Physics box bodies stay axis-aligned and do not inherit the tilemap's transform. The helper below therefore assumes a translated, unrotated map with unit scale. To use scale, transform each rectangle center with the signed world scale and its dimensions with the absolute scale. A rotated tilemap needs rotated or polygon collision shapes; axis-aligned boxes cannot represent that transform exactly.
+`getSolidTiles()` returns row-major rectangles in map-local pixels. A full-cell solid tile uses its tile dimensions. A custom `collision` rectangle both marks the tile solid and replaces the full-cell bounds. Per-cell flip flags also transform custom rectangles within their cells. `getSolidRegions()` merges adjacent full-cell solids with identical bounds and leaves custom rectangles separate. Tilemap collision data is not automatically connected to a physics world; create static `PhysicsBody2D` components from these rectangles as needed. Physics box bodies stay axis-aligned and do not inherit the tilemap's transform. The helper below therefore assumes a translated, unrotated map with unit scale. To use scale, transform each rectangle center with the signed world scale and its dimensions with the absolute scale. A rotated tilemap needs rotated or polygon collision shapes; axis-aligned boxes cannot represent that transform exactly.
 
 ```ts
 import { GameObject, PhysicsWorld2D, Tilemap } from '@bornengine/engine';
@@ -55,21 +72,21 @@ function createStaticColliders(map: Tilemap, world: PhysicsWorld2D): GameObject[
   const mapPosition = map.gameObject === null
     ? { x: 0, y: 0, z: 0 }
     : map.gameObject.transform.worldPosition;
-  const solidTiles = map.getSolidTiles();
+  const solidRegions = map.getSolidRegions();
 
-  for (let index = 0; index < solidTiles.length; index++) {
-    const tile = solidTiles[index];
+  for (let index = 0; index < solidRegions.length; index++) {
+    const bounds = solidRegions[index];
     const bodyObject = new GameObject({
       name: 'Tile collider',
       position: {
-        x: mapPosition.x + tile.bounds.x + tile.bounds.width * 0.5,
-        y: mapPosition.y + tile.bounds.y + tile.bounds.height * 0.5,
+        x: mapPosition.x + bounds.x + bounds.width * 0.5,
+        y: mapPosition.y + bounds.y + bounds.height * 0.5,
         z: mapPosition.z,
       },
     });
     bodyObject.addComponent(world.createBody({
       type: 'static',
-      shape: { type: 'box', width: tile.bounds.width, height: tile.bounds.height },
+      shape: { type: 'box', width: bounds.width, height: bounds.height },
     }));
     objects.push(bodyObject);
   }

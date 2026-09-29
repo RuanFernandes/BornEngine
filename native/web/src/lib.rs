@@ -390,6 +390,21 @@ pub fn bloom_begin_mode_2d(offset_x: f64, offset_y: f64, target_x: f64, target_y
 }
 
 #[wasm_bindgen]
+pub fn bloom_begin_mode_2d_viewport(
+    offset_x: f64, offset_y: f64, target_x: f64, target_y: f64,
+    rotation: f64, zoom: f64, scale_x: f64, scale_y: f64,
+    origin_x: f64, origin_y: f64,
+    clip_x: f64, clip_y: f64, clip_width: f64, clip_height: f64,
+) {
+    engine().renderer.begin_mode_2d_viewport(
+        offset_x as f32, offset_y as f32, target_x as f32, target_y as f32,
+        rotation as f32, zoom as f32, scale_x as f32, scale_y as f32,
+        origin_x as f32, origin_y as f32,
+        clip_x as f32, clip_y as f32, clip_width as f32, clip_height as f32,
+    );
+}
+
+#[wasm_bindgen]
 pub fn bloom_end_mode_2d() {
     engine().renderer.end_mode_2d();
 }
@@ -1429,6 +1444,30 @@ pub fn bloom_file_exists(_path: f64) -> f64 {
 #[wasm_bindgen]
 pub fn bloom_read_file(_path: f64) -> f64 {
     // Handled by JS glue — reads from localStorage
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_remove(_path: f64) -> f64 {
+    // Handled by JS glue — removes one localStorage key.
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_write(_path: f64, _data: f64) -> f64 {
+    // Handled by JS glue — writes one localStorage key atomically.
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_exists(_path: f64) -> f64 {
+    // Handled by JS glue — checks the isolated app-data namespace.
+    0.0
+}
+
+#[wasm_bindgen]
+pub fn bloom_storage_read(_path: f64) -> f64 {
+    // Handled by JS glue — reads from the isolated app-data namespace.
     0.0
 }
 

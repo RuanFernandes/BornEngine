@@ -10,7 +10,7 @@ order: 33
 ## Actions and bindings
 
 ```ts
-import { Game, Key, MouseButton } from '@bornengine/engine';
+import { Game, Key, MouseButton, Vector2D } from '@bornengine/engine';
 const game = new Game();
 const controls = game.input.createActionMap();
 controls.bindAction('fire', [
@@ -21,6 +21,10 @@ controls.bindAxis('move', {
   negative: [{ kind: 'key', key: Key.A }],
   positive: [{ kind: 'key', key: Key.D }],
   gamepadAxis: { axis: 0, deadzone: 0.15 },
+});
+controls.bindAxis('move-y', {
+  negative: [{ kind: 'key', key: Key.W }],
+  positive: [{ kind: 'key', key: Key.S }],
 });
 ```
 
@@ -48,7 +52,11 @@ controls.bindAxis('move-x', {
   positive: [{ kind: 'key', key: Key.RIGHT }],
 });
 controls.bindAction('confirm', { kind: 'key', key: Key.ENTER });
+const movement = controls.readVector2('move', 'move-y');
+const normalizedMovement = Vector2D.clampMagnitude(movement, 1);
 ```
+
+`readVector2()` returns a `Vector2D` value, ready for vector math. Use `toData()` and `loadData()` to save and restore bindings. `loadData()` validates the full versioned record before replacing anything, then resets edge state so held inputs do not appear as new presses after rebinding. See [Game storage](../storage/) for persistent JSON saves on Web.
 
 ## Frame loop
 

@@ -472,15 +472,34 @@ pub extern "C" fn bloom_draw_circle(cx: f64, cy: f64, rad: f64, r: f64, g: f64, 
 
 // 2D camera: emit marker commands carrying the camera so the Swift Canvas can
 // apply the matching affine transform to every world-space draw until end.
-// world→screen is (world - target) * zoom + offset. Without this, gameplay
-// tiles/sprites (drawn between begin/end) render at raw world coords off-screen.
+// Viewport passes also carry scale, origin, and clip bounds for letterboxing.
 #[no_mangle]
-pub extern "C" fn bloom_begin_mode_2d(ox: f64, oy: f64, tx: f64, ty: f64, _rot: f64, zoom: f64) {
+pub extern "C" fn bloom_begin_mode_2d(ox: f64, oy: f64, tx: f64, ty: f64, rot: f64, zoom: f64) {
     let mut c = DrawCmd::zero();
     c.kind = kind::BEGIN_2D;
     c.x = ox; c.y = oy;   // screen offset
     c.w = tx; c.h = ty;   // world target
+    c.rot = rot;
     c.size = zoom;        // zoom
+    draw_list::push(c);
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_begin_mode_2d_viewport(
+    ox: f64, oy: f64, tx: f64, ty: f64,
+    rot: f64, zoom: f64, scale_x: f64, scale_y: f64,
+    origin_x: f64, origin_y: f64,
+    clip_x: f64, clip_y: f64, clip_width: f64, clip_height: f64,
+) {
+    let mut c = DrawCmd::zero();
+    c.kind = kind::BEGIN_2D;
+    c.x = ox; c.y = oy;
+    c.w = tx; c.h = ty;
+    c.src_x = scale_x; c.src_y = scale_y;
+    c.src_w = origin_x; c.src_h = origin_y;
+    c.rot = rot; c.size = zoom;
+    c.thickness = clip_x; c._pad2 = clip_y;
+    c.r = clip_width; c.g = clip_height;
     draw_list::push(c);
 }
 

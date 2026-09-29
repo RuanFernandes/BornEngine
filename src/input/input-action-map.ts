@@ -1,5 +1,6 @@
 import type { InputSystem } from './input-system';
-import type { Rect, Vec2 } from '../core/types';
+import type { Rect } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import {
   advanceActionState,
   evaluateActionBindings,
@@ -16,7 +17,7 @@ interface ActionEntry {
   name: string;
   bindings: ActionButtonBinding[];
   state: ActionState;
-  suppressNextEdge: boolean;
+  suppressTransitionsUntilNeutral: boolean;
 }
 
 interface AxisEntry {
@@ -138,6 +139,27 @@ function findAxis(axes: AxisEntry[], name: string): number {
   return -1;
 }
 
+function hasName(names: string[], candidate: string): boolean {
+  return names.indexOf(candidate) >= 0;
+}
+
+export interface InputActionMapActionData {
+  name: string;
+  bindings: ActionButtonBinding[];
+}
+
+export interface InputActionMapAxisData {
+  name: string;
+  binding: ActionAxisBinding;
+}
+
+/** Stable, versioned data accepted by `InputActionMap.loadData()`. */
+export interface InputActionMapData {
+  version: 1;
+  actions: InputActionMapActionData[];
+  axes: InputActionMapAxisData[];
+}
+
 function addUniqueIndex(indices: number[], candidate: number): void {
   for (let index = 0; index < indices.length; index++) {
     if (indices[index] === candidate) return;
@@ -210,7 +232,7 @@ export class InputActionMap {
         name,
         bindings: unique,
         state: { isDown: false, wasPressed: false, wasReleased: false },
-        suppressNextEdge: false,
+        suppressTransitionsUntilNeutral: true,
       });
       return true;
     }
@@ -224,7 +246,7 @@ export class InputActionMap {
     }
     if (additions.length > 0) {
       action.bindings = action.bindings.concat(additions);
-      action.suppressNextEdge = true;
+      action.suppressTransitionsUntilNeutral = true;
     }
     return true;
   }
@@ -328,8 +350,12 @@ export class InputActionMap {
     for (let index = 0; index < this.actions.length; index++) {
       const action = this.actions[index];
       const current = evaluateActionBindings(action.bindings, snapshot);
-      action.state = advanceActionState(action.state.isDown, current, action.suppressNextEdge);
-      action.suppressNextEdge = false;
+      if (action.suppressTransitionsUntilNeutral) {
+        action.state = { isDown: current, wasPressed: false, wasReleased: false };
+        if (!current) action.suppressTransitionsUntilNeutral = false;
+      } else {
+        action.state = advanceActionState(action.state.isDown, current, false);
+      }
     }
     for (let index = 0; index < this.axes.length; index++) {
       this.axes[index].value = evaluateAxisBinding(this.axes[index].binding, snapshot);
@@ -361,7 +387,66 @@ export class InputActionMap {
   }
 
   /** Read two named axes without normalizing diagonal values. */
-  readVector2(horizontal: string, vertical: string): Vec2 {
-    return { x: this.readAxis(horizontal), y: this.readAxis(vertical) };
+  readVector2(horizontal: string, vertical: string): Vector2D {
+    return new Vector2D(this.readAxis(horizontal), this.readAxis(vertical));
+  }
+
+  /** Export bindings as a detached, stable v1 data record. */
+  toData(): InputActionMapData {
+    const actions: InputActionMapActionData[] = [];
+    for (let index = 0; index < this.actions.length; index++) {
+      const action = this.actions[index];
+      const bindings = copyButtonBindings(action.bindings);
+      actions.push({ name: action.name, bindings: bindings === null ? [] : bindings });
+    }
+    const axes: InputActionMapAxisData[] = [];
+    for (let index = 0; index < this.axes.length; index++) {
+      const axis = this.axes[index];
+      const binding = copyAxisBinding(axis.binding);
+      axes.push({ name: axis.name, binding: binding === null ? {} : binding });
+    }
+    return { version: 1, actions, axes };
+  }
+
+  /**
+   * Replace every binding only after the full input record validates. Edge
+   * state is reset and remains quiet until each action returns to neutral.
+   */
+  loadData(data: InputActionMapData): boolean {
+    if (data === null || typeof data !== 'object' || data.version !== 1 ||
+        !Array.isArray(data.actions) || !Array.isArray(data.axes)) return false;
+
+    const actions: ActionEntry[] = [];
+    const actionNames: string[] = [];
+    for (let index = 0; index < data.actions.length; index++) {
+      const source = data.actions[index];
+      if (source === null || typeof source !== 'object' ||
+          !validName(source.name) || hasName(actionNames, source.name)) return false;
+      const bindings = copyButtonBindings(source.bindings);
+      if (bindings === null) return false;
+      actionNames.push(source.name);
+      actions.push({
+        name: source.name,
+        bindings,
+        state: { isDown: false, wasPressed: false, wasReleased: false },
+        suppressTransitionsUntilNeutral: true,
+      });
+    }
+
+    const axes: AxisEntry[] = [];
+    const axisNames: string[] = [];
+    for (let index = 0; index < data.axes.length; index++) {
+      const source = data.axes[index];
+      if (source === null || typeof source !== 'object' ||
+          !validName(source.name) || hasName(axisNames, source.name)) return false;
+      const binding = copyAxisBinding(source.binding);
+      if (binding === null) return false;
+      axisNames.push(source.name);
+      axes.push({ name: source.name, binding, value: 0 });
+    }
+
+    this.actions = actions;
+    this.axes = axes;
+    return true;
   }
 }

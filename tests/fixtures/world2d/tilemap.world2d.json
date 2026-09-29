@@ -1,0 +1,52 @@
+{
+  "format": "bornengine.world2d",
+  "version": 1,
+  "id": "flip-grid",
+  "name": "Flip Grid",
+  "assets": ["assets/terrain.png"],
+  "tilesets": [
+    {
+      "id": "terrain",
+      "image": "assets/terrain.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 2,
+      "tileCount": 2,
+      "margin": {"x": 0, "y": 0},
+      "spacing": {"x": 0, "y": 0},
+      "tiles": [
+        { "tileId": 0, "properties": { "surface": { "type": "string", "value": "grass" } } },
+        { "tileId": 1, "collision": { "x": 0, "y": 8, "width": 16, "height": 8 }, "properties": { "solid": { "type": "bool", "value": true } } }
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "id": "flip-cases",
+      "type": "tilemap",
+      "name": "Flip Cases",
+      "visible": true,
+      "opacity": 1,
+      "offset": { "x": 0, "y": 0 },
+      "parallax": { "x": 1, "y": 1 },
+      "width": 3,
+      "height": 3,
+      "tileSize": { "x": 16, "y": 16 },
+      "data": [
+        null,
+        { "tilesetId": "terrain", "tileId": 0, "flipX": false, "flipY": false, "flipDiagonal": false },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": true, "flipY": false, "flipDiagonal": false },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": false, "flipY": true, "flipDiagonal": false },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": true, "flipY": true, "flipDiagonal": false },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": false, "flipY": false, "flipDiagonal": true },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": true, "flipY": false, "flipDiagonal": true },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": false, "flipY": true, "flipDiagonal": true },
+        { "tilesetId": "terrain", "tileId": 0, "flipX": true, "flipY": true, "flipDiagonal": true }
+      ]
+    }
+  ],
+  "metadata": {
+    "importSource": "flip-grid.tmx",
+    "unknown": { "preserve": true }
+  }
+}

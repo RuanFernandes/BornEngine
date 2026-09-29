@@ -1,4 +1,5 @@
-export interface Vec2 {
+/** Structural x/y value accepted by 2D APIs. Use Vector2D for vector math. */
+export interface Vector2DLike {
   x: number;
   y: number;
 }
@@ -31,8 +32,8 @@ export interface Rect {
 }
 
 export interface Camera2D {
-  offset: Vec2;
-  target: Vec2;
+  offset: Vector2DLike;
+  target: Vector2DLike;
   rotation: number;
   zoom: number;
 }

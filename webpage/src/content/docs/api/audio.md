@@ -55,3 +55,24 @@ const theme = game.audio.loadMusic('assets/audio/theme.ogg');
 if (theme.isLoaded) theme.play();
 const voice = select.play3D({ x: 0, y: 1, z: 0 }, { looping: false });
 ```
+
+## 2D spatial audio
+
+`game.audio.listener2D` is a shared, lazily created listener for XY gameplay. It follows the active scene camera by default; call `setPosition({ x, y })` to pin it to a world location or `followCamera()` to resume following. `AudioEmitter2D` attaches to a `GameObject`, starts a controllable spatial voice, and updates its position from the object's world transform. The XY plane maps to the engine's XZ plane for spatial playback.
+
+```ts
+import { AudioEmitter2D, GameObject } from '@bornengine/engine';
+
+const listener = game.audio.listener2D;
+const footsteps = game.audio.loadSound('assets/audio/footsteps.wav');
+const player = new GameObject({ name: 'Player' });
+const emitter = new AudioEmitter2D(footsteps, listener, {
+  looping: true,
+  refDist: 1,
+  maxDist: 18,
+});
+player.addComponent(emitter);
+if (footsteps.isLoaded) emitter.play();
+```
+
+Call `stop()` to stop only that emitter's voice. Disabling or destroying the owner stops playback; the shared audio service still owns the Sound and listener.

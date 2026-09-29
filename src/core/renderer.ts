@@ -14,8 +14,9 @@ import {
   drawCube, drawCubeWires, drawCylinder, drawGrid, drawPlane, drawRay,
   drawSphere, drawSphereWires,
 } from '../models/internal';
-import type { Camera2D, Camera3D, Color, Rect, Vec2, Vec3 } from './types';
+import type { Camera2D, Camera3D, Color, Rect, Vector2DLike, Vec3 } from './types';
 import { getCamera2DWorldBounds, isRectIntersecting } from './camera2d-culling';
+import type { Viewport2D } from '../camera2d/viewport-2d';
 export { getCamera2DWorldBounds };
 
 /** Render workload measured for the most recent scene render. */
@@ -39,6 +40,15 @@ function isFiniteNumber(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
+function isValidCamera2D(camera: Camera2D): boolean {
+  return camera !== null && camera !== undefined &&
+    camera.offset !== null && camera.offset !== undefined &&
+    camera.target !== null && camera.target !== undefined &&
+    isFiniteNumber(camera.offset.x) && isFiniteNumber(camera.offset.y) &&
+    isFiniteNumber(camera.target.x) && isFiniteNumber(camera.target.y) &&
+    isFiniteNumber(camera.rotation) && isFiniteNumber(camera.zoom) && camera.zoom > 0;
+}
+
 export interface InstancedDrawSource extends ContextResource {
   readonly isLoaded: boolean;
   drawNative(material: Material, model: Model | Mesh, meshIndex: number): boolean;
@@ -52,6 +62,7 @@ export class Renderer {
   private disposed = false;
   private activeRenderTexture: RenderTexture | null = null;
   private activeCameraBounds: Rect | null = null;
+  private activeCameraValue: Camera2D | null = null;
   private frameIntervalMsValue = 0;
   private spritesDrawnValue = 0;
   private spritesCulledValue = 0;
@@ -69,6 +80,17 @@ export class Renderer {
   }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
+
+  /** Snapshot of the camera applied to the current 2D render pass. */
+  get activeCamera2D(): Camera2D | null {
+    const camera = this.activeCameraValue;
+    return camera === null ? null : {
+      offset: { x: camera.offset.x, y: camera.offset.y },
+      target: { x: camera.target.x, y: camera.target.y },
+      rotation: camera.rotation,
+      zoom: camera.zoom,
+    };
+  }
 
   /** Snapshot of the current game frame's render workload. */
   get stats(): RendererStats {
@@ -91,6 +113,7 @@ export class Renderer {
     this.spritesDrawnValue = 0;
     this.spritesCulledValue = 0;
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
   }
 
   /** @internal Resets scene workload before rendering components. */
@@ -98,6 +121,7 @@ export class Renderer {
     this.spritesDrawnValue = 0;
     this.spritesCulledValue = 0;
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
   }
 
   /** Tests an axis-aligned world-space rectangle against the active camera view. */
@@ -109,7 +133,7 @@ export class Renderer {
   _recordSpriteDrawn(): void { this.spritesDrawnValue++; }
 
   /** @internal Counts a SpriteRenderer quad rejected by camera culling. */
-  _recordSpriteCulled(): void { this.spritesCulledValue++; }
+  _recordSpriteCulled(count = 1): void { this.spritesCulledValue += count; }
 
   clear(color: Color): boolean {
     if (!this.isReady) return false;
@@ -117,11 +141,32 @@ export class Renderer {
     return true;
   }
 
-  begin2D(camera: Camera2D): boolean {
-    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null) return false;
-    native.beginMode2D(camera);
+  begin2D(camera: Camera2D, viewport?: Viewport2D | null): boolean {
+    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null ||
+        !isValidCamera2D(camera)) return false;
+    if (viewport !== undefined && viewport !== null) {
+      const transform = viewport._renderTransform(native.getScreenWidth(), native.getScreenHeight());
+      if (transform === null) return false;
+      native.beginMode2DViewport(
+        camera,
+        transform.scaleX,
+        transform.scaleY,
+        transform.offsetX,
+        transform.offsetY,
+        viewport._clipRect(transform),
+      );
+      this.activeCameraBounds = getCamera2DWorldBounds(camera, transform.logicalWidth, transform.logicalHeight);
+    } else {
+      native.beginMode2D(camera);
+      this.activeCameraBounds = getCamera2DWorldBounds(camera, native.getScreenWidth(), native.getScreenHeight());
+    }
     this.mode = '2d';
-    this.activeCameraBounds = getCamera2DWorldBounds(camera, native.getScreenWidth(), native.getScreenHeight());
+    this.activeCameraValue = {
+      offset: { x: camera.offset.x, y: camera.offset.y },
+      target: { x: camera.target.x, y: camera.target.y },
+      rotation: camera.rotation,
+      zoom: camera.zoom,
+    };
     return true;
   }
 
@@ -130,6 +175,7 @@ export class Renderer {
     native.endMode2D();
     this.mode = 'none';
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
     return true;
   }
 
@@ -145,10 +191,11 @@ export class Renderer {
     native.endMode3D();
     this.mode = 'none';
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
     return true;
   }
 
-  drawLine(start: Vec2, end: Vec2, color: Color, thickness = 1): boolean {
+  drawLine(start: Vector2DLike, end: Vector2DLike, color: Color, thickness = 1): boolean {
     if (!this.isReady) return false;
     drawLine(start.x, start.y, end.x, end.y, thickness, color);
     return true;
@@ -166,31 +213,31 @@ export class Renderer {
     return true;
   }
 
-  drawCircle(center: Vec2, radius: number, color: Color): boolean {
+  drawCircle(center: Vector2DLike, radius: number, color: Color): boolean {
     if (!this.isReady) return false;
     drawCircle(center.x, center.y, radius, color);
     return true;
   }
 
-  drawCircleOutline(center: Vec2, radius: number, color: Color): boolean {
+  drawCircleOutline(center: Vector2DLike, radius: number, color: Color): boolean {
     if (!this.isReady) return false;
     drawCircleLines(center.x, center.y, radius, color);
     return true;
   }
 
-  drawTriangle(a: Vec2, b: Vec2, c: Vec2, color: Color): boolean {
+  drawTriangle(a: Vector2DLike, b: Vector2DLike, c: Vector2DLike, color: Color): boolean {
     if (!this.isReady) return false;
     drawTriangle(a.x, a.y, b.x, b.y, c.x, c.y, color);
     return true;
   }
 
-  drawPolygon(center: Vec2, sides: number, radius: number, color: Color, rotation = 0): boolean {
+  drawPolygon(center: Vector2DLike, sides: number, radius: number, color: Color, rotation = 0): boolean {
     if (!this.isReady) return false;
     drawPoly(center.x, center.y, sides, radius, rotation, color);
     return true;
   }
 
-  drawBezier(start: Vec2, control1: Vec2, control2: Vec2, end: Vec2, color: Color, thickness = 1): boolean {
+  drawBezier(start: Vector2DLike, control1: Vector2DLike, control2: Vector2DLike, end: Vector2DLike, color: Color, thickness = 1): boolean {
     if (!this.isReady) return false;
     drawBezier(
       start.x, start.y, control1.x, control1.y, control2.x, control2.y,
@@ -199,7 +246,7 @@ export class Renderer {
     return true;
   }
 
-  drawText(text: string, position: Vec2, size: number, color: Color, font?: Font, spacing = 0): boolean {
+  drawText(text: string, position: Vector2DLike, size: number, color: Color, font?: Font, spacing = 0): boolean {
     if (!this.isReady) return false;
     if (font !== undefined) {
       if (!this.context.owns(font) || !font.isLoaded) return false;
@@ -216,7 +263,7 @@ export class Renderer {
     return font.measureText(text, size, spacing).x;
   }
 
-  drawTexture(texture: Texture | RenderTexture, position: Vec2, tint: Color = Colors.WHITE): boolean {
+  drawTexture(texture: Texture | RenderTexture, position: Vector2DLike, tint: Color = Colors.WHITE): boolean {
     if (!this.isReady || !this.context.owns(texture) || !texture.isLoaded) return false;
     return texture.drawNative(position, tint);
   }

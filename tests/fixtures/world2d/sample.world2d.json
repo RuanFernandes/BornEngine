@@ -1,0 +1,95 @@
+{
+  "format": "bornengine.world2d",
+  "version": 1,
+  "id": "sample-platform",
+  "name": "Sample Platform",
+  "assets": ["assets/terrain.png"],
+  "tilesets": [
+    {
+      "id": "terrain",
+      "image": "assets/terrain.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 2,
+      "tileCount": 2,
+      "margin": {"x": 0, "y": 0},
+      "spacing": {"x": 0, "y": 0},
+      "tiles": [
+        { "tileId": 0, "properties": {} },
+        { "tileId": 1, "collision": { "x": 0, "y": 0, "width": 16, "height": 16 }, "properties": { "solid": { "type": "bool", "value": true } } }
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "id": "ground",
+      "type": "tilemap",
+      "name": "Ground",
+      "visible": true,
+      "opacity": 1,
+      "offset": { "x": 0, "y": 0 },
+      "parallax": { "x": 1, "y": 1 },
+      "properties": { "surface": { "type": "string", "value": "grass" } },
+      "width": 2,
+      "height": 1,
+      "tileSize": { "x": 16, "y": 16 },
+      "data": [
+        { "tilesetId": "terrain", "tileId": 1, "flipX": false, "flipY": false, "flipDiagonal": false },
+        null
+      ]
+    },
+    {
+      "id": "actors",
+      "type": "objects",
+      "name": "Actors",
+      "visible": true,
+      "opacity": 1,
+      "offset": { "x": 0, "y": 0 },
+      "parallax": { "x": 1, "y": 1 },
+      "properties": { "layerRole": { "type": "string", "value": "actors" } },
+      "objects": [
+        {
+          "id": "hero",
+          "name": "Hero",
+          "type": "player",
+          "position": { "x": 32, "y": 48 },
+          "rotation": 0,
+          "size": { "x": 16, "y": 24 },
+          "origin": { "x": 0.5, "y": 1 },
+          "visible": true,
+          "tags": ["player"],
+          "properties": { "team": { "type": "string", "value": "blue" } },
+          "components": [
+            {
+              "kind": "spriteRenderer",
+              "data": {
+                "tilesetId": "terrain",
+                "tileId": 0,
+                "flipX": false,
+                "flipY": false,
+                "flipDiagonal": false,
+                "size": { "x": 16, "y": 24 },
+                "pivot": { "x": 0.5, "y": 1 },
+                "tint": { "r": 255, "g": 255, "b": 255, "a": 255 }
+              }
+            },
+            {
+              "kind": "physicsBody2D",
+              "data": {
+                "type": "dynamic",
+                "shape": { "type": "box", "width": 12, "height": 20 },
+                "isSensor": false,
+                "layer": 1,
+                "mask": 2147483647
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "sample": true,
+    "nested": { "editor": "hand-authored" }
+  }
+}

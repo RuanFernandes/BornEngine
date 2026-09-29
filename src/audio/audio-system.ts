@@ -5,14 +5,18 @@ import * as operations from './internal';
 import { Sound, StagedSound } from './sound';
 import { Music, StagedMusic } from './music';
 import { SoundManager } from './sound-manager';
+import { AudioListener2D } from './audio-listener-2d';
 
 /** Game-owned audio device, mixer controls, and resource factory. */
 export class AudioSystem {
   private sounds: Sound[] = [];
   private musics: Music[] = [];
+  private sharedSoundLoads = new Map<string, Promise<Sound>>();
+  private sharedMusicLoads = new Map<string, Promise<Music>>();
   private stagedSounds: StagedSound[] = [];
   private stagedMusics: StagedMusic[] = [];
   private managers: SoundManager[] = [];
+  private listener2DValue: AudioListener2D | null = null;
   private deviceOpen = false;
   private disposed = false;
   private readonly context: GameContext;
@@ -30,6 +34,12 @@ export class AudioSystem {
   /** @internal Opens the shared device after an embedded Game attaches its surface. */
   activate(): void { this.ensureDevice(); }
 
+  /** Shared 2D listener for emitters in this Game. */
+  get listener2D(): AudioListener2D {
+    if (this.listener2DValue === null) this.listener2DValue = new AudioListener2D(this.game, this);
+    return this.listener2DValue;
+  }
+
   loadSound(path: string): Sound {
     const sound = new Sound(this.game, path);
     this.sounds.push(sound);
@@ -40,6 +50,24 @@ export class AudioSystem {
     const staged = await StagedSound.stage(this.game, path);
     this.stagedSounds.push(staged);
     return this.trackSound(staged.commit());
+  }
+
+  /** @internal Load or reuse a Game-owned sound for preload groups. */
+  async loadSharedSound(path: string): Promise<Sound> {
+    for (let index = 0; index < this.sounds.length; index++) {
+      const sound = this.sounds[index];
+      if (sound.path === path && sound.isLoaded) return sound;
+    }
+    const pending = this.sharedSoundLoads.get(path);
+    if (pending !== undefined) return pending;
+
+    const loading = this.loadSoundAsync(path);
+    this.sharedSoundLoads.set(path, loading);
+    try {
+      return await loading;
+    } finally {
+      if (this.sharedSoundLoads.get(path) === loading) this.sharedSoundLoads.delete(path);
+    }
   }
 
   stageSounds(paths: string[]): StagedSound[] {
@@ -58,6 +86,24 @@ export class AudioSystem {
     const staged = await StagedMusic.stage(this.game, path);
     this.stagedMusics.push(staged);
     return this.trackMusic(staged.commit());
+  }
+
+  /** @internal Load or reuse a Game-owned music asset for preload groups. */
+  async loadSharedMusic(path: string): Promise<Music> {
+    for (let index = 0; index < this.musics.length; index++) {
+      const music = this.musics[index];
+      if (music.path === path && music.isLoaded) return music;
+    }
+    const pending = this.sharedMusicLoads.get(path);
+    if (pending !== undefined) return pending;
+
+    const loading = this.loadMusicAsync(path);
+    this.sharedMusicLoads.set(path, loading);
+    try {
+      return await loading;
+    } finally {
+      if (this.sharedMusicLoads.get(path) === loading) this.sharedMusicLoads.delete(path);
+    }
   }
 
   stageMusic(paths: string[]): StagedMusic[] {
@@ -101,6 +147,7 @@ export class AudioSystem {
   /** Advance cooldown timers and stream every live Music resource once. */
   update(deltaTime: number): void {
     if (!this.isReady) return;
+    if (this.listener2DValue !== null) this.listener2DValue.update();
     for (let index = 0; index < this.managers.length; index++) this.managers[index].update(deltaTime);
     for (let index = 0; index < this.musics.length; index++) this.musics[index].update();
   }
@@ -126,6 +173,8 @@ export class AudioSystem {
 
   dispose(): void {
     if (this.disposed) return;
+    if (this.listener2DValue !== null) this.listener2DValue.dispose();
+    this.listener2DValue = null;
     const managers = this.managers.slice();
     for (let index = managers.length - 1; index >= 0; index--) managers[index].dispose();
     this.managers.length = 0;
@@ -139,6 +188,8 @@ export class AudioSystem {
     this.musics.length = 0;
     for (let index = this.sounds.length - 1; index >= 0; index--) this.sounds[index].dispose();
     this.sounds.length = 0;
+    this.sharedSoundLoads.clear();
+    this.sharedMusicLoads.clear();
 
     if (this.deviceOpen) operations.closeAudioDevice();
     this.deviceOpen = false;

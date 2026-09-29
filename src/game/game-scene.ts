@@ -6,6 +6,7 @@ import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Renderer } from '../core/renderer';
 import type { Camera2D } from '../core/types';
+import type { Viewport2D } from '../camera2d/viewport-2d';
 
 interface RenderEntry {
   component: GameComponent;
@@ -106,7 +107,7 @@ export class GameScene implements ContextResource {
   }
 
   /** Draws active render components in ascending renderOrder with stable ties. */
-  render(renderer: Renderer, camera?: Camera2D | null): void {
+  render(renderer: Renderer, camera?: Camera2D | null, viewport?: Viewport2D | null): void {
     if (this.wasDestroyed) return;
     renderer._beginSceneRender();
     const objects = this.sceneObjects.slice();
@@ -140,8 +141,11 @@ export class GameScene implements ContextResource {
 
     let cameraStarted = false;
     try {
-      if (camera !== undefined && camera !== null) {
-        if (!renderer.begin2D(camera)) return;
+      if ((camera !== undefined && camera !== null) || (viewport !== undefined && viewport !== null)) {
+        const activeCamera = camera === undefined || camera === null
+          ? { offset: { x: 0, y: 0 }, target: { x: 0, y: 0 }, rotation: 0, zoom: 1 }
+          : camera;
+        if (!renderer.begin2D(activeCamera, viewport)) return;
         cameraStarted = true;
       }
 
@@ -264,6 +268,55 @@ export class GameScene implements ContextResource {
         this._awakenSubtree(this.pendingAwakeRoots[pendingIndex]);
         pendingIndex++;
       }
+      this.pendingAwakeRoots.length = 0;
+      this.isAwakening = false;
+    }
+    return true;
+  }
+
+  /** @internal Validates and attaches a batch before any object receives onAwake. */
+  _attachSubtreesAtomically(roots: GameObject[]): boolean {
+    if (this.wasDestroyed || !Array.isArray(roots)) return false;
+
+    const subtrees: GameObject[][] = [];
+    const claimed: GameObject[] = [];
+    for (let rootIndex = 0; rootIndex < roots.length; rootIndex++) {
+      const root = roots[rootIndex];
+      if (root === null || root === undefined || root.parent !== null || !this._canAttachSubtree(root)) {
+        return false;
+      }
+      const subtree = this._collectSubtree(root);
+      for (let objectIndex = 0; objectIndex < subtree.length; objectIndex++) {
+        if (claimed.indexOf(subtree[objectIndex]) >= 0) return false;
+        claimed.push(subtree[objectIndex]);
+      }
+      subtrees.push(subtree);
+    }
+
+    for (let subtreeIndex = 0; subtreeIndex < subtrees.length; subtreeIndex++) {
+      const subtree = subtrees[subtreeIndex];
+      for (let objectIndex = 0; objectIndex < subtree.length; objectIndex++) {
+        const object = subtree[objectIndex];
+        object._setScene(this);
+        object._setAttachmentGeneration(this.nextAttachmentGeneration++);
+        this.sceneObjects.push(object);
+      }
+    }
+
+    if (this.isAwakening) {
+      for (let index = 0; index < roots.length; index++) this.pendingAwakeRoots.push(roots[index]);
+      return true;
+    }
+
+    this.isAwakening = true;
+    try {
+      for (let index = 0; index < roots.length; index++) this._awakenSubtree(roots[index]);
+      let pendingIndex = 0;
+      while (pendingIndex < this.pendingAwakeRoots.length) {
+        this._awakenSubtree(this.pendingAwakeRoots[pendingIndex]);
+        pendingIndex++;
+      }
+    } finally {
       this.pendingAwakeRoots.length = 0;
       this.isAwakening = false;
     }

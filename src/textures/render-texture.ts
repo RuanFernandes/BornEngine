@@ -2,7 +2,7 @@ import type { Game } from '../core/game';
 import { GameContext, ContextDrawable, getGameContext } from '../core/context';
 import * as operations from './internal';
 import { Colors } from '../core/colors';
-import type { Color, Vec2 } from '../core/types';
+import type { Color, Vector2DLike } from '../core/types';
 import { Texture } from './texture';
 
 /** Game-owned offscreen target. Rendering into it is controlled by Renderer. */
@@ -36,13 +36,13 @@ export class RenderTexture implements ContextDrawable {
 
   begin(): boolean { return this.isLoaded && this.context.beginRenderTarget(this); }
   end(): boolean { return this.isLoaded && this.context.endRenderTarget(this); }
-  draw(position: Vec2, tint: Color = Colors.WHITE): boolean {
+  draw(position: Vector2DLike, tint: Color = Colors.WHITE): boolean {
     if (!this.isLoaded) return false;
     return this.context.draw(this, position, tint);
   }
 
   /** @internal Renderer entry point; does not expose the native handle. */
-  drawNative(position: Vec2, tint: Color): boolean {
+  drawNative(position: Vector2DLike, tint: Color): boolean {
     if (!this.isLoaded || !this.context.owns(this)) return false;
     const texture = operations.getRenderTextureTexture(this.handleValue);
     if (texture.handle === 0) return false;

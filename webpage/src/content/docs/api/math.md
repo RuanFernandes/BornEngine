@@ -10,15 +10,21 @@ Math objects carry values only. They have no Game owner or native resource lifet
 ## Vectors
 
 ```ts
-import { Vec2, Vec3 } from '@bornengine/engine';
+import { Vector2D, Vec3 } from '@bornengine/engine';
+import type { Vector2DLike } from '@bornengine/engine';
 const start = new Vec3(0, 1, 0);
 const velocity = new Vec3(4, 0, -2);
 const next = start.add(velocity.scale(0.016));
 const direction = next.normalized();
-const screen = new Vec2(640, 360);
+const screen = new Vector2D(640, 360);
+const clamped = Vector2D.clamp(screen, Vector2D.zero(), new Vector2D(800, 600));
+const movement = Vector2D.moveTowards(screen, Vector2D.zero(), 12);
+const savedPosition: Vector2DLike = { x: screen.x, y: screen.y };
 ```
 
-Vector methods return new values for arithmetic operations. Use plain structural `{ x, y, z }` values when that better fits serialization or an API boundary.
+`Vector2D` is the value class for 2D coordinates. Arithmetic helpers return new vectors; `set` and `copy` mutate the current instance. It includes `clamp`, `clampMagnitude`, `dot`, `distance`, `lerp`, `moveTowards`, `reflect`, `project`, and angle helpers. Instance operations such as `add`, `subtract`, and `scale` return new vectors.
+
+`Vector2D.up()` is positive Y, and angle helpers return degrees. `rotate` takes radians. 2D APIs also accept `Vector2DLike` (`{ x, y }`) at data boundaries, including JSON. Use `new Vector2D(x, y)` when you want math methods; JSON serialization writes only `x` and `y`.
 
 ## Transforms
 

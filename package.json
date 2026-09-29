@@ -20,10 +20,13 @@
     "./physics": "./src/physics/index.ts",
     "./physics2d": "./src/physics2d/index.ts",
     "./tilemap": "./src/tilemap/index.ts",
+    "./camera2d": "./src/camera2d/index.ts",
     "./world": "./src/world/index.ts",
+    "./world2d": "./src/world2d/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
     "./input": "./src/input/index.ts",
+    "./storage": "./src/storage/index.ts",
     "./ui": "./src/ui/index.ts",
     "./debug-ui": "./src/debug-ui/index.ts",
     "./colyseus": "./src/colyseus/index.ts"
@@ -828,6 +831,26 @@
         {
           "name": "bloom_begin_mode_2d",
           "params": [
+            "f64",
+            "f64",
+            "f64",
+            "f64",
+            "f64",
+            "f64"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_begin_mode_2d_viewport",
+          "params": [
+            "f64",
+            "f64",
+            "f64",
+            "f64",
+            "f64",
+            "f64",
+            "f64",
+            "f64",
             "f64",
             "f64",
             "f64",
@@ -2474,6 +2497,35 @@
         },
         {
           "name": "bloom_read_file",
+          "params": [
+            "string"
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_storage_remove",
+          "params": [
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_storage_write",
+          "params": [
+            "string",
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_storage_exists",
+          "params": [
+            "string"
+          ],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_storage_read",
           "params": [
             "string"
           ],

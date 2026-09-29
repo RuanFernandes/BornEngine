@@ -4,6 +4,8 @@ import type { GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Camera2D } from '../core/types';
+import type { CameraRig2D } from '../camera2d/camera-rig-2d';
+import type { Viewport2D } from '../camera2d/viewport-2d';
 
 export type SceneState = 'ready' | 'active' | 'paused' | 'unloaded';
 
@@ -32,7 +34,10 @@ function removeAt<T>(values: T[], index: number): void {
 
 export class Scene extends GameScene {
   readonly name: string;
-  camera2D: Camera2D | null = null;
+  viewport2D: Viewport2D | null = null;
+  private cameraValue: Camera2D | null = null;
+  private fallbackCameraValue: Camera2D | null = null;
+  private boundCameraRig: CameraRig2D | null = null;
 
   private currentState: SceneState = 'ready';
   private ownedResources: SceneOwnedResource[] = [];
@@ -45,6 +50,36 @@ export class Scene extends GameScene {
   constructor(owner: Game, options: SceneOptions = {}) {
     super(owner);
     this.name = options.name === undefined ? '' : options.name;
+  }
+
+  get camera2D(): Camera2D | null {
+    const rig = this.boundCameraRig;
+    if (rig !== null && rig.error === null && rig.isActiveAndEnabled &&
+        rig.gameObject !== null && rig.gameObject.scene === this) {
+      return rig.camera;
+    }
+    return this.boundCameraRig === null ? this.cameraValue : this.fallbackCameraValue;
+  }
+
+  set camera2D(camera: Camera2D | null) {
+    this.cameraValue = camera;
+    if (this.boundCameraRig !== null) this.fallbackCameraValue = camera;
+  }
+
+  /** Binds a live component camera, retaining the camera for restoration. */
+  bindCameraRig2D(rig: CameraRig2D | null): boolean {
+    if (this.state === 'unloaded') return false;
+    if (rig !== null && (rig.destroyed || rig.gameObject === null ||
+        rig.gameObject.scene !== this || rig.error !== null)) return false;
+    if (rig === this.boundCameraRig) return true;
+    if (this.boundCameraRig === null) this.fallbackCameraValue = this.cameraValue;
+    if (this.boundCameraRig !== null) this.cameraValue = this.fallbackCameraValue;
+    this.boundCameraRig = rig;
+    if (rig === null) {
+      this.cameraValue = this.fallbackCameraValue;
+      this.fallbackCameraValue = null;
+    }
+    return true;
   }
 
   get state(): SceneState {
@@ -80,6 +115,12 @@ export class Scene extends GameScene {
     this.invokeLifecycleHook('unload');
 
     super.destroy();
+
+    if (this.boundCameraRig !== null) {
+      this.cameraValue = this.fallbackCameraValue;
+      this.boundCameraRig = null;
+      this.fallbackCameraValue = null;
+    }
 
     for (let index = this.ownedResources.length - 1; index >= 0; index--) {
       const resource = this.ownedResources[index];
