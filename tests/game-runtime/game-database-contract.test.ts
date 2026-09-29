@@ -24,6 +24,11 @@ check('select rejects an inherited table', !validateSelect(inherited, 'entries',
 function rejectsWithoutThrow(action: () => boolean): boolean {
   try { return !action(); } catch (_error) { return false; }
 }
+const columnsWithInherited = Object.assign(Object.create({ ghost: columns.text({ nullable: true }) }), schema.entries.columns);
+const inheritedColumnSchema = { entries: { ...schema.entries, columns: columnsWithInherited } } as typeof schema;
+check('values reject an inherited column', !validateValues(inheritedColumnSchema, 'entries', { ghost: 'extra' }, false));
+check('values reject a prototype method name without throwing', rejectsWithoutThrow(() =>
+  validateValues(schema, 'entries', { toString: null }, false)));
 check('query validators reject a missing schema without throwing',
   rejectsWithoutThrow(() => validateValues(null as any, 'entries', { title: 'a' }, true)) &&
   rejectsWithoutThrow(() => validateFilter(null as any, 'entries', {})) &&

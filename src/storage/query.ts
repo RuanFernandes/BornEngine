@@ -21,7 +21,8 @@ export function validateValues<S extends DatabaseSchema, T extends keyof S>(
   if (!table || !values || typeof values !== 'object' || Array.isArray(values)) return false;
   for (const key in values) {
     if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
-    const descriptor = table.columns[key] as ColumnDescriptor | undefined;
+    const descriptor = Object.prototype.hasOwnProperty.call(table.columns, key)
+      ? table.columns[key] as ColumnDescriptor : undefined;
     if (!descriptor) return false;
     const value = values[key];
     if (value === null) {
