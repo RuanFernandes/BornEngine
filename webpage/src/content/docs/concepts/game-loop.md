@@ -38,7 +38,7 @@ If you use gameplay scenes, call `this.scenes.update(deltaTime)` in `loop`. Phys
 
 ## Stop and dispose
 
-`this.stop()` requests orderly shutdown. The current frame completes before `onStop()` runs. The Game disposes its services and resources after `onStop()`. `run()` returns a Promise that resolves after cleanup, including when a hook fails. Inspect `game.error` after awaiting it. Stop and dispose are idempotent.
+`this.stop()` requests orderly shutdown. The current frame completes before `onStop()` runs. The Game disposes its services and resources after `onStop()`. `run()` returns a Promise that resolves after cleanup, including when a hook fails; lifecycle errors are recorded in `game.error`, and the Promise does not reject for those hook failures. Inspect `game.error` after awaiting it. Stop and dispose are idempotent.
 
 ## Another standalone loop
 
@@ -57,4 +57,4 @@ game.run();
 
 ## Embedded hosts
 
-For a native app that already owns the platform surface, create `new Game({ window: { mode: 'embedded' } })`, attach the host handle using `game.window.attachNativeSurface(handle, width, height)`, and drive each frame with `game.runFrame(deltaTime, callbacks)`. The host remains responsible for scheduling frames and closing the surface.
+For an embedded native host that already owns the platform surface and scheduler, create `new Game({ window: { mode: 'embedded' } })`, attach the host handle using `game.window.attachNativeSurface(handle, width, height)`, and drive each frame with `game.runFrame(deltaTime, callbacks)`. This is an embedding API; a standalone game should use subclass hooks and `game.run()`. The host remains responsible for scheduling frames and closing the surface.

@@ -51,6 +51,12 @@ export const apiCoverage = [
     sections: ['Game-owned cache', 'Texture cache operations', 'Ownership and shutdown'],
   },
   {
+    slug: 'storage',
+    file: 'api/storage.md',
+    href: '/docs/api/storage/',
+    sections: ['Define a schema and migration', 'Read and write typed rows', 'Transactions', 'Result statuses', 'Export and restore', 'Persistence by platform'],
+  },
+  {
     slug: 'sprites',
     file: 'api/sprites.md',
     href: '/docs/api/sprites/',
@@ -102,7 +108,7 @@ export const apiCoverage = [
     slug: 'physics2d',
     file: 'api/physics2d.md',
     href: '/docs/api/physics2d/',
-    sections: ['Fixed-step world', 'Bodies and scene components', 'Collision events and queries', 'Solver limits'],
+    sections: ['Fixed-step world', 'Bodies and supported shapes', 'One-way surfaces', 'Character movement', 'Continuous collision detection', 'Collision events and queries'],
   },
   {
     slug: 'tilemap',

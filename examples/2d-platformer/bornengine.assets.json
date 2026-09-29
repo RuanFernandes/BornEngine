@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "dynamic_paths": [
+    "assets/atlas.png",
+    "assets/pickup.wav"
+  ]
+}

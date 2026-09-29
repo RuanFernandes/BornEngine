@@ -43,7 +43,9 @@ class Undertale extends Game {
 new Undertale().run();
 ```
 
-Resources such as `Texture` still receive the owning Game explicitly. Inside a subclass, pass `this`; this keeps native ownership visible and prevents a resource from silently attaching to another runtime. The subclass lifecycle disposes the Game after `onStop`. If a lifecycle hook fails, the loop shuts down, runs `onStop`, and releases owned resources. Inspect `game.error` after the completion Promise resolves.
+Resources such as `Texture` still receive the owning Game explicitly. Inside a subclass, pass `this`; this keeps native ownership visible and prevents a resource from silently attaching to another runtime. The subclass lifecycle disposes the Game after `onStop`. `run()` returns a Promise that resolves after shutdown and cleanup; lifecycle failures are recorded in `game.error` and do not reject that Promise. If a lifecycle hook fails, the loop shuts down, runs `onStop`, and releases owned resources. Inspect `game.error` after awaiting completion.
+
+`runFrame(deltaTime, callbacks)` is for embedded hosts that own the native surface and frame scheduler. Standalone games should override the `Game` hooks and call `run()` with no callback object.
 
 ## Frame lifecycle
 

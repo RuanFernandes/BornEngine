@@ -11,6 +11,8 @@ Mobile outputs are build-only from the BornEngine CLI. Use `bornengine build` wi
 
 Install [Android Studio](https://developer.android.com/studio/install), the Android SDK, and the NDK version requested by the Perry target. Verify `adb --version`, install Perry's Android target, then inspect `perry compile --help` for the exact target name.
 
+`GameDatabase` stores persistent SQLite files in the app-private files directory supplied by the Android host. Keep user saves there and use `export()` when the game needs a user-controlled backup or transfer. Browser storage guidance does not apply to native Android builds. This target has not been device-verified as part of the current documentation work; validate the final app container and backup behavior with the Android SDK/device workflow.
+
 ### Colyseus networking
 
 The final Android app manifest must include `android.permission.INTERNET` so the game can open sockets. This is a normal install-time permission and does not show a runtime prompt. `ACCESS_NETWORK_STATE` is only needed if the game also reads connectivity status; Colyseus itself does not require it. See Android's [network connection requirements](https://developer.android.com/develop/connectivity/network-ops/connecting).
@@ -26,3 +28,5 @@ iOS has real multitouch and also synthesizes touch 0 as mouse button 0. Multi-to
 The `@bornengine/engine/mobile` module provides virtual joysticks and buttons. See [mobile input](../../api/mobile/) for the API and [Apple targets](../apple/) for packaging details.
 
 The [2D game recipe](../../guides/2d-game/) gives you a small render/input loop to adapt to a mobile target; combine it with the [audio and UI recipe](../../guides/audio-and-ui/) for touch-friendly HUD feedback.
+
+For native database locations and credential storage guidance, see [Database and migrations](../../api/storage/). SQLite save files are not encrypted; use Android Keystore or Apple Keychain for secrets.

@@ -1,6 +1,6 @@
 ---
-title: Migrate to BornEngine 0.6
-description: Replace the flat 0.5 function-and-handle API with Game-owned classes and services.
+title: Migrate to the class-first API
+description: Replace the flat function-and-handle API with Game-owned classes, services, and current persistence APIs.
 section: Reference
 order: 81
 ---
@@ -55,3 +55,18 @@ The existing full-window coordinate behavior stays in place when `viewport2D` is
 5. Add explicit disposal and startup/load error checks.
 
 See the [quickstart](../../getting-started/quickstart/) and the subsystem references for complete class-first examples.
+
+## Current lifecycle and data APIs
+
+The class-first API has no overload for the old callback runner or JSON storage helper. Update those calls while moving to the current runtime:
+
+The old `GameStorage` API is removed. `GameDatabase` is the current typed persistence API.
+The callback overload `Game.run(callbacks)` is removed; standalone games use subclass lifecycle hooks and `Game.run()` without arguments.
+
+| Removed API | Current API |
+| --- | --- |
+| `game.run({ update, render, onStop })` / `Game.run(callbacks)` | Subclass `Game`, override `loop()`, `render()`, and `onStop()`, then call `game.run()` with no arguments. `runFrame()` is reserved for an embedded host that owns the surface and scheduler. |
+| `GameStorage`, `createGameStorage()`, `GameStorageBackend` | `GameDatabase` with `defineSchema()`, explicit `defineMigration()` entries, and typed CRUD/transaction methods. |
+| JSON records in `localStorage` | SQLite rows. Persistent mode is the default on supported targets; use `inMemory: true` only when volatile storage is intended. |
+
+`Game.run()` resolves after `onStop()` and owned-resource cleanup. Lifecycle failures are reported in `game.error`; inspect it after awaiting the Promise. See [Core](../../api/core/) for lifecycle details and [Database and migrations](../../api/storage/) for schema, migration, and cross-platform persistence examples.

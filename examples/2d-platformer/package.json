@@ -13,6 +13,7 @@
         "@bornengine/engine/audio",
         "@bornengine/engine/input",
         "@bornengine/engine/physics2d",
+        "@bornengine/engine/storage",
         "@bornengine/engine/tilemap"
       ]
     }

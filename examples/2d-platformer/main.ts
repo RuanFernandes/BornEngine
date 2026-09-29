@@ -20,6 +20,13 @@ import type { Color } from '@bornengine/engine';
 import { SoundManager } from '@bornengine/engine/audio';
 import type { InputActionMap } from '@bornengine/engine/input';
 import { CharacterBody2D, PhysicsWorld2D } from '@bornengine/engine/physics2d';
+import {
+  columns,
+  defineMigration,
+  defineSchema,
+  defineTable,
+  GameDatabase,
+} from '@bornengine/engine/storage';
 import { Tilemap } from '@bornengine/engine/tilemap';
 import type { TilemapSolidTile } from '@bornengine/engine/tilemap';
 import type { SpriteFrame } from '@bornengine/engine/sprites';
@@ -35,6 +42,33 @@ const GRAVITY = 900;
 const JUMP_SPEED = 430;
 const GRAVITY_VECTOR = new Vector2D(0, GRAVITY);
 const PLAYER_START = new Vector2D(350, 650);
+const SAVE_SLOT = 'slot-1';
+
+const SAVE_SCHEMA = defineSchema({
+  progress: defineTable({
+    columns: {
+      slot: columns.text({ primaryKey: true }),
+      level: columns.text({ notNull: true }),
+      playerX: columns.real({ notNull: true }),
+      playerY: columns.real({ notNull: true }),
+      playSeconds: columns.real({ notNull: true, default: 0 }),
+    },
+  }),
+});
+
+const SAVE_MIGRATIONS = [
+  defineMigration(1, SAVE_SCHEMA, (migration) => {
+    migration.createTable('progress', {
+      slot: SAVE_SCHEMA.progress.columns.slot,
+      level: SAVE_SCHEMA.progress.columns.level,
+      playerX: SAVE_SCHEMA.progress.columns.playerX,
+      playerY: SAVE_SCHEMA.progress.columns.playerY,
+    });
+  }),
+  defineMigration(2, SAVE_SCHEMA, (migration) => {
+    migration.addColumn('progress', 'playSeconds', SAVE_SCHEMA.progress.columns.playSeconds);
+  }),
+];
 
 class PlatformSurface extends GameComponent {
   readonly width: number;
@@ -86,6 +120,7 @@ class PlatformerScene extends Scene {
     idle: SpriteFrame,
     runFrames: SpriteFrame[],
     sparkFrames: SpriteFrame[],
+    savedPosition: Vector2D,
   ) {
     super(game, { name: 'Cavern run' });
     this.viewport2D = new Viewport2D({ width: 800, height: 480, mode: 'fit' });
@@ -157,7 +192,7 @@ class PlatformerScene extends Scene {
 
     this.player = new GameObject({
       name: 'Explorer',
-      position: { x: PLAYER_START.x, y: PLAYER_START.y, z: 0 },
+      position: { x: savedPosition.x, y: savedPosition.y, z: 0 },
     });
     const sprite = new SpriteRenderer(idle, { size: PLAYER_SIZE });
     const idleClip = new SpriteAnimation({ frames: [{ sprite: idle }], fps: 2, loop: 'loop' });
@@ -262,13 +297,22 @@ class PlatformerScene extends Scene {
 class PlatformerGame extends Game {
   private controls: InputActionMap | null = null;
   private level: PlatformerScene | null = null;
+  private lastSavedPosition: Vector2D;
+  private elapsedSeconds = 0;
 
-  constructor() {
+  constructor(savedPosition: Vector2D) {
     super({
       window: { title: 'BornEngine · 2D platformer', width: 960, height: 576 },
       targetFps: 60,
     });
+    this.lastSavedPosition = new Vector2D(savedPosition.x, savedPosition.y);
   }
+
+  get savePosition(): Vector2D {
+    return new Vector2D(this.lastSavedPosition.x, this.lastSavedPosition.y);
+  }
+
+  get playTimeSeconds(): number { return this.elapsedSeconds; }
 
   protected override onStart(): void {
     const texture = this.assets.loadTexture('assets/atlas.png');
@@ -311,7 +355,8 @@ class PlatformerGame extends Game {
       return;
     }
 
-    this.level = new PlatformerScene(this, physics, sheet, idle, [runA, runB, runC, runA], [sparkA, sparkB]);
+    this.level = new PlatformerScene(this, physics, sheet, idle, [runA, runB, runC, runA],
+      [sparkA, sparkB], this.lastSavedPosition);
     if (this.level.error !== null) {
       console.error(this.level.error);
       this.level.unload();
@@ -328,6 +373,7 @@ class PlatformerGame extends Game {
   }
 
   protected override loop(deltaTime: number): void {
+    this.elapsedSeconds += deltaTime;
     const controls = this.controls;
     const level = this.level;
     if (controls !== null && level !== null && level.character !== null &&
@@ -343,6 +389,8 @@ class PlatformerGame extends Game {
         level.sounds.playSound('step');
       }
       level.character.moveAndSlide(velocity, deltaTime);
+      const position = level.character.position;
+      this.lastSavedPosition = new Vector2D(position.x, position.y);
       level.animator.setBool('moving', moveX !== 0);
       if (moveX !== 0) {
         const sprite = level.player.getComponent(SpriteRenderer);
@@ -360,4 +408,90 @@ class PlatformerGame extends Game {
   }
 }
 
-new PlatformerGame().run();
+async function saveProgress(
+  database: GameDatabase<typeof SAVE_SCHEMA>, position: Vector2D, playSeconds: number,
+): Promise<boolean> {
+  const result = await database.transaction(async (transaction) => {
+    const removed = await transaction.delete('progress', { slot: { eq: SAVE_SLOT } });
+    if (!removed.ok) return removed;
+    return transaction.insert('progress', {
+      slot: SAVE_SLOT,
+      level: 'cavern',
+      playerX: position.x,
+      playerY: position.y,
+      playSeconds,
+    });
+  });
+  if (!result.ok) {
+    console.error('Could not save progress:', result.status);
+    return false;
+  }
+  return true;
+}
+
+async function verifyBackupRestore(bytes: Uint8Array): Promise<void> {
+  const restore = new GameDatabase({
+    appId: 'org.bornengine.platformer',
+    name: 'restore-check',
+    schema: SAVE_SCHEMA,
+    migrations: SAVE_MIGRATIONS,
+    inMemory: true,
+  });
+  const opened = await restore.open();
+  if (!opened.ok) {
+    console.error('Could not prepare the temporary restore database:', opened.status);
+    return;
+  }
+  const imported = await restore.import(bytes);
+  if (!imported.ok) {
+    console.error('Could not restore the SQLite snapshot:', imported.status);
+  } else {
+    const restored = await restore.findByPrimaryKey('progress', SAVE_SLOT);
+    if (!restored.ok) console.error('Could not read the restored save:', restored.status);
+    else if (restored.value !== null) console.log('Restored level:', restored.value.level);
+  }
+  const closed = await restore.close();
+  if (!closed.ok) console.warn('Could not close the temporary restore database:', closed.status);
+}
+
+async function runPlatformer(): Promise<void> {
+  const database = new GameDatabase({
+    appId: 'org.bornengine.platformer',
+    name: 'save',
+    schema: SAVE_SCHEMA,
+    migrations: SAVE_MIGRATIONS,
+  });
+  const opened = await database.open();
+  if (!opened.ok) {
+    console.error('Could not open the save database:', opened.status);
+    return;
+  }
+
+  let spawn = new Vector2D(PLAYER_START.x, PLAYER_START.y);
+  const loaded = await database.findByPrimaryKey('progress', SAVE_SLOT);
+  if (loaded.ok && loaded.value !== null) {
+    spawn = new Vector2D(loaded.value.playerX, loaded.value.playerY);
+  } else if (!loaded.ok) {
+    console.warn('Could not load saved progress:', loaded.status);
+  }
+
+  const game = new PlatformerGame(spawn);
+  await game.run();
+  if (game.error !== null) console.error('The game stopped after a lifecycle error:', game.error);
+
+  const saved = await saveProgress(database, game.savePosition, game.playTimeSeconds);
+  if (saved) {
+    const exported = await database.export();
+    if (!exported.ok) {
+      console.error('Could not export the save snapshot:', exported.status);
+    } else {
+      console.log('SQLite backup bytes ready for a platform or cloud backup:', exported.value.length);
+      await verifyBackupRestore(exported.value);
+    }
+  }
+
+  const closed = await database.close();
+  if (!closed.ok) console.error('Could not close the save database:', closed.status);
+}
+
+runPlatformer();

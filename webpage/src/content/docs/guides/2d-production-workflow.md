@@ -107,23 +107,72 @@ Use `screenToWorld()` for gameplay interaction such as clicking a tile or placin
 
 Create a `PhysicsWorld2D` for the scene and step it once in a documented update order. `CharacterBody2D` supports kinematic movement with collision-aware `moveAndSlide()`. A `Tilemap` can report solid tile rectangles, but those rectangles do not automatically become physics bodies. Convert selected solids into static bodies when the game needs collision.
 
-The current physics shapes are axis-aligned boxes and circles. Tile collision rectangles are map-local; apply the tilemap's world translation before creating bodies. A scaled or rotated map needs collision bounds transformed deliberately, and axis-aligned physics boxes cannot represent arbitrary rotated tiles. See the [2D physics and tilemaps guide](../physics2d-tilemap/) for a complete collision setup.
+Dynamic physics bodies use axis-aligned boxes and circles. Static geometry can also use segments and convex polygons for ramps and irregular surfaces. Tile collision rectangles are map-local; apply the tilemap's world translation before creating bodies. A scaled or rotated map needs collision bounds transformed deliberately, and axis-aligned physics boxes cannot represent arbitrary rotated tiles. See the [2D physics API](../../api/physics2d/) for one-way contacts, opt-in CCD, and solver limits, or the [2D physics and tilemaps guide](../physics2d-tilemap/) for collision setup.
 
 ## 6. Rebind, preload, and save
 
-Use `InputActionMap` to bind keys, mouse/gamepad inputs, and axes to named gameplay actions. `toData()` returns a detached, versioned record; `loadData()` validates the complete record before replacing bindings. Persist that data next to the user's settings and restore it at startup. `createGameStorage()` selects the platform adapter; the current Web adapter uses localStorage, while targets without an adapter return an unsupported status. Check each operation's `ok` result and `status` before using a saved value.
+Use `InputActionMap` to bind keys, mouse/gamepad inputs, and axes to named gameplay actions. `toData()` returns a detached, versioned record; `loadData()` validates the complete record before replacing bindings. Persist settings and game progress in a typed `GameDatabase`. Define a schema and an initial migration, open the database before `game.run()`, load the row needed for the first frame, and save a snapshot after the run Promise resolves.
 
 ~~~ts
-import { createGameStorage } from '@bornengine/engine';
-import type { InputActionMapData } from '@bornengine/engine/input';
+import {
+  columns,
+  defineMigration,
+  defineSchema,
+  defineTable,
+  GameDatabase,
+} from '@bornengine/engine/storage';
+import type { Game } from '@bornengine/engine';
+import type { InputActionMap, InputActionMapData } from '@bornengine/engine/input';
 
-const storage = createGameStorage('com.example.moonlit-pier', 'default');
-const saved = storage.read<InputActionMapData>('controls');
-if (saved.ok && saved.value !== null) controls.loadData(saved.value);
+const schema = defineSchema({
+  settings: defineTable({ columns: {
+    key: columns.text({ primaryKey: true }),
+    value: columns.text({ notNull: true }),
+  } }),
+});
+const migrations = [defineMigration(1, schema, (migration) => {
+  migration.createTable('settings', schema.settings.columns);
+})];
 
-const write = storage.write('controls', controls.toData());
-if (!write.ok) console.warn('Settings were not saved: ' + write.status);
+async function runWithControls(game: Game, controls: InputActionMap): Promise<void> {
+  const database = new GameDatabase({
+    appId: 'com.example.moonlit-pier', name: 'profile', schema, migrations,
+  });
+  const opened = await database.open();
+  if (!opened.ok) {
+    console.error('Could not open the profile database:', opened.status);
+    await game.run();
+    if (game.error !== null) console.error('The game stopped with an error:', game.error);
+    return;
+  }
+
+  const saved = await database.findByPrimaryKey('settings', 'controls');
+  if (saved.ok && saved.value !== null) {
+    let parsed: InputActionMapData | null = null;
+    try { parsed = JSON.parse(saved.value.value) as InputActionMapData; }
+    catch (_error) { console.warn('Saved bindings are malformed.'); }
+    if (parsed !== null && !controls.loadData(parsed)) console.warn('Saved bindings are invalid.');
+  } else if (!saved.ok && saved.status !== 'not_found') {
+    console.warn('Could not load bindings:', saved.status);
+  }
+
+  await game.run();
+  if (game.error !== null) console.error('The game stopped with an error:', game.error);
+
+  const encoded = JSON.stringify(controls.toData());
+  const write = await database.transaction(async (tx) => {
+    const removed = await tx.delete('settings', { key: { eq: 'controls' } });
+    if (!removed.ok) return removed;
+    return tx.insert('settings', { key: 'controls', value: encoded });
+  });
+  if (!write.ok) console.warn('Settings were not saved:', write.status);
+
+  const closed = await database.close();
+  if (!closed.ok) console.warn('Could not close the profile database:', closed.status);
+}
 ~~~
+
+All database methods return typed status results; never assume that a write survived browser quota or host I/O errors. Persistent mode uses native app-data directories or SQLite/WASM in a browser worker. Browser data can still be evicted and should be backed up with `export()` when users need portability. See [Database and migrations](../../api/storage/) for status meanings, transaction rollback, backup/import, and platform behavior.
 
 Use `AssetManager.createGroup()` to batch texture, sound, and music loads. A group's `load()` resolves when every entry settles, while `state`, `progress`, and `entries` expose per-asset results. Groups keep references to resources; the owning `AssetManager` and `AudioSystem` control resource lifetime. Put a group under `Scene.own()` when its metadata should be released with that scene.
 

@@ -77,6 +77,28 @@
     "related": ["/docs/cli/build/", "/docs/cli/diagnostics/"]
   },
   {
+    "id": "assets/validate",
+    "group": "assets",
+    "title": "Validate project assets",
+    "summary": "Audit asset references, signatures, and configured file or image budgets.",
+    "synopsis": "bornengine assets validate [project-root] [--json] [--orphan-policy <ignore|warn|error>] [limits]",
+    "examples": ["bornengine assets validate", "bornengine assets validate . --json"],
+    "options": ["[project-root] selects a project directory", "--json emits one stable JSON report", "--orphan-policy <ignore|warn|error>", "--max-file-bytes <n>", "--max-total-bytes <n>", "--max-image-dimension <n>", "--max-total-image-pixels <n>", "-v, --verbose (repeatable)"],
+    "behavior": "Uses bornengine.assets.json defaults unless an explicit CLI option overrides that value. Warnings exit 0; any error or hard validation failure exits 1.",
+    "related": ["/docs/cli/assets/", "/docs/cli/build/"]
+  },
+  {
+    "id": "assets/pack",
+    "group": "assets",
+    "title": "Pack project assets",
+    "summary": "Copy the audited inventory and write a deterministic SHA-256 manifest.",
+    "synopsis": "bornengine assets pack [project-root] --output <directory>",
+    "examples": ["bornengine assets pack --output dist/game"],
+    "options": ["[project-root] selects a project directory", "--output <directory> is required", "-v, --verbose (repeatable)"],
+    "behavior": "Copies exact bytes under project-relative paths and writes a sorted bornengine-assets-v1 manifest. Build and run stop before packing on hard validation failures or configured error diagnostics.",
+    "related": ["/docs/cli/assets/", "/docs/cli/build/"]
+  },
+  {
     "id": "clean",
     "group": "diagnostics",
     "title": "Clean generated artifacts",
