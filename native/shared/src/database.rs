@@ -851,17 +851,91 @@ fn physical_table_sql(connection: &Connection, table: &str) -> Result<String, Da
 fn physical_index_fingerprints(
     connection: &Connection,
     table: &str,
-) -> Result<Vec<(Option<String>, bool, Vec<String>)>, DatabaseStatus> {
-    let mut indexes = read_physical_indexes(connection, table)?
-        .into_iter()
-        .map(|index| {
-            let public_name =
-                (!index.name.starts_with("__bornengine_unique_")).then_some(index.name);
-            (public_name, index.unique, index.columns)
-        })
-        .collect::<Vec<_>>();
+) -> Result<Vec<PhysicalIndexFingerprint>, DatabaseStatus> {
+    let mut statement = connection
+        .prepare(&format!("PRAGMA index_list({})", quote_identifier(table)))
+        .map_err(|_| DatabaseStatus::CorruptData)?;
+    let mut rows = statement
+        .query([])
+        .map_err(|_| DatabaseStatus::CorruptData)?;
+    let mut indexes = Vec::new();
+    while let Some(row) = rows.next().map_err(|_| DatabaseStatus::CorruptData)? {
+        let name: String = row.get(1).map_err(|_| DatabaseStatus::CorruptData)?;
+        let unique: i64 = row.get(2).map_err(|_| DatabaseStatus::CorruptData)?;
+        let origin: String = row.get(3).map_err(|_| DatabaseStatus::CorruptData)?;
+        let partial: i64 = row.get(4).map_err(|_| DatabaseStatus::CorruptData)?;
+        if origin == "pk" {
+            continue;
+        }
+
+        let mut term_statement = connection
+            .prepare(&format!("PRAGMA index_xinfo({})", quote_identifier(&name)))
+            .map_err(|_| DatabaseStatus::CorruptData)?;
+        let mut term_rows = term_statement
+            .query([])
+            .map_err(|_| DatabaseStatus::CorruptData)?;
+        let mut terms = Vec::new();
+        while let Some(term_row) = term_rows.next().map_err(|_| DatabaseStatus::CorruptData)? {
+            let cid: i64 = term_row.get(1).map_err(|_| DatabaseStatus::CorruptData)?;
+            let column: Option<String> =
+                term_row.get(2).map_err(|_| DatabaseStatus::CorruptData)?;
+            let descending: i64 = term_row.get(3).map_err(|_| DatabaseStatus::CorruptData)?;
+            let collation: Option<String> =
+                term_row.get(4).map_err(|_| DatabaseStatus::CorruptData)?;
+            let is_key_term: i64 = term_row.get(5).map_err(|_| DatabaseStatus::CorruptData)?;
+            if is_key_term == 0 {
+                continue;
+            }
+            // Expression and rowid terms cannot be produced by the migration API.
+            // Reject them instead of comparing an incomplete signature.
+            if cid < 0 {
+                return Err(DatabaseStatus::CorruptData);
+            }
+            let Some(column) = column else {
+                return Err(DatabaseStatus::CorruptData);
+            };
+            let Some(collation) = collation else {
+                return Err(DatabaseStatus::CorruptData);
+            };
+            terms.push(PhysicalIndexTerm {
+                column,
+                descending: descending != 0,
+                collation,
+            });
+        }
+        if terms.is_empty() {
+            return Err(DatabaseStatus::CorruptData);
+        }
+
+        let public_name = if origin == "u" || name.starts_with("__bornengine_unique_") {
+            None
+        } else {
+            Some(name)
+        };
+        indexes.push(PhysicalIndexFingerprint {
+            name: public_name,
+            unique: unique != 0,
+            partial: partial != 0,
+            terms,
+        });
+    }
     indexes.sort();
     Ok(indexes)
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct PhysicalIndexFingerprint {
+    name: Option<String>,
+    unique: bool,
+    partial: bool,
+    terms: Vec<PhysicalIndexTerm>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct PhysicalIndexTerm {
+    column: String,
+    descending: bool,
+    collation: String,
 }
 
 fn database_schema_matches(

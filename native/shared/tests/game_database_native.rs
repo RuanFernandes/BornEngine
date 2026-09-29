@@ -1329,6 +1329,129 @@ fn import_accepts_schema_with_matching_migration_created_unique_index() {
 }
 
 #[test]
+fn import_rejects_partial_replacement_of_migration_created_unique_index() {
+    let root = TempDir::new();
+    let mut store = DatabaseStore::new();
+    let target = open_and_migrate(&mut store, root.path(), "partial-index-target");
+    let source = open_and_migrate(&mut store, root.path(), "partial-index-source");
+    let add_unique_index = || {
+        migration_step(
+            "createIndex",
+            "saves",
+            "idx_saves_score_unique",
+            object([(
+                "descriptor",
+                object([
+                    ("name", string("idx_saves_score_unique")),
+                    ("columns", DatabaseValue::Array(vec![string("score")])),
+                    ("unique", DatabaseValue::Boolean(true)),
+                ]),
+            )]),
+        )
+    };
+    for handle in [target, source] {
+        assert_eq!(
+            execute(
+                &mut store,
+                MIGRATE,
+                handle,
+                vec![number(2.0), DatabaseValue::Array(vec![add_unique_index()])],
+                Some(root.path()),
+            )
+            .0,
+            DatabaseStatus::Ok
+        );
+    }
+    assert_eq!(
+        execute(
+            &mut store,
+            INSERT,
+            target,
+            vec![
+                string("saves"),
+                object([
+                    ("slot", string("keep-live")),
+                    ("score", number(73.0)),
+                    ("payload", DatabaseValue::Bytes(vec![7, 3])),
+                ]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+    assert_eq!(
+        execute(
+            &mut store,
+            INSERT,
+            source,
+            vec![
+                string("saves"),
+                object([
+                    ("slot", string("incoming")),
+                    ("score", number(31.0)),
+                    ("payload", DatabaseValue::Bytes(vec![3, 1])),
+                ]),
+            ],
+            Some(root.path()),
+        )
+        .0,
+        DatabaseStatus::Ok
+    );
+
+    let (status, values, _) = execute(&mut store, EXPORT, source, vec![], Some(root.path()));
+    assert_eq!(status, DatabaseStatus::Ok);
+    let exported = match values.into_iter().next().unwrap() {
+        DatabaseValue::Bytes(bytes) => bytes,
+        _ => panic!("export result was not a blob"),
+    };
+    let mut imported_connection = rusqlite::Connection::open_in_memory().unwrap();
+    imported_connection
+        .deserialize_read_exact(rusqlite::MAIN_DB, &exported[..], exported.len(), false)
+        .unwrap();
+    imported_connection
+        .execute_batch(
+            "DROP INDEX idx_saves_score_unique; \
+             CREATE UNIQUE INDEX idx_saves_score_unique \
+             ON saves (score) WHERE score > 0;",
+        )
+        .unwrap();
+    let version: i64 = imported_connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 2);
+    let incompatible_image = imported_connection
+        .serialize(rusqlite::MAIN_DB)
+        .unwrap()
+        .to_vec();
+
+    let (status, _, _) = execute(
+        &mut store,
+        IMPORT,
+        target,
+        vec![DatabaseValue::Bytes(incompatible_image)],
+        Some(root.path()),
+    );
+    assert_eq!(status, DatabaseStatus::CorruptData);
+    let (status, values, rows) = execute(
+        &mut store,
+        SELECT,
+        target,
+        vec![
+            string("saves"),
+            empty_object(),
+            DatabaseValue::Array(vec![string("slot"), string("score")]),
+        ],
+        Some(root.path()),
+    );
+    assert_eq!(status, DatabaseStatus::Ok);
+    assert_eq!(rows, 1);
+    assert!(
+        matches!(values.as_slice(), [DatabaseValue::String(slot), DatabaseValue::Number(73.0)] if slot == "keep-live")
+    );
+}
+
+#[test]
 fn rebuilding_multiple_unique_tables_uses_distinct_internal_index_names() {
     let root = TempDir::new();
     let mut store = DatabaseStore::new();
