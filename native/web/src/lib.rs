@@ -1845,6 +1845,39 @@ pub fn bloom_print_profiler_summary() {
     // console_log binding so the summary lands in devtools.
     console_log(&engine().profiler.summary());
 }
+
+// The browser's FFI import table overrides these parity exports with the
+// ticketed worker bridge. Direct calls report an unavailable backend.
+#[wasm_bindgen]
+pub fn bloom_database_scratch_reset() {}
+#[wasm_bindgen]
+pub fn bloom_database_scratch_push_f64(_value: f64) {}
+#[wasm_bindgen]
+pub fn bloom_database_scratch_push_string(_value: String) {}
+#[wasm_bindgen]
+pub fn bloom_database_scratch_push_byte(_value: f64) {}
+#[wasm_bindgen]
+pub fn bloom_database_submit(_op: f64, _handle: f64, _argc: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_poll(_ticket: f64) -> f64 { -1.0 }
+#[wasm_bindgen]
+pub fn bloom_database_status(_ticket: f64) -> f64 { 10.0 }
+#[wasm_bindgen]
+pub fn bloom_database_result_rows(_ticket: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_result_count(_ticket: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_result_kind(_ticket: f64, _index: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_result_number(_ticket: f64, _index: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_result_string(_ticket: f64, _index: f64) -> String { String::new() }
+#[wasm_bindgen]
+pub fn bloom_database_result_byte_count(_ticket: f64, _index: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_result_byte(_ticket: f64, _index: f64, _offset: f64) -> f64 { 0.0 }
+#[wasm_bindgen]
+pub fn bloom_database_release(_ticket: f64) {}
 // ============================================================
 
 // Physics (Jolt via JoltPhysics.js) — the whole bloom_physics_* surface

@@ -31,6 +31,7 @@
  */
 
 import init, * as bloom from './pkg/bloom_web.js';
+import { createDatabaseBridge } from './database_bridge.js';
 
 let bloomModule = null;
 let booted = false;
@@ -375,6 +376,16 @@ function buildFfiImports(colyseusBridge) {
   };
 
   Object.assign(imports, colyseusBridge);
+
+  // Database operations use a dedicated worker. The Perry thread sees only
+  // tickets and polls terminal results through the bounded scratch protocol.
+  const databaseBridge = createDatabaseBridge({
+    createWorker: () => new Worker(new URL('./sqlite_database_worker.js', import.meta.url), { type: 'module' }),
+  });
+  for (const [name, fn] of Object.entries(databaseBridge)) {
+    if (name.startsWith('bloom_database_')) imports[name] = fn;
+  }
+  globalThis.addEventListener('pagehide', databaseBridge.handlePageHide);
 
   // Safety net for a game that still spins `while (!windowShouldClose())`:
   // report "should close" once the rAF loop owns frame pacing, so the stray
