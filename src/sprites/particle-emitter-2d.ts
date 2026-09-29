@@ -1,5 +1,5 @@
 import type { GameContext } from '../core/context';
-import type { Color, Vec2 } from '../core/types';
+import type { Color, Vector2DLike } from '../core/types';
 import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
 import * as spriteOperations from './internal';
@@ -19,9 +19,9 @@ export type ParticleEmitterShape =
 
 export interface ParticleBurstOptions {
   /** Spawn offset in the emitter's local coordinates. */
-  readonly position?: Vec2;
+  readonly position?: Vector2DLike;
   /** Emission direction in the emitter's local coordinates. */
-  readonly direction?: Vec2;
+  readonly direction?: Vector2DLike;
 }
 
 export interface ParticleEmitter2DOptions {
@@ -37,7 +37,7 @@ export interface ParticleEmitter2DOptions {
   /** Width in world units; frame aspect ratio determines height. */
   readonly startSize?: ParticleRange;
   readonly endSize?: ParticleRange;
-  readonly acceleration?: Vec2;
+  readonly acceleration?: Vector2DLike;
   /** Velocity damping coefficient per second. */
   readonly drag?: number;
   readonly startColor?: Color;
@@ -45,7 +45,7 @@ export interface ParticleEmitter2DOptions {
   /** Spin in degrees per second. */
   readonly spin?: ParticleRange;
   /** Local-space direction used by continuous emission. Defaults to up. */
-  readonly direction?: Vec2;
+  readonly direction?: Vector2DLike;
   /** Local particles follow the emitter; world particles keep their spawn transform. */
   readonly space?: 'local' | 'world';
   /** Atlas frames per second for each particle. Zero picks one frame at spawn. */
@@ -73,7 +73,7 @@ function validOrderedRange(value: ParticleRange): boolean {
     value.max >= value.min;
 }
 
-function validVector(value: Vec2): boolean {
+function validVector(value: Vector2DLike): boolean {
   return value !== null && value !== undefined && isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
 
@@ -87,7 +87,7 @@ function copyColor(value: Color): Color {
   return { r: value.r, g: value.g, b: value.b, a: value.a };
 }
 
-function validTransform(position: Vec2, scale: Vec2, rotation: number): boolean {
+function validTransform(position: Vector2DLike, scale: Vector2DLike, rotation: number): boolean {
   return validVector(position) && validVector(scale) && isFiniteNumber(rotation);
 }
 
@@ -106,7 +106,7 @@ export class ParticleEmitter2D extends GameComponent {
   private frameValues: SpriteFrame[] = [];
   private handleValue = 0;
   private disposed = false;
-  private initialDirection: Vec2 = { x: 0, y: -1 };
+  private initialDirection: Vector2DLike = { x: 0, y: -1 };
 
   constructor(options: ParticleEmitter2DOptions) {
     super();

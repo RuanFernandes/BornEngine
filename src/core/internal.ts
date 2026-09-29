@@ -1,6 +1,6 @@
 import { Color, Camera2D, Camera3D } from './types';
 
-export type { Color, Vec2, Vec3, Vec4, Rect, Camera2D, Camera3D, Texture, Font, Sound, Music, Quat, Ray, BoundingBox, Model, Mat4, RayHit, FrustumPlanes } from './types';
+export type { Color, Vector2DLike, Vec3, Vec4, Rect, Camera2D, Camera3D, Texture, Font, Sound, Music, Quat, Ray, BoundingBox, Model, Mat4, RayHit, FrustumPlanes } from './types';
 // GH #53 — `Color` is deliberately NOT re-exported from './colors' any more.
 // `Color` is the RGBA TYPE (`./types`, re-exported above); './colors' exports a
 // palette MAP that also happened to be called `Color`, so the name arrived at

@@ -1,43 +1,52 @@
-import type { Camera2D, Rect, Vec2 } from '../core/types';
+import type { Camera2D, Rect, Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 import type { Viewport2D } from './viewport-2d';
 
 export interface CameraRig2DOptions {
   target?: GameObject | null;
-  targetOffset?: Vec2;
-  cameraTarget?: Vec2;
-  offset?: Vec2;
+  targetOffset?: Vector2DLike;
+  cameraTarget?: Vector2DLike;
+  offset?: Vector2DLike;
   rotation?: number;
   zoom?: number;
   smoothing?: number;
   deadZone?: Rect;
   bounds?: Rect;
-  viewSize?: Vec2;
+  viewSize?: Vector2DLike;
   minZoom?: number;
   maxZoom?: number;
 }
 
 export interface CameraShake2DOptions {
-  amplitude?: Vec2;
+  amplitude?: Vector2DLike;
   duration: number;
   seed?: number;
-  envelope?: readonly Vec2[];
+  envelope?: readonly Vector2DLike[];
+}
+
+/** Detached camera state snapshot with Vector2D values for runtime math. */
+export interface Camera2DSnapshot {
+  readonly offset: Readonly<Vector2D>;
+  readonly target: Readonly<Vector2D>;
+  readonly rotation: number;
+  readonly zoom: number;
 }
 
 interface ShakeState {
   elapsed: number;
   duration: number;
-  amplitude: Vec2;
+  amplitude: Vector2DLike;
   seed: number;
-  envelope: Vec2[] | null;
+  envelope: Vector2DLike[] | null;
 }
 
 function finite(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
-function point(value: Vec2 | undefined | null): value is Vec2 {
+function point(value: Vector2DLike | undefined | null): value is Vector2DLike {
   return value !== undefined && value !== null && finite(value.x) && finite(value.y);
 }
 
@@ -46,7 +55,7 @@ function rect(value: Rect | undefined): value is Rect {
     finite(value.width) && finite(value.height) && value.width >= 0 && value.height >= 0;
 }
 
-function copyPoint(value: Vec2): Vec2 { return { x: value.x, y: value.y }; }
+function copyPoint(value: Vector2DLike): Vector2D { return new Vector2D(value.x, value.y); }
 function copyRect(value: Rect): Rect {
   return { x: value.x, y: value.y, width: value.width, height: value.height };
 }
@@ -70,15 +79,15 @@ export class CameraRig2D extends GameComponent {
   readonly smoothing: number;
   readonly deadZone: Rect | null;
   readonly bounds: Rect | null;
-  readonly viewSize: Vec2 | null;
+  readonly viewSize: Vector2D | null;
   readonly minZoom: number;
   readonly maxZoom: number;
 
   private cameraValue: Camera2D;
-  private targetOffsetValue: Vec2;
+  private targetOffsetValue: Vector2DLike;
   private shakeState: ShakeState | null = null;
-  private shakeOffsetValue: Vec2 = { x: 0, y: 0 };
-  private baseTargetValue: Vec2;
+  private shakeOffsetValue: Vector2DLike = { x: 0, y: 0 };
+  private baseTargetValue: Vector2DLike;
 
   constructor(options: CameraRig2DOptions = {}) {
     super();
@@ -134,7 +143,7 @@ export class CameraRig2D extends GameComponent {
   }
 
   /** Camera record snapshot; mutating it never changes the rig. */
-  get camera(): Camera2D {
+  get camera(): Camera2DSnapshot {
     return {
       offset: copyPoint(this.cameraValue.offset),
       target: copyPoint(this.cameraValue.target),
@@ -143,7 +152,7 @@ export class CameraRig2D extends GameComponent {
     };
   }
 
-  get targetOffset(): Vec2 { return copyPoint(this.targetOffsetValue); }
+  get targetOffset(): Vector2D { return copyPoint(this.targetOffsetValue); }
 
   setTarget(target: GameObject | null): boolean {
     if (target === undefined || !validTarget(target)) return false;
@@ -157,7 +166,7 @@ export class CameraRig2D extends GameComponent {
     return true;
   }
 
-  setOffset(offset: Vec2): boolean {
+  setOffset(offset: Vector2DLike): boolean {
     if (this.error !== null || !point(offset)) return false;
     this.cameraValue.offset = copyPoint(offset);
     return true;
@@ -201,7 +210,7 @@ export class CameraRig2D extends GameComponent {
         !finite(options.duration) || options.duration <= 0) return false;
     const amplitude = options.amplitude === undefined ? { x: 1, y: 1 } : options.amplitude;
     if (!point(amplitude) || (options.seed !== undefined && !finite(options.seed))) return false;
-    let envelope: Vec2[] | null = null;
+    let envelope: Vector2DLike[] | null = null;
     if (options.envelope !== undefined) {
       if (options.envelope.length < 2) return false;
       envelope = [];
@@ -284,17 +293,17 @@ export class CameraRig2D extends GameComponent {
     this.baseTargetValue.y = minY > maxY ? (top + bottom) * 0.5 : clamp(this.baseTargetValue.y, minY, maxY);
   }
 
-  private getViewSize(): Vec2 {
+  private getViewSize(): Vector2D {
     if (this.viewSize !== null) return copyPoint(this.viewSize);
     const owner = this.gameObject;
     const scene = owner === null ? null : owner.scene as any;
     const viewport = scene === null ? null : scene.viewport2D as Viewport2D | null;
     if (viewport !== null && viewport !== undefined && viewport.isValid) {
-      return { x: viewport.logicalWidth, y: viewport.logicalHeight };
+      return new Vector2D(viewport.logicalWidth, viewport.logicalHeight);
     }
-    return {
-      x: Math.max(0, this.cameraValue.offset.x * 2),
-      y: Math.max(0, this.cameraValue.offset.y * 2),
-    };
+    return new Vector2D(
+      Math.max(0, this.cameraValue.offset.x * 2),
+      Math.max(0, this.cameraValue.offset.y * 2),
+    );
   }
 }

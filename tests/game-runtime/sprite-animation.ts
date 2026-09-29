@@ -1,7 +1,7 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
-import type { Color, Rect, Vec2 } from '../../src/core/types';
+import type { Color, Rect, Vector2DLike } from '../../src/core/types';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
 import { SpriteAnimator } from '../../src/sprites/sprite-animator';
@@ -21,7 +21,7 @@ function expect(value: boolean, label: string): void {
 interface DrawCall {
   source: Rect;
   destination: Rect;
-  origin: Vec2;
+  origin: Vector2DLike;
   rotation: number;
   tint: Color;
 }
@@ -41,7 +41,7 @@ const texture = {
   height: 16,
   isLoaded: true,
   dispose(): void {},
-  drawRegion(source: Rect, destination: Rect, origin: Vec2, rotation: number, tint: Color): boolean {
+  drawRegion(source: Rect, destination: Rect, origin: Vector2DLike, rotation: number, tint: Color): boolean {
     draws.push({ source, destination, origin, rotation, tint });
     return true;
   },

@@ -1,5 +1,6 @@
 import type { GameContext } from '../core/context';
-import type { Vec2 } from '../core/types';
+import type { Vector2DLike } from '../core/types';
+import { Vector2D } from '../math/vector2d';
 import { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 import type { PhysicsWorld2D } from './physics-world-2d';
@@ -14,8 +15,8 @@ export interface PhysicsBody2DOptions {
   type?: PhysicsBodyType2D;
   shape: PhysicsShape2D;
   /** Initial world position for standalone bodies; an attached GameObject transform takes precedence. */
-  position?: Vec2;
-  velocity?: Vec2;
+  position?: Vector2DLike;
+  velocity?: Vector2DLike;
   mass?: number;
   gravityScale?: number;
   friction?: number;
@@ -34,8 +35,8 @@ export interface PhysicsContact2D {
   readonly bodyA: PhysicsBody2D;
   readonly bodyB: PhysicsBody2D;
   /** Unit vector pointing from bodyA toward bodyB. */
-  readonly normal: Readonly<Vec2>;
-  readonly point: Readonly<Vec2>;
+  readonly normal: Readonly<Vector2D>;
+  readonly point: Readonly<Vector2D>;
   readonly penetration: number;
   readonly isTrigger: boolean;
 }
@@ -45,8 +46,8 @@ export interface PhysicsBodyContact2D {
   readonly phase: PhysicsContactPhase2D;
   readonly self: PhysicsBody2D;
   readonly other: PhysicsBody2D;
-  readonly normal: Readonly<Vec2>;
-  readonly point: Readonly<Vec2>;
+  readonly normal: Readonly<Vector2D>;
+  readonly point: Readonly<Vector2D>;
   readonly penetration: number;
   readonly isTrigger: boolean;
 }
@@ -55,11 +56,11 @@ function finite(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
-function copyVec(value: Vec2): Vec2 {
-  return { x: value.x, y: value.y };
+function copyVec(value: Vector2DLike): Vector2D {
+  return Vector2D.from(value);
 }
 
-function validVec(value: Vec2 | undefined): boolean {
+function validVec(value: Vector2DLike | undefined): value is Vector2DLike {
   return value !== undefined && value !== null && finite(value.x) && finite(value.y);
 }
 
@@ -77,8 +78,8 @@ export class PhysicsBody2D extends GameComponent {
   readonly shape: PhysicsShape2D;
   readonly error: string | null;
 
-  private positionValue: Vec2;
-  private velocityValue: Vec2;
+  private positionValue: Vector2DLike;
+  private velocityValue: Vector2DLike;
   private massValue: number;
   private gravityScaleValue: number;
   private frictionValue: number;
@@ -86,7 +87,7 @@ export class PhysicsBody2D extends GameComponent {
   private sensorValue: boolean;
   private layerValue: number;
   private maskValue: number;
-  private forceValue: Vec2 = { x: 0, y: 0 };
+  private forceValue: Vector2DLike = { x: 0, y: 0 };
   private disposed = false;
   private hasWrittenTransform = false;
   private lastWrittenX = 0;
@@ -126,8 +127,8 @@ export class PhysicsBody2D extends GameComponent {
   }
 
   get isDisposed(): boolean { return this.disposed; }
-  get position(): Vec2 { return copyVec(this.positionValue); }
-  get velocity(): Vec2 { return copyVec(this.velocityValue); }
+  get position(): Vector2D { return Vector2D.from(this.positionValue); }
+  get velocity(): Vector2D { return Vector2D.from(this.velocityValue); }
   get mass(): number { return this.massValue; }
   get gravityScale(): number { return this.gravityScaleValue; }
   get friction(): number { return this.frictionValue; }
@@ -136,7 +137,7 @@ export class PhysicsBody2D extends GameComponent {
   get layer(): number { return this.layerValue; }
   get mask(): number { return this.maskValue; }
 
-  setPosition(value: Vec2): boolean {
+  setPosition(value: Vector2DLike): boolean {
     if (this.disposed || !validVec(value)) return false;
     this.positionValue = copyVec(value);
     this.hasWrittenTransform = false;
@@ -145,7 +146,7 @@ export class PhysicsBody2D extends GameComponent {
     return true;
   }
 
-  setVelocity(value: Vec2): boolean {
+  setVelocity(value: Vector2DLike): boolean {
     if (this.disposed || !validVec(value)) return false;
     this.velocityValue = copyVec(value);
     return true;
@@ -188,14 +189,14 @@ export class PhysicsBody2D extends GameComponent {
     return true;
   }
 
-  applyForce(force: Vec2): boolean {
+  applyForce(force: Vector2DLike): boolean {
     if (this.disposed || this.type !== 'dynamic' || !validVec(force)) return false;
     this.forceValue.x += force.x;
     this.forceValue.y += force.y;
     return true;
   }
 
-  applyImpulse(impulse: Vec2): boolean {
+  applyImpulse(impulse: Vector2DLike): boolean {
     if (this.disposed || this.type !== 'dynamic' || !validVec(impulse)) return false;
     this.velocityValue.x += impulse.x / this.massValue;
     this.velocityValue.y += impulse.y / this.massValue;
@@ -221,7 +222,7 @@ export class PhysicsBody2D extends GameComponent {
   }
 
   /** @internal Integrates a dynamic body once. */
-  _integrate(dt: number, gravity: Vec2): void {
+  _integrate(dt: number, gravity: Vector2DLike): void {
     if (this.disposed || this.type !== 'dynamic') return;
     this.velocityValue.x += (gravity.x * this.gravityScaleValue + this.forceValue.x / this.massValue) * dt;
     this.velocityValue.y += (gravity.y * this.gravityScaleValue + this.forceValue.y / this.massValue) * dt;
@@ -236,8 +237,8 @@ export class PhysicsBody2D extends GameComponent {
   _moveBy(x: number, y: number): void { this.positionValue.x += x; this.positionValue.y += y; }
   _addVelocity(x: number, y: number): void { this.velocityValue.x += x; this.velocityValue.y += y; }
   _clearForce(): void { this.forceValue.x = 0; this.forceValue.y = 0; }
-  _setPositionInternal(value: Vec2): void { this.positionValue = copyVec(value); }
-  _setVelocityInternal(value: Vec2): void { this.velocityValue = copyVec(value); }
+  _setPositionInternal(value: Vector2DLike): void { this.positionValue = copyVec(value); }
+  _setVelocityInternal(value: Vector2DLike): void { this.velocityValue = copyVec(value); }
   _isUsable(): boolean { return !this.disposed && this.error === null && this.enabled; }
 
   /** @internal Writes dynamic simulation position back without changing Z. */

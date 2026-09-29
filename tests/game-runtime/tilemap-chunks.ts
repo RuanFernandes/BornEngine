@@ -1,6 +1,6 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
-import type { Color, Rect, Vec2 } from '../../src/core/types';
+import type { Color, Rect, Vector2DLike } from '../../src/core/types';
 import type { Renderer } from '../../src/core/renderer';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
@@ -22,7 +22,7 @@ interface DrawCall {
   rotation: number;
 }
 
-function transformPoint(point: Vec2, flip: TilemapCellFlip): Vec2 {
+function transformPoint(point: Vector2DLike, flip: TilemapCellFlip): Vector2DLike {
   let x = point.x;
   let y = point.y;
   if (flip.flipDiagonal === true) { const swap = x; x = y; y = swap; }
@@ -53,7 +53,7 @@ function sameMatrix(a: number[], b: number[]): boolean {
   return true;
 }
 
-function contains(rect: Rect, point: Vec2): boolean {
+function contains(rect: Rect, point: Vector2DLike): boolean {
   return point.x >= rect.x && point.x < rect.x + rect.width &&
     point.y >= rect.y && point.y < rect.y + rect.height;
 }
@@ -73,7 +73,7 @@ const texture = {
   height: 16,
   isLoaded: true,
   dispose(): void {},
-  drawRegion(source: Rect, destination: Rect, _origin: Vec2, rotation: number, _tint: Color): boolean {
+  drawRegion(source: Rect, destination: Rect, _origin: Vector2DLike, rotation: number, _tint: Color): boolean {
     drawCalls.push({ source: { x: source.x, y: source.y, width: source.width, height: source.height },
       destination: { x: destination.x, y: destination.y, width: destination.width, height: destination.height },
       rotation });

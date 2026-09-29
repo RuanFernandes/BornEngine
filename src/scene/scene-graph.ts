@@ -4,7 +4,7 @@ import * as operations from './internal';
 import { SceneNode, SceneNodeOptions } from './scene-node';
 import { matchesSceneNodeHandle } from './ownership';
 import { setAmbientLight } from '../models/internal';
-import type { Color, Vec2, Vec3 } from '../core/types';
+import type { Color, Vector2DLike, Vec3 } from '../core/types';
 
 export interface ScenePickHit {
   hit: boolean;
@@ -60,7 +60,7 @@ export class SceneGraph implements ContextResource {
     return null;
   }
 
-  pick(screenPosition: Vec2): ScenePickHit {
+  pick(screenPosition: Vector2DLike): ScenePickHit {
     const empty: ScenePickHit = {
       hit: false,
       node: null,
@@ -80,7 +80,7 @@ export class SceneGraph implements ContextResource {
     };
   }
 
-  pickAll(screenPosition: Vec2, maxResults = 8): ScenePickEntry[] {
+  pickAll(screenPosition: Vector2DLike, maxResults = 8): ScenePickEntry[] {
     if (!this.isReady || maxResults <= 0) return [];
     const hits = operations.pickSceneAll(screenPosition.x, screenPosition.y, maxResults);
     const result: ScenePickEntry[] = [];

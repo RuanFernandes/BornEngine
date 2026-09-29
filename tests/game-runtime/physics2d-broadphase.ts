@@ -1,7 +1,8 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
-import type { Vec2 } from '../../src/core/types';
+import type { Vector2DLike } from '../../src/core/types';
 import { PhysicsWorld2D } from '../../src/physics2d/physics-world-2d';
+import { Vector2D } from '../../src/math/vector2d';
 import type { PhysicsBody2D } from '../../src/physics2d/physics-body-2d';
 
 function expect(value: boolean, label: string): void {
@@ -47,14 +48,14 @@ function expectedPairs(bodies: PhysicsBody2D[]): string[] {
   return result;
 }
 
-function containsPoint(body: PhysicsBody2D, point: Vec2): boolean {
+function containsPoint(body: PhysicsBody2D, point: Vector2DLike): boolean {
   const p = body.position;
   const shape = body.shape as { type: 'box'; width: number; height: number };
   return Math.abs(point.x - p.x) <= shape.width * 0.5 &&
     Math.abs(point.y - p.y) <= shape.height * 0.5;
 }
 
-function overlapsCircle(body: PhysicsBody2D, center: Vec2, radius: number): boolean {
+function overlapsCircle(body: PhysicsBody2D, center: Vector2DLike, radius: number): boolean {
   const p = body.position;
   const shape = body.shape as { type: 'box'; width: number; height: number };
   const x = Math.max(p.x - shape.width * 0.5, Math.min(center.x, p.x + shape.width * 0.5));
@@ -64,14 +65,14 @@ function overlapsCircle(body: PhysicsBody2D, center: Vec2, radius: number): bool
   return dx * dx + dy * dy <= radius * radius;
 }
 
-function overlapsBox(body: PhysicsBody2D, center: Vec2, size: Vec2): boolean {
+function overlapsBox(body: PhysicsBody2D, center: Vector2DLike, size: Vector2DLike): boolean {
   const p = body.position;
   const shape = body.shape as { type: 'box'; width: number; height: number };
   return Math.abs(p.x - center.x) < (shape.width + size.x) * 0.5 &&
     Math.abs(p.y - center.y) < (shape.height + size.y) * 0.5;
 }
 
-function rayBoxDistance(body: PhysicsBody2D, origin: Vec2, direction: Vec2, maxDistance: number): number {
+function rayBoxDistance(body: PhysicsBody2D, origin: Vector2DLike, direction: Vector2DLike, maxDistance: number): number {
   const p = body.position;
   const shape = body.shape as { type: 'box'; width: number; height: number };
   let near = -Infinity;
@@ -145,6 +146,7 @@ context.markReady();
 bindGameContext(game, context);
 
 const world = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.01 });
+expect(world.gravity instanceof Vector2D, 'physics gravity is returned as a Vector2D');
 let randomState = 4711;
 function random(): number {
   randomState = (randomState * 48271) % 2147483647;

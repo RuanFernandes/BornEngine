@@ -4,6 +4,7 @@ import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
 import { PhysicsWorld2D } from '../../src/physics2d/physics-world-2d';
 import { CharacterBody2D } from '../../src/physics2d/character-body-2d';
+import { Vector2D } from '../../src/math/vector2d';
 
 function expect(value: boolean, label: string): void {
   if (!value) {
@@ -41,6 +42,13 @@ expect(Math.abs(wall.character.position.x - 20) < 0.001 && wall.character.veloci
   'horizontal motion stops at a wall and reports a wall contact');
 expect(wall.character.contactNormals.length === 1 && wall.character.contactNormals[0].x === -1,
   'wall contact reports the stable outward normal');
+const wallNormal = wall.character.contactNormals[0];
+expect(wallNormal instanceof Vector2D && wallNormal.magnitude === 1 &&
+  wallNormal.clamped(Vector2D.zero(), Vector2D.one()).x === 0,
+  'character contact normals expose Vector2D values and methods');
+wallNormal.set(0, 0);
+expect(wall.character.contactNormals[0].x === -1,
+  'character contact normals are returned as isolated snapshots');
 wall.scene.destroy();
 wallWorld.dispose();
 

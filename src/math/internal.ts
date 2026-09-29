@@ -1,52 +1,51 @@
-import { Vec2 as Vec2Type, Vec3 as Vec3Type, Vec4 as Vec4Type, Quat as QuatType, Ray, BoundingBox, Mat4, FrustumPlanes, RayHit } from '../core/types';
-type Vec2 = Vec2Type;
+import { Vector2DLike, Vec3 as Vec3Type, Vec4 as Vec4Type, Quat as QuatType, Ray, BoundingBox, Mat4, FrustumPlanes, RayHit } from '../core/types';
 type Vec3 = Vec3Type;
 type Vec4 = Vec4Type;
 type Quat = QuatType;
 
-// Vec2 operations
+// Vector2DLike operations
 
-export function vec2(x: number, y: number): Vec2 {
+export function vec2(x: number, y: number): Vector2DLike {
   return { x, y };
 }
 
-export function vec2Add(a: Vec2, b: Vec2): Vec2 {
+export function vec2Add(a: Vector2DLike, b: Vector2DLike): Vector2DLike {
   return { x: a.x + b.x, y: a.y + b.y };
 }
 
-export function vec2Sub(a: Vec2, b: Vec2): Vec2 {
+export function vec2Sub(a: Vector2DLike, b: Vector2DLike): Vector2DLike {
   return { x: a.x - b.x, y: a.y - b.y };
 }
 
-export function vec2Scale(v: Vec2, scalar: number): Vec2 {
+export function vec2Scale(v: Vector2DLike, scalar: number): Vector2DLike {
   return { x: v.x * scalar, y: v.y * scalar };
 }
 
-export function vec2Length(v: Vec2): number {
+export function vec2Length(v: Vector2DLike): number {
   return Math.sqrt(v.x * v.x + v.y * v.y);
 }
 
-export function vec2LengthSq(v: Vec2): number {
+export function vec2LengthSq(v: Vector2DLike): number {
   return v.x * v.x + v.y * v.y;
 }
 
-export function vec2Normalize(v: Vec2): Vec2 {
+export function vec2Normalize(v: Vector2DLike): Vector2DLike {
   const len = vec2Length(v);
   if (len === 0) return { x: 0, y: 0 };
   return { x: v.x / len, y: v.y / len };
 }
 
-export function vec2Dot(a: Vec2, b: Vec2): number {
+export function vec2Dot(a: Vector2DLike, b: Vector2DLike): number {
   return a.x * b.x + a.y * b.y;
 }
 
-export function vec2Distance(a: Vec2, b: Vec2): number {
+export function vec2Distance(a: Vector2DLike, b: Vector2DLike): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-export function vec2Lerp(a: Vec2, b: Vec2, t: number): Vec2 {
+export function vec2Lerp(a: Vector2DLike, b: Vector2DLike, t: number): Vector2DLike {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
@@ -471,4 +470,3 @@ export function getRayCollisionBox(ray: Ray, box_: BoundingBox): RayHit {
   };
   return { hit: true, distance: tmin, point, normal: normals[0] };
 }
-

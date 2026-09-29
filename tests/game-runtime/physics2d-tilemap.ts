@@ -1,11 +1,12 @@
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
-import type { Color, Rect, Vec2 } from '../../src/core/types';
+import type { Color, Rect, Vector2DLike } from '../../src/core/types';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
 import { Scene } from '../../src/game/scene';
 import { PhysicsWorld2D } from '../../src/physics2d/physics-world-2d';
+import { Vector2D } from '../../src/math/vector2d';
 import type { PhysicsContact2D } from '../../src/physics2d/physics-body-2d';
 import { SpriteSheet } from '../../src/sprites/sprite-sheet';
 import { Tilemap } from '../../src/tilemap/tilemap';
@@ -48,18 +49,26 @@ const ball = world.createBody({
   friction: 0,
 });
 let collisionEnter = 0;
+let collisionVectorsAreVector2D = false;
 ball.onCollisionEnter = (contact) => {
   collisionEnter++;
+  collisionVectorsAreVector2D = contact.normal instanceof Vector2D && contact.point instanceof Vector2D &&
+    contact.normal.magnitude > 0 && contact.point.distanceTo({ x: 0, y: 0 }) >= 0;
   expect(contact.self === ball && contact.other === wall && contact.normal.x > 0,
     'body collision callback receives a self-oriented normal');
 };
 expect(world.step(0.1) === 1, 'fixed-step world runs one substep at the configured timestep');
 expect(collisionEnter === 1 && ball.position.x < 4 && ball.velocity.x <= 0,
   'circle-box collision resolves penetration and velocity');
+expect(collisionVectorsAreVector2D,
+  'collision callback vectors expose Vector2D methods and instances');
 
 const queryHit = world.raycast({ x: 0, y: 0 }, { x: 1, y: 0 }, 20);
 expect(queryHit !== null && queryHit.body === ball,
   'raycast returns the closest body in the ray path');
+expect(queryHit !== null && queryHit.point instanceof Vector2D && queryHit.normal instanceof Vector2D &&
+  queryHit.point.distanceTo({ x: 0, y: 0 }) >= 0 && queryHit.normal.magnitude > 0,
+  'raycast results expose Vector2D methods and instances');
 const reverseRayHit = world.raycast({ x: 10, y: 0 }, { x: -1, y: 0 }, 10);
 expect(reverseRayHit !== null && reverseRayHit.body === wall && reverseRayHit.normal.x > 0,
   'reverse box raycasts return an outward-facing normal');
@@ -102,6 +111,9 @@ expect(world.step(0.1) === 1 && triggerPhases === 'enter,stay,exit,',
   'trigger callbacks report enter, stay, and exit in order');
 const queuedContacts: PhysicsContact2D[] = world.popContacts();
 expect(queuedContacts.length >= 3, 'contact queue can be drained by the game loop');
+expect(queuedContacts[0].normal instanceof Vector2D && queuedContacts[0].point instanceof Vector2D &&
+  queuedContacts[0].normal.magnitude > 0,
+  'queued contacts expose Vector2D methods and instances');
 expect(world.popContacts().length === 0, 'popContacts drains records instead of returning them repeatedly');
 
 const otherLayer = world.createBody({
@@ -161,13 +173,13 @@ ownerScene.remove(positionedObject);
 positionedBody.dispose();
 standaloneBody.dispose();
 
-const draws: Array<{ source: Rect; destination: Rect; origin: Vec2; rotation: number; tint: Color }> = [];
+const draws: Array<{ source: Rect; destination: Rect; origin: Vector2DLike; rotation: number; tint: Color }> = [];
 const texture = {
   width: 32,
   height: 16,
   isLoaded: true,
   dispose(): void {},
-  drawRegion(source: Rect, destination: Rect, origin: Vec2, rotation: number, tint: Color): boolean {
+  drawRegion(source: Rect, destination: Rect, origin: Vector2DLike, rotation: number, tint: Color): boolean {
     draws.push({ source, destination, origin, rotation, tint });
     return true;
   },

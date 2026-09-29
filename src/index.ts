@@ -3,9 +3,9 @@ export type { GameOptions, GameLoopCallbacks, GameDebugOptions } from './core/ga
 export { Window, Renderer } from './core';
 export type { WindowMode, WindowOptions, UpscaleMode, RendererStats } from './core';
 export { ColorConstants, Colors, Key, MouseButton, CursorShape, Platform, QualityPreset, Tonemap } from './core';
-export type { Color, Rect, Camera2D, Camera3D, Ray, BoundingBox, RayHit, FrustumPlanes, Mat4 } from './core/types';
+export type { Color, Rect, Vector2DLike, Camera2D, Camera3D, Ray, BoundingBox, RayHit, FrustumPlanes, Mat4 } from './core/types';
 
-export { Vec2, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
+export { Vector2D, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
 export type { Matrix4Array } from './math';
 
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
@@ -13,7 +13,7 @@ export { AssetManager, AssetGroup } from './assets';
 export type { AssetGroupAsset, AssetGroupEntryResult, AssetGroupEntryState, AssetGroupKind, AssetGroupState } from './assets';
 export { SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D } from './sprites';
 export type {
-  SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteSheetOptions, SpriteRendererOptions,
+  SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteFrameTrimDefinition, SpriteSheetOptions, SpriteRendererOptions,
   ResolvedSpriteKeyframe, SpriteAnimationLoop, SpriteAnimationOptions, SpriteKeyframe,
   SpriteAnimationTransition, SpriteAnimatorOptions, SpriteAnimatorState, SpriteCompleteCallback,
   SpriteMarkerCallback, SpriteNumberComparison, SpritePlayOptions, SpriteStateChangedCallback,
@@ -73,7 +73,7 @@ export { Tilemap } from './tilemap';
 export type { TilemapCellFlip, TilemapOptions, TilemapSolidTile, TilemapTileDefinition } from './tilemap';
 export { CameraRig2D, ParallaxLayer2D, Viewport2D, getParallaxOffset } from './camera2d';
 export type {
-  CameraRig2DOptions, CameraShake2DOptions, ParallaxLayer2DOptions,
+  Camera2DSnapshot, CameraRig2DOptions, CameraShake2DOptions, ParallaxLayer2DOptions,
   Viewport2DOptions, ViewportScalingMode2D, ViewportTransform2D,
 } from './camera2d';
 export {

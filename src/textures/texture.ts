@@ -4,7 +4,7 @@ import { Colors } from '../core/colors';
 import * as operations from './internal';
 import type { ImageData } from './image-data';
 import type { RenderTexture } from './render-texture';
-import type { Color, Rect, Vec2 } from '../core/types';
+import type { Color, Rect, Vector2DLike } from '../core/types';
 import * as spriteOperations from '../sprites/internal';
 
 type TextureSource = string | ImageData | RenderTexture;
@@ -86,7 +86,7 @@ export class Texture implements ContextDrawable {
     return spriteOperations.createParticleEmitter2D(capacity, this.handleValue);
   }
 
-  draw(position: Vec2, tint: Color = Colors.WHITE): boolean {
+  draw(position: Vector2DLike, tint: Color = Colors.WHITE): boolean {
     if (!this.isLoaded) return false;
     return this.context.draw(this, position, tint);
   }
@@ -95,7 +95,7 @@ export class Texture implements ContextDrawable {
    * Draws a texture region into a destination rectangle without exposing its native handle.
    * The destination is the unrotated top-left rectangle; origin is a local pivot measured from that corner.
    */
-  drawRegion(source: Rect, destination: Rect, origin: Vec2, rotation: number, tint: Color): boolean {
+  drawRegion(source: Rect, destination: Rect, origin: Vector2DLike, rotation: number, tint: Color): boolean {
     if (!this.isLoaded || !this.context.owns(this) ||
         source === null || source === undefined || destination === null || destination === undefined ||
         origin === null || origin === undefined || tint === null || tint === undefined ||
@@ -135,7 +135,7 @@ export class Texture implements ContextDrawable {
   }
 
   /** @internal Renderer entry point; does not expose the native handle. */
-  drawNative(position: Vec2, tint: Color): boolean {
+  drawNative(position: Vector2DLike, tint: Color): boolean {
     if (!this.isLoaded || !this.context.owns(this)) return false;
     operations.drawTexture(this.toNativeTexture(), position.x, position.y, tint);
     return true;
