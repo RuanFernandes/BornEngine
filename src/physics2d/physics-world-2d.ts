@@ -73,11 +73,18 @@ interface AxisSweepHit {
   normal: Vector2DLike;
 }
 
+interface SurfaceSweepHit {
+  time: number;
+  normal: Vector2DLike;
+  point: Vector2DLike;
+  target: PhysicsBody2D;
+}
+
 const BROADPHASE_CELL_SIZE = 64;
 const MAX_GRID_CELLS_PER_BODY = 4096;
 
 function finite(value: number): boolean {
-  return value === value && value !== Infinity && value !== -Infinity;
+  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity;
 }
 
 function validVec(value: Vector2DLike): boolean {
@@ -88,19 +95,37 @@ function copyVec(value: Vector2DLike): Vector2D { return Vector2D.from(value); }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
 function bodyBounds(body: PhysicsBody2D): BroadphaseBounds {
   const position = body.position;
-  if (body.shape.type === 'circle') {
+  const shape = body.shape;
+  if (shape.type === 'segment') return {
+    minX: position.x + Math.min(shape.start.x, shape.end.x),
+    minY: position.y + Math.min(shape.start.y, shape.end.y),
+    maxX: position.x + Math.max(shape.start.x, shape.end.x),
+    maxY: position.y + Math.max(shape.start.y, shape.end.y),
+  };
+  if (shape.type === 'convex') {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let index = 0; index < shape.vertices.length; index++) {
+      const point = shape.vertices[index];
+      minX = Math.min(minX, position.x + point.x);
+      minY = Math.min(minY, position.y + point.y);
+      maxX = Math.max(maxX, position.x + point.x);
+      maxY = Math.max(maxY, position.y + point.y);
+    }
+    return { minX, minY, maxX, maxY };
+  }
+  if (shape.type === 'circle') {
     return {
-      minX: position.x - body.shape.radius,
-      minY: position.y - body.shape.radius,
-      maxX: position.x + body.shape.radius,
-      maxY: position.y + body.shape.radius,
+      minX: position.x - shape.radius,
+      minY: position.y - shape.radius,
+      maxX: position.x + shape.radius,
+      maxY: position.y + shape.radius,
     };
   }
   return {
-    minX: position.x - body.shape.width * 0.5,
-    minY: position.y - body.shape.height * 0.5,
-    maxX: position.x + body.shape.width * 0.5,
-    maxY: position.y + body.shape.height * 0.5,
+    minX: position.x - shape.width * 0.5,
+    minY: position.y - shape.height * 0.5,
+    maxX: position.x + shape.width * 0.5,
+    maxY: position.y + shape.height * 0.5,
   };
 }
 
@@ -109,6 +134,7 @@ function sweepBoxAgainstBody(position: Vector2DLike, width: number, height: numb
   if (delta === 0) return null;
   const movingPositive = delta > 0;
   const targetPosition = target.position;
+  if (target.shape.type === 'segment' || target.shape.type === 'convex') return null;
   const halfX = width * 0.5;
   const halfY = height * 0.5;
   let targetMinimum: number;
@@ -402,30 +428,37 @@ export class PhysicsWorld2D implements ContextResource {
 
   /** @internal Sweeps a kinematic box along X then Y and reports the blocking outward normals. */
   _moveKinematicBox(body: PhysicsBody2D, width: number, height: number, delta: Vector2DLike):
-    { position: Vector2DLike; normals: Vector2DLike[] } | null {
+    { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
     if (!this.isReady || body.world !== this || body.type !== 'kinematic' || body.shape.type !== 'box' ||
         body.shape.width !== width || body.shape.height !== height || !body._isUsable() || !validVec(delta)) return null;
     let position: Vector2DLike = copyVec(body.position);
     const normals: Vector2DLike[] = [];
-    if (delta.x !== 0) {
-      const hit = this.sweepKinematicBoxAxis(body, width, height, position, 'x', delta.x);
+    const surfaceResult = this.sweepKinematicSurfaces(body, width, height, position, delta);
+    const movement = surfaceResult === null ? delta : {
+      x: surfaceResult.position.x - position.x, y: surfaceResult.position.y - position.y,
+    };
+    if (surfaceResult !== null) {
+      for (let index = 0; index < surfaceResult.normals.length; index++) normals.push(surfaceResult.normals[index]);
+    }
+    if (movement.x !== 0) {
+      const hit = this.sweepKinematicBoxAxis(body, width, height, position, 'x', movement.x, surfaceResult === null);
       if (hit !== null) {
-        const direction = delta.x > 0 ? 1 : -1;
+        const direction = movement.x > 0 ? 1 : -1;
         position = { x: position.x + direction * hit.distance, y: position.y };
         normals.push(hit.normal);
-      } else position = { x: position.x + delta.x, y: position.y };
+      } else position = { x: position.x + movement.x, y: position.y };
       if (!body.setPosition(position)) return null;
     }
-    if (delta.y !== 0) {
-      const hit = this.sweepKinematicBoxAxis(body, width, height, position, 'y', delta.y);
+    if (movement.y !== 0) {
+      const hit = this.sweepKinematicBoxAxis(body, width, height, position, 'y', movement.y, surfaceResult === null);
       if (hit !== null) {
-        const direction = delta.y > 0 ? 1 : -1;
+        const direction = movement.y > 0 ? 1 : -1;
         position = { x: position.x, y: position.y + direction * hit.distance };
         normals.push(hit.normal);
-      } else position = { x: position.x, y: position.y + delta.y };
+      } else position = { x: position.x, y: position.y + movement.y };
       if (!body.setPosition(position)) return null;
     }
-    return { position: copyVec(position), normals };
+    return { position: copyVec(position), normals, exhausted: surfaceResult !== null && surfaceResult.exhausted };
   }
 
   dispose(): void {
@@ -452,7 +485,49 @@ export class PhysicsWorld2D implements ContextResource {
       else this.removeBodyMembership(body);
     }
 
-    for (let index = 0; index < active.length; index++) active[index]._integrate(dt, this.gravityValue);
+    const priorPositions = new Map<number, Vector2DLike>();
+    const sweptContacts: MutableContact[] = [];
+    for (let index = 0; index < active.length; index++) {
+      const body = active[index];
+      priorPositions.set(body.id, body.position);
+      body._integrate(dt, this.gravityValue);
+      if (body.type === 'dynamic' && body.ccd && body.shape.type !== 'segment' && body.shape.type !== 'convex') {
+        const start = priorPositions.get(body.id)!;
+        const end = body.position;
+        const travel = { x: end.x - start.x, y: end.y - start.y };
+        if (Math.hypot(travel.x, travel.y) >= body.ccdThreshold) {
+          let position = start;
+          let remaining = dt;
+          let impacts = 0;
+          for (let iteration = 0; iteration < 8 && remaining > 0.0000001; iteration++) {
+            const velocity = body.velocity;
+            const remainingTravel = { x: velocity.x * remaining, y: velocity.y * remaining };
+            if (Math.hypot(remainingTravel.x, remainingTravel.y) <= 0.0000001) break;
+            const hit = this.sweepDynamicBody(body, position, remainingTravel, active);
+            if (hit === null) {
+              position = { x: position.x + remainingTravel.x, y: position.y + remainingTravel.y };
+              remaining = 0;
+              break;
+            }
+            impacts++;
+            position = { x: position.x + remainingTravel.x * hit.time + hit.normal.x * 0.000001,
+              y: position.y + remainingTravel.y * hit.time + hit.normal.y * 0.000001 };
+            const bodyA = body.id < hit.target.id ? body : hit.target;
+            const bodyB = body.id < hit.target.id ? hit.target : body;
+            const normal = bodyA === body ? { x: -hit.normal.x, y: -hit.normal.y } : hit.normal;
+            resolveContact(bodyA, bodyB, { normal, point: hit.point, penetration: 0 });
+            remaining *= 1 - hit.time;
+            if (this.findContact(sweptContacts, bodyA, bodyB) === null) {
+              sweptContacts.push({ phase: this.findContact(this.activeContacts, bodyA, bodyB) === null ? 'enter' : 'stay',
+                bodyA, bodyB, normal: copyVec(normal), point: copyVec(hit.point), penetration: 0, isTrigger: false });
+            }
+          }
+          // The last resolved hit is a safe stopping point if this step exhausts its impact budget.
+          if (impacts === 8 && remaining > 0.0000001) body._setVelocityInternal({ x: 0, y: 0 });
+          body._setPositionInternal(position);
+        }
+      }
+    }
 
     for (let index = 0; index < active.length; index++) this.updateBodyMembership(active[index]);
     const candidatePairs = this.collectCandidatePairs(active);
@@ -466,6 +541,7 @@ export class PhysicsWorld2D implements ContextResource {
       this.narrowphaseTestCount++;
       const geometry = collide(bodyA, bodyB);
       if (geometry === null) continue;
+      if (!oneWayAllows(bodyA, bodyB, geometry, priorPositions)) continue;
       const wasTouching = this.findContact(this.activeContacts, bodyA, bodyB);
       const contact: MutableContact = {
         phase: wasTouching === null ? 'enter' : 'stay',
@@ -479,6 +555,11 @@ export class PhysicsWorld2D implements ContextResource {
       if (!contact.isTrigger) resolveContact(bodyA, bodyB, geometry);
       currentContacts.push(contact);
     }
+    for (let index = 0; index < sweptContacts.length; index++) {
+      const contact = sweptContacts[index];
+      if (this.findContact(currentContacts, contact.bodyA, contact.bodyB) === null) currentContacts.push(contact);
+    }
+    currentContacts.sort((a, b) => a.bodyA.id - b.bodyA.id || a.bodyB.id - b.bodyB.id);
 
     for (let index = 0; index < active.length; index++) {
       active[index]._syncToTransform();
@@ -500,6 +581,7 @@ export class PhysicsWorld2D implements ContextResource {
         isTrigger: previous.isTrigger,
       });
     }
+    contactBatch.sort((a, b) => a.bodyA.id - b.bodyA.id || a.bodyB.id - b.bodyB.id);
     this.activeContacts = currentContacts;
     this.dispatchContacts(contactBatch);
   }
@@ -572,7 +654,7 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   private sweepKinematicBoxAxis(body: PhysicsBody2D, width: number, height: number, position: Vector2DLike,
-    axis: 'x' | 'y', delta: number): AxisSweepHit | null {
+    axis: 'x' | 'y', delta: number, includeSurfaces: boolean): AxisSweepHit | null {
     const halfX = width * 0.5;
     const halfY = height * 0.5;
     const endX = position.x + (axis === 'x' ? delta : 0);
@@ -588,12 +670,88 @@ export class PhysicsWorld2D implements ContextResource {
       const candidate = candidates[index];
       if (candidate !== body && this.isQueryable(candidate, body.mask, false)) {
         if (filtersAllow(body, candidate)) {
-          const hit = sweepBoxAgainstBody(position, width, height, axis, delta, candidate);
+          if (!includeSurfaces && (candidate.shape.type === 'segment' || candidate.shape.type === 'convex')) continue;
+          const oneWay = candidate.oneWay;
+          if (oneWay !== null && !oneWaySweepAllows({ type: 'box', width, height }, position,
+              axis === 'x' ? { x: delta, y: 0 } : { x: 0, y: delta },
+              candidate, oneWay.normal, oneWay.tolerance || 0)) continue;
+          const hit = candidate.shape.type === 'segment' || candidate.shape.type === 'convex'
+            ? sweepAgainstStatic({ type: 'box', width, height }, position,
+              axis === 'x' ? { x: delta, y: 0 } : { x: 0, y: delta }, candidate)
+            : sweepBoxAgainstBody(position, width, height, axis, delta, candidate);
           if (hit !== null && (closest === null || hit.distance < closest.distance)) closest = hit;
         }
       }
     }
     return closest;
+  }
+
+  private sweepKinematicSurfaces(body: PhysicsBody2D, width: number, height: number,
+    start: Vector2DLike, delta: Vector2DLike):
+    { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
+    let position = copyVec(start);
+    let travel = copyVec(delta);
+    const normals: Vector2DLike[] = [];
+    const shape: PhysicsShape2D = { type: 'box', width, height };
+    for (let iteration = 0; iteration < 4; iteration++) {
+      const length = Math.hypot(travel.x, travel.y);
+      if (length <= 0.0000001) break;
+      const candidates = this.queryCandidates({
+        minX: Math.min(position.x, position.x + travel.x) - width * 0.5,
+        minY: Math.min(position.y, position.y + travel.y) - height * 0.5,
+        maxX: Math.max(position.x, position.x + travel.x) + width * 0.5,
+        maxY: Math.max(position.y, position.y + travel.y) + height * 0.5,
+      });
+      let nearest: (AxisSweepHit & { point: Vector2DLike; target: PhysicsBody2D }) | null = null;
+      for (let index = 0; index < candidates.length; index++) {
+        const target = candidates[index];
+        if (target === body || target.type !== 'static' || target.isSensor ||
+            (target.shape.type !== 'segment' && target.shape.type !== 'convex') || !filtersAllow(body, target)) continue;
+        const hit = sweepAgainstStatic(shape, position, travel, target);
+        if (hit === null) continue;
+        const config = target.oneWay;
+        if (config !== null && !oneWaySweepAllows(shape, position, travel, target, config.normal, config.tolerance || 0)) continue;
+        if (nearest === null || hit.distance < nearest.distance - 0.0000001 ||
+            (Math.abs(hit.distance - nearest.distance) <= 0.0000001 && target.id < nearest.target.id)) {
+          nearest = { distance: hit.distance, normal: hit.normal, point: hit.point, target };
+        }
+      }
+      if (nearest === null) {
+        position = { x: position.x + travel.x, y: position.y + travel.y };
+        break;
+      }
+      const fraction = nearest.distance / length;
+      position = { x: position.x + travel.x * fraction + nearest.normal.x * 0.000001,
+        y: position.y + travel.y * fraction + nearest.normal.y * 0.000001 };
+      normals.push(nearest.normal);
+      const remainder = { x: travel.x * (1 - fraction), y: travel.y * (1 - fraction) };
+      const toward = remainder.x * nearest.normal.x + remainder.y * nearest.normal.y;
+      travel = toward < 0 ? { x: remainder.x - toward * nearest.normal.x,
+        y: remainder.y - toward * nearest.normal.y } : remainder;
+    }
+    // Keep the fourth resolved contact position; the caller discards unresolved velocity.
+    return normals.length === 0 ? null : {
+      position, normals, exhausted: normals.length === 4 && Math.hypot(travel.x, travel.y) > 0.0000001,
+    };
+  }
+
+  private sweepDynamicBody(body: PhysicsBody2D, start: Vector2DLike, travel: Vector2DLike,
+    active: PhysicsBody2D[]): SurfaceSweepHit | null {
+    let nearest: SurfaceSweepHit | null = null;
+    for (let index = 0; index < active.length; index++) {
+      const target = active[index];
+      if (target === body || target.type !== 'static' || target.isSensor || !filtersAllow(body, target)) continue;
+      const sweep = sweepAgainstStatic(body.shape, start, travel, target);
+      if (sweep === null) continue;
+      const oneWay = target.oneWay;
+      if (oneWay !== null && !oneWaySweepAllows(body.shape, start, travel, target, oneWay.normal, oneWay.tolerance || 0)) continue;
+      const time = sweep.distance / Math.hypot(travel.x, travel.y);
+      if (nearest === null || time < nearest.time - 0.0000001 ||
+          (Math.abs(time - nearest.time) <= 0.0000001 && target.id < nearest.target.id)) {
+        nearest = { time, normal: sweep.normal, point: sweep.point, target };
+      }
+    }
+    return nearest;
   }
 
   private isActiveBody(body: PhysicsBody2D): boolean {
@@ -790,11 +948,315 @@ function shapeOf(value: ShapePose | PhysicsBody2D): PhysicsShape2D {
   return value.shape;
 }
 
+function verticesOf(shape: PhysicsShape2D, position: Vector2DLike): Vector2DLike[] {
+  if (shape.type === 'box') {
+    const x = shape.width * 0.5, y = shape.height * 0.5;
+    return [{ x: position.x - x, y: position.y - y }, { x: position.x + x, y: position.y - y },
+      { x: position.x + x, y: position.y + y }, { x: position.x - x, y: position.y + y }];
+  }
+  if (shape.type === 'segment') return [
+    { x: position.x + shape.start.x, y: position.y + shape.start.y },
+    { x: position.x + shape.end.x, y: position.y + shape.end.y },
+  ];
+  if (shape.type === 'convex') {
+    const result: Vector2DLike[] = [];
+    for (let index = 0; index < shape.vertices.length; index++) result.push({
+      x: position.x + shape.vertices[index].x, y: position.y + shape.vertices[index].y,
+    });
+    return result;
+  }
+  return [];
+}
+
+function closestOnSegment(point: Vector2DLike, a: Vector2DLike, b: Vector2DLike): Vector2DLike {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const fraction = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy), 0, 1);
+  return { x: a.x + dx * fraction, y: a.y + dy * fraction };
+}
+
+function polygonCenter(points: Vector2DLike[]): Vector2DLike {
+  let x = 0, y = 0;
+  for (let index = 0; index < points.length; index++) { x += points[index].x; y += points[index].y; }
+  return { x: x / points.length, y: y / points.length };
+}
+
+function project(points: Vector2DLike[], axis: Vector2DLike): { min: number; max: number } {
+  let min = Infinity, max = -Infinity;
+  for (let index = 0; index < points.length; index++) {
+    const value = points[index].x * axis.x + points[index].y * axis.y;
+    min = Math.min(min, value); max = Math.max(max, value);
+  }
+  return { min, max };
+}
+
+function axesOf(points: Vector2DLike[], segment: boolean): Vector2DLike[] {
+  const axes: Vector2DLike[] = [];
+  const count = segment ? 1 : points.length;
+  for (let index = 0; index < count; index++) {
+    const a = points[index], b = points[(index + 1) % points.length];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const length = Math.hypot(dx, dy);
+    axes.push({ x: -dy / length, y: dx / length });
+  }
+  if (segment) {
+    const dx = points[1].x - points[0].x, dy = points[1].y - points[0].y;
+    const length = Math.hypot(dx, dy);
+    axes.push({ x: dx / length, y: dy / length });
+  }
+  return axes;
+}
+
+function collideCircleSurface(circle: Vector2DLike, radius: number, surface: Vector2DLike[],
+  segment: boolean): ContactGeometry | null {
+  let closest = surface[0], nearestSq = Infinity;
+  const edges = segment ? 1 : surface.length;
+  let inside = !segment;
+  let winding = 0;
+  if (!segment) {
+    for (let index = 0; index < surface.length; index++) {
+      const a = surface[index], b = surface[(index + 1) % surface.length];
+      winding += a.x * b.y - a.y * b.x;
+    }
+  }
+  for (let index = 0; index < edges; index++) {
+    const a = surface[index], b = surface[(index + 1) % surface.length];
+    const point = closestOnSegment(circle, a, b);
+    const dx = point.x - circle.x, dy = point.y - circle.y;
+    const sq = dx * dx + dy * dy;
+    if (sq < nearestSq) { nearestSq = sq; closest = point; }
+    const cross = (b.x - a.x) * (circle.y - a.y) - (b.y - a.y) * (circle.x - a.x);
+    if (cross * winding < -0.0000001) inside = false;
+  }
+  const distance = Math.sqrt(nearestSq);
+  if (!inside && distance > radius) return null;
+  let nx = closest.x - circle.x, ny = closest.y - circle.y;
+  if (inside) { nx = -nx; ny = -ny; }
+  if (distance <= 0.0000001) {
+    const edge = { x: surface[1].x - surface[0].x, y: surface[1].y - surface[0].y };
+    const length = Math.hypot(edge.x, edge.y);
+    nx = edge.y / length; ny = -edge.x / length;
+  } else { nx /= distance; ny /= distance; }
+  return { normal: { x: nx, y: ny }, point: closest, penetration: inside ? radius + distance : radius - distance };
+}
+
+function collideBoxSurface(box: Vector2DLike, shape: { type: 'box'; width: number; height: number },
+  surface: Vector2DLike[], segment: boolean): ContactGeometry | null {
+  const moving = verticesOf(shape, box);
+  const axes = axesOf(surface, segment);
+  axes.push({ x: 1, y: 0 });
+  axes.push({ x: 0, y: 1 });
+  let minimum = Infinity;
+  let best: Vector2DLike = { x: 0, y: -1 };
+  const center = polygonCenter(surface);
+  for (let index = 0; index < axes.length; index++) {
+    const axis = axes[index];
+    const a = project(moving, axis), b = project(surface, axis);
+    const pushNegative = a.max - b.min;
+    const pushPositive = b.max - a.min;
+    const overlap = Math.min(pushNegative, pushPositive);
+    if (overlap < -0.0000001) return null;
+    if (overlap < minimum) {
+      minimum = overlap;
+      const sign = pushNegative < pushPositive ? 1 : pushNegative > pushPositive ? -1 :
+        (center.x - box.x) * axis.x + (center.y - box.y) * axis.y >= 0 ? 1 : -1;
+      best = { x: axis.x * sign, y: axis.y * sign };
+    }
+  }
+  let point = surface[0];
+  let nearestSq = Infinity;
+  const edgeCount = segment ? 1 : surface.length;
+  for (let index = 0; index < edgeCount; index++) {
+    const candidate = closestOnSegment(box, surface[index], surface[(index + 1) % surface.length]);
+    const dx = candidate.x - box.x, dy = candidate.y - box.y;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq < nearestSq) { nearestSq = distanceSq; point = candidate; }
+  }
+  return { normal: best, point, penetration: Math.max(0, minimum) };
+}
+
+function reverseContact(contact: ContactGeometry | null): ContactGeometry | null {
+  return contact === null ? null : { normal: { x: -contact.normal.x, y: -contact.normal.y },
+    point: contact.point, penetration: contact.penetration };
+}
+
+function shapeExtent(shape: PhysicsShape2D, normal: Vector2DLike): number {
+  if (shape.type === 'circle') return shape.radius;
+  if (shape.type === 'box') return Math.abs(normal.x) * shape.width * 0.5 + Math.abs(normal.y) * shape.height * 0.5;
+  return 0;
+}
+
+function oneWaySweepAllows(shape: PhysicsShape2D, start: Vector2DLike, travel: Vector2DLike,
+  target: PhysicsBody2D, normal: Vector2DLike, tolerance: number): boolean {
+  if (travel.x * normal.x + travel.y * normal.y >= -0.0000001) return false;
+  const targetShape = target.shape;
+  const vertices = verticesOf(targetShape, target.position);
+  let plane = -Infinity;
+  for (let index = 0; index < vertices.length; index++) {
+    plane = Math.max(plane, vertices[index].x * normal.x + vertices[index].y * normal.y);
+  }
+  if (targetShape.type === 'circle') {
+    plane = target.position.x * normal.x + target.position.y * normal.y + targetShape.radius;
+  }
+  return start.x * normal.x + start.y * normal.y - shapeExtent(shape, normal) >= plane - tolerance - 0.0000001;
+}
+
+function oneWayAllows(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeometry,
+  previous: Map<number, Vector2DLike>): boolean {
+  const surface = a.oneWay !== null ? a : b.oneWay !== null ? b : null;
+  if (surface === null) return true;
+  const moving = surface === a ? b : a;
+  const config = surface.oneWay!;
+  const prior = previous.get(moving.id);
+  if (prior === undefined) return false;
+  const current = moving.position;
+  const travel = { x: current.x - prior.x, y: current.y - prior.y };
+  if (!oneWaySweepAllows(moving.shape, prior, travel, surface, config.normal, config.tolerance || 0)) return false;
+  const outward = surface === a ? contact.normal : { x: -contact.normal.x, y: -contact.normal.y };
+  return outward.x * config.normal.x + outward.y * config.normal.y > 0.5;
+}
+
+function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: number,
+  surface: Vector2DLike[], segment: boolean): (AxisSweepHit & { point: Vector2DLike }) | null {
+  if (collideCircleSurface(start, radius, surface, segment) !== null) return null;
+  const speed = Math.hypot(travel.x, travel.y);
+  if (speed <= 0.0000001) return null;
+  let winding = 0;
+  if (!segment) for (let index = 0; index < surface.length; index++) {
+    const a = surface[index], b = surface[(index + 1) % surface.length];
+    winding += a.x * b.y - a.y * b.x;
+  }
+  let nearestTime = Infinity;
+  let nearestNormal: Vector2DLike = { x: 0, y: 0 };
+  let nearestPoint: Vector2DLike = { x: 0, y: 0 };
+  const edges = segment ? 1 : surface.length;
+  for (let index = 0; index < edges; index++) {
+    const a = surface[index], b = surface[(index + 1) % surface.length];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const length = Math.hypot(dx, dy);
+    const tangent = { x: dx / length, y: dy / length };
+    const baseNormal = { x: -tangent.y, y: tangent.x };
+    const distance = (start.x - a.x) * baseNormal.x + (start.y - a.y) * baseNormal.y;
+    const approach = travel.x * baseNormal.x + travel.y * baseNormal.y;
+    if (Math.abs(approach) <= 0.0000001) continue;
+    for (let side = -1; side <= 1; side += 2) {
+      if (!segment && side !== (winding > 0 ? -1 : 1)) continue;
+      const time = (side * radius - distance) / approach;
+      if (time < 0 || time > 1 || time >= nearestTime) continue;
+      const normal = { x: baseNormal.x * side, y: baseNormal.y * side };
+      if (travel.x * normal.x + travel.y * normal.y >= 0) continue;
+      const center = { x: start.x + travel.x * time, y: start.y + travel.y * time };
+      const along = (center.x - a.x) * tangent.x + (center.y - a.y) * tangent.y;
+      if (along < -0.0000001 || along > length + 0.0000001) continue;
+      nearestTime = time;
+      nearestNormal = normal;
+      nearestPoint = { x: center.x - normal.x * radius, y: center.y - normal.y * radius };
+    }
+  }
+  for (let index = 0; index < surface.length; index++) {
+    const vertex = surface[index];
+    const ox = start.x - vertex.x, oy = start.y - vertex.y;
+    const b = 2 * (ox * travel.x + oy * travel.y);
+    const a = speed * speed;
+    const c = ox * ox + oy * oy - radius * radius;
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) continue;
+    const time = (-b - Math.sqrt(discriminant)) / (2 * a);
+    if (time < 0 || time > 1 || time >= nearestTime) continue;
+    const center = { x: start.x + travel.x * time, y: start.y + travel.y * time };
+    const normal = { x: (center.x - vertex.x) / radius, y: (center.y - vertex.y) / radius };
+    if (travel.x * normal.x + travel.y * normal.y >= 0) continue;
+    nearestTime = time;
+    nearestNormal = normal;
+    nearestPoint = vertex;
+  }
+  return finite(nearestTime) ? { distance: nearestTime * speed, normal: nearestNormal, point: nearestPoint } : null;
+}
+
+function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: Vector2DLike,
+  target: PhysicsBody2D): (AxisSweepHit & { point: Vector2DLike }) | null {
+  if (shape.type !== 'box' && shape.type !== 'circle') return null;
+  const targetShape = target.shape;
+  if (targetShape.type === 'circle') {
+    if (shape.type === 'box') {
+      const relativeStart = { x: target.position.x - start.x, y: target.position.y - start.y };
+      const relativeTravel = { x: -travel.x, y: -travel.y };
+      const box = verticesOf(shape, { x: 0, y: 0 });
+      const relativeHit = sweepCircleSurface(relativeStart, relativeTravel, targetShape.radius, box, false);
+      if (relativeHit === null) return null;
+      const normal = { x: -relativeHit.normal.x, y: -relativeHit.normal.y };
+      return { distance: relativeHit.distance, normal,
+        point: { x: target.position.x + normal.x * targetShape.radius,
+          y: target.position.y + normal.y * targetShape.radius } };
+    }
+    const center = target.position;
+    const radius = shape.radius + targetShape.radius;
+    const ox = start.x - center.x, oy = start.y - center.y;
+    const a = travel.x * travel.x + travel.y * travel.y;
+    const b = 2 * (ox * travel.x + oy * travel.y);
+    const c = ox * ox + oy * oy - radius * radius;
+    const discriminant = b * b - 4 * a * c;
+    if (a <= 0.0000001 || c <= 0 || discriminant < 0) return null;
+    const time = (-b - Math.sqrt(discriminant)) / (2 * a);
+    if (time < 0 || time > 1) return null;
+    const hitCenter = { x: start.x + travel.x * time, y: start.y + travel.y * time };
+    const normal = { x: (hitCenter.x - center.x) / radius, y: (hitCenter.y - center.y) / radius };
+    return { distance: Math.sqrt(a) * time, normal,
+      point: { x: center.x + normal.x * targetShape.radius, y: center.y + normal.y * targetShape.radius } };
+  }
+  const surface = verticesOf(targetShape, target.position);
+  if (shape.type === 'circle') return sweepCircleSurface(start, travel, shape.radius, surface, targetShape.type === 'segment');
+  const axes = axesOf(surface, targetShape.type === 'segment');
+  if (shape.type === 'box') {
+    axes.push({ x: 1, y: 0 }); axes.push({ x: 0, y: 1 });
+  }
+  let enter = 0, exit = 1;
+  let normal: Vector2DLike = { x: 0, y: 0 };
+  const speed = Math.hypot(travel.x, travel.y);
+  if (speed <= 0.0000001) return null;
+  for (let index = 0; index < axes.length; index++) {
+    const axis = axes[index];
+    const span = project(surface, axis);
+    const center = start.x * axis.x + start.y * axis.y;
+    const radius = shapeExtent(shape, axis);
+    const velocity = travel.x * axis.x + travel.y * axis.y;
+    if (Math.abs(velocity) <= 0.0000001) {
+      if (center + radius < span.min || center - radius > span.max) return null;
+      continue;
+    }
+    const first = (span.min - radius - center) / velocity;
+    const second = (span.max + radius - center) / velocity;
+    const near = Math.min(first, second), far = Math.max(first, second);
+    if (near > enter) {
+      enter = near;
+      normal = velocity > 0 ? { x: -axis.x, y: -axis.y } : { x: axis.x, y: axis.y };
+    }
+    exit = Math.min(exit, far);
+    if (enter > exit) return null;
+  }
+  if (enter < 0 || enter > 1 || (normal.x === 0 && normal.y === 0)) return null;
+  const center = { x: start.x + travel.x * enter, y: start.y + travel.y * enter };
+  const point = { x: center.x - normal.x * shapeExtent(shape, normal),
+    y: center.y - normal.y * shapeExtent(shape, normal) };
+  return { distance: enter * speed, normal, point };
+}
+
 function collide(a: ShapePose | PhysicsBody2D, b: ShapePose | PhysicsBody2D): ContactGeometry | null {
   const aPosition = positionOf(a);
   const bPosition = positionOf(b);
   const aShape = shapeOf(a);
   const bShape = shapeOf(b);
+  if (aShape.type === 'segment' || aShape.type === 'convex') {
+    const surface = verticesOf(aShape, aPosition);
+    if (bShape.type === 'circle') return reverseContact(collideCircleSurface(bPosition, bShape.radius, surface, aShape.type === 'segment'));
+    if (bShape.type === 'box') return reverseContact(collideBoxSurface(bPosition, bShape, surface, aShape.type === 'segment'));
+    return null;
+  }
+  if (bShape.type === 'segment' || bShape.type === 'convex') {
+    const surface = verticesOf(bShape, bPosition);
+    if (aShape.type === 'circle') return collideCircleSurface(aPosition, aShape.radius, surface, bShape.type === 'segment');
+    if (aShape.type === 'box') return collideBoxSurface(aPosition, aShape, surface, bShape.type === 'segment');
+    return null;
+  }
   if (aShape.type === 'circle' && bShape.type === 'circle') {
     const dx = bPosition.x - aPosition.x;
     const dy = bPosition.y - aPosition.y;
@@ -918,30 +1380,73 @@ function resolveContact(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeom
 
 function containsPoint(body: PhysicsBody2D, point: Vector2DLike): boolean {
   const position = body.position;
-  if (body.shape.type === 'circle') {
+  const shape = body.shape;
+  if (shape.type === 'segment') {
+    const vertices = verticesOf(shape, position);
+    const closest = closestOnSegment(point, vertices[0], vertices[1]);
+    return Math.hypot(closest.x - point.x, closest.y - point.y) <= 0.0000001;
+  }
+  if (shape.type === 'convex') {
+    const vertices = verticesOf(shape, position);
+    let sign = 0;
+    for (let index = 0; index < vertices.length; index++) {
+      const a = vertices[index], b = vertices[(index + 1) % vertices.length];
+      const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+      if (Math.abs(cross) <= 0.0000001) continue;
+      if (sign !== 0 && cross * sign < 0) return false;
+      sign = cross;
+    }
+    return true;
+  }
+  if (shape.type === 'circle') {
     const dx = point.x - position.x;
     const dy = point.y - position.y;
-    return dx * dx + dy * dy <= body.shape.radius * body.shape.radius;
+    return dx * dx + dy * dy <= shape.radius * shape.radius;
   }
-  return Math.abs(point.x - position.x) <= body.shape.width * 0.5 &&
-    Math.abs(point.y - position.y) <= body.shape.height * 0.5;
+  return Math.abs(point.x - position.x) <= shape.width * 0.5 &&
+    Math.abs(point.y - position.y) <= shape.height * 0.5;
 }
 
 function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: number, body: PhysicsBody2D):
   { point: Vector2DLike; normal: Vector2DLike; distance: number } | null {
   const position = body.position;
-  if (body.shape.type === 'circle') {
+  const shape = body.shape;
+  if (shape.type === 'segment' || shape.type === 'convex') {
+    const points = verticesOf(shape, position);
+    const count = shape.type === 'segment' ? 1 : points.length;
+    const startsInside = shape.type === 'convex' && containsPoint(body, origin);
+    let nearest: { point: Vector2DLike; normal: Vector2DLike; distance: number } | null = null;
+    for (let index = 0; index < count; index++) {
+      const a = points[index], b = points[(index + 1) % points.length];
+      const edge = { x: b.x - a.x, y: b.y - a.y };
+      const denominator = direction.x * edge.y - direction.y * edge.x;
+      if (Math.abs(denominator) <= 0.0000001) continue;
+      const offset = { x: a.x - origin.x, y: a.y - origin.y };
+      const distance = (offset.x * edge.y - offset.y * edge.x) / denominator;
+      const along = (offset.x * direction.y - offset.y * direction.x) / denominator;
+      if (distance < 0 || distance > maxDistance || along < 0 || along > 1) continue;
+      const length = Math.hypot(edge.x, edge.y);
+      let normal = { x: -edge.y / length, y: edge.x / length };
+      const alongDirection = normal.x * direction.x + normal.y * direction.y;
+      if (startsInside ? alongDirection < 0 : alongDirection > 0) normal = { x: -normal.x, y: -normal.y };
+      if (nearest === null || distance < nearest.distance) nearest = {
+        point: { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance }, normal, distance,
+      };
+    }
+    return nearest;
+  }
+  if (shape.type === 'circle') {
     const offsetX = origin.x - position.x;
     const offsetY = origin.y - position.y;
     const projected = offsetX * direction.x + offsetY * direction.y;
-    const c = offsetX * offsetX + offsetY * offsetY - body.shape.radius * body.shape.radius;
+    const c = offsetX * offsetX + offsetY * offsetY - shape.radius * shape.radius;
     const discriminant = projected * projected - c;
     if (discriminant < 0) return null;
     let distance = -projected - Math.sqrt(discriminant);
     if (distance < 0) distance = -projected + Math.sqrt(discriminant);
     if (distance < 0 || distance > maxDistance) return null;
     const point = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance };
-    const normalLength = body.shape.radius;
+    const normalLength = shape.radius;
     return { point, normal: { x: (point.x - position.x) / normalLength, y: (point.y - position.y) / normalLength }, distance };
   }
 
@@ -949,8 +1454,8 @@ function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: nu
   let far = Infinity;
   let normal: Vector2DLike = { x: 0, y: 0 };
   let farNormal: Vector2DLike = { x: 0, y: 0 };
-  const halfX = body.shape.width * 0.5;
-  const halfY = body.shape.height * 0.5;
+  const halfX = shape.width * 0.5;
+  const halfY = shape.height * 0.5;
   const axes = [
     { origin: origin.x, direction: direction.x, minimum: position.x - halfX, maximum: position.x + halfX, xAxis: true },
     { origin: origin.y, direction: direction.y, minimum: position.y - halfY, maximum: position.y + halfY, xAxis: false },

@@ -11,7 +11,7 @@ export interface CharacterBody2DOptions {
 }
 
 function finite(value: number): boolean {
-  return value === value && value !== Infinity && value !== -Infinity;
+  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity;
 }
 
 function validVec(value: Vector2DLike): boolean {
@@ -20,7 +20,7 @@ function validVec(value: Vector2DLike): boolean {
 
 function copyVec(value: Vector2DLike): Vector2D { return Vector2D.from(value); }
 
-/** Axis-separated arcade character movement backed by a kinematic PhysicsBody2D. */
+/** Arcade character movement backed by a kinematic PhysicsBody2D. */
 export class CharacterBody2D extends GameComponent {
   readonly world: PhysicsWorld2D;
   readonly width: number;
@@ -83,7 +83,7 @@ export class CharacterBody2D extends GameComponent {
     return result;
   }
 
-  /** Moves by velocity times dt, resolving X then Y against filtered non-sensor bodies. */
+  /** Moves by velocity times dt and slides along filtered non-sensor surfaces. */
   moveAndSlide(velocity: Vector2DLike, dt: number): boolean {
     const owner = this.gameObject;
     if (!this.isReady || !validVec(velocity) || !finite(dt) || dt < 0 || owner === null ||
@@ -106,15 +106,17 @@ export class CharacterBody2D extends GameComponent {
     this.onCeilingValue = false;
     for (let index = 0; index < result.normals.length; index++) {
       const normal = result.normals[index];
-      if (normal.x !== 0) {
-        resolvedVelocity.x = 0;
-        this.onWallValue = true;
+      const toward = resolvedVelocity.x * normal.x + resolvedVelocity.y * normal.y;
+      if (toward < 0) {
+        resolvedVelocity.x -= toward * normal.x;
+        resolvedVelocity.y -= toward * normal.y;
       }
-      if (normal.y !== 0) resolvedVelocity.y = 0;
-      if (normal.y < 0) this.onFloorValue = true;
-      else if (normal.y > 0) this.onCeilingValue = true;
+      if (normal.y < -0.70710678) this.onFloorValue = true;
+      else if (normal.y > 0.70710678) this.onCeilingValue = true;
+      if (Math.abs(normal.x) > 0.70710678) this.onWallValue = true;
       this.contactNormalsValue.push(copyVec(normal));
     }
+    if (result.exhausted) { resolvedVelocity.x = 0; resolvedVelocity.y = 0; }
     this.velocityValue = resolvedVelocity;
     return true;
   }
