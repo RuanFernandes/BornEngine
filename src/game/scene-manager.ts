@@ -74,7 +74,7 @@ export class SceneManager implements ContextResource {
     if (this.transitioning) return;
     const scene = this.currentScene;
     if (scene === null) return;
-    scene.render(renderer, scene.camera2D);
+    scene.render(renderer, scene.camera2D, scene.viewport2D);
   }
 
   updateFixed(fixedDt: number): void {

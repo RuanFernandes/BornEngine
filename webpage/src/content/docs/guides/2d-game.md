@@ -40,7 +40,29 @@ class Arena extends Game {
 }
 ```
 
-Set `scene.camera2D` to keep the camera attached to the playfield. The scene opens and closes the 2D camera pass around component rendering, so HUD drawing after `super.render()` stays in screen coordinates.
+## Camera presentation
+
+Use `CameraRig2D` for target following and set a logical viewport when the game needs stable composition across window sizes. Scene rendering and `game.input.screenToWorld()` use the same camera and viewport mapping. HUD drawing after `super.render()` stays in screen coordinates.
+
+```ts
+import { CameraRig2D, GameObject, Scene, Viewport2D } from '@bornengine/engine';
+
+function configureCamera(scene: Scene, player: GameObject): void {
+  scene.viewport2D = new Viewport2D({ width: 320, height: 180, mode: 'integer' });
+  const cameraObject = new GameObject({ name: 'Camera' });
+  const camera = new CameraRig2D({
+    target: player,
+    offset: { x: 160, y: 90 },
+    smoothing: 0.15,
+    deadZone: { x: -20, y: -12, width: 40, height: 24 },
+  });
+  cameraObject.addComponent(camera);
+  scene.addNode(cameraObject);
+  scene.bindCameraRig2D(camera);
+}
+```
+
+Choose `fit` for centered letterboxing, `integer` for crisp pixel-art upscales, or `stretch` when the composition should fill every window shape. `ParallaxLayer2D` on a parent object offsets its descendant sprites by a camera-relative amount.
 
 `Game.input.update()` advances all action maps once per frame before `loop()` runs. Create an action map with `this.input.createActionMap()`, bind keys or axes during startup, and read its snapshot in `loop()`.
 
@@ -82,4 +104,4 @@ Use WASD or the arrow keys to move and Space to attack. See the [Sprites API](..
 
 ## Next steps
 
-Use the [Input API](../../api/input/) for action maps and gamepad bindings, the [Game API](../../api/game/) for object and scene lifecycles, and the [Textures API](../../api/textures/) for image ownership and filtering. The [VFX API](../../api/vfx/) covers the separate 3D particle and decal systems.
+Use the [2D camera API](../../api/camera2d/) for camera rigs, viewport mapping, and parallax, the [Input API](../../api/input/) for action maps and gamepad bindings, the [Game API](../../api/game/) for object and scene lifecycles, and the [Textures API](../../api/textures/) for image ownership and filtering. The [VFX API](../../api/vfx/) covers the separate 3D particle and decal systems.

@@ -29,7 +29,7 @@ const OVERRIDES = new Set([
   'bloom_is_gamepad_button_pressed', 'bloom_is_gamepad_button_down', 'bloom_is_gamepad_button_released',
   'bloom_get_gamepad_axis_count',
   // 2D camera + shapes
-  'bloom_begin_mode_2d', 'bloom_end_mode_2d',
+  'bloom_begin_mode_2d', 'bloom_begin_mode_2d_viewport', 'bloom_end_mode_2d',
   'bloom_draw_rect', 'bloom_draw_rect_lines',
   'bloom_draw_circle', 'bloom_draw_circle_lines',
   'bloom_draw_line', 'bloom_draw_triangle', 'bloom_draw_poly',

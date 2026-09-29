@@ -2,14 +2,36 @@ import { GameContext, getGameContext } from '../core/context';
 import type { Game } from '../core/game';
 import * as native from '../core/internal';
 import type { Camera2D } from '../core/types';
+import type { Viewport2D } from '../camera2d/viewport-2d';
 import { InputActionMap } from './input-action-map';
+
+function finite(value: number): boolean {
+  return value === value && value !== Infinity && value !== -Infinity;
+}
+
+function validCamera(camera: Camera2D): boolean {
+  return camera !== null && camera !== undefined &&
+    camera.offset !== null && camera.offset !== undefined &&
+    camera.target !== null && camera.target !== undefined &&
+    finite(camera.offset.x) && finite(camera.offset.y) &&
+    finite(camera.target.x) && finite(camera.target.y) &&
+    finite(camera.rotation) && finite(camera.zoom) && camera.zoom > 0;
+}
+
+function validPoint(position: { x: number; y: number }): boolean {
+  return position !== null && position !== undefined && finite(position.x) && finite(position.y);
+}
 
 export class InputSystem {
   private actionMaps: InputActionMap[] = [];
   private disposed = false;
   private readonly context: GameContext;
+  private readonly owner: Game;
 
-  constructor(owner: Game) { this.context = getGameContext(owner); }
+  constructor(owner: Game) {
+    this.owner = owner;
+    this.context = getGameContext(owner);
+  }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
 
@@ -83,11 +105,45 @@ export class InputSystem {
   isWatch(): boolean { return this.isReady && native.isWatch(); }
   getScreenWidth(): number { return this.isReady ? native.getScreenWidth() : 0; }
   getScreenHeight(): number { return this.isReady ? native.getScreenHeight() : 0; }
-  screenToWorld(position: { x: number; y: number }, camera: Camera2D): { x: number; y: number } | null {
-    return this.isReady ? native.getScreenToWorld2D(position, camera) : null;
+  screenToWorld(
+    position: { x: number; y: number },
+    camera?: Camera2D,
+    viewport?: Viewport2D | null,
+  ): { x: number; y: number } | null {
+    if (!this.isReady) return null;
+    const scene = this.owner.scenes.currentScene;
+    const selectedViewport = viewport === undefined ? scene === null ? null : scene.viewport2D : viewport;
+    const sceneCamera = scene === null ? null : scene.camera2D;
+    const selectedCamera = camera === undefined
+      ? sceneCamera === null && selectedViewport !== null
+        ? { offset: { x: 0, y: 0 }, target: { x: 0, y: 0 }, rotation: 0, zoom: 1 }
+        : sceneCamera
+      : camera;
+    if (selectedCamera === null || !validCamera(selectedCamera) || !validPoint(position)) return null;
+    if (selectedViewport !== null) {
+      return selectedViewport.screenToWorld(position, selectedCamera, this.owner.window.width, this.owner.window.height);
+    }
+    return native.getScreenToWorld2D(position, selectedCamera);
   }
-  worldToScreen(position: { x: number; y: number }, camera: Camera2D): { x: number; y: number } | null {
-    return this.isReady ? native.getWorldToScreen2D(position, camera) : null;
+  worldToScreen(
+    position: { x: number; y: number },
+    camera?: Camera2D,
+    viewport?: Viewport2D | null,
+  ): { x: number; y: number } | null {
+    if (!this.isReady) return null;
+    const scene = this.owner.scenes.currentScene;
+    const selectedViewport = viewport === undefined ? scene === null ? null : scene.viewport2D : viewport;
+    const sceneCamera = scene === null ? null : scene.camera2D;
+    const selectedCamera = camera === undefined
+      ? sceneCamera === null && selectedViewport !== null
+        ? { offset: { x: 0, y: 0 }, target: { x: 0, y: 0 }, rotation: 0, zoom: 1 }
+        : sceneCamera
+      : camera;
+    if (selectedCamera === null || !validCamera(selectedCamera) || !validPoint(position)) return null;
+    if (selectedViewport !== null) {
+      return selectedViewport.worldToScreen(position, selectedCamera, this.owner.window.width, this.owner.window.height);
+    }
+    return native.getWorldToScreen2D(position, selectedCamera);
   }
   injectKeyDown(key: number): boolean { if (!this.isReady) return false; native.injectKeyDown(key); return true; }
   injectKeyUp(key: number): boolean { if (!this.isReady) return false; native.injectKeyUp(key); return true; }

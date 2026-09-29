@@ -61,6 +61,11 @@ export type {
 } from './physics2d';
 export { Tilemap } from './tilemap';
 export type { TilemapOptions, TilemapSolidTile, TilemapTileDefinition } from './tilemap';
+export { CameraRig2D, ParallaxLayer2D, Viewport2D, getParallaxOffset } from './camera2d';
+export type {
+  CameraRig2DOptions, CameraShake2DOptions, ParallaxLayer2DOptions,
+  Viewport2DOptions, ViewportScalingMode2D, ViewportTransform2D,
+} from './camera2d';
 export {
   PhysicsWorld, Collider, BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
   ConvexHullCollider, MeshCollider, HeightfieldCollider, CompoundCollider, ScaledCollider,

@@ -187,6 +187,24 @@ macro_rules! __bloom_ffi_draw {
         })
         }
 
+        // bloom_begin_mode_2d_viewport [source: macos]
+        #[no_mangle]
+        pub extern "C" fn bloom_begin_mode_2d_viewport(
+            offset_x: f64, offset_y: f64, target_x: f64, target_y: f64,
+            rotation: f64, zoom: f64, scale_x: f64, scale_y: f64,
+            origin_x: f64, origin_y: f64,
+            clip_x: f64, clip_y: f64, clip_width: f64, clip_height: f64,
+        ) {
+            $crate::ffi::guard("bloom_begin_mode_2d_viewport", move || {
+                engine().renderer.begin_mode_2d_viewport(
+                    offset_x as f32, offset_y as f32, target_x as f32, target_y as f32,
+                    rotation as f32, zoom as f32, scale_x as f32, scale_y as f32,
+                    origin_x as f32, origin_y as f32,
+                    clip_x as f32, clip_y as f32, clip_width as f32, clip_height as f32,
+                );
+        })
+        }
+
         // bloom_end_mode_2d  [source: macos]
         #[no_mangle]
         pub extern "C" fn bloom_end_mode_2d() {

@@ -43,6 +43,7 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | Module | Import path | Owned API |
 | --- | --- | --- |
 | Core | `@bornengine/engine/core` | `Game`, `Window`, `Renderer`, platform values |
+| 2D camera | `@bornengine/engine/camera2d` | `CameraRig2D`, `Viewport2D`, `ParallaxLayer2D` |
 | Input | `@bornengine/engine/input` | `InputSystem`, `InputActionMap` |
 | Shapes | `@bornengine/engine/shapes` | Renderer drawing and pure collision helpers |
 | Textures | `@bornengine/engine/textures` | `Texture`, `RenderTexture`, `ImageData` |

@@ -6,6 +6,7 @@ import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Renderer } from '../core/renderer';
 import type { Camera2D } from '../core/types';
+import type { Viewport2D } from '../camera2d/viewport-2d';
 
 interface RenderEntry {
   component: GameComponent;
@@ -106,7 +107,7 @@ export class GameScene implements ContextResource {
   }
 
   /** Draws active render components in ascending renderOrder with stable ties. */
-  render(renderer: Renderer, camera?: Camera2D | null): void {
+  render(renderer: Renderer, camera?: Camera2D | null, viewport?: Viewport2D | null): void {
     if (this.wasDestroyed) return;
     renderer._beginSceneRender();
     const objects = this.sceneObjects.slice();
@@ -140,8 +141,11 @@ export class GameScene implements ContextResource {
 
     let cameraStarted = false;
     try {
-      if (camera !== undefined && camera !== null) {
-        if (!renderer.begin2D(camera)) return;
+      if ((camera !== undefined && camera !== null) || (viewport !== undefined && viewport !== null)) {
+        const activeCamera = camera === undefined || camera === null
+          ? { offset: { x: 0, y: 0 }, target: { x: 0, y: 0 }, rotation: 0, zoom: 1 }
+          : camera;
+        if (!renderer.begin2D(activeCamera, viewport)) return;
         cameraStarted = true;
       }
 

@@ -16,6 +16,7 @@ import {
 } from '../models/internal';
 import type { Camera2D, Camera3D, Color, Rect, Vec2, Vec3 } from './types';
 import { getCamera2DWorldBounds, isRectIntersecting } from './camera2d-culling';
+import type { Viewport2D } from '../camera2d/viewport-2d';
 export { getCamera2DWorldBounds };
 
 /** Render workload measured for the most recent scene render. */
@@ -39,6 +40,15 @@ function isFiniteNumber(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }
 
+function isValidCamera2D(camera: Camera2D): boolean {
+  return camera !== null && camera !== undefined &&
+    camera.offset !== null && camera.offset !== undefined &&
+    camera.target !== null && camera.target !== undefined &&
+    isFiniteNumber(camera.offset.x) && isFiniteNumber(camera.offset.y) &&
+    isFiniteNumber(camera.target.x) && isFiniteNumber(camera.target.y) &&
+    isFiniteNumber(camera.rotation) && isFiniteNumber(camera.zoom) && camera.zoom > 0;
+}
+
 export interface InstancedDrawSource extends ContextResource {
   readonly isLoaded: boolean;
   drawNative(material: Material, model: Model | Mesh, meshIndex: number): boolean;
@@ -52,6 +62,7 @@ export class Renderer {
   private disposed = false;
   private activeRenderTexture: RenderTexture | null = null;
   private activeCameraBounds: Rect | null = null;
+  private activeCameraValue: Camera2D | null = null;
   private frameIntervalMsValue = 0;
   private spritesDrawnValue = 0;
   private spritesCulledValue = 0;
@@ -69,6 +80,17 @@ export class Renderer {
   }
 
   get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
+
+  /** Snapshot of the camera applied to the current 2D render pass. */
+  get activeCamera2D(): Camera2D | null {
+    const camera = this.activeCameraValue;
+    return camera === null ? null : {
+      offset: { x: camera.offset.x, y: camera.offset.y },
+      target: { x: camera.target.x, y: camera.target.y },
+      rotation: camera.rotation,
+      zoom: camera.zoom,
+    };
+  }
 
   /** Snapshot of the current game frame's render workload. */
   get stats(): RendererStats {
@@ -91,6 +113,7 @@ export class Renderer {
     this.spritesDrawnValue = 0;
     this.spritesCulledValue = 0;
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
   }
 
   /** @internal Resets scene workload before rendering components. */
@@ -98,6 +121,7 @@ export class Renderer {
     this.spritesDrawnValue = 0;
     this.spritesCulledValue = 0;
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
   }
 
   /** Tests an axis-aligned world-space rectangle against the active camera view. */
@@ -117,11 +141,32 @@ export class Renderer {
     return true;
   }
 
-  begin2D(camera: Camera2D): boolean {
-    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null) return false;
-    native.beginMode2D(camera);
+  begin2D(camera: Camera2D, viewport?: Viewport2D | null): boolean {
+    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null ||
+        !isValidCamera2D(camera)) return false;
+    if (viewport !== undefined && viewport !== null) {
+      const transform = viewport._renderTransform(native.getScreenWidth(), native.getScreenHeight());
+      if (transform === null) return false;
+      native.beginMode2DViewport(
+        camera,
+        transform.scaleX,
+        transform.scaleY,
+        transform.offsetX,
+        transform.offsetY,
+        viewport._clipRect(transform),
+      );
+      this.activeCameraBounds = getCamera2DWorldBounds(camera, transform.logicalWidth, transform.logicalHeight);
+    } else {
+      native.beginMode2D(camera);
+      this.activeCameraBounds = getCamera2DWorldBounds(camera, native.getScreenWidth(), native.getScreenHeight());
+    }
     this.mode = '2d';
-    this.activeCameraBounds = getCamera2DWorldBounds(camera, native.getScreenWidth(), native.getScreenHeight());
+    this.activeCameraValue = {
+      offset: { x: camera.offset.x, y: camera.offset.y },
+      target: { x: camera.target.x, y: camera.target.y },
+      rotation: camera.rotation,
+      zoom: camera.zoom,
+    };
     return true;
   }
 
@@ -130,6 +175,7 @@ export class Renderer {
     native.endMode2D();
     this.mode = 'none';
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
     return true;
   }
 
@@ -145,6 +191,7 @@ export class Renderer {
     native.endMode3D();
     this.mode = 'none';
     this.activeCameraBounds = null;
+    this.activeCameraValue = null;
     return true;
   }
 

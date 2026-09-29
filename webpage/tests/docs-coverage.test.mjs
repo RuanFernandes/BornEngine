@@ -4,9 +4,9 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 20);
+  assert.equal(apiCoverage.length, 21);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
-    'game', 'core', 'input', 'shapes', 'textures', 'assets', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math',
+    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math',
     'scene', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
