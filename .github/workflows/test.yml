@@ -276,7 +276,7 @@ jobs:
           node-version: 24
 
       - name: Install Perry
-        run: npm install --global @perryts/perry@0.5.1022
+        run: npm install --global @perryts/perry@0.5.1520
 
       - name: Check all BornEngine examples
         run: npm run examples:check

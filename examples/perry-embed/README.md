@@ -3,15 +3,22 @@
 ![screenshot](screenshot.png)
 
 A normal Perry UI app whose viewport is a live BornEngine 3D scene. The title
-label and stack are plain Perry UI; the viewport is Perry's `BloomView`.
+label and stack are plain Perry UI; the viewport uses Perry's `BloomView` host
+widget.
 
 ```bash
 perry compile main.ts -o perry-embed && ./perry-embed
 ```
 
-No Perry fork, and no Windows-only path — `BloomView` merged upstream
-(perry #2395, extended by #5519) and Perry implements it on **windows, macos,
-ios, tvos, visionos, android and gtk4**.
+This example requires Perry **0.5.1520 or newer**, which provides `BloomView`
+and `bloomViewGetNativeHandle` in `perry/ui` ([upstream declarations](https://github.com/PerryTS/perry/blob/v0.5.1520/types/perry/ui/index.d.ts)). The local Perry build is independent of
+BornEngine; no Perry fork is required.
+
+Perry exposes the `BloomView` widget on native platforms, while live rendering
+depends on the target's BornEngine backend. Surface attachment is implemented
+for Windows, macOS, iOS, tvOS, visionOS and Android. Linux/GTK and watchOS do
+not attach a live BornEngine surface yet; `attachNativeSurface()` reports
+failure there. The web target uses its canvas window path instead.
 
 ## How it fits together
 
@@ -19,7 +26,7 @@ Perry UI owns the window and the run loop. `BloomView(w, h)` reserves a native
 view in Perry's own view tree; `bloomViewGetNativeHandle(view)` hands out that
 view's platform handle (`HWND` / `NSView*` / `UIView*` / `GtkWidget*` /
 `ANativeWindow*`). BornEngine attaches its GPU surface to the handle with
-`attachToNativeView()` and renders into it.
+`game.window.attachNativeSurface()` and renders into it.
 
 **Perry UI does not link, or know about, BornEngine.** It reserves a native view and
 exposes a handle; anything can render into it, and apps that never call
@@ -34,10 +41,8 @@ PlatformView — Flutter never learns about Flame.
 2. **Attach on the first frame the handle is non-zero**, not merely the first
    tick. The native view exists immediately; its handle is only usable once the
    window is actually on screen.
-3. **Use `attachToNativeView`.** It is portable and returns whether it worked.
-   The `attachToHwnd` / `bloomViewGetHwnd` pair is Windows-only and deprecated
-   at *both* ends (BornEngine's side returns `void`, so you cannot even tell if it
-   failed).
+3. **Use `game.window.attachNativeSurface`.** It accepts the native view handle,
+   dimensions and returns whether the surface attached successfully.
 
 ## Related
 
