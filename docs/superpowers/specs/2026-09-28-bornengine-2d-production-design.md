@@ -1,7 +1,7 @@
 # BornEngine 2D Production Foundation
 
 **Date:** 2026-09-28
-**Status:** Proposed for review
+**Status:** Approved for implementation
 **Repositories:** `BornEngine` and `bornengine-cli`
 
 ## Goal
