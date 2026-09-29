@@ -116,6 +116,7 @@ export class CharacterBody2D extends GameComponent {
       if (Math.abs(normal.x) > 0.70710678) this.onWallValue = true;
       this.contactNormalsValue.push(copyVec(normal));
     }
+    if (result.exhausted) { resolvedVelocity.x = 0; resolvedVelocity.y = 0; }
     this.velocityValue = resolvedVelocity;
     return true;
   }

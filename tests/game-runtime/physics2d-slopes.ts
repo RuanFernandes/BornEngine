@@ -141,6 +141,49 @@ expect(mixedPhases.length === 2 && mixedPhases[0].bodyA === firstSensor &&
 orderingBall.dispose();
 firstSensor.dispose();
 secondSensor.dispose();
+const endpointWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+endpointWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 10, y: 0 }, end: { x: 20, y: 10 } } });
+const endpointBox = endpointWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: 9.4, y: 0.3 }, gravityScale: 0 });
+endpointWorld.step(0.1);
+expect(endpointWorld.popContacts().length === 0 && Math.abs(endpointBox.position.x - 9.4) < 0.0001,
+  'box outside segment endpoint is separated on the world X axis');
+endpointWorld.dispose();
+const rayWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 } });
+rayWorld.createBody({ type: 'static', shape: { type: 'convex', vertices: [
+  { x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 },
+] } });
+const insideRay = rayWorld.raycast({ x: 5, y: 5 }, { x: 1, y: 0 }, 10);
+expect(insideRay !== null && Math.abs(insideRay.distance - 5) < 0.0001 &&
+  insideRay.normal.x > 0.99 && Math.abs(insideRay.point.x - 10) < 0.0001,
+  'convex raycast starting inside returns the outward exit normal');
+rayWorld.dispose();
+const slideWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+slideWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 10, y: -100 }, end: { x: 10, y: 100 } } });
+slideWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -100 }, end: { x: 0, y: 100 } } });
+slideWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: 20 }, end: { x: 10, y: 10 } } });
+slideWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: 30 }, end: { x: 10, y: 40 } } });
+const slideScene = new GameScene(game);
+const slideCharacter = new CharacterBody2D(slideWorld, { width: 1, height: 1 });
+const slideObject = new GameObject({ position: { x: 5, y: 0, z: 0 } });
+slideObject.addComponent(slideCharacter);
+slideScene.add(slideObject);
+expect(slideCharacter.moveAndSlide({ x: 1000, y: 1000 }, 0.1),
+  'four-slide exhaustion fixture advances safely');
+expect(slideCharacter.contactNormals.length === 4 &&
+  slideCharacter.position.x >= 0.499 && slideCharacter.position.x <= 9.501 &&
+  slideCharacter.velocity.x === 0 && slideCharacter.velocity.y === 0,
+  'character stops at the last safe contact when four slides are exhausted: normals=' +
+  slideCharacter.contactNormals.length + ' x=' + slideCharacter.position.x +
+  ' y=' + slideCharacter.position.y + ' vx=' + slideCharacter.velocity.x +
+  ' vy=' + slideCharacter.velocity.y);
+slideScene.destroy();
+slideWorld.dispose();
 world.dispose();
 context.dispose();
 console.log('Physics2D slope checks passed.');

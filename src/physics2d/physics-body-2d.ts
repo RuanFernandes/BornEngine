@@ -415,7 +415,7 @@ export class PhysicsBody2D extends GameComponent {
     if (this.oneWayValue !== null) {
       const normal = this.oneWayValue.normal;
       const length = Math.hypot(normal.x, normal.y);
-      if (this.type !== 'static' || !validVec(normal) || length <= 0.0000001 ||
+      if (this.type !== 'static' || !validVec(normal) || !finite(length) || length <= 0.0000001 ||
           !finite(this.oneWayValue.tolerance!) || this.oneWayValue.tolerance! < 0) {
         return 'PhysicsBody2D one-way surface requires a static body, finite nonzero normal, and nonnegative tolerance.';
       }

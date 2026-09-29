@@ -20,6 +20,10 @@ expect(invalid.error !== null, 'one-way outward normal must be nonzero');
 const invalidTolerance = world.createBody({ type: 'static', shape: { type: 'segment',
   start: { x: -10, y: 0 }, end: { x: 10, y: 0 } }, oneWay: { normal: { x: 0, y: -1 }, tolerance: -1 } });
 expect(invalidTolerance.error !== null, 'one-way tolerance must be nonnegative');
+const overflowNormal = world.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: -10, y: 0 }, end: { x: 10, y: 0 } },
+  oneWay: { normal: { x: 1.7e308, y: 1.7e308 }, tolerance: 0 } });
+expect(overflowNormal.error !== null, 'overflowing one-way normal is rejected instead of becoming zero');
 const platform = world.createBody({ type: 'static', shape: { type: 'segment',
   start: { x: -10, y: 0 }, end: { x: 10, y: 0 } }, oneWay: { normal: { x: 0, y: -1 }, tolerance: 0.01 },
   layer: 2, mask: 1 });
@@ -57,6 +61,22 @@ expect(character.moveAndSlide({ x: 0, y: 100 }, 0.1) && character.position.y <= 
   'kinematic character lands on the outward side of a one-way platform');
 scene.destroy();
 platform.dispose();
+const circleWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+circleWorld.createBody({ type: 'static', shape: { type: 'circle', radius: 2 },
+  oneWay: { normal: { x: -1, y: 0 }, tolerance: 0 } });
+const fromInside = circleWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -2.2, y: 0 }, velocity: { x: 5, y: 0 }, gravityScale: 0 });
+circleWorld.step(0.1);
+expect(circleWorld.popContacts().length === 0 && Math.abs(fromInside.position.x + 1.7) < 0.0001,
+  'one-way circle rejects approach that began inside its outward support plane');
+fromInside.dispose();
+circleWorld.clearContacts();
+const fromOutside = circleWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -3, y: 0 }, velocity: { x: 10, y: 0 }, gravityScale: 0 });
+circleWorld.step(0.1);
+expect(circleWorld.popContacts().length === 1 && fromOutside.position.x < -2,
+  'one-way circle accepts an approach from beyond its radius');
+circleWorld.dispose();
 world.dispose();
 context.dispose();
 console.log('Physics2D one-way checks passed.');

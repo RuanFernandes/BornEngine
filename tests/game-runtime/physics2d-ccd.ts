@@ -129,6 +129,58 @@ expect(Math.abs(batchedBody.position.x - splitBody.position.x) < 0.000001 &&
   'CCD fixed steps agree when the same time is batched or split');
 batched.dispose();
 split.dispose();
+const endpointWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+endpointWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 10, y: 0 }, end: { x: 20, y: 10 } } });
+const endpointBox = endpointWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: 7, y: 0.3 }, velocity: { x: 24, y: 0 }, gravityScale: 0, ccd: true });
+endpointWorld.step(0.1);
+expect(Math.abs(endpointBox.position.x - 9.4) < 0.0001 && endpointWorld.popContacts().length === 0,
+  'CCD box passes a diagonal segment endpoint separated on the world X axis');
+endpointWorld.dispose();
+const materialWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+materialWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } }, restitution: 1, friction: 1 });
+const fastMaterial = materialWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -10, y: 0 }, velocity: { x: 200, y: 50 }, gravityScale: 0,
+  restitution: 1, friction: 1, ccd: true });
+materialWorld.step(0.1);
+const fastVelocity = fastMaterial.velocity;
+expect(fastVelocity.x < -199 && Math.abs(fastVelocity.y) < 0.0001 && fastMaterial.position.x < -10,
+  'CCD impact applies restitution and friction before moving for the remaining time');
+materialWorld.dispose();
+const discreteMaterialWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+discreteMaterialWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -10 }, end: { x: 0, y: 10 } }, restitution: 1, friction: 1 });
+const discreteMaterial = discreteMaterialWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.5 },
+  position: { x: -1, y: 0 }, velocity: { x: 5, y: 1.25 }, gravityScale: 0,
+  restitution: 1, friction: 1 });
+discreteMaterialWorld.step(0.1);
+expect(Math.abs(discreteMaterial.velocity.x + 5) < 0.0001 &&
+  Math.abs(discreteMaterial.velocity.y) < 0.0001,
+  'CCD material response follows the established discrete restitution and friction rule');
+discreteMaterialWorld.dispose();
+const circleWallWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+circleWallWorld.createBody({ type: 'static', shape: { type: 'circle', radius: 1 }, position: { x: 0, y: 0 } });
+const fastBox = circleWallWorld.createBody({ type: 'dynamic', shape: { type: 'box', width: 1, height: 1 },
+  position: { x: -10, y: 0 }, velocity: { x: 200, y: 0 }, gravityScale: 0, ccd: true });
+circleWallWorld.step(0.1);
+expect(fastBox.position.x <= -1.49 && circleWallWorld.popContacts().length === 1,
+  'opt-in CCD box cannot fully cross a static circle in one fixed step');
+circleWallWorld.dispose();
+const bounceWorld = new PhysicsWorld2D(game, { gravity: { x: 0, y: 0 }, fixedTimeStep: 0.1 });
+bounceWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 0, y: -100 }, end: { x: 0, y: 100 } }, restitution: 1, friction: 0 });
+bounceWorld.createBody({ type: 'static', shape: { type: 'segment',
+  start: { x: 2, y: -100 }, end: { x: 2, y: 100 } }, restitution: 1, friction: 0 });
+const bouncing = bounceWorld.createBody({ type: 'dynamic', shape: { type: 'circle', radius: 0.25 },
+  position: { x: 1, y: 0 }, velocity: { x: 400, y: 0 }, gravityScale: 0,
+  restitution: 1, friction: 0, ccd: true });
+bounceWorld.step(0.1);
+expect(bouncing.position.x >= 0.249 && bouncing.position.x <= 1.751 &&
+  bouncing.velocity.x === 0 && bounceWorld.popContacts().length === 2,
+  'CCD discards unresolved time and velocity safely after eight corridor impacts');
+bounceWorld.dispose();
 world.dispose();
 context.dispose();
 console.log('Physics2D CCD checks passed.');
