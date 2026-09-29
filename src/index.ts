@@ -53,14 +53,15 @@ export type { ScenePickEntry, ScenePickHit, SceneNodeOptions } from './scene';
 
 export { InputSystem, InputActionMap } from './input';
 export type { ActionAxisBinding, ActionButtonBinding } from './input';
-export { PhysicsWorld2D, PhysicsBody2D } from './physics2d';
+export { PhysicsWorld2D, PhysicsBody2D, CharacterBody2D } from './physics2d';
 export type {
   PhysicsBody2DOptions, PhysicsBodyContact2D, PhysicsBodyType2D, PhysicsContact2D,
   PhysicsContactPhase2D, PhysicsShape2D, PhysicsQueryOptions2D, PhysicsRayHit2D,
   PhysicsWorld2DOptions,
+  CharacterBody2DOptions,
 } from './physics2d';
 export { Tilemap } from './tilemap';
-export type { TilemapOptions, TilemapSolidTile, TilemapTileDefinition } from './tilemap';
+export type { TilemapCellFlip, TilemapOptions, TilemapSolidTile, TilemapTileDefinition } from './tilemap';
 export { CameraRig2D, ParallaxLayer2D, Viewport2D, getParallaxOffset } from './camera2d';
 export type {
   CameraRig2DOptions, CameraShake2DOptions, ParallaxLayer2DOptions,

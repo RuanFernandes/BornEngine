@@ -217,7 +217,7 @@ const renderer = {
   _beginSceneRender(): void {},
   isRectVisibleIn2D(): boolean { return cameraSeesTiles; },
   _recordSpriteDrawn(): void { drawnQuads++; },
-  _recordSpriteCulled(): void { culledQuads++; },
+  _recordSpriteCulled(count = 1): void { culledQuads += count; },
 } as any as Renderer;
 mapScene.render(renderer);
 expect(draws.length === 4 && draws[0].destination.x === 10 && draws[0].destination.y === 20 &&

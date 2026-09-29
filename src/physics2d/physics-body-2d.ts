@@ -141,6 +141,7 @@ export class PhysicsBody2D extends GameComponent {
     this.positionValue = copyVec(value);
     this.hasWrittenTransform = false;
     this.writeOwnerPosition();
+    this.world._bodyMoved(this);
     return true;
   }
 
