@@ -1,4 +1,4 @@
-import { Collision, Colors, Game, Key, Mathf } from '@bornengine/engine';
+import { Colors, Game, Key, Mathf, Vector2D } from '@bornengine/engine';
 import type { Camera2D, Color } from '@bornengine/engine';
 
 // Constants
@@ -20,8 +20,7 @@ const TILE_STAIRS = 2;
 
 // Entity types
 interface Entity {
-  x: number;
-  y: number;
+  position: Vector2D;
   hp: number;
   maxHp: number;
   attack: number;
@@ -40,7 +39,7 @@ interface Room {
 const map: number[] = [];
 const visible: boolean[] = [];
 const explored: boolean[] = [];
-let player: Entity = { x: 0, y: 0, hp: 20, maxHp: 20, attack: 5, active: true, name: "Player" };
+let player: Entity = { position: Vector2D.zero(), hp: 20, maxHp: 20, attack: 5, active: true, name: "Player" };
 const enemies: Entity[] = [];
 let floor = 1;
 let turnCount = 0;
@@ -138,8 +137,8 @@ function generateDungeon(): void {
 
   // Place player in first room
   if (rooms.length > 0) {
-    player.x = Math.floor(rooms[0].x + rooms[0].w / 2);
-    player.y = Math.floor(rooms[0].y + rooms[0].h / 2);
+    player.position.x = Math.floor(rooms[0].x + rooms[0].w / 2);
+    player.position.y = Math.floor(rooms[0].y + rooms[0].h / 2);
   }
 
   // Place stairs in last room
@@ -160,10 +159,10 @@ function generateDungeon(): void {
       const ex = Mathf.randomInt(rooms[r].x + 1, rooms[r].x + rooms[r].w - 2);
       const ey = Mathf.randomInt(rooms[r].y + 1, rooms[r].y + rooms[r].h - 2);
       if (enemyIdx >= enemies.length) {
-        enemies.push({ x: ex, y: ey, hp: 5 + floor * 2, maxHp: 5 + floor * 2, attack: 2 + floor, active: true, name: "Goblin" });
+        enemies.push({ position: new Vector2D(ex, ey), hp: 5 + floor * 2, maxHp: 5 + floor * 2, attack: 2 + floor, active: true, name: "Goblin" });
       } else {
-        enemies[enemyIdx].x = ex;
-        enemies[enemyIdx].y = ey;
+        enemies[enemyIdx].position.x = ex;
+        enemies[enemyIdx].position.y = ey;
         enemies[enemyIdx].hp = 5 + floor * 2;
         enemies[enemyIdx].maxHp = 5 + floor * 2;
         enemies[enemyIdx].attack = 2 + floor;
@@ -186,8 +185,8 @@ function computeVisibility(): void {
     const angle = (a / steps) * Math.PI * 2;
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
-    let rx = player.x + 0.5;
-    let ry = player.y + 0.5;
+    let rx = player.position.x + 0.5;
+    let ry = player.position.y + 0.5;
     for (let d = 0; d < FOV_RADIUS; d++) {
       const tx = Math.floor(rx);
       const ty = Math.floor(ry);
@@ -204,14 +203,15 @@ function computeVisibility(): void {
 
 function enemyAt(x: number, y: number): number {
   for (let i = 0; i < enemies.length; i++) {
-    if (enemies[i].active && enemies[i].x === x && enemies[i].y === y) return i;
+    if (enemies[i].active && enemies[i].position.x === x && enemies[i].position.y === y) return i;
   }
   return -1;
 }
 
-function tryMove(dx: number, dy: number): void {
-  const nx = player.x + dx;
-  const ny = player.y + dy;
+function tryMove(direction: Vector2D): void {
+  const destination = player.position.add(direction);
+  const nx = destination.x;
+  const ny = destination.y;
 
   if (tileAt(nx, ny) === TILE_WALL) return;
 
@@ -227,12 +227,11 @@ function tryMove(dx: number, dy: number): void {
       showMessage("Hit " + enemies[ei].name + " for " + dmg.toString() + " damage");
     }
   } else {
-    player.x = nx;
-    player.y = ny;
+    player.position = destination;
   }
 
   // Check stairs
-  if (tileAt(player.x, player.y) === TILE_STAIRS) {
+  if (tileAt(player.position.x, player.position.y) === TILE_STAIRS) {
     floor = floor + 1;
     generateDungeon();
     showMessage("Descended to floor " + floor.toString());
@@ -243,8 +242,8 @@ function tryMove(dx: number, dy: number): void {
   // Enemy turns
   for (let i = 0; i < enemies.length; i++) {
     if (!enemies[i].active) continue;
-    const edx = player.x - enemies[i].x;
-    const edy = player.y - enemies[i].y;
+    const edx = player.position.x - enemies[i].position.x;
+    const edy = player.position.y - enemies[i].position.y;
     const dist = Math.abs(edx) + Math.abs(edy);
 
     if (dist <= 1) {
@@ -252,7 +251,7 @@ function tryMove(dx: number, dy: number): void {
       const dmg = Mathf.randomInt(enemies[i].attack - 1, enemies[i].attack + 1);
       player.hp = player.hp - dmg;
       showMessage(enemies[i].name + " hits you for " + dmg.toString() + "!");
-    } else if (dist <= FOV_RADIUS && isVisible(enemies[i].x, enemies[i].y)) {
+    } else if (dist <= FOV_RADIUS && isVisible(enemies[i].position.x, enemies[i].position.y)) {
       // Move toward player
       let mx = 0;
       let my = 0;
@@ -261,12 +260,13 @@ function tryMove(dx: number, dy: number): void {
       } else {
         my = edy > 0 ? 1 : -1;
       }
-      const enx = enemies[i].x + mx;
-      const eny = enemies[i].y + my;
+      const movement = new Vector2D(mx, my);
+      const enemyDestination = enemies[i].position.add(movement);
+      const enx = enemyDestination.x;
+      const eny = enemyDestination.y;
       if (tileAt(enx, eny) !== TILE_WALL && enemyAt(enx, eny) < 0 &&
-          !(enx === player.x && eny === player.y)) {
-        enemies[i].x = enx;
-        enemies[i].y = eny;
+          !(enx === player.position.x && eny === player.position.y)) {
+        enemies[i].position = enemyDestination;
       }
     }
   }
@@ -287,12 +287,12 @@ class DungeonCrawlGame extends Game {
   protected override loop(dt: number): void {
     if (player.hp > 0) {
       // Turn-based input
-      if (this.input.isKeyPressed(Key.UP) || this.input.isKeyPressed(Key.W)) tryMove(0, -1);
-      if (this.input.isKeyPressed(Key.DOWN) || this.input.isKeyPressed(Key.S)) tryMove(0, 1);
-      if (this.input.isKeyPressed(Key.LEFT) || this.input.isKeyPressed(Key.A)) tryMove(-1, 0);
-      if (this.input.isKeyPressed(Key.RIGHT) || this.input.isKeyPressed(Key.D)) tryMove(1, 0);
+      if (this.input.isKeyPressed(Key.UP) || this.input.isKeyPressed(Key.W)) tryMove(new Vector2D(0, -1));
+      if (this.input.isKeyPressed(Key.DOWN) || this.input.isKeyPressed(Key.S)) tryMove(new Vector2D(0, 1));
+      if (this.input.isKeyPressed(Key.LEFT) || this.input.isKeyPressed(Key.A)) tryMove(new Vector2D(-1, 0));
+      if (this.input.isKeyPressed(Key.RIGHT) || this.input.isKeyPressed(Key.D)) tryMove(new Vector2D(1, 0));
       // Wait
-      if (this.input.isKeyPressed(Key.PERIOD)) tryMove(0, 0);
+      if (this.input.isKeyPressed(Key.PERIOD)) tryMove(Vector2D.zero());
     } else {
       if (this.input.isKeyPressed(Key.ENTER)) {
         player.hp = player.maxHp;
@@ -309,10 +309,11 @@ class DungeonCrawlGame extends Game {
     if (this.input.isKeyDown(Key.MINUS)) camera.zoom = Mathf.clamp(camera.zoom - dt, 0.5, 3.0);
 
     // Smooth camera follow
-    const targetCamX = player.x * TILE_SIZE + TILE_SIZE / 2;
-    const targetCamY = player.y * TILE_SIZE + TILE_SIZE / 2;
-    camera.target.x = camera.target.x + (targetCamX - camera.target.x) * 8 * dt;
-    camera.target.y = camera.target.y + (targetCamY - camera.target.y) * 8 * dt;
+    const targetCamera = new Vector2D(
+      player.position.x * TILE_SIZE + TILE_SIZE / 2,
+      player.position.y * TILE_SIZE + TILE_SIZE / 2,
+    );
+    camera.target = Vector2D.lerpUnclamped(camera.target, targetCamera, 8 * dt);
 
     // Message timer
     if (messageTimer > 0) messageTimer = messageTimer - dt;
@@ -346,37 +347,37 @@ class DungeonCrawlGame extends Game {
     // Draw enemies
     for (let i = 0; i < enemies.length; i++) {
       if (!enemies[i].active) continue;
-      if (!isVisible(enemies[i].x, enemies[i].y)) continue;
-      this.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE + 4, y: enemies[i].y * TILE_SIZE + 4, width: TILE_SIZE - 8, height: TILE_SIZE - 8 }, { r: 200, g: 50, b: 50, a: 255 });
+      if (!isVisible(enemies[i].position.x, enemies[i].position.y)) continue;
+      this.renderer.drawRectangle({ x: enemies[i].position.x * TILE_SIZE + 4, y: enemies[i].position.y * TILE_SIZE + 4, width: TILE_SIZE - 8, height: TILE_SIZE - 8 }, { r: 200, g: 50, b: 50, a: 255 });
       // HP bar
       const hpRatio = enemies[i].hp / enemies[i].maxHp;
-      this.renderer.drawRectangle({ x: enemies[i].x * TILE_SIZE, y: enemies[i].y * TILE_SIZE - 4, width: Math.floor(TILE_SIZE * hpRatio), height: 3 }, Colors.RED);
+      this.renderer.drawRectangle({ x: enemies[i].position.x * TILE_SIZE, y: enemies[i].position.y * TILE_SIZE - 4, width: Math.floor(TILE_SIZE * hpRatio), height: 3 }, Colors.RED);
     }
 
     // Draw player
-    this.renderer.drawRectangle({ x: player.x * TILE_SIZE + 2, y: player.y * TILE_SIZE + 2, width: TILE_SIZE - 4, height: TILE_SIZE - 4 }, { r: 50, g: 150, b: 255, a: 255 });
+    this.renderer.drawRectangle({ x: player.position.x * TILE_SIZE + 2, y: player.position.y * TILE_SIZE + 2, width: TILE_SIZE - 4, height: TILE_SIZE - 4 }, { r: 50, g: 150, b: 255, a: 255 });
 
     this.renderer.end2D();
 
     // HUD
     this.renderer.drawRectangle({ x: 0, y: 0, width: SCREEN_WIDTH, height: 35 }, { r: 0, g: 0, b: 0, a: 180 });
-    this.renderer.drawText("HP: " + player.hp.toString() + "/" + player.maxHp.toString(), { x: 10, y: 8 }, 20, player.hp > player.maxHp / 3 ? Colors.GREEN : Colors.RED);
-    this.renderer.drawText("Floor: " + floor.toString(), { x: 200, y: 8 }, 20, Colors.WHITE);
-    this.renderer.drawText("Turns: " + turnCount.toString(), { x: 350, y: 8 }, 20, Colors.LIGHTGRAY);
+    this.renderer.drawText("HP: " + player.hp.toString() + "/" + player.maxHp.toString(), new Vector2D(10, 8), 20, player.hp > player.maxHp / 3 ? Colors.GREEN : Colors.RED);
+    this.renderer.drawText("Floor: " + floor.toString(), new Vector2D(200, 8), 20, Colors.WHITE);
+    this.renderer.drawText("Turns: " + turnCount.toString(), new Vector2D(350, 8), 20, Colors.LIGHTGRAY);
 
     // Message log
     if (messageTimer > 0) {
       const alpha = Math.floor(Mathf.clamp(messageTimer * 255, 0, 255));
-      this.renderer.drawText(message, { x: 10, y: SCREEN_HEIGHT - 30 }, 18, { r: 255, g: 255, b: 200, a: alpha });
+      this.renderer.drawText(message, new Vector2D(10, SCREEN_HEIGHT - 30), 18, { r: 255, g: 255, b: 200, a: alpha });
     }
 
     // Death screen
     if (player.hp <= 0) {
       this.renderer.drawRectangle({ x: 0, y: SCREEN_HEIGHT / 2 - 50, width: SCREEN_WIDTH, height: 100 }, { r: 0, g: 0, b: 0, a: 200 });
       const deathMsg = "You have perished on floor " + floor.toString();
-      this.renderer.drawText(deathMsg, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(deathMsg, 24) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 24, Colors.RED);
+      this.renderer.drawText(deathMsg, new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText(deathMsg, 24) / 2, SCREEN_HEIGHT / 2 - 20), 24, Colors.RED);
       const restartMsg = "Press ENTER to try again";
-      this.renderer.drawText(restartMsg, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(restartMsg, 18) / 2, y: SCREEN_HEIGHT / 2 + 15 }, 18, Colors.LIGHTGRAY);
+      this.renderer.drawText(restartMsg, new Vector2D(SCREEN_WIDTH / 2 - this.renderer.measureText(restartMsg, 18) / 2, SCREEN_HEIGHT / 2 + 15), 18, Colors.LIGHTGRAY);
     }
 
   }
@@ -395,8 +396,8 @@ generateDungeon();
 computeVisibility();
 
 const camera: Camera2D = {
-  offset: { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 },
-  target: { x: player.x * TILE_SIZE + TILE_SIZE / 2, y: player.y * TILE_SIZE + TILE_SIZE / 2 },
+  offset: new Vector2D(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+  target: new Vector2D(player.position.x * TILE_SIZE + TILE_SIZE / 2, player.position.y * TILE_SIZE + TILE_SIZE / 2),
   rotation: 0,
   zoom: 1.0,
 };

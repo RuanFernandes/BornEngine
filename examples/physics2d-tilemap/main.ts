@@ -1,4 +1,4 @@
-import { Colors, Game, GameObject, Scene, SpriteSheet, SpriteRenderer } from '@bornengine/engine';
+import { Colors, Game, GameObject, Scene, SpriteSheet, SpriteRenderer, Vector2D } from '@bornengine/engine';
 import { PhysicsWorld2D } from '@bornengine/engine/physics2d';
 import type { PhysicsBody2D } from '@bornengine/engine/physics2d';
 import { Tilemap } from '@bornengine/engine/tilemap';
@@ -11,14 +11,14 @@ class PhysicsTilemapScene extends Scene {
   constructor(game: Game, frame: SpriteFrame) {
     super(game, { name: 'Physics2D and tilemap' });
     this.camera2D = {
-      offset: { x: 400, y: 250 },
-      target: { x: 256, y: 160 },
+      offset: new Vector2D(400, 250),
+      target: new Vector2D(256, 160),
       rotation: 0,
       zoom: 1,
     };
 
     const physics = this.own(new PhysicsWorld2D(game, {
-      gravity: { x: 0, y: 900 },
+      gravity: new Vector2D(0, 900),
       fixedTimeStep: 1 / 60,
       maxSubSteps: 5,
     }));
@@ -50,7 +50,7 @@ class PhysicsTilemapScene extends Scene {
     for (let index = 0; index < solidTiles.length; index++) this.addStaticTile(solidTiles[index], physics);
 
     const player = new GameObject({ name: 'Player', position: { x: 112, y: 80, z: 0 } });
-    player.addComponent(new SpriteRenderer(frame, { size: { x: 28, y: 28 } }));
+    player.addComponent(new SpriteRenderer(frame, { size: new Vector2D(28, 28) }));
     const playerBody = physics.createBody({
       type: 'dynamic',
       shape: { type: 'box', width: 24, height: 28 },
@@ -124,7 +124,7 @@ class PhysicsTilemapGame extends Game {
   protected override render(): void {
     this.renderer.clear({ r: 20, g: 26, b: 37, a: 255 });
     super.render();
-    this.renderer.drawText('Fixed-step Physics2D · Static tile colliders', { x: 16, y: 16 }, 18, Colors.WHITE);
+    this.renderer.drawText('Fixed-step Physics2D · Static tile colliders', new Vector2D(16, 16), 18, Colors.WHITE);
   }
 }
 
