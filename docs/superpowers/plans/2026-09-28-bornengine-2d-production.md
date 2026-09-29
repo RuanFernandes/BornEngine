@@ -1,8 +1,8 @@
 # BornEngine 2D Production Integration
 
-**Date:** 2026-09-28  
-**Status:** Approved for implementation  
-**Repositories:** `BornEngine` and `bornengine-cli`
+- **Date:** 2026-09-28
+- **Status:** Approved for implementation
+- **Repositories:** `BornEngine` and `bornengine-cli`
 
 For agentic workers: REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute each independent plan in an isolated worktree. Keep a progress ledger for each plan. Integrate into one review branch per repository; do not merge to `main` or publish from this task.
 
