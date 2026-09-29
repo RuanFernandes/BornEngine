@@ -6,7 +6,7 @@
     "compile:check": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --no-cache --no-link"
   },
   "dependencies": {
-    "@bornengine/engine": "^0.10.0"
+    "@bornengine/engine": "file:../../.."
   },
   "perry": {
     "allow": {
