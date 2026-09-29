@@ -5,6 +5,7 @@ These samples target the current BornEngine API from this repository. Game examp
 ## Requirements and checks
 
 - Install the Perry compiler and the native toolchain for the target platform. Some graphics samples also load the assets stored in their own example directory.
+- Install the existing `bornengine` CLI from the separate `bornengine-cli` project; its README documents installation and host requirements.
 - Run `npm install` in a sample's package directory before its first build. Multiplayer servers have separate manifests and lockfiles; use the commands in that sample's README.
 - From the repository root, run `npm run examples:check:static` for the API/import audit and validator tests, or `npm run examples:check` to compile the Perry entrypoints and run both multiplayer server test suites. The compile check uses `--no-link`, so it validates TypeScript and Perry code generation without claiming a native game launch.
 - Launch graphical samples from their example directory so relative asset paths resolve as documented.
@@ -13,8 +14,7 @@ For a standard native sample, build and launch from its directory:
 
 ```sh
 npm install
-PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --no-cache -o game
-./game
+bornengine run main.ts
 ```
 
 Use the entrypoint listed below instead of `main.ts` for the scene-graph programs. Platform-specific samples may have additional commands in their local README.
@@ -65,4 +65,3 @@ Both multiplayer examples include a BornEngine client and a separate local Colys
 | --- | --- | --- |
 | [`multiplayer-arena`](./multiplayer-arena/) | Authoritative 2D movement and room state shared by clients | Client sends input intent; server validates and simulates movement |
 | [`multiplayer-chat`](./multiplayer-chat/) | Room membership and bounded message exchange | Server validates messages and owns membership state |
-
