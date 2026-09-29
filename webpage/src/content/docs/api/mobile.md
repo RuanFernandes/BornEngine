@@ -5,26 +5,28 @@ section: API / Mobile
 order: 44
 ---
 
-`game.mobile` owns virtual touch controls and maps their input into the Game's InputSystem. Create controls once and draw them during the render callback after the game world.
+`game.mobile` owns virtual touch controls and maps their input into the Game's InputSystem. Create controls once and draw them during the `render()` hook after the game world.
 
 ## Joystick
 
 ```ts
 import { Game } from '@bornengine/engine';
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(): void {
+    const movement = this.mobile.movementInput();
+    movePlayer(movement.x, movement.y);
+  }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 12, g: 16, b: 24, a: 255 });
+    this.mobile.draw();
+  }
+}
+
+const game = new ExampleGame();
 const stick = game.mobile.createJoystick({ zone: 'left', radius: 64, deadzone: 0.16 });
 
-game.run({
-  update() {
-    const movement = game.mobile.movementInput();
-    movePlayer(movement.x, movement.y);
-  },
-  render() {
-    game.renderer.clear({ r: 12, g: 16, b: 24, a: 255 });
-    game.mobile.draw();
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 The joystick injects its axis values into the Game-owned input layer. `movementInput()` combines keyboard and primary gamepad movement with touch controls.

@@ -99,7 +99,47 @@ function generateWallVertices(
 // Main
 // ============================================================
 
-const game = new Game({ window: { width: 1280, height: 720, title: "BornEngine — Scene Graph Demo" }, targetFps: 60 });
+class SceneGraphGame extends Game {
+  protected override loop(dt: number): void {
+    // Toggle wall visibility with Space
+    if (this.input.isKeyPressed(Key.SPACE)) {
+      wall3Visible = !wall3Visible;
+      wall3.setVisible(wall3Visible);
+    }
+
+    // Slowly rotate camera angle
+    angle += dt * 0.3;
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+
+    // Camera orbits around the room
+    const camX = 2.5 + Math.cos(angle) * 10;
+    const camZ = 2.0 + Math.sin(angle) * 10;
+    this.renderer.begin3D({
+      position: { x: camX, y: 6, z: camZ },
+      target: { x: 2.5, y: 1.5, z: 2 },
+      up: { x: 0, y: 1, z: 0 },
+      fovy: 45,
+      projection: "perspective",
+    });
+
+    // Scene graph nodes render automatically via end_frame_with_scene
+    // We only need to draw the grid manually (immediate mode)
+    this.renderer.drawGrid(20, 1.0);
+
+    this.renderer.end3D();
+
+    this.renderer.drawText("BornEngine Scene Graph Demo", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+    this.renderer.drawText("Scene nodes: " + String(this.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
+    this.renderer.drawText("Press SPACE to toggle wall 3", { x: 10, y: 55 }, 16, Colors.GRAY);
+    this.renderer.drawText("Walls render automatically (retained mode)", { x: 10, y: 75 }, 16, Colors.GRAY);
+
+  }
+}
+
+const game = new SceneGraphGame({ window: { width: 1280, height: 720, title: "BornEngine — Scene Graph Demo" }, targetFps: 60 });
 
 // Create scene graph nodes (persistent, like R3F <mesh> elements)
 const wall1 = game.sceneGraph.createNode();
@@ -145,43 +185,4 @@ floor.setPbr(0.6, 0.0);
 let angle = 0;
 let wall3Visible = true;
 
-game.run({
-  update(dt) {
-
-  // Toggle wall visibility with Space
-  if (game.input.isKeyPressed(Key.SPACE)) {
-    wall3Visible = !wall3Visible;
-    wall3.setVisible(wall3Visible);
-  }
-
-  // Slowly rotate camera angle
-  angle += dt * 0.3;
-  },
-  render() {
-  game.renderer.clear(Colors.SNOW);
-
-  // Camera orbits around the room
-  const camX = 2.5 + Math.cos(angle) * 10;
-  const camZ = 2.0 + Math.sin(angle) * 10;
-  game.renderer.begin3D({
-    position: { x: camX, y: 6, z: camZ },
-    target: { x: 2.5, y: 1.5, z: 2 },
-    up: { x: 0, y: 1, z: 0 },
-    fovy: 45,
-    projection: "perspective",
-  });
-
-  // Scene graph nodes render automatically via end_frame_with_scene
-  // We only need to draw the grid manually (immediate mode)
-  game.renderer.drawGrid(20, 1.0);
-
-  game.renderer.end3D();
-
-  game.renderer.drawText("BornEngine Scene Graph Demo", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
-  game.renderer.drawText("Scene nodes: " + String(game.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
-  game.renderer.drawText("Press SPACE to toggle wall 3", { x: 10, y: 55 }, 16, Colors.GRAY);
-  game.renderer.drawText("Walls render automatically (retained mode)", { x: 10, y: 75 }, 16, Colors.GRAY);
-
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

@@ -13,7 +13,52 @@
 import { Colors, Game, Key } from '@bornengine/engine';
 import type { SceneNode } from '@bornengine/engine';
 
-const game = new Game({ window: { width: 1280, height: 720, title: "BornEngine — Room Scene" }, targetFps: 60 });
+class SceneGraphGame extends Game {
+  protected override loop(dt: number): void {
+      angle += dt * 0.2;
+
+    // Toggle wall visibility with 1-4 keys
+    if (this.input.isKeyPressed(Key.ONE)) {
+      const node = nodes.get('wall_1') as WallNode;
+      if (node) {
+        const handle = sceneRegistry.get('wall_1');
+        if (handle !== undefined) {
+          handle.setVisible(false);
+        }
+      }
+    }
+
+  }
+
+  protected override render(): void {
+      this.renderer.clear(Colors.SNOW);
+
+    const camX = 3 + Math.cos(angle) * 12;
+    const camZ = 2.5 + Math.sin(angle) * 12;
+    this.renderer.begin3D({
+      position: { x: camX, y: 5, z: camZ },
+      target: { x: 3, y: 1.5, z: 2.5 },
+      up: { x: 0, y: 1, z: 0 },
+      fovy: 45,
+      projection: "perspective",
+    });
+
+    // Grid (immediate mode, drawn alongside scene graph nodes)
+    this.renderer.drawGrid(20, 1.0);
+
+    this.renderer.end3D();
+
+    // HUD
+    this.renderer.drawText("BornEngine — Multi-Object Room", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+    this.renderer.drawText("Scene nodes: " + String(this.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
+    this.renderer.drawText("4 walls + 1 slab + 1 door cutout", { x: 10, y: 55 }, 16, Colors.GRAY);
+    this.renderer.drawText("3 directional lights (sun + fill + rim)", { x: 10, y: 75 }, 16, Colors.GRAY);
+    this.renderer.drawText("Frame callbacks: slab@1, wall@4, light@5", { x: 10, y: 95 }, 16, Colors.GRAY);
+
+  }
+}
+
+const game = new SceneGraphGame({ window: { width: 1280, height: 720, title: "BornEngine — Room Scene" }, targetFps: 60 });
 
 // ============================================================
 // Zustand-like store (simplified useScene)
@@ -304,47 +349,4 @@ game.sceneGraph.onFrame(lightSystem, 5);
 
 let angle = 0;
 
-game.run({
-  update(dt) {
-    angle += dt * 0.2;
-
-  // Toggle wall visibility with 1-4 keys
-  if (game.input.isKeyPressed(Key.ONE)) {
-    const node = nodes.get('wall_1') as WallNode;
-    if (node) {
-      const handle = sceneRegistry.get('wall_1');
-      if (handle !== undefined) {
-        handle.setVisible(false);
-      }
-    }
-  }
-
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-
-  const camX = 3 + Math.cos(angle) * 12;
-  const camZ = 2.5 + Math.sin(angle) * 12;
-  game.renderer.begin3D({
-    position: { x: camX, y: 5, z: camZ },
-    target: { x: 3, y: 1.5, z: 2.5 },
-    up: { x: 0, y: 1, z: 0 },
-    fovy: 45,
-    projection: "perspective",
-  });
-
-  // Grid (immediate mode, drawn alongside scene graph nodes)
-  game.renderer.drawGrid(20, 1.0);
-
-  game.renderer.end3D();
-
-  // HUD
-  game.renderer.drawText("BornEngine — Multi-Object Room", { x: 10, y: 10 }, 20, Colors.DARKGRAY);
-  game.renderer.drawText("Scene nodes: " + String(game.sceneGraph.nodeCount), { x: 10, y: 35 }, 16, Colors.GRAY);
-  game.renderer.drawText("4 walls + 1 slab + 1 door cutout", { x: 10, y: 55 }, 16, Colors.GRAY);
-  game.renderer.drawText("3 directional lights (sun + fill + rim)", { x: 10, y: 75 }, 16, Colors.GRAY);
-  game.renderer.drawText("Frame callbacks: slab@1, wall@4, light@5", { x: 10, y: 95 }, 16, Colors.GRAY);
-
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

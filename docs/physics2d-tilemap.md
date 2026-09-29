@@ -1,6 +1,6 @@
 # Physics2D and tilemaps
 
-`PhysicsWorld2D` is a portable TypeScript fixed-step solver for small 2D games. It supports dynamic, static, and kinematic box or circle bodies, basic collision response, trigger contacts, queries, and per-body collision filters. Shape rotation, joints, continuous collision detection, and polygon colliders are outside this first implementation.
+`PhysicsWorld2D` is a portable TypeScript fixed-step solver for small 2D games. It supports dynamic and kinematic boxes/circles, static boxes/circles/segments/convex polygons, collision response, trigger contacts, queries, and per-body collision filters. Shapes are axis aligned or specified by local vertices. Joints, rotational dynamics, and dynamic polygon bodies are outside this solver.
 
 ```ts
 import { Game, GameObject, Scene } from '@bornengine/engine';
@@ -49,6 +49,39 @@ const contacts = physics.popContacts();
 ```
 
 Body layer and mask values are 31-bit category flags. A pair is accepted only when each body's mask includes the other's layer. Ray and overlap queries take an optional `layerMask` and `includeSensors` object. Contacts are queued until `popContacts()` drains them. Collision and trigger enter, stay, and exit callbacks are oriented from the receiving body.
+
+## Slopes, one-way surfaces, and fast bodies
+
+Static `segment` shapes use two distinct finite local endpoints. Static `convex` shapes require at least three finite vertices in either winding order, with no degenerate edges, concavity, or crossing edges. The body position translates local points into world coordinates. Created shapes and the values returned by `body.shape` are copies, so changing a source vertex or a returned point does not change collision geometry. Dynamic and kinematic bodies continue to use boxes or circles.
+
+```ts
+const ramp = physics.createBody({
+  type: 'static',
+  shape: { type: 'segment', start: { x: -64, y: 32 }, end: { x: 64, y: -32 } },
+  position: { x: 320, y: 300 },
+});
+
+const bridge = physics.createBody({
+  type: 'static',
+  shape: { type: 'segment', start: { x: -80, y: 0 }, end: { x: 80, y: 0 } },
+  position: { x: 500, y: 250 },
+  oneWay: { normal: { x: 0, y: -1 }, tolerance: 0.01 },
+});
+
+const projectile = physics.createBody({
+  type: 'dynamic',
+  shape: { type: 'circle', radius: 4 },
+  position: { x: 0, y: 280 },
+  velocity: { x: 2400, y: 0 },
+  gravityScale: 0,
+  ccd: true,
+  ccdThreshold: 4,
+});
+```
+
+The optional `oneWay` setting belongs to a static surface. Its finite nonzero outward normal is normalized at creation; `tolerance` defaults to zero and is measured in world units. A body collides only when its prior support point was on the normal side of the surface within tolerance and its step movement approaches the surface. For a horizontal platform in positive-Y-down coordinates, `{ x: 0, y: -1 }` allows a fall from above and passage upward from below. Use `ccd: true` on a fast dynamic body when it may cross a thin surface in one fixed step. `ccdThreshold` defaults to zero and activates the sweep when that body's travel during a fixed step meets the threshold. CCD takes the earliest static hit, applies the bodies' restitution and friction, and continues through the remaining fixed-step time. It resolves at most eight impacts per fixed step; if time remains at that limit, the body stays at its last safe contact and its velocity becomes zero. Ordinary bodies use discrete overlap resolution.
+
+Contacts and collision callbacks are ordered by the pair's body creation IDs. When two CCD surfaces are hit at the same time, the earlier created body wins. Contact normals have unit length and point from `bodyA` to `bodyB`; character normals point outward from the obstacle toward the character. `CharacterBody2D.moveAndSlide()` projects remaining motion along a ramp and classifies floor, wall, and ceiling from the contact normal. A slope steeper than 45 degrees is treated as a wall. It resolves at most four slide contacts per move; if motion remains at that limit, the character stays at its last safe contact and its velocity becomes zero. The fixed-step catch-up cap still applies to CCD bodies, and their threshold is evaluated separately on each fixed step.
 
 ## Atlas-backed tilemaps
 

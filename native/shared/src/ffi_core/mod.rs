@@ -63,6 +63,7 @@ mod game_loop;
 mod input;
 mod draw;
 mod assets;
+mod database;
 mod audio_ffi;
 mod models;
 mod scene;
@@ -84,6 +85,7 @@ macro_rules! define_core_ffi {
         $crate::__bloom_ffi_input!();
         $crate::__bloom_ffi_draw!();
         $crate::__bloom_ffi_assets!();
+        $crate::__bloom_ffi_database!();
         $crate::__bloom_ffi_audio_ffi!();
         $crate::__bloom_ffi_models!();
         $crate::__bloom_ffi_scene!();
@@ -125,6 +127,10 @@ mod macro_expansion_compile_check {
 
     fn bloom_resolve_asset_path(path: &str) -> std::borrow::Cow<'_, str> {
         std::borrow::Cow::Borrowed(path)
+    }
+
+    fn bloom_database_data_root() -> Option<std::path::PathBuf> {
+        None
     }
 
     crate::define_core_ffi!();

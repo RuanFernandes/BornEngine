@@ -9,6 +9,8 @@
 
 #![allow(non_upper_case_globals)]
 
+#[path = "../../shared/src/database.rs"]
+mod database;
 mod ffi_stubs;
 mod ffi_stubs_manual;
 mod draw_list;
@@ -23,6 +25,81 @@ mod particles2d;
 mod colyseus;
 #[path = "colyseus.rs"]
 mod colyseus_ffi;
+
+fn bloom_watchos_database_data_root() -> Option<std::path::PathBuf> {
+    database::apple_app_data_root()
+}
+
+#[no_mangle]
+pub extern "C" fn bloom_database_scratch_reset() {
+    database::scratch_reset();
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_scratch_push_f64(value: f64) {
+    database::scratch_push_number(value);
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_scratch_push_string(value: i64) {
+    database::scratch_push_string(Some(perry_str(value)));
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_scratch_push_byte(value: f64) {
+    database::scratch_push_byte(value);
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_submit(op: f64, handle: f64, argc: f64) -> f64 {
+    match database::submit_scratch_args(argc) {
+        Ok(args) => database::submit_native(
+            op,
+            handle,
+            args,
+            bloom_watchos_database_data_root().as_deref(),
+        ),
+        Err(status) => database::submit_native_error(status),
+    }
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_poll(ticket: f64) -> f64 {
+    database::native_poll(ticket)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_status(ticket: f64) -> f64 {
+    database::native_status(ticket)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_rows(ticket: f64) -> f64 {
+    database::native_rows(ticket)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_count(ticket: f64) -> f64 {
+    database::native_count(ticket)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_kind(ticket: f64, index: f64) -> f64 {
+    database::native_kind(ticket, index)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_number(ticket: f64, index: f64) -> f64 {
+    database::native_number(ticket, index)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_string(ticket: f64, index: f64) -> i64 {
+    database::native_string(ticket, index)
+        .map(|value| alloc_perry_string(&value))
+        .unwrap_or_else(|| alloc_perry_string(""))
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_byte_count(ticket: f64, index: f64) -> f64 {
+    database::native_byte_count(ticket, index)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_result_byte(ticket: f64, index: f64, offset: f64) -> f64 {
+    database::native_byte(ticket, index, offset)
+}
+#[no_mangle]
+pub extern "C" fn bloom_database_release(ticket: f64) {
+    database::native_release(ticket);
+}
 
 /// Perry StringHeader layout — mirrors bloom-shared's copy. Inlined here
 /// because we don't depend on bloom-shared (keeps the watchos crate

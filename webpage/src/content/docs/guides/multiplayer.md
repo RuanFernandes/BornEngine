@@ -197,7 +197,7 @@ client.dispose();
 
 ## Platform networking
 
-The Promise returned by room requests and leave operations needs the event loop to yield. Do not await it inside a native blocking Game.run callback; use an async host that yields or call client.poll() from an external loop while waiting.
+The Promise returned by room requests and leave operations needs the event loop to yield. Do not await it inside a native blocking Game.run() lifecycle hook; use an async host that yields or call client.poll() from an external loop while waiting.
 
 - Use `ws://127.0.0.1:2567` only when the game and server share the same machine. A phone or emulator needs a host address that it can reach; `localhost` on that device points back to the device.
 - Use `wss://` for a production server, and for Web/WASM games served over HTTPS.
@@ -225,7 +225,42 @@ interface ArenaSnapshot {
   players: Record<string, PlayerSnapshot>;
 }
 
-const game = new Game({ window: { title: 'Online Arena', width: 960, height: 540 } });
+class ExampleGame extends Game {
+  protected override loop(): void {
+    const room = currentRoom;
+    if (room === null || !room.isConnected) return;
+    let inputX = 0;
+    let inputY = 0;
+    if (this.input.isKeyDown(Key.LEFT)) inputX -= 1;
+    if (this.input.isKeyDown(Key.RIGHT)) inputX += 1;
+    if (this.input.isKeyDown(Key.UP)) inputY -= 1;
+    if (this.input.isKeyDown(Key.DOWN)) inputY += 1;
+    if (inputX !== lastInputX || inputY !== lastInputY) {
+      room.send('move', { x: inputX, y: inputY });
+      lastInputX = inputX;
+      lastInputY = inputY;
+    }
+  }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 18, g: 24, b: 34, a: 255 });
+    this.renderer.drawText(status, { x: 24, y: 20 }, 18, Colors.WHITE);
+    if (snapshot === null) return;
+    for (const sessionId of Object.keys(snapshot.players)) {
+      const player = snapshot.players[sessionId];
+      const isLocal = currentRoom !== null && sessionId === currentRoom.sessionId;
+      const color = isLocal ? Colors.LIME : { r: 90, g: 170, b: 255, a: 255 };
+      this.renderer.drawRectangle({ x: player.x - 16, y: player.y - 16, width: 32, height: 32 }, color);
+      this.renderer.drawText(player.name, { x: player.x - 28, y: player.y - 38 }, 16, Colors.WHITE);
+    }
+  }
+
+  protected override onStop(): void {
+    client.dispose();
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'Online Arena', width: 960, height: 540 } });
 const client = new ColyseusClient(game, 'ws://127.0.0.1:2567');
 let currentRoom: Room<ArenaSnapshot> | null = null;
 let snapshot: ArenaSnapshot | null = null;
@@ -251,39 +286,7 @@ client.joinOrCreateWithCallbacks<ArenaSnapshot>('arena', { name: 'Player One' },
   onError(error) { status = 'Join failed: ' + error.message; },
 });
 
-game.run({
-  update() {
-    const room = currentRoom;
-    if (room === null || !room.isConnected) return;
-    let inputX = 0;
-    let inputY = 0;
-    if (game.input.isKeyDown(Key.LEFT)) inputX -= 1;
-    if (game.input.isKeyDown(Key.RIGHT)) inputX += 1;
-    if (game.input.isKeyDown(Key.UP)) inputY -= 1;
-    if (game.input.isKeyDown(Key.DOWN)) inputY += 1;
-    if (inputX !== lastInputX || inputY !== lastInputY) {
-      room.send('move', { x: inputX, y: inputY });
-      lastInputX = inputX;
-      lastInputY = inputY;
-    }
-  },
-  render() {
-    game.renderer.clear({ r: 18, g: 24, b: 34, a: 255 });
-    game.renderer.drawText(status, { x: 24, y: 20 }, 18, Colors.WHITE);
-    if (snapshot === null) return;
-    for (const sessionId of Object.keys(snapshot.players)) {
-      const player = snapshot.players[sessionId];
-      const isLocal = currentRoom !== null && sessionId === currentRoom.sessionId;
-      const color = isLocal ? Colors.LIME : { r: 90, g: 170, b: 255, a: 255 };
-      game.renderer.drawRectangle({ x: player.x - 16, y: player.y - 16, width: 32, height: 32 }, color);
-      game.renderer.drawText(player.name, { x: player.x - 28, y: player.y - 38 }, 16, Colors.WHITE);
-    }
-  },
-  onStop() {
-    client.dispose();
-    game.dispose();
-  },
-});
+game.run();
 ```
 
 

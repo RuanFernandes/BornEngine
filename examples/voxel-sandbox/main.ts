@@ -163,7 +163,25 @@ function raycastBlock(): void {
   }
 }
 
-const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Voxel Sandbox" }, targetFps: 60 });
+class VoxelSandboxGame extends Game {
+  protected override loop(deltaTime: number): void { handleInput(deltaTime); }
+
+  protected override render(): void {
+    this.renderer.clear({ r: 130, g: 200, b: 255, a: 255 });
+
+    this.renderer.begin3D(camera);
+    renderBlocks();
+
+    if (highlightX >= 0) {
+      this.renderer.drawCubeOutline({ x: highlightX + 0.5, y: highlightY + 0.5, z: highlightZ + 0.5 }, { x: 1.02, y: 1.02, z: 1.02 }, Colors.WHITE);
+    }
+    this.renderer.end3D();
+
+    drawHUD();
+  }
+}
+
+const game = new VoxelSandboxGame({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Voxel Sandbox" }, targetFps: 60 });
 game.input.disableCursor();
 generateTerrain();
 
@@ -280,21 +298,4 @@ function drawHUD(): void {
   game.renderer.drawText("Pos: " + Math.floor(camX).toString() + ", " + Math.floor(camY).toString() + ", " + Math.floor(camZ).toString(), { x: 10, y: 10 }, 16, Colors.WHITE);
 }
 
-game.run({
-  update(deltaTime) { handleInput(deltaTime); },
-  render() {
-
-  game.renderer.clear({ r: 130, g: 200, b: 255, a: 255 });
-
-  game.renderer.begin3D(camera);
-  renderBlocks();
-
-  if (highlightX >= 0) {
-    game.renderer.drawCubeOutline({ x: highlightX + 0.5, y: highlightY + 0.5, z: highlightZ + 0.5 }, { x: 1.02, y: 1.02, z: 1.02 }, Colors.WHITE);
-  }
-  game.renderer.end3D();
-
-  drawHUD();
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

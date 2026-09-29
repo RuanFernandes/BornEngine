@@ -32,7 +32,12 @@ fn main() {
     println!("cargo:rustc-cfg=colyseus_native_sdk");
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
     println!("cargo:rustc-link-lib=static=colyseus_bundled");
-    for framework in ["CoreFoundation", "Security"] {
-        println!("cargo:rustc-link-lib=framework={framework}");
+    if matches!(
+        target_os.as_str(),
+        "ios" | "macos" | "tvos" | "watchos" | "visionos"
+    ) {
+        for framework in ["CoreFoundation", "Security"] {
+            println!("cargo:rustc-link-lib=framework={framework}");
+        }
     }
 }

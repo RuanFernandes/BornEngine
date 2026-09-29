@@ -41,3 +41,9 @@ On iOS, iPadOS, and visionOS, connections to a server on the local network requi
 watchOS uses a draw-command bridge to SwiftUI Canvas and SceneKit rather than the desktop wgpu/Jolt stack. Compile with `--features watchos-swift-app` and use the Perry [watchOS platform guide](https://docs.perryts.com/) for the nightly/build-std setup. The watch target is constrained by screen size, RAM, and the absence of wgpu/Jolt.
 
 The [mobile guide](../mobile/) covers touch and device input differences shared across Apple targets.
+
+## GameDatabase files
+
+Persistent `GameDatabase` files are stored under the Apple app container's `Library/Application Support/{appId}/{name}.sqlite3` directory. On mobile and other sandboxed Apple targets, this is app-private data; the app host owns container access and backup policy. Database export returns SQLite bytes when a game needs to provide its own save export or cloud-backup flow.
+
+The database is not encrypted and should not contain credentials. Use Keychain for secrets. The path and persistence backend are implemented for Apple targets, but builds and device behavior must be verified with the target's Apple SDK and packaging workflow; a Linux host check is not a substitute.

@@ -125,6 +125,9 @@ cleaned_paths = [
     os.path.join(output_dir, "bloom_glue.js"),
     os.path.join(output_dir, "jolt_bridge.js"),
     os.path.join(output_dir, "colyseus_bridge.bundle.js"),
+    os.path.join(output_dir, "database_bridge.js"),
+    os.path.join(output_dir, "sqlite_database_worker.js"),
+    os.path.join(output_dir, "sqlite3.wasm"),
 ]
 source_paths = [game_file_input, game_file_target]
 for game_assets in (game_assets_input, game_assets_target):
@@ -163,6 +166,19 @@ trap cleanup EXIT
 echo "=== Bloom Web Build ==="
 echo "  Profile: $BUILD_PROFILE"
 echo ""
+
+# Resolve the complete locked JavaScript toolchain before any generated output
+# can be removed. Checking esbuild alone misses partial installs that lack the
+# pinned SQLite WASM file copied into every Web build.
+if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ||
+      ! -f "$WEB_CRATE/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm" ]]; then
+  npm ci --prefix "$WEB_CRATE"
+fi
+if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ||
+      ! -s "$WEB_CRATE/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm" ]]; then
+  echo "ERROR: Web dependencies are incomplete after npm ci" >&2
+  exit 1
+fi
 
 # 1. Build Bloom WASM via wasm-pack
 echo "[1/3] Building bloom_web.wasm..."
@@ -208,7 +224,8 @@ mkdir -p "$OUTPUT_DIR"
 # Replace artifacts owned by this build so repeated builds never nest pkg or
 # assets directories, or leave stale files from the previous game/profile.
 rm -rf "$OUTPUT_DIR/pkg" "$OUTPUT_DIR/assets"
-rm -f "$OUTPUT_DIR/index.html" "$OUTPUT_DIR/bloom_glue.js" "$OUTPUT_DIR/jolt_bridge.js" "$OUTPUT_DIR/colyseus_bridge.bundle.js"
+rm -f "$OUTPUT_DIR/index.html" "$OUTPUT_DIR/bloom_glue.js" "$OUTPUT_DIR/jolt_bridge.js" "$OUTPUT_DIR/colyseus_bridge.bundle.js" \
+  "$OUTPUT_DIR/database_bridge.js" "$OUTPUT_DIR/sqlite_database_worker.js" "$OUTPUT_DIR/sqlite3.wasm"
 
 # Copy Bloom WASM package
 cp -r "$WEB_CRATE/pkg" "$OUTPUT_DIR/pkg"
@@ -216,16 +233,21 @@ cp -r "$WEB_CRATE/pkg" "$OUTPUT_DIR/pkg"
 # Engine bootstrap + Jolt bridge are needed by both the game and engine-only pages.
 cp "$WEB_CRATE/bloom_glue.js" "$OUTPUT_DIR/bloom_glue.js"
 cp "$WEB_CRATE/jolt_bridge.js" "$OUTPUT_DIR/jolt_bridge.js"
+cp "$WEB_CRATE/database_bridge.js" "$OUTPUT_DIR/database_bridge.js"
 
 # Bundle the official TypeScript SDK behind the same bloom_colyseus_* FFI
 # consumed by native builds. The adapter itself stays dependency-free so its
 # event and payload contract can be unit-tested with an injected fake client.
-if [[ ! -x "$WEB_CRATE/node_modules/.bin/esbuild" ]]; then
-  npm ci --prefix "$WEB_CRATE"
-fi
 "$WEB_CRATE/node_modules/.bin/esbuild" "$WEB_CRATE/colyseus_bridge.entry.js" \
   --bundle --format=esm --platform=browser --target=es2022 \
   --outfile="$OUTPUT_DIR/colyseus_bridge.bundle.js"
+
+# Pin SQLite's official WASM binary beside the dedicated worker bundle. Both
+# live at the site root, outside the game's asset pack and prefetch manifest.
+"$WEB_CRATE/node_modules/.bin/esbuild" "$WEB_CRATE/sqlite_database_worker.entry.js" \
+  --bundle --format=esm --platform=browser --target=es2022 \
+  --outfile="$OUTPUT_DIR/sqlite_database_worker.js"
+cp "$WEB_CRATE/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm" "$OUTPUT_DIR/sqlite3.wasm"
 
 if [ -n "$PERRY_HTML" ]; then
   # Game build: splice the Bloom bootstrap into Perry's HTML and gate the game's

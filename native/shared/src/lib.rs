@@ -24,6 +24,8 @@ pub mod staging;
 pub mod profiler;
 pub mod particles;
 pub mod particles2d;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod database;
 pub mod decals;
 #[cfg(all(feature = "models3d", feature = "jolt"))]
 pub mod ragdoll;

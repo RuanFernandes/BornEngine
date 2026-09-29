@@ -61,3 +61,10 @@ test('homepage demonstrates subclass lifecycle and lets Monaco fill its panel', 
   assert.match(homepageStyles, /\.home-api \.code-block\s*\{[^}]*display:\s*flex/s);
   assert.match(homepageStyles, /\.home-api \.code-block__monaco\s*\{[^}]*flex:\s*1/s);
 });
+
+test('homepage describes embedded frame control without advertising callback run', async () => {
+  const homepage = await readFile(new URL('../src/pages/index.astro', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(homepage, /run\(callbacks\)/);
+  assert.match(homepage, /embedded hosts[^<]*<code>runFrame\(deltaTime, callbacks\)<\/code>/);
+});

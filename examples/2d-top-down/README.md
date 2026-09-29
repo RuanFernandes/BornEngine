@@ -13,6 +13,6 @@ bornengine run main.ts
 ~~~
 
 Move with WASD or the arrow keys. Press **R** to switch to I/J/K/L, and press **Space**
-to play the positional chime. Input bindings are saved through createGameStorage when
-the current target has a storage adapter. Targets without one report
-unsupported and keep the game playable with in-memory bindings.
+to play the positional chime. The alternate key layout is session-local in this
+room example. For durable saves or settings, use the typed SQLite
+[GameDatabase API](https://ruanfernandes.github.io/BornEngine/docs/api/storage/).

@@ -23,7 +23,12 @@ if (!worldData.load()) throw new Error(worldData.error || 'World load failed');
 const world = worldData.document;
 if (world === null) throw new Error('Loaded world document is unavailable');
 
-const game = new Game({
+class WorldViewerGame extends Game {
+  protected override loop(deltaTime: number): void { updateGame(deltaTime); }
+  protected override render(): void { renderGame(); }
+}
+
+const game = new WorldViewerGame({
   window: { width: 1280, height: 800, title: 'world-viewer — ' + world.name },
   targetFps: 60,
 });
@@ -76,7 +81,7 @@ let cameraZ = centerZ + span * 0.7;
 let yaw = Math.PI;
 let pitch = -0.35;
 
-function update(deltaTime: number): void {
+function updateGame(deltaTime: number): void {
   if (game.input.isMouseButtonDown(MouseButton.RIGHT)) {
     yaw -= game.input.getMouseDeltaX() * 0.003;
     pitch -= game.input.getMouseDeltaY() * 0.003;
@@ -99,7 +104,7 @@ function update(deltaTime: number): void {
   if (game.input.isKeyDown(Key.E)) cameraY += speed;
 }
 
-function render(): void {
+function renderGame(): void {
   const camera: Camera3D = {
     position: { x: cameraX, y: cameraY, z: cameraZ },
     target: {
@@ -130,4 +135,4 @@ function render(): void {
     { x: 12, y: 34 }, 14, { r: 255, g: 255, b: 255, a: 140 });
 }
 
-game.run({ update, render, onStop: () => game.dispose() });
+game.run();

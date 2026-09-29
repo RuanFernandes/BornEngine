@@ -13,11 +13,9 @@ import {
   Viewport2D,
 } from '@bornengine/engine';
 import type { AssetGroup, Color } from '@bornengine/engine';
-import { createGameStorage } from '@bornengine/engine';
-import type { GameStorage } from '@bornengine/engine';
 import { AudioEmitter2D } from '@bornengine/engine/audio';
 import type { Sound } from '@bornengine/engine/audio';
-import type { InputActionMap, InputActionMapData } from '@bornengine/engine/input';
+import type { InputActionMap } from '@bornengine/engine/input';
 import { formatWorld2DDiagnostics, World2DLoader } from '@bornengine/engine/world2d';
 
 const ROOM_SIZE = new Vector2D(640, 384);
@@ -25,12 +23,6 @@ const PLAYER_SPEED = 150;
 const ATLAS_PATH = 'assets/atlas.png';
 const ROOM_PATH = 'assets/moonlit-pier.world2d.json';
 const PICKUP_SOUND_PATH = 'assets/pickup.wav';
-
-interface ControlSettingsData {
-  version: 1;
-  controls: InputActionMapData;
-  alternateControls: boolean;
-}
 
 class RoomBackdrop extends GameComponent {
   readonly size: Vector2D;
@@ -132,14 +124,12 @@ class PierScene extends Scene {
 class MoonlitPierGame extends Game {
   private controls: InputActionMap | null = null;
   private room: PierScene | null = null;
-  private readonly storage: GameStorage;
 
   constructor() {
     super({
       window: { title: 'BornEngine · Moonlit Pier', width: 960, height: 576 },
       targetFps: 60,
     });
-    this.storage = createGameStorage('org.bornengine.moonlit-pier', 'default');
   }
 
   protected override onStart(): void {
@@ -147,19 +137,6 @@ class MoonlitPierGame extends Game {
     this.bindMovementPreset(false);
     this.controls.bindAction('toggle-controls', { kind: 'key', key: Key.R });
     this.controls.bindAction('play-chime', { kind: 'key', key: Key.SPACE });
-
-    const savedSettings = this.storage.read<ControlSettingsData>('controls');
-    if (savedSettings.ok && savedSettings.value !== null) {
-      const settings = savedSettings.value;
-      if (settings.version === 1 && typeof settings.alternateControls === 'boolean' &&
-          this.controls.loadData(settings.controls)) {
-        this.alternateControls = settings.alternateControls;
-      } else {
-        console.warn('Saved controls were invalid; using the default bindings.');
-      }
-    } else if (savedSettings.status !== 'not_found' && savedSettings.status !== 'unsupported') {
-      console.warn('Could not read control settings: ' + savedSettings.status);
-    }
 
     const group = this.assets.createGroup('moonlit-pier');
     if (group === null || !group.addTexture(ATLAS_PATH) ||
@@ -188,7 +165,6 @@ class MoonlitPierGame extends Game {
       if (controls.wasPressed('toggle-controls')) {
         this.alternateControls = !this.alternateControls;
         this.bindMovementPreset(this.alternateControls);
-        this.saveControls();
       }
       if (controls.wasPressed('play-chime')) {
         const emitter = player.getComponent(AudioEmitter2D);
@@ -221,10 +197,6 @@ class MoonlitPierGame extends Game {
     );
   }
 
-  protected override onStop(): void {
-    this.saveControls();
-  }
-
   private alternateControls = false;
 
   private bindMovementPreset(alternate: boolean): void {
@@ -244,18 +216,6 @@ class MoonlitPierGame extends Game {
       : [{ kind: 'key', key: Key.S }, { kind: 'key', key: Key.DOWN }];
     controls.bindAxis('move-x', { negative: left, positive: right });
     controls.bindAxis('move-y', { negative: up, positive: down });
-  }
-
-  private saveControls(): void {
-    if (this.controls === null) return;
-    const result = this.storage.write('controls', {
-      version: 1,
-      controls: this.controls.toData(),
-      alternateControls: this.alternateControls,
-    });
-    if (!result.ok && result.status !== 'unsupported') {
-      console.warn('Could not save control settings: ' + result.status);
-    }
   }
 
   private openRoom(preloadGroup: { dispose(): void }): void {

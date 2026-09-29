@@ -17,7 +17,66 @@ interface WallData {
   node: SceneNode;
 }
 
-const game = new Game({
+class SceneGraphGame extends Game {
+  protected override loop(): void {
+    updateCamera();
+
+    if (this.input.isKeyPressed(Key.TAB)) {
+      toolMode = toolMode === 'select' ? 'draw' : 'select';
+      drawStart = null;
+    }
+
+    if (this.input.isMouseButtonPressed(MouseButton.LEFT)) handleLeftClick();
+    if (this.input.isKeyPressed(Key.ESCAPE)) drawStart = null;
+
+    if (this.input.isKeyPressed(Key.BACKSPACE) && selectedWallId !== null) {
+      const wall = walls.get(selectedWallId);
+      if (wall !== undefined) {
+        this.sceneGraph.remove(wall.node, true);
+        walls.delete(selectedWallId);
+        selectWall(null);
+      }
+    }
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+
+    const camera: Camera3D = {
+      position: getCameraPosition(),
+      target: { x: cameraTargetX, y: 1.5, z: cameraTargetZ },
+      up: { x: 0, y: 1, z: 0 },
+      fovy: 45,
+      projection: 'perspective',
+    };
+    if (this.renderer.begin3D(camera)) {
+      this.renderer.drawGrid(20, 0.5);
+      this.renderer.end3D();
+    }
+
+    this.renderer.drawText('Interactive Wall Editor', { x: 10, y: 10 }, 20, Colors.DARKGRAY);
+    this.renderer.drawText('Mode: ' + toolMode + ' (Tab to toggle)', { x: 10, y: 35 }, 16, Colors.GRAY);
+    this.renderer.drawText('Scene nodes: ' + String(this.sceneGraph.nodeCount), { x: 10, y: 55 }, 16, Colors.GRAY);
+    this.renderer.drawText('Walls: ' + String(walls.size), { x: 10, y: 75 }, 16, Colors.GRAY);
+
+    if (toolMode === 'select') {
+      this.renderer.drawText('LEFT CLICK: select wall | BACKSPACE: delete', { x: 10, y: 100 }, 14, Colors.BLUE);
+      if (selectedWallId !== null) {
+        this.renderer.drawText('Selected: ' + selectedWallId, { x: 10, y: 120 }, 14, Colors.BLUE);
+      }
+    } else {
+      this.renderer.drawText('LEFT CLICK: place wall endpoint | ESC: cancel', { x: 10, y: 100 }, 14, Colors.GREEN);
+      if (drawStart !== null) {
+        const startText = 'Start: ' + String(drawStart[0]) + ', ' + String(drawStart[1]) + ' — click to place end';
+        this.renderer.drawText(startText, { x: 10, y: 120 }, 14, Colors.GREEN);
+      }
+    }
+
+    this.renderer.drawText('RIGHT DRAG: orbit camera', { x: 10, y: 145 }, 14, Colors.GRAY);
+  }
+}
+
+const game = new SceneGraphGame({
   window: { width: 1280, height: 720, title: 'BornEngine — Interactive Wall Editor' },
   targetFps: 60,
 });
@@ -170,61 +229,4 @@ function handleLeftClick(): void {
   drawStart = null;
 }
 
-game.run({
-  update() {
-    updateCamera();
-
-    if (game.input.isKeyPressed(Key.TAB)) {
-      toolMode = toolMode === 'select' ? 'draw' : 'select';
-      drawStart = null;
-    }
-
-    if (game.input.isMouseButtonPressed(MouseButton.LEFT)) handleLeftClick();
-    if (game.input.isKeyPressed(Key.ESCAPE)) drawStart = null;
-
-    if (game.input.isKeyPressed(Key.BACKSPACE) && selectedWallId !== null) {
-      const wall = walls.get(selectedWallId);
-      if (wall !== undefined) {
-        game.sceneGraph.remove(wall.node, true);
-        walls.delete(selectedWallId);
-        selectWall(null);
-      }
-    }
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-
-    const camera: Camera3D = {
-      position: getCameraPosition(),
-      target: { x: cameraTargetX, y: 1.5, z: cameraTargetZ },
-      up: { x: 0, y: 1, z: 0 },
-      fovy: 45,
-      projection: 'perspective',
-    };
-    if (game.renderer.begin3D(camera)) {
-      game.renderer.drawGrid(20, 0.5);
-      game.renderer.end3D();
-    }
-
-    game.renderer.drawText('Interactive Wall Editor', { x: 10, y: 10 }, 20, Colors.DARKGRAY);
-    game.renderer.drawText('Mode: ' + toolMode + ' (Tab to toggle)', { x: 10, y: 35 }, 16, Colors.GRAY);
-    game.renderer.drawText('Scene nodes: ' + String(game.sceneGraph.nodeCount), { x: 10, y: 55 }, 16, Colors.GRAY);
-    game.renderer.drawText('Walls: ' + String(walls.size), { x: 10, y: 75 }, 16, Colors.GRAY);
-
-    if (toolMode === 'select') {
-      game.renderer.drawText('LEFT CLICK: select wall | BACKSPACE: delete', { x: 10, y: 100 }, 14, Colors.BLUE);
-      if (selectedWallId !== null) {
-        game.renderer.drawText('Selected: ' + selectedWallId, { x: 10, y: 120 }, 14, Colors.BLUE);
-      }
-    } else {
-      game.renderer.drawText('LEFT CLICK: place wall endpoint | ESC: cancel', { x: 10, y: 100 }, 14, Colors.GREEN);
-      if (drawStart !== null) {
-        const startText = 'Start: ' + String(drawStart[0]) + ', ' + String(drawStart[1]) + ' — click to place end';
-        game.renderer.drawText(startText, { x: 10, y: 120 }, 14, Colors.GREEN);
-      }
-    }
-
-    game.renderer.drawText('RIGHT DRAG: orbit camera', { x: 10, y: 145 }, 14, Colors.GRAY);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();

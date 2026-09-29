@@ -100,7 +100,13 @@ jobs:
 
       - name: cargo test (bloom-shared + jolt)
         working-directory: native/shared
+        if: matrix.os != 'windows-latest'
         run: cargo test --release
+
+      - name: cargo test (bloom-shared + jolt, serialized Windows)
+        working-directory: native/shared
+        if: matrix.os == 'windows-latest'
+        run: cargo test --release -- --test-threads=1
 
   # ---------------------------------------------------------------------------
   # FFI parity: every function in package.json's perry.nativeLibrary manifest

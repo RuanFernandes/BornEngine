@@ -1,5 +1,5 @@
 export { Game } from './core/game';
-export type { GameOptions, GameLoopCallbacks, GameDebugOptions } from './core/game';
+export type { GameOptions, EmbeddedFrameCallbacks, GameDebugOptions } from './core/game';
 export { Window, Renderer } from './core';
 export type { WindowMode, WindowOptions, UpscaleMode, RendererStats } from './core';
 export { ColorConstants, Colors, Key, MouseButton, CursorShape, Platform, QualityPreset, Tonemap } from './core';
@@ -60,8 +60,11 @@ export type {
   ActionAxisBinding, ActionButtonBinding,
   InputActionMapActionData, InputActionMapAxisData, InputActionMapData,
 } from './input';
-export { GameStorage, createGameStorage } from './storage';
-export type { GameStorageBackend, GameStorageResult, GameStorageStatus, JsonValue } from './storage';
+export { GameDatabase, DatabaseTransaction, columns, defineTable, defineSchema, defineMigration, MigrationBuilder } from './storage';
+export type { DatabaseResult, DatabaseStatus, DatabaseFailureStatus, DatabaseState, GameDatabaseOptions, ColumnDescriptor,
+  ColumnOptions, ColumnKind, ColumnValue, TableDescriptor, IndexDescriptor, DatabaseSchema,
+  DatabaseRow, DatabaseInsert, DatabaseUpdate, Comparison, DatabaseFilter, DatabaseOrder,
+  DatabaseSelect, DatabaseMigration, MigrationStep } from './storage';
 export { PhysicsWorld2D, PhysicsBody2D, CharacterBody2D } from './physics2d';
 export type {
   PhysicsBody2DOptions, PhysicsBodyContact2D, PhysicsBodyType2D, PhysicsContact2D,

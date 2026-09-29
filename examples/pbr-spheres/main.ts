@@ -62,7 +62,22 @@ for (let i = 2; i < argv.length; i = i + 1) {
 }
 
 // ---- Init ----
-const game = new Game({ window: { width: headlessResW, height: headlessResH, title: "BornEngine PBR Spheres" }, targetFps: 60 });
+class PbrSpheresGame extends Game {
+  protected override render(): void {
+    this.renderer.begin3D(camera);
+    this.renderer.end3D();
+
+    if (headlessMode) {
+      headlessFrame = headlessFrame + 1;
+      if (headlessFrame >= HEADLESS_WARMUP_FRAMES) {
+        if (headlessOutPath.length > 0) this.renderer.screenshot(headlessOutPath);
+        this.stop();
+      }
+    }
+  }
+}
+
+const game = new PbrSpheresGame({ window: { width: headlessResW, height: headlessResH, title: "BornEngine PBR Spheres" }, targetFps: 60 });
 game.renderer.setEnvironmentFromHdr("assets/outdoor.hdr");
 
 // Mirror renderer-test's pattern exactly: declare let-binding for
@@ -160,21 +175,4 @@ const camera: Camera3D = {
   projection: "perspective",
 };
 
-game.run({
-  update() {},
-  render() {
-    game.renderer.begin3D(camera);
-    game.renderer.end3D();
-
-    if (headlessMode) {
-      headlessFrame = headlessFrame + 1;
-      if (headlessFrame >= HEADLESS_WARMUP_FRAMES) {
-        if (headlessOutPath.length > 0) game.renderer.screenshot(headlessOutPath);
-        game.stop();
-      }
-    }
-  },
-  onStop() {
-    game.dispose();
-  },
-});
+game.run();

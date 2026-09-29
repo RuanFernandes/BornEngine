@@ -77,23 +77,25 @@ PERRY_RUNTIME_DIR=<perry>/target/aarch64-apple-watchos-sim/release \
 
 ## Game Loop
 
-The watch shell drives frames through `Game.run()`, using the same update/render callbacks as other targets:
+The watch shell drives frames through `Game.run()`, using the same subclass `loop()` and `render()` hooks as other targets:
 
 ```typescript
 import { Colors, Game } from "@bornengine/engine";
 
-const game = new Game();
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { playerX += speed * deltaTime; }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SKYBLUE);
+    this.renderer.drawRectangle({ x: playerX, y: 80, width: 16, height: 16 }, Colors.RED);
+  }
+}
+
+const game = new ExampleGame();
 let playerX = 16;
 const speed = 40;
 
-game.run({
-  update(deltaTime) { playerX += speed * deltaTime; },
-  render() {
-    game.renderer.clear(Colors.SKYBLUE);
-    game.renderer.drawRectangle({ x: playerX, y: 80, width: 16, height: 16 }, Colors.RED);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 The blocking native loop is not used on watchOS — the SwiftUI shell owns frame

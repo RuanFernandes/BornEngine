@@ -10,21 +10,23 @@ BornEngine supports GPU-accelerated skeletal animation from glTF/GLB files. The 
 ```ts
 import { Animation, Colors, Game, Model } from '@bornengine/engine';
 
-const game = new Game({ window: { title: 'Animation demo' } });
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    if (character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: 0 });
+  }
+}
+
+const game = new ExampleGame({ window: { title: 'Animation demo' } });
 const character = new Model(game, 'assets/models/character.glb');
 const animation = new Animation(game, 'assets/models/character.glb');
 if (animation.isLoaded) animation.play(0);
 
-game.run({
-  update(deltaTime) {
-    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
-  },
-  render() {
-    game.renderer.clear(Colors.BLACK);
-    if (character.isLoaded) character.draw(game.renderer, { x: 0, y: 0, z: 0 });
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 `Animation` provides `play`, `setLayer`, `setRootMotion`, `update`, `isFinished`, `getClipDuration`, and joint queries. Update the animation before drawing the corresponding Model each frame.

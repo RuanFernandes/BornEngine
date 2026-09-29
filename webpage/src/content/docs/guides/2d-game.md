@@ -105,3 +105,5 @@ Use WASD or the arrow keys to move and Space to attack. See the [Sprites API](..
 ## Next steps
 
 Use the [2D camera API](../../api/camera2d/) for camera rigs, viewport mapping, and parallax, the [Input API](../../api/input/) for action maps and gamepad bindings, the [Game API](../../api/game/) for object and scene lifecycles, and the [Textures API](../../api/textures/) for image ownership and filtering. The [VFX API](../../api/vfx/) covers the separate 3D particle and decal systems.
+
+For durable typed saves, use [GameDatabase](../../api/storage/) and open it before starting the game loop. The [2D platformer sample](https://github.com/RuanFernandes/BornEngine/tree/main/examples/2d-platformer) includes database migrations and a save/restore flow alongside slopes, one-way platforms, and CCD.

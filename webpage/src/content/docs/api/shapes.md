@@ -11,18 +11,18 @@ Immediate shapes are renderer commands. Call them in `render()` or during an act
 
 ```ts
 import { Colors, Game } from '@bornengine/engine';
-const game = new Game();
-game.run({
-  update() {},
-  render() {
-    game.renderer.clear({ r: 15, g: 18, b: 24, a: 255 });
-    game.renderer.drawRectangle({ x: 40, y: 40, width: 160, height: 96 }, Colors.LIME);
-    game.renderer.drawRectangleOutline({ x: 40, y: 40, width: 160, height: 96 }, Colors.WHITE, 2);
-    game.renderer.drawLine({ x: 40, y: 40 }, { x: 200, y: 136 }, Colors.RED, 3);
-    game.renderer.drawCircle({ x: 320, y: 88 }, 44, Colors.BLUE);
-  },
-  onStop: () => game.dispose(),
-});
+class ExampleGame extends Game {
+  protected override render(): void {
+    this.renderer.clear({ r: 15, g: 18, b: 24, a: 255 });
+    this.renderer.drawRectangle({ x: 40, y: 40, width: 160, height: 96 }, Colors.LIME);
+    this.renderer.drawRectangleOutline({ x: 40, y: 40, width: 160, height: 96 }, Colors.WHITE, 2);
+    this.renderer.drawLine({ x: 40, y: 40 }, { x: 200, y: 136 }, Colors.RED, 3);
+    this.renderer.drawCircle({ x: 320, y: 88 }, 44, Colors.BLUE);
+  }
+}
+
+const game = new ExampleGame();
+game.run();
 ```
 
 Colors use RGBA channels from 0 to 255. Renderer methods return `false` if the Game is not ready.

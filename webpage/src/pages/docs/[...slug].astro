@@ -28,13 +28,15 @@ const commandGroup = routeSlug === 'cli/project'
   ? 'project'
   : routeSlug === 'cli/build'
     ? 'build'
-    : routeSlug === 'cli/diagnostics'
-      ? 'diagnostics'
-      : routeSlug === 'cli/engine'
-        ? 'engine'
-        : routeSlug === 'cli/configuration'
-          ? 'configuration'
-          : undefined;
+      : routeSlug === 'cli/diagnostics'
+        ? 'diagnostics'
+        : routeSlug === 'cli/assets'
+          ? 'assets'
+          : routeSlug === 'cli/engine'
+            ? 'engine'
+            : routeSlug === 'cli/configuration'
+              ? 'configuration'
+              : undefined;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TechArticle',

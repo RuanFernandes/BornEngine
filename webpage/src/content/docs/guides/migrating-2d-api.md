@@ -67,7 +67,7 @@ new MyGame().run();
 
 `Game` calls `onStart()` before the loop, then calls `loop(deltaTime)` and `render()` for each frame. Scene updates stay explicit: call `this.scenes.update(deltaTime)` from your game loop. `super.render()` draws the active scene; code after it draws a HUD in screen coordinates. The normal subclass-driven `run()` lifecycle disposes the game after `onStop()`.
 
-If a host already owns the frame loop, keep using `game.run({ update, render, onStop })` or `game.runFrame(...)` for an embedded surface. A subclass is the simplest entry point for a standalone game.
+If a host already owns the frame loop and surface, use `game.runFrame(deltaTime, callbacks)` for that embedded surface. Standalone games call `run()` on a `Game` subclass.
 
 ## Turn draw calls into scene components
 

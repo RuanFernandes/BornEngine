@@ -176,22 +176,24 @@ Use the owning renderer or the model convenience method. Pass the same scale to 
 ```typescript
 import { Animation, Colors, Game, Model } from "@bornengine/engine";
 
-const game = new Game({ window: { title: "Animation Demo", width: 800, height: 600 } });
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    if (animation.isLoaded) animation.update(deltaTime, position, 1);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SKYBLUE);
+    if (model.isLoaded) model.draw(this.renderer, position, 1, Colors.WHITE);
+  }
+}
+
+const game = new ExampleGame({ window: { title: "Animation Demo", width: 800, height: 600 } });
 const model = new Model(game, "assets/models/character.glb");
 const animation = new Animation(game, "assets/models/character.glb");
 if (animation.isLoaded) animation.play(0);
 
 const position = { x: 0, y: 0, z: 0 };
-game.run({
-  update(deltaTime) {
-    if (animation.isLoaded) animation.update(deltaTime, position, 1);
-  },
-  render() {
-    game.renderer.clear(Colors.SKYBLUE);
-    if (model.isLoaded) model.draw(game.renderer, position, 1, Colors.WHITE);
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ```
 
 For a shorter scene lifetime, call `animation.dispose()` and `model.dispose()` before releasing the game.

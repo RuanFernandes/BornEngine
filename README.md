@@ -46,48 +46,50 @@ You'll also need:
 ```typescript
 import { Colors, Game } from "@bornengine/engine";
 
-const game = new Game({
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    // Update gameplay state here.
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+    this.renderer.drawText("Hello, BornEngine!", { x: 190, y: 200 }, 20, Colors.DARKGRAY);
+  }
+}
+
+const game = new ExampleGame({
   window: { title: "My Game", width: 800, height: 450 },
   targetFps: 60,
 });
 
 if (!game.isReady) console.error(game.error || "Could not start BornEngine");
 
-game.run({
-  update(deltaTime) {
-    // Update gameplay state here.
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-    game.renderer.drawText("Hello, BornEngine!", { x: 190, y: 200 }, 20, Colors.DARKGRAY);
-  },
-  onStop() {
-    game.dispose();
-  },
-});
+game.run();
 ```
 
-`Game` owns the window, frame lifecycle, renderer, input, audio, scenes, and resources created for that runtime. The engine begins and ends each frame around your callbacks. Call `dispose()` when the game shuts down; it is safe to call more than once.
+`Game` owns the window, frame lifecycle, renderer, input, audio, scenes, and resources created for that runtime. The engine begins and ends each frame around your `loop()` and `render()` hooks. A standalone run disposes its resources after `onStop()`. Use `dispose()` to release a game that never started.
 
 ### Web-Compatible Pattern
 
-The same `Game.run()` callback API works on native and Web/WASM. The platform drives the frame schedule, so keep simulation changes in `update(deltaTime)` and drawing in `render()`:
+The same subclass lifecycle works on native and Web/WASM. The platform drives the frame schedule, so keep simulation changes in `loop(deltaTime)` and drawing in `render()`:
 
 ```typescript
 import { Colors, Game } from "@bornengine/engine";
 
-const game = new Game({ window: { title: "My Game", width: 800, height: 450 } });
-
-game.run({
-  update(deltaTime) {
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
     // deltaTime is elapsed seconds since the previous frame.
-  },
-  render() {
-    game.renderer.clear(Colors.SNOW);
-    game.renderer.drawText("Runs on native and web", { x: 190, y: 200 }, 20, Colors.DARKGRAY);
-  },
-  onStop: () => game.dispose(),
-});
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SNOW);
+    this.renderer.drawText("Runs on native and web", { x: 190, y: 200 }, 20, Colors.DARKGRAY);
+  }
+}
+
+const game = new ExampleGame({ window: { title: "My Game", width: 800, height: 450 } });
+
+game.run();
 ```
 
 Build for web:
@@ -105,7 +107,7 @@ Use `--release` (the default) for optimized builds.
 - **True native** — Compiles to Metal, DirectX 12, Vulkan, OpenGL, and WebGPU via wgpu.
 - **Ship everywhere** — macOS, Windows, Linux, iOS, tvOS, Android, and Web from one codebase.
 - **Unified 2D/3D** — Shapes, textures, text, 3D models, and audio in one engine.
-- **Explicit lifecycle** — Separate update and render callbacks, inspect startup/resource errors, and dispose owned state deliberately.
+- **Explicit lifecycle** — Separate lifecycle hooks, inspect startup/resource errors, and dispose owned state after a standalone run.
 
 ## How BornEngine relates to raylib
 
@@ -205,12 +207,14 @@ Configure the initial window on Game construction and toggle it through the owni
 
 ~~~typescript
 import { Game, Key } from "@bornengine/engine";
-const game = new Game({ window: { title: "My Game", width: 800, height: 450, fullscreen: true } });
-game.run({
-  update() { if (game.input.isKeyPressed(Key.F11)) game.window.toggleFullscreen(); },
-  render() {},
-  onStop: () => game.dispose(),
-});
+class ExampleGame extends Game {
+  protected override loop(): void { if (this.input.isKeyPressed(Key.F11)) this.window.toggleFullscreen(); }
+
+  protected override render(): void {}
+}
+
+const game = new ExampleGame({ window: { title: "My Game", width: 800, height: 450, fullscreen: true } });
+game.run();
 ~~~
 
 The initial window dimensions are restored when leaving fullscreen where the platform supports it.
@@ -222,20 +226,22 @@ BornEngine supports GPU-accelerated skeletal animation from glTF/GLB models. The
 ~~~typescript
 import { Animation, Colors, Game, Model } from "@bornengine/engine";
 
-const game = new Game({ window: { title: "Animation Demo" } });
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void {
+    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.SKYBLUE);
+    if (character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: 0 });
+  }
+}
+
+const game = new ExampleGame({ window: { title: "Animation Demo" } });
 const character = new Model(game, "assets/models/character.glb");
 const animation = new Animation(game, "assets/models/character.glb");
 
- game.run({
-  update(deltaTime) {
-    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
-  },
-  render() {
-    game.renderer.clear(Colors.SKYBLUE);
-    if (character.isLoaded) character.draw(game.renderer, { x: 0, y: 0, z: 0 });
-  },
-  onStop: () => game.dispose(),
-});
+game.run();
 ~~~
 
 Create animation resources with their Game, play a clip with `animation.play(index)`, and update them before drawing. See the [skeletal animation guide](docs/skeletal-animation.md) for the Blender export pipeline.

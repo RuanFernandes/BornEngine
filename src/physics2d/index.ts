@@ -6,6 +6,7 @@ export type {
   PhysicsContact2D,
   PhysicsContactPhase2D,
   PhysicsShape2D,
+  OneWaySurface2D,
 } from './physics-body-2d';
 export { PhysicsWorld2D } from './physics-world-2d';
 export type {

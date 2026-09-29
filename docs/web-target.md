@@ -54,20 +54,22 @@ python3 -m http.server 8080
 
 ## Game Loop
 
-Browsers own frame scheduling, so a game should use the same callback-based `Game.run()` lifecycle as native targets:
+Browsers own frame scheduling, and standalone games use the same subclass-driven `Game.run()` lifecycle as native targets:
 
 ```typescript
 import { Colors, Game } from "@bornengine/engine";
 
-const game = new Game({ window: { title: "My Game", width: 800, height: 600 } });
-game.run({
-  update(deltaTime) { updateGameplay(deltaTime); },
-  render() {
-    game.renderer.clear(Colors.BLACK);
-    game.renderer.drawRectangle({ x: 100, y: 100, width: 50, height: 50 }, Colors.RED);
-  },
-  onStop: () => game.dispose(),
-});
+class ExampleGame extends Game {
+  protected override loop(deltaTime: number): void { updateGameplay(deltaTime); }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    this.renderer.drawRectangle({ x: 100, y: 100, width: 50, height: 50 }, Colors.RED);
+  }
+}
+
+const game = new ExampleGame({ window: { title: "My Game", width: 800, height: 600 } });
+game.run();
 ```
 
 The engine calls update before render, opens and closes the drawing frame, and uses the browser animation-frame scheduler. A blocking `while` loop is not supported on web.

@@ -10,6 +10,14 @@ const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package
 const fns = pkg.perry.nativeLibrary.functions;
 
 const OVERRIDES = new Set([
+  // Native GameDatabase implementation in lib.rs.
+  'bloom_database_scratch_reset', 'bloom_database_scratch_push_f64',
+  'bloom_database_scratch_push_string', 'bloom_database_scratch_push_byte',
+  'bloom_database_submit', 'bloom_database_poll', 'bloom_database_status',
+  'bloom_database_result_rows', 'bloom_database_result_count',
+  'bloom_database_result_kind', 'bloom_database_result_number',
+  'bloom_database_result_string', 'bloom_database_result_byte_count',
+  'bloom_database_result_byte', 'bloom_database_release',
   // Platform + input
   'bloom_get_platform', 'bloom_get_crown_rotation', 'bloom_get_language',
   'bloom_set_direct_2d_mode',

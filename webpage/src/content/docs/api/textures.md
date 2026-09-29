@@ -38,7 +38,7 @@ if (atlas.isLoaded) {
 
 ## Render textures
 
-`RenderTexture(game, width, height)` owns an off-screen target. Pair `renderer.beginRenderTexture(target)` and `endRenderTexture(target)` within one render callback. A Texture may view a render texture as a draw source, but does not own that target's storage.
+`RenderTexture(game, width, height)` owns an off-screen target. Pair `renderer.beginRenderTexture(target)` and `endRenderTexture(target)` within one `render()` hook. A Texture may view a render texture as a draw source, but does not own that target's storage.
 
 ```ts
 import { Game, RenderTexture } from '@bornengine/engine';

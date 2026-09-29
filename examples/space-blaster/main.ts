@@ -166,213 +166,214 @@ function resetGame(): void {
   for (let i = 0; i < MAX_PARTICLES; i++) particles[i].active = false;
 }
 
-const game = new Game({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Space Blaster" }, targetFps: 60 });
-
-// Main game loop
-game.run({
-  update(dt) {
-
-  if (gameOver) {
-    if (game.input.isKeyPressed(Key.ENTER)) {
-      resetGame();
-    }
-  } else {
-    // Player movement
-    if (game.input.isKeyDown(Key.LEFT) || game.input.isKeyDown(Key.A)) {
-      playerX = playerX - PLAYER_SPEED * dt;
-    }
-    if (game.input.isKeyDown(Key.RIGHT) || game.input.isKeyDown(Key.D)) {
-      playerX = playerX + PLAYER_SPEED * dt;
-    }
-    if (game.input.isKeyDown(Key.UP) || game.input.isKeyDown(Key.W)) {
-      playerY = playerY - PLAYER_SPEED * dt;
-    }
-    if (game.input.isKeyDown(Key.DOWN) || game.input.isKeyDown(Key.S)) {
-      playerY = playerY + PLAYER_SPEED * dt;
-    }
-    playerX = Mathf.clamp(playerX, PLAYER_WIDTH / 2, SCREEN_WIDTH - PLAYER_WIDTH / 2);
-    playerY = Mathf.clamp(playerY, PLAYER_HEIGHT / 2, SCREEN_HEIGHT - PLAYER_HEIGHT / 2);
-
-    // Shooting
-    bulletCooldown = bulletCooldown - dt;
-    if (game.input.isKeyDown(Key.SPACE) && bulletCooldown <= 0) {
-      spawnBullet(playerX - 2, playerY - PLAYER_HEIGHT / 2);
-      bulletCooldown = BULLET_COOLDOWN;
-    }
-
-    // Wave spawning
-    waveTimer = waveTimer + dt;
-    if (enemiesSpawned < enemiesPerWave && waveTimer > 0.6) {
-      spawnEnemy();
-      enemiesSpawned = enemiesSpawned + 1;
-      waveTimer = 0;
-    }
-
-    // Check if wave is complete
-    let activeEnemies = 0;
-    for (let i = 0; i < MAX_ENEMIES; i++) {
-      if (enemies[i].active) activeEnemies = activeEnemies + 1;
-    }
-    if (enemiesSpawned >= enemiesPerWave && activeEnemies === 0) {
-      wave = wave + 1;
-      enemiesPerWave = 5 + wave * 2;
-      enemiesSpawned = 0;
-      waveTimer = -1.5; // Pause before next wave
-    }
-
-    // Update bullets
-    for (let i = 0; i < MAX_BULLETS; i++) {
-      if (!bullets[i].active) continue;
-      bullets[i].y = bullets[i].y - BULLET_SPEED * dt;
-      if (bullets[i].y < -BULLET_HEIGHT) {
-        bullets[i].active = false;
+class SpaceBlasterGame extends Game {
+  protected override loop(dt: number): void {
+    if (gameOver) {
+      if (this.input.isKeyPressed(Key.ENTER)) {
+        resetGame();
       }
-    }
+    } else {
+      // Player movement
+      if (this.input.isKeyDown(Key.LEFT) || this.input.isKeyDown(Key.A)) {
+        playerX = playerX - PLAYER_SPEED * dt;
+      }
+      if (this.input.isKeyDown(Key.RIGHT) || this.input.isKeyDown(Key.D)) {
+        playerX = playerX + PLAYER_SPEED * dt;
+      }
+      if (this.input.isKeyDown(Key.UP) || this.input.isKeyDown(Key.W)) {
+        playerY = playerY - PLAYER_SPEED * dt;
+      }
+      if (this.input.isKeyDown(Key.DOWN) || this.input.isKeyDown(Key.S)) {
+        playerY = playerY + PLAYER_SPEED * dt;
+      }
+      playerX = Mathf.clamp(playerX, PLAYER_WIDTH / 2, SCREEN_WIDTH - PLAYER_WIDTH / 2);
+      playerY = Mathf.clamp(playerY, PLAYER_HEIGHT / 2, SCREEN_HEIGHT - PLAYER_HEIGHT / 2);
 
-    // Update enemies
-    for (let i = 0; i < MAX_ENEMIES; i++) {
-      if (!enemies[i].active) continue;
-      enemies[i].y = enemies[i].y + enemies[i].speed * dt;
-
-      // Off screen
-      if (enemies[i].y > SCREEN_HEIGHT + ENEMY_HEIGHT) {
-        enemies[i].active = false;
-        lives = lives - 1;
-        if (lives <= 0) gameOver = true;
-        continue;
+      // Shooting
+      bulletCooldown = bulletCooldown - dt;
+      if (this.input.isKeyDown(Key.SPACE) && bulletCooldown <= 0) {
+        spawnBullet(playerX - 2, playerY - PLAYER_HEIGHT / 2);
+        bulletCooldown = BULLET_COOLDOWN;
       }
 
-      // Collision with player
-      const playerRect: Rect = {
-        x: playerX - PLAYER_WIDTH / 2,
-        y: playerY - PLAYER_HEIGHT / 2,
-        width: PLAYER_WIDTH,
-        height: PLAYER_HEIGHT,
-      };
-      const enemyRect: Rect = {
-        x: enemies[i].x - ENEMY_WIDTH / 2,
-        y: enemies[i].y - ENEMY_HEIGHT / 2,
-        width: ENEMY_WIDTH,
-        height: ENEMY_HEIGHT,
-      };
-      if (Collision.checkRectangles(playerRect, enemyRect)) {
-        spawnExplosion(enemies[i].x, enemies[i].y, 15, getEnemyColor(enemies[i].kind));
-        enemies[i].active = false;
-        lives = lives - 1;
-        if (lives <= 0) gameOver = true;
-        continue;
+      // Wave spawning
+      waveTimer = waveTimer + dt;
+      if (enemiesSpawned < enemiesPerWave && waveTimer > 0.6) {
+        spawnEnemy();
+        enemiesSpawned = enemiesSpawned + 1;
+        waveTimer = 0;
       }
 
-      // Collision with bullets
-      for (let j = 0; j < MAX_BULLETS; j++) {
-        if (!bullets[j].active) continue;
-        const bulletRect: Rect = {
-          x: bullets[j].x - BULLET_WIDTH / 2,
-          y: bullets[j].y - BULLET_HEIGHT / 2,
-          width: BULLET_WIDTH,
-          height: BULLET_HEIGHT,
+      // Check if wave is complete
+      let activeEnemies = 0;
+      for (let i = 0; i < MAX_ENEMIES; i++) {
+        if (enemies[i].active) activeEnemies = activeEnemies + 1;
+      }
+      if (enemiesSpawned >= enemiesPerWave && activeEnemies === 0) {
+        wave = wave + 1;
+        enemiesPerWave = 5 + wave * 2;
+        enemiesSpawned = 0;
+        waveTimer = -1.5; // Pause before next wave
+      }
+
+      // Update bullets
+      for (let i = 0; i < MAX_BULLETS; i++) {
+        if (!bullets[i].active) continue;
+        bullets[i].y = bullets[i].y - BULLET_SPEED * dt;
+        if (bullets[i].y < -BULLET_HEIGHT) {
+          bullets[i].active = false;
+        }
+      }
+
+      // Update enemies
+      for (let i = 0; i < MAX_ENEMIES; i++) {
+        if (!enemies[i].active) continue;
+        enemies[i].y = enemies[i].y + enemies[i].speed * dt;
+
+        // Off screen
+        if (enemies[i].y > SCREEN_HEIGHT + ENEMY_HEIGHT) {
+          enemies[i].active = false;
+          lives = lives - 1;
+          if (lives <= 0) gameOver = true;
+          continue;
+        }
+
+        // Collision with player
+        const playerRect: Rect = {
+          x: playerX - PLAYER_WIDTH / 2,
+          y: playerY - PLAYER_HEIGHT / 2,
+          width: PLAYER_WIDTH,
+          height: PLAYER_HEIGHT,
         };
-        if (Collision.checkRectangles(bulletRect, enemyRect)) {
-          bullets[j].active = false;
-          enemies[i].hp = enemies[i].hp - 1;
-          if (enemies[i].hp <= 0) {
-            spawnExplosion(enemies[i].x, enemies[i].y, 12, getEnemyColor(enemies[i].kind));
-            enemies[i].active = false;
-            score = score + (enemies[i].kind === 2 ? 30 : (enemies[i].kind === 1 ? 20 : 10));
-          } else {
-            spawnExplosion(bullets[j].x, bullets[j].y, 3, { r: 255, g: 255, b: 100, a: 255 });
+        const enemyRect: Rect = {
+          x: enemies[i].x - ENEMY_WIDTH / 2,
+          y: enemies[i].y - ENEMY_HEIGHT / 2,
+          width: ENEMY_WIDTH,
+          height: ENEMY_HEIGHT,
+        };
+        if (Collision.checkRectangles(playerRect, enemyRect)) {
+          spawnExplosion(enemies[i].x, enemies[i].y, 15, getEnemyColor(enemies[i].kind));
+          enemies[i].active = false;
+          lives = lives - 1;
+          if (lives <= 0) gameOver = true;
+          continue;
+        }
+
+        // Collision with bullets
+        for (let j = 0; j < MAX_BULLETS; j++) {
+          if (!bullets[j].active) continue;
+          const bulletRect: Rect = {
+            x: bullets[j].x - BULLET_WIDTH / 2,
+            y: bullets[j].y - BULLET_HEIGHT / 2,
+            width: BULLET_WIDTH,
+            height: BULLET_HEIGHT,
+          };
+          if (Collision.checkRectangles(bulletRect, enemyRect)) {
+            bullets[j].active = false;
+            enemies[i].hp = enemies[i].hp - 1;
+            if (enemies[i].hp <= 0) {
+              spawnExplosion(enemies[i].x, enemies[i].y, 12, getEnemyColor(enemies[i].kind));
+              enemies[i].active = false;
+              score = score + (enemies[i].kind === 2 ? 30 : (enemies[i].kind === 1 ? 20 : 10));
+            } else {
+              spawnExplosion(bullets[j].x, bullets[j].y, 3, { r: 255, g: 255, b: 100, a: 255 });
+            }
+            break;
           }
-          break;
+        }
+      }
+
+      // Update particles
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+        particles[i].x = particles[i].x + particles[i].vx * dt;
+        particles[i].y = particles[i].y + particles[i].vy * dt;
+        particles[i].life = particles[i].life - dt;
+        if (particles[i].life <= 0) {
+          particles[i].active = false;
         }
       }
     }
 
-    // Update particles
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      if (!particles[i].active) continue;
-      particles[i].x = particles[i].x + particles[i].vx * dt;
-      particles[i].y = particles[i].y + particles[i].vy * dt;
-      particles[i].life = particles[i].life - dt;
-      if (particles[i].life <= 0) {
-        particles[i].active = false;
+    // Update stars (always, even on game over)
+    for (let i = 0; i < MAX_STARS; i++) {
+      stars[i].y = stars[i].y + stars[i].speed * dt;
+      if (stars[i].y > SCREEN_HEIGHT) {
+        stars[i].y = 0;
+        stars[i].x = Mathf.randomFloat(0, SCREEN_WIDTH);
       }
     }
+
+    // Drawing
   }
 
-  // Update stars (always, even on game over)
-  for (let i = 0; i < MAX_STARS; i++) {
-    stars[i].y = stars[i].y + stars[i].speed * dt;
-    if (stars[i].y > SCREEN_HEIGHT) {
-      stars[i].y = 0;
-      stars[i].x = Mathf.randomFloat(0, SCREEN_WIDTH);
-    }
-  }
+  protected override render(): void {
+    this.renderer.clear({ r: 5, g: 5, b: 15, a: 255 });
 
-  // Drawing
-  },
-  render() {
-  game.renderer.clear({ r: 5, g: 5, b: 15, a: 255 });
-
-  // Stars
-  for (let i = 0; i < MAX_STARS; i++) {
-    const b = Math.floor(stars[i].brightness * 255);
-    game.renderer.drawRectangle({ x: stars[i].x, y: stars[i].y, width: 2, height: 2 }, { r: b, g: b, b: b, a: 255 });
-  }
-
-  if (!gameOver) {
-    // Player ship (triangle)
-    game.renderer.drawTriangle({ x: playerX, y: playerY - PLAYER_HEIGHT / 2 }, { x: playerX - PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { x: playerX + PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { r: 50, g: 200, b: 255, a: 255 });
-    // Engine glow
-    game.renderer.drawRectangle({ x: playerX - 4, y: playerY + PLAYER_HEIGHT / 2, width: 8, height: 6 }, { r: 255, g: 150, b: 0, a: 200 });
-
-    // Bullets
-    for (let i = 0; i < MAX_BULLETS; i++) {
-      if (!bullets[i].active) continue;
-      game.renderer.drawRectangle({ x: bullets[i].x - BULLET_WIDTH / 2, y: bullets[i].y - BULLET_HEIGHT / 2, width: BULLET_WIDTH, height: BULLET_HEIGHT }, { r: 255, g: 255, b: 100, a: 255 });
+    // Stars
+    for (let i = 0; i < MAX_STARS; i++) {
+      const b = Math.floor(stars[i].brightness * 255);
+      this.renderer.drawRectangle({ x: stars[i].x, y: stars[i].y, width: 2, height: 2 }, { r: b, g: b, b: b, a: 255 });
     }
 
-    // Enemies
-    for (let i = 0; i < MAX_ENEMIES; i++) {
-      if (!enemies[i].active) continue;
-      const color = getEnemyColor(enemies[i].kind);
-      game.renderer.drawRectangle({ x: enemies[i].x - ENEMY_WIDTH / 2, y: enemies[i].y - ENEMY_HEIGHT / 2, width: ENEMY_WIDTH, height: ENEMY_HEIGHT }, color);
-      // Cockpit
-      game.renderer.drawRectangle({ x: enemies[i].x - 4, y: enemies[i].y - 4, width: 8, height: 8 }, { r: 200, g: 200, b: 200, a: 255 });
+    if (!gameOver) {
+      // Player ship (triangle)
+      this.renderer.drawTriangle({ x: playerX, y: playerY - PLAYER_HEIGHT / 2 }, { x: playerX - PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { x: playerX + PLAYER_WIDTH / 2, y: playerY + PLAYER_HEIGHT / 2 }, { r: 50, g: 200, b: 255, a: 255 });
+      // Engine glow
+      this.renderer.drawRectangle({ x: playerX - 4, y: playerY + PLAYER_HEIGHT / 2, width: 8, height: 6 }, { r: 255, g: 150, b: 0, a: 200 });
+
+      // Bullets
+      for (let i = 0; i < MAX_BULLETS; i++) {
+        if (!bullets[i].active) continue;
+        this.renderer.drawRectangle({ x: bullets[i].x - BULLET_WIDTH / 2, y: bullets[i].y - BULLET_HEIGHT / 2, width: BULLET_WIDTH, height: BULLET_HEIGHT }, { r: 255, g: 255, b: 100, a: 255 });
+      }
+
+      // Enemies
+      for (let i = 0; i < MAX_ENEMIES; i++) {
+        if (!enemies[i].active) continue;
+        const color = getEnemyColor(enemies[i].kind);
+        this.renderer.drawRectangle({ x: enemies[i].x - ENEMY_WIDTH / 2, y: enemies[i].y - ENEMY_HEIGHT / 2, width: ENEMY_WIDTH, height: ENEMY_HEIGHT }, color);
+        // Cockpit
+        this.renderer.drawRectangle({ x: enemies[i].x - 4, y: enemies[i].y - 4, width: 8, height: 8 }, { r: 200, g: 200, b: 200, a: 255 });
+      }
     }
+
+    // Particles
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      if (!particles[i].active) continue;
+      const alpha = Math.floor((particles[i].life / particles[i].maxLife) * 255);
+      const c = particles[i].color;
+      this.renderer.drawRectangle({ x: particles[i].x - 2, y: particles[i].y - 2, width: 4, height: 4 }, { r: c.r, g: c.g, b: c.b, a: alpha });
+    }
+
+    // HUD
+    this.renderer.drawText("SCORE: " + score.toString(), { x: 10, y: 10 }, 20, Colors.WHITE);
+    this.renderer.drawText("WAVE: " + wave.toString(), { x: SCREEN_WIDTH / 2 - 40, y: 10 }, 20, Colors.WHITE);
+
+    // Lives
+    for (let i = 0; i < lives; i++) {
+      this.renderer.drawTriangle({ x: SCREEN_WIDTH - 30 - i * 25, y: 12 }, { x: SCREEN_WIDTH - 40 - i * 25, y: 28 }, { x: SCREEN_WIDTH - 20 - i * 25, y: 28 }, { r: 50, g: 200, b: 255, a: 255 });
+    }
+
+    // Wave announcement
+    if (waveTimer < 0) {
+      const waveText = "WAVE " + wave.toString();
+      this.renderer.drawText(waveText, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(waveText, 40) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 40, Colors.YELLOW);
+    }
+
+    // Game over screen
+    if (gameOver) {
+      this.renderer.drawText("GAME OVER", { x: SCREEN_WIDTH / 2 - this.renderer.measureText("GAME OVER", 60) / 2, y: SCREEN_HEIGHT / 2 - 60 }, 60, Colors.RED);
+      const finalScore = "Score: " + score.toString();
+      this.renderer.drawText(finalScore, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(finalScore, 30) / 2, y: SCREEN_HEIGHT / 2 + 10 }, 30, Colors.WHITE);
+      const restartText = "Press ENTER to restart";
+      this.renderer.drawText(restartText, { x: SCREEN_WIDTH / 2 - this.renderer.measureText(restartText, 20) / 2, y: SCREEN_HEIGHT / 2 + 60 }, 20, Colors.LIGHTGRAY);
+    }
+
   }
+}
 
-  // Particles
-  for (let i = 0; i < MAX_PARTICLES; i++) {
-    if (!particles[i].active) continue;
-    const alpha = Math.floor((particles[i].life / particles[i].maxLife) * 255);
-    const c = particles[i].color;
-    game.renderer.drawRectangle({ x: particles[i].x - 2, y: particles[i].y - 2, width: 4, height: 4 }, { r: c.r, g: c.g, b: c.b, a: alpha });
-  }
+const game = new SpaceBlasterGame({ window: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, title: "Space Blaster" }, targetFps: 60 });
 
-  // HUD
-  game.renderer.drawText("SCORE: " + score.toString(), { x: 10, y: 10 }, 20, Colors.WHITE);
-  game.renderer.drawText("WAVE: " + wave.toString(), { x: SCREEN_WIDTH / 2 - 40, y: 10 }, 20, Colors.WHITE);
-
-  // Lives
-  for (let i = 0; i < lives; i++) {
-    game.renderer.drawTriangle({ x: SCREEN_WIDTH - 30 - i * 25, y: 12 }, { x: SCREEN_WIDTH - 40 - i * 25, y: 28 }, { x: SCREEN_WIDTH - 20 - i * 25, y: 28 }, { r: 50, g: 200, b: 255, a: 255 });
-  }
-
-  // Wave announcement
-  if (waveTimer < 0) {
-    const waveText = "WAVE " + wave.toString();
-    game.renderer.drawText(waveText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(waveText, 40) / 2, y: SCREEN_HEIGHT / 2 - 20 }, 40, Colors.YELLOW);
-  }
-
-  // Game over screen
-  if (gameOver) {
-    game.renderer.drawText("GAME OVER", { x: SCREEN_WIDTH / 2 - game.renderer.measureText("GAME OVER", 60) / 2, y: SCREEN_HEIGHT / 2 - 60 }, 60, Colors.RED);
-    const finalScore = "Score: " + score.toString();
-    game.renderer.drawText(finalScore, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(finalScore, 30) / 2, y: SCREEN_HEIGHT / 2 + 10 }, 30, Colors.WHITE);
-    const restartText = "Press ENTER to restart";
-    game.renderer.drawText(restartText, { x: SCREEN_WIDTH / 2 - game.renderer.measureText(restartText, 20) / 2, y: SCREEN_HEIGHT / 2 + 60 }, 20, Colors.LIGHTGRAY);
-  }
-
-  },
-  onStop: () => game.dispose(),
-});
+// Main game loop
+game.run();

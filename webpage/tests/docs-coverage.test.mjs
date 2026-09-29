@@ -4,14 +4,27 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 21);
+  assert.equal(apiCoverage.length, 22);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
-    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math',
+    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'storage', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math',
     'scene', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
     '2d-game', 'physics2d-tilemap', '3d-scene', 'physics-gameplay', 'assets-and-worlds', 'audio-and-ui',
   ]);
+});
+
+test('database API docs cover schema, transactions, statuses, and platform storage', async () => {
+  const item = apiCoverage.find((entry) => entry.slug === 'storage');
+  const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
+  const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];
+  assert.ok(fences.length >= 3, 'api/storage.md needs schema, CRUD, and transaction examples');
+  for (const section of item.sections) {
+    assert.match(source, new RegExp(`^##\\s+${section.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\s*$`, 'm'));
+  }
+  for (const detail of ['quota_exceeded', 'unsupported_version', 'OPFS', 'IndexedDB', 'Web Locks API', 'Application Support']) {
+    assert.ok(source.includes(detail), `api/storage.md needs ${detail}`);
+  }
 });
 
 test('links every coverage route from the sidebar navigation', async () => {
