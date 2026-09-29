@@ -1,0 +1,16 @@
+{
+  "name": "bornengine-multiplayer-arena-client",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "compile:check": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --no-cache --no-link"
+  },
+  "dependencies": {
+    "@bornengine/engine": "^0.10.0"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine", "@bornengine/engine/colyseus"]
+    }
+  }
+}
