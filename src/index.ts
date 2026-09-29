@@ -1,5 +1,5 @@
 export { Game } from './core/game';
-export type { GameOptions, GameLoopCallbacks, GameDebugOptions } from './core/game';
+export type { GameOptions, EmbeddedFrameCallbacks, GameDebugOptions } from './core/game';
 export { Window, Renderer } from './core';
 export type { WindowMode, WindowOptions, UpscaleMode, RendererStats } from './core';
 export { ColorConstants, Colors, Key, MouseButton, CursorShape, Platform, QualityPreset, Tonemap } from './core';

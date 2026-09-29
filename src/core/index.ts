@@ -1,5 +1,5 @@
 export { Game } from './game';
-export type { GameOptions, GameLoopCallbacks, GameDebugOptions } from './game';
+export type { GameOptions, EmbeddedFrameCallbacks, GameDebugOptions } from './game';
 export { Renderer } from './renderer';
 export type { RendererStats } from './renderer';
 export { Window } from './window';
