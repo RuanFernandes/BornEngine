@@ -31,7 +31,8 @@ export interface GameDebugOptions {
   assets?: boolean;
 }
 
-export interface GameLoopCallbacks {
+/** Callbacks for a host that owns an embedded surface and frame scheduler. */
+export interface EmbeddedFrameCallbacks {
   update(deltaTime: number): void;
   render(): void;
   onStop?: () => void;
@@ -71,7 +72,10 @@ export class Game {
   private inFrame = false;
   private completionScheduled = false;
   private webRuntime = false;
-  private callbacks: GameLoopCallbacks | null = null;
+  private callbacks: EmbeddedFrameCallbacks | null = null;
+  private standaloneRun = false;
+  private completion: Promise<void> | null = null;
+  private resolveCompletion: (() => void) | null = null;
 
   constructor(options: GameOptions = {}) {
     const runtime = GameContext.create();
@@ -123,52 +127,50 @@ export class Game {
   /** Called once when a subclass-driven run ends, before the Game is disposed. */
   protected onStop(): void {}
 
-  /** Run subclass lifecycle hooks, or pass callbacks for an explicit frame loop. */
-  run(): void;
-  run(callbacks: GameLoopCallbacks): void;
-  run(callbacks?: GameLoopCallbacks): void {
-    if (!this.isReady || !this.window.isOpen || this.hasRun || this.runCompleted || this.window.mode === 'embedded') return;
-    const usesSubclassLifecycle = callbacks === undefined;
-    const activeCallbacks = callbacks ?? {
+  /** Run the subclass lifecycle and resolve after shutdown and cleanup. */
+  run(): Promise<void> {
+    if (this.completion !== null) return this.completion;
+    if (this.hasRun || this.runCompleted) return Promise.resolve();
+    if (!this.isReady || !this.window.isOpen) {
+      // An unattached embedded surface can still become ready. A failed
+      // configuration or windowed startup cannot, so release its context.
+      if (this.window.mode !== 'embedded' || this.error !== null) this.disposeInternal();
+      return Promise.resolve();
+    }
+    if (this.window.mode === 'embedded') {
+      return Promise.resolve();
+    }
+    const completion = new Promise<void>((resolve) => { this.resolveCompletion = resolve; });
+    this.completion = completion;
+    const activeCallbacks: EmbeddedFrameCallbacks = {
       update: (deltaTime: number) => dispatchGameLoop(this, deltaTime),
       render: () => dispatchGameRender(this),
-      onStop: () => {
-        try {
-          dispatchGameStop(this);
-        } finally {
-          this.dispose();
-        }
-      },
+      onStop: () => dispatchGameStop(this),
     };
     this.hasRun = true;
+    this.standaloneRun = true;
     this.stopRequested = false;
     this.callbacks = activeCallbacks;
     this.webRuntime = getPlatform() === Platform.WEB;
-    if (usesSubclassLifecycle) {
-      try {
-        dispatchGameStart(this);
-      } catch (error) {
-        this.failRun(error);
-      }
+    try {
+      dispatchGameStart(this);
+    } catch (error) {
+      this.failRun(error);
     }
-    if (this.runCompleted) return;
+    if (this.runCompleted) return completion;
     try {
       runGame((deltaTime) => {
-        try {
-          this.dispatchFrame(deltaTime, activeCallbacks);
-        } catch (error) {
-          if (!this.webRuntime) endDrawing();
-          throw error;
-        }
+        this.dispatchFrame(deltaTime, activeCallbacks);
       }, () => this.shouldContinue());
     } catch (error) {
       this.failRun(error);
     }
     if (!this.webRuntime && !this.runCompleted) this.completeRun();
+    return completion;
   }
 
   /** Drive one frame from a host-owned embedded surface. */
-  runFrame(deltaTime: number, callbacks: GameLoopCallbacks): boolean {
+  runFrame(deltaTime: number, callbacks: EmbeddedFrameCallbacks): boolean {
     if (!this.isReady || this.window.mode !== 'embedded' || this.runCompleted) return false;
     if (!this.hasRun) {
       this.hasRun = true;
@@ -178,18 +180,12 @@ export class Game {
       this.completeRun();
       return false;
     }
-    let frameError: unknown = undefined;
-    let didThrow = false;
     beginDrawing();
     try {
       this.dispatchFrame(deltaTime, callbacks);
-    } catch (error) {
-      frameError = error;
-      didThrow = true;
     } finally {
       endDrawing();
     }
-    if (didThrow) this.failRun(frameError);
     if (this.stopRequested) this.completeRun();
     return !this.runCompleted;
   }
@@ -199,7 +195,11 @@ export class Game {
     if (this.runCompleted) return;
     this.stopRequested = true;
     if (this.inFrame) return;
-    if (!this.hasRun || this.webRuntime) this.completeRun();
+    if (!this.hasRun) {
+      this.disposeInternal();
+      return;
+    }
+    if (this.webRuntime) this.completeRun();
   }
 
   /** Close the runtime and release all resources still owned by this Game. */
@@ -236,7 +236,7 @@ export class Game {
     return this.configurationError === null && getGameContext(this).isActiveOwner() && !getGameContext(this).isDisposed;
   }
 
-  private dispatchFrame(deltaTime: number, callbacks: GameLoopCallbacks): void {
+  private dispatchFrame(deltaTime: number, callbacks: EmbeddedFrameCallbacks): void {
     if (!this.isReady || this.stopRequested) return;
     this.inFrame = true;
     try {
@@ -250,7 +250,7 @@ export class Game {
       this.inspector.render(deltaTime);
     } catch (error) {
       this.stopRequested = true;
-      throw error;
+      this.recordRunError(error);
     } finally {
       this.inFrame = false;
       if (this.webRuntime && this.stopRequested) this.scheduleCompleteRun();
@@ -269,9 +269,19 @@ export class Game {
     this.callbacks = null;
     try {
       if (callbacks !== null && callbacks.onStop !== undefined) callbacks.onStop();
-    } finally {
-      if (this.disposeRequested) this.disposeInternal();
+    } catch (error) {
+      this.recordRunError(error);
+    }
+    try {
+      if (this.standaloneRun || this.disposeRequested) this.disposeInternal();
       else this.window.close();
+    } catch (error) {
+      this.recordRunError(error);
+    }
+    if (this.resolveCompletion !== null) {
+      const resolve = this.resolveCompletion;
+      this.resolveCompletion = null;
+      resolve();
     }
   }
 
@@ -284,34 +294,37 @@ export class Game {
     });
   }
 
-  private failRun(error: unknown): never {
+  private failRun(error: unknown): void {
     this.stopRequested = true;
-    if (!this.runCompleted) {
-      try {
-        this.completeRun();
-      } catch (shutdownError) {
-        console.error('Game shutdown also failed while handling a lifecycle error.', shutdownError);
-      }
-    }
-    throw error;
+    this.recordRunError(error);
+    if (!this.runCompleted) this.completeRun();
+  }
+
+  private recordRunError(error: unknown): void {
+    const context = getGameContext(this);
+    if (context.error !== null) return;
+    context.error = error instanceof Error ? error.message : String(error);
   }
 
   private disposeInternal(): void {
     if (this.disposed) return;
-    this.scenes.dispose();
-    this.sceneGraph.dispose();
-    this.mobile.dispose();
-    this.assets.dispose();
-    this.inspector.dispose();
-    this.ui.dispose();
-    this.debugUi.dispose();
-    this.audio.dispose();
-    this.input.dispose();
-    this.renderer.dispose();
-    getGameContext(this).dispose();
-    this.window.close();
-    this.disposed = true;
-    this.runCompleted = true;
-    this.callbacks = null;
+    try {
+      try { this.scenes.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.sceneGraph.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.mobile.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.assets.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.inspector.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.ui.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.debugUi.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.audio.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.input.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.renderer.dispose(); } catch (error) { this.recordRunError(error); }
+      try { getGameContext(this).dispose(); } catch (error) { this.recordRunError(error); }
+    } finally {
+      try { this.window.close(); } catch (error) { this.recordRunError(error); }
+      this.disposed = true;
+      this.runCompleted = true;
+      this.callbacks = null;
+    }
   }
 }
