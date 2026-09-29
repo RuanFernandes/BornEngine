@@ -64,6 +64,10 @@ terrain on a fallback shader — with only a `canonicalize … No such file` lin
 the console to say so. FFIs that *write* a file (`takeScreenshot`,
 `dumpShadowMap`) deliberately do not resolve — the bundle is read-only.
 
+`createGameStorage()` currently returns `unsupported` on iOS. The platform's
+bundle-relative file API serves packaged assets; it is not an app-data save
+location. Do not use it for settings or player saves.
+
 ## Input
 
 Touch is real UIKit multitouch: up to 10 points, `setMultipleTouchEnabled: YES`,

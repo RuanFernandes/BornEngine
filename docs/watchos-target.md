@@ -133,6 +133,9 @@ paths against the bundle resource path. Textures, sounds, fonts, and level/text
 files via `readFile` all work. Audio uses a watchOS-native mixer
 (`BloomWatchAudio.swift`).
 
+`createGameStorage()` reports `unsupported` on watchOS. Bundle file reads serve
+packaged content; they do not provide an app-data save location for user data.
+
 ## Localization
 
 The user's language is reported from Swift at launch (`Locale.preferredLanguages`)

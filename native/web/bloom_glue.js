@@ -321,6 +321,7 @@ function buildFfiImports(colyseusBridge) {
   // --- File I/O: localStorage first (saves/settings), then the served
   // asset tree (read-only data files like world JSON and manifests) ---
   const LS_PREFIX = 'bloom_fs:';
+  const STORAGE_PREFIX = 'bornengine_storage:';
   imports.bloom_write_file = (path, data) => {
     try { localStorage.setItem(LS_PREFIX + String(path), String(data)); return 1; }
     catch { return 0; }
@@ -337,6 +338,28 @@ function buildFfiImports(colyseusBridge) {
     if (v !== null) return v;
     const text = syncFetchText(p);
     return text === null ? '' : text; // plain string; Perry re-encodes via wrapFfiForI64
+  };
+  imports.bloom_storage_remove = (path) => {
+    try {
+      const key = STORAGE_PREFIX + String(path);
+      const existed = localStorage.getItem(key) !== null;
+      localStorage.removeItem(key);
+      return existed ? 1 : 0;
+    } catch { return 0; }
+  };
+  imports.bloom_storage_write = (path, data) => {
+    try {
+      localStorage.setItem(STORAGE_PREFIX + String(path), String(data));
+      return 1;
+    } catch { return 0; }
+  };
+  imports.bloom_storage_exists = (path) => {
+    try { return localStorage.getItem(STORAGE_PREFIX + String(path)) !== null ? 1 : 0; }
+    catch { return 0; }
+  };
+  imports.bloom_storage_read = (path) => {
+    try { return localStorage.getItem(STORAGE_PREFIX + String(path)) ?? ''; }
+    catch { return ''; }
   };
 
   // --- Game loop ---

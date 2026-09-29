@@ -9,7 +9,8 @@ export { Vec2, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
 export type { Matrix4Array } from './math';
 
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
-export { AssetManager } from './assets';
+export { AssetManager, AssetGroup } from './assets';
+export type { AssetGroupAsset, AssetGroupEntryResult, AssetGroupEntryState, AssetGroupKind, AssetGroupState } from './assets';
 export { SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D } from './sprites';
 export type {
   SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteSheetOptions, SpriteRendererOptions,
@@ -30,10 +31,13 @@ export {
   TEXTURE_ARRAY_ALBEDO, TEXTURE_ARRAY_MR, TEXTURE_ARRAY_NORMAL,
 } from './models';
 
-export { AudioSystem, Sound, StagedSound, Music, StagedMusic, SoundManager } from './audio';
+export {
+  AudioSystem, AudioListener2D, AudioEmitter2D,
+  Sound, StagedSound, Music, StagedMusic, SoundManager,
+} from './audio';
 export type {
   SoundPlayOptions, SoundVoice, SpatialPlaybackOptions,
-  ManagedMusicOptions, ManagedSoundOptions, SpatialSoundOptions,
+  ManagedMusicOptions, ManagedSoundOptions, SpatialSoundOptions, AudioEmitter2DOptions,
 } from './audio';
 export { BUS_SFX, BUS_MUSIC, BUS_UI } from './audio';
 
@@ -52,7 +56,12 @@ export { SceneGraph, SceneNode, FrameSubscription } from './scene';
 export type { ScenePickEntry, ScenePickHit, SceneNodeOptions } from './scene';
 
 export { InputSystem, InputActionMap } from './input';
-export type { ActionAxisBinding, ActionButtonBinding } from './input';
+export type {
+  ActionAxisBinding, ActionButtonBinding,
+  InputActionMapActionData, InputActionMapAxisData, InputActionMapData,
+} from './input';
+export { GameStorage, createGameStorage } from './storage';
+export type { GameStorageBackend, GameStorageResult, GameStorageStatus, JsonValue } from './storage';
 export { PhysicsWorld2D, PhysicsBody2D } from './physics2d';
 export type {
   PhysicsBody2DOptions, PhysicsBodyContact2D, PhysicsBodyType2D, PhysicsContact2D,

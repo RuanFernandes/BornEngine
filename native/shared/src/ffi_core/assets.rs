@@ -289,6 +289,30 @@ macro_rules! __bloom_ffi_assets {
         })
         }
 
+        // bloom_storage_remove  [source: web]
+        #[no_mangle]
+        pub extern "C" fn bloom_storage_remove(_path_ptr: *const u8) -> f64 {
+            0.0 // Native app-data storage is not implemented by this bridge.
+        }
+
+        // bloom_storage_write  [source: web]
+        #[no_mangle]
+        pub extern "C" fn bloom_storage_write(_path_ptr: *const u8, _data_ptr: *const u8) -> f64 {
+            0.0 // Native app-data storage is not implemented by this bridge.
+        }
+
+        // bloom_storage_exists  [source: web]
+        #[no_mangle]
+        pub extern "C" fn bloom_storage_exists(_path_ptr: *const u8) -> f64 {
+            0.0 // Native app-data storage is not implemented by this bridge.
+        }
+
+        // bloom_storage_read  [source: web]
+        #[no_mangle]
+        pub extern "C" fn bloom_storage_read(_path_ptr: *const u8) -> *const u8 {
+            $crate::string_header::alloc_perry_string("")
+        }
+
         // bloom_load_render_texture  [source: macos]
         #[no_mangle]
         pub extern "C" fn bloom_load_render_texture(width: f64, height: f64) -> f64 {
