@@ -34,6 +34,16 @@ function fixture() {
   return { room, handlers: room as unknown as InternalRoomHandlers, broadcasts };
 }
 
+function withFixedTime<T>(time: number, run: () => T): T {
+  const originalNow = Date.now;
+  Date.now = () => time;
+  try {
+    return run();
+  } finally {
+    Date.now = originalNow;
+  }
+}
+
 test('assignsFirstPublisherAndTransfersOnLeave', () => {
   const { room, broadcasts } = fixture();
   const first = fakeClient('first');
@@ -49,19 +59,31 @@ test('assignsFirstPublisherAndTransfersOnLeave', () => {
     (event.payload as { sessionId: string }).sessionId === 'second'));
 });
 
-test('rejectsStaleAndRateLimitedScriptPublishes', () => {
+test('rejects stale client script revisions', () => withFixedTime(1_000, () => {
   const { room, handlers, broadcasts } = fixture();
   const publisher = fakeClient('publisher');
   room.onJoin(publisher as unknown as Client);
   handlers.acceptClientScript(publisher as unknown as Client, { revision: 1, source: 'export default {};' });
   handlers.acceptClientScript(publisher as unknown as Client, { revision: 1, source: 'export default {};' });
-  handlers.acceptClientScript(publisher as unknown as Client, { revision: 2, source: 'export default {};' });
+
   const results = publisher.messages.filter((message) => message.type === 'clientScriptResult');
   assert.deepEqual(results.map((message) => (message.payload as { reason: string }).reason), ['stale']);
   assert.equal(room.getClientScriptSnapshot().revision, 1);
   assert.ok(broadcasts.some((event) => event.type === 'clientScriptResult' &&
     (event.payload as { result: string }).result === 'accepted'));
-});
+}));
+
+test('rate limits client script publishes without advancing the revision', () => withFixedTime(1_000, () => {
+  const { room, handlers } = fixture();
+  const publisher = fakeClient('publisher');
+  room.onJoin(publisher as unknown as Client);
+  handlers.acceptClientScript(publisher as unknown as Client, { revision: 1, source: 'export default {};' });
+  handlers.acceptClientScript(publisher as unknown as Client, { revision: 2, source: 'export default {};' });
+
+  const results = publisher.messages.filter((message) => message.type === 'clientScriptResult');
+  assert.deepEqual(results.map((message) => (message.payload as { reason: string }).reason), ['rate-limit']);
+  assert.equal(room.getClientScriptSnapshot().revision, 1);
+}));
 
 test('rejectsInvalidAndOversizedScriptsWithoutAdvancingRoomRevision', async () => {
   const { room, handlers } = fixture();
