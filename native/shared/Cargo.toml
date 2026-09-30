@@ -42,7 +42,6 @@ libc = "0.2"
 bytemuck = { version = "1", features = ["derive"] }
 serde_json = "1"
 half = "2"
-rquickjs = { version = "0.14.0", default-features = false, features = ["std"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"], optional = true }
 gltf = { version = "1", features = ["KHR_materials_pbrSpecularGlossiness", "KHR_materials_transmission"], optional = true }
@@ -65,6 +64,11 @@ rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"] 
 # attach a debugger. Route them to console.error instead.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
+
+# QuickJS is only shipped on Linux and Web. Other native targets retain the
+# scripting FFI surface through scripting_stub.rs without compiling rquickjs-sys.
+[target.'cfg(any(target_os = "linux", target_arch = "wasm32"))'.dependencies]
+rquickjs = { version = "0.14.0", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 pollster = "0.4"
