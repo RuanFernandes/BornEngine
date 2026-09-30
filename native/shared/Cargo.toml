@@ -42,6 +42,7 @@ libc = "0.2"
 bytemuck = { version = "1", features = ["derive"] }
 serde_json = "1"
 half = "2"
+rquickjs = { version = "0.14.0", default-features = false, features = ["std"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"], optional = true }
 gltf = { version = "1", features = ["KHR_materials_pbrSpecularGlossiness", "KHR_materials_transmission"], optional = true }
