@@ -4473,6 +4473,81 @@
             "f64"
           ],
           "returns": "string"
+        },
+        {
+          "name": "bloom_script_supported",
+          "params": [],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_create",
+          "params": ["f64", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_load",
+          "params": ["f64", "string"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_start",
+          "params": ["f64", "string", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_update",
+          "params": ["f64", "string", "f64", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_dispose",
+          "params": ["f64", "string", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_count",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_kind",
+          "params": ["f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_number",
+          "params": ["f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_text",
+          "params": ["f64", "f64"],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_script_clear_commands",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_script_status",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_error",
+          "params": ["f64"],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_script_memory_used",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_destroy",
+          "params": ["f64"],
+          "returns": "void"
         }
       ],
       "targets": {

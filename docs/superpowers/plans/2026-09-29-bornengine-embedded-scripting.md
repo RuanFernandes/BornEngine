@@ -46,18 +46,18 @@
 - [x] Run the focused tests and verify the new tests fail before implementation.
 - [x] Implement `ScriptVm` with `rquickjs` 0.14, no standard library modules or loader, one heap per VM, and a resettable interrupt budget per guest callback.
 - [x] Run focused tests and build the shared crate for native and `wasm32-unknown-unknown`; the full native suite passes with `image-extras` enabled.
-- [ ] Measure a linked Web artifact against the pre-change build after Task 2 exposes the runtime through Web exports. The shared crate by itself produces an `.rlib`, not a linked game `.wasm`.
-- [ ] Commit as `feat: embed capability-limited JavaScript runtime`.
+- [x] Measure a linked Web artifact against the pre-change build. The raw WebAssembly output grew from 14,721,170 bytes to 16,395,691 bytes (+1,674,521 bytes, about 11.4%); `wasm-pack` applies the release `wasm-opt -Oz` pass separately.
+- [x] Commit as `feat: embed capability-limited JavaScript runtime` (`3be9e75`).
 
 ### Task 2: FFI and platform bindings
 
 **Files:**
 - Create: `native/shared/src/ffi_core/scripting.rs`
-- Modify: `native/shared/src/ffi_core/mod.rs`, `native/shared/src/lib.rs`, `native/web/src/lib.rs`, `native/watchos/src/ffi_stubs.rs`, `package.json`
+- Modify: `native/shared/src/ffi_core/mod.rs`, `native/web/src/lib.rs`, `native/web/src/scripting_ffi.rs`, `native/watchos/src/ffi_stubs.rs`, `package.json`, and Cargo lockfiles for every native crate that depends on `bloom-shared`
 - Test: `tools/validate-ffi.js` and the shared Rust tests
 
 **Interfaces:**
-- Produces `bloom_script_supported`, `bloom_script_create`, `bloom_script_load`, `bloom_script_start`, `bloom_script_update`, `bloom_script_command_count`, `bloom_script_command_kind`, `bloom_script_command_number`, `bloom_script_command_text`, `bloom_script_clear_commands`, `bloom_script_status`, `bloom_script_error`, `bloom_script_memory_used`, and `bloom_script_destroy`; no function has more than six arguments.
+- Produces `bloom_script_supported`, `bloom_script_create`, `bloom_script_load`, `bloom_script_start`, `bloom_script_update`, `bloom_script_dispose`, `bloom_script_command_count`, `bloom_script_command_kind`, `bloom_script_command_number`, `bloom_script_command_text`, `bloom_script_clear_commands`, `bloom_script_status`, `bloom_script_error`, `bloom_script_memory_used`, and `bloom_script_destroy`; no function has more than six arguments.
 - String inputs use the existing Perry `StringHeader` helper on native and `&str` wrappers on Web. Numeric command data uses separate typed getters; no packed per-frame text parsing.
 - Unsupported platform stubs return status 0 and a stable unsupported error without panicking.
 

@@ -933,3 +933,46 @@
 #[no_mangle] pub extern "C" fn bloom_physics_vehicle_get_wheel_angular_velocity(_p0: f64, _p1: f64) -> f64 {
     0.0
 }
+#[no_mangle] pub extern "C" fn bloom_script_supported() -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_create(_p0: f64, _p1: f64, _p2: f64, _p3: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_load(_p0: f64, _p1: i64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_start(_p0: f64, _p1: i64, _p2: f64, _p3: f64, _p4: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_update(_p0: f64, _p1: i64, _p2: f64, _p3: f64, _p4: f64, _p5: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_dispose(_p0: f64, _p1: i64, _p2: f64, _p3: f64, _p4: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_command_count(_p0: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_command_kind(_p0: f64, _p1: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_command_number(_p0: f64, _p1: f64, _p2: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_command_text(_p0: f64, _p1: f64) -> i64 {
+    0
+}
+#[no_mangle] pub extern "C" fn bloom_script_clear_commands(_p0: f64) {
+}
+#[no_mangle] pub extern "C" fn bloom_script_status(_p0: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_error(_p0: f64) -> i64 {
+    0
+}
+#[no_mangle] pub extern "C" fn bloom_script_memory_used(_p0: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_script_destroy(_p0: f64) {
+}

@@ -14,6 +14,12 @@ const MAX_PARTICLE_BURST: u32 = 4096;
 const DEFAULT_MAX_MEMORY_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_MAX_STACK_BYTES: usize = 256 * 1024;
 const DEFAULT_MAX_INTERRUPT_CHECKS: usize = 10_000;
+const MAX_MEMORY_BYTES: usize = 64 * 1024 * 1024;
+const MAX_STACK_BYTES: usize = 8 * 1024 * 1024;
+const MAX_INTERRUPT_CHECKS: usize = 1_000_000;
+const SCRIPT_HANDLE_SLOT_BITS: u32 = 16;
+const SCRIPT_HANDLE_SLOT_MASK: u32 = (1 << SCRIPT_HANDLE_SLOT_BITS) - 1;
+const SCRIPT_HANDLE_MAX_SLOTS: usize = SCRIPT_HANDLE_SLOT_MASK as usize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScriptLimits {
@@ -50,7 +56,7 @@ impl ScriptContextData {
     pub fn new(self_id: impl Into<String>, self_position: [f64; 3]) -> Self {
         Self {
             self_id: self_id.into(),
-            self_position,
+            self_position: finite_position(self_position).unwrap_or([0.0; 3]),
         }
     }
 }
@@ -82,16 +88,159 @@ pub struct ScriptVm {
     disposed: bool,
 }
 
+struct ScriptVmSlot {
+    generation: u16,
+    vm: Option<ScriptVm>,
+}
+
+thread_local! {
+    static SCRIPT_VMS: RefCell<Vec<ScriptVmSlot>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Create a script VM in the calling thread's handle table.
+/// Perry drives BornEngine callbacks on one game thread; all operations for a
+/// handle must remain on the thread which created it.
+pub fn create_script_vm(
+    limits: ScriptLimits,
+    permissions: ScriptPermissions,
+) -> Result<u32, String> {
+    let vm = ScriptVm::new(limits, permissions)?;
+    SCRIPT_VMS.with(|registry| {
+        let mut slots = registry.borrow_mut();
+        let index = if let Some(index) = slots.iter().position(|slot| slot.vm.is_none()) {
+            index
+        } else {
+            if slots.len() >= SCRIPT_HANDLE_MAX_SLOTS {
+                return Err("script runtime handle table is full".into());
+            }
+            slots.push(ScriptVmSlot {
+                generation: 1,
+                vm: None,
+            });
+            slots.len() - 1
+        };
+        let slot = &mut slots[index];
+        if slot.generation == 0 {
+            slot.generation = 1;
+        }
+        slot.vm = Some(vm);
+        let low = (index as u32) + 1;
+        Ok(((slot.generation as u32) << SCRIPT_HANDLE_SLOT_BITS) | low)
+    })
+}
+
+/// Access a script VM only when its slot and generation still match.
+pub fn with_script_vm<R>(handle: u32, f: impl FnOnce(&mut ScriptVm) -> R) -> Option<R> {
+    let (index, generation) = decode_script_handle(handle)?;
+    SCRIPT_VMS.with(|registry| {
+        let mut slots = registry.borrow_mut();
+        let slot = slots.get_mut(index)?;
+        if slot.generation != generation {
+            return None;
+        }
+        slot.vm.as_mut().map(f)
+    })
+}
+
+pub fn script_start(handle: u32, data: ScriptContextData) -> Option<i32> {
+    with_script_vm(handle, |vm| {
+        vm.start(data);
+        vm.status_code()
+    })
+}
+
+pub fn script_update(handle: u32, data: ScriptContextData, delta_time: f64) -> Option<i32> {
+    with_script_vm(handle, |vm| {
+        vm.update(data, delta_time);
+        vm.status_code()
+    })
+}
+
+pub fn script_dispose(handle: u32, data: ScriptContextData) -> Option<i32> {
+    with_script_vm(handle, |vm| {
+        vm.dispose(data);
+        vm.status_code()
+    })
+}
+
+pub fn script_destroy(handle: u32) -> bool {
+    let Some((index, generation)) = decode_script_handle(handle) else {
+        return false;
+    };
+    SCRIPT_VMS.with(|registry| {
+        let mut slots = registry.borrow_mut();
+        let Some(slot) = slots.get_mut(index) else {
+            return false;
+        };
+        if slot.generation != generation || slot.vm.is_none() {
+            return false;
+        }
+        slot.vm = None;
+        slot.generation = slot.generation.wrapping_add(1).max(1);
+        true
+    })
+}
+
+pub fn script_command_count(handle: u32) -> Option<usize> {
+    with_script_vm(handle, |vm| vm.command_count())
+}
+
+pub fn script_command_kind(handle: u32, index: usize) -> Option<u32> {
+    with_script_vm(handle, |vm| vm.command_kind(index))?
+}
+
+pub fn script_command_number(handle: u32, index: usize, slot: usize) -> Option<f64> {
+    with_script_vm(handle, |vm| vm.command_number(index, slot))?
+}
+
+pub fn script_command_text(handle: u32, index: usize) -> Option<String> {
+    with_script_vm(handle, |vm| vm.command_text(index))?
+}
+
+pub fn clear_script_commands(handle: u32) -> bool {
+    with_script_vm(handle, |vm| vm.clear_commands()).is_some()
+}
+
+pub fn script_status(handle: u32) -> Option<i32> {
+    with_script_vm(handle, |vm| vm.status_code())
+}
+
+pub fn script_error(handle: u32) -> Option<String> {
+    with_script_vm(handle, |vm| vm.error().map(str::to_owned))?
+}
+
+pub fn script_memory_used(handle: u32) -> Option<usize> {
+    with_script_vm(handle, |vm| vm.memory_used())
+}
+
+fn decode_script_handle(handle: u32) -> Option<(usize, u16)> {
+    let low = handle & SCRIPT_HANDLE_SLOT_MASK;
+    let generation = (handle >> SCRIPT_HANDLE_SLOT_BITS) as u16;
+    if low == 0 || generation == 0 {
+        return None;
+    }
+    Some(((low - 1) as usize, generation))
+}
+
 impl ScriptVm {
     pub fn new(limits: ScriptLimits, permissions: ScriptPermissions) -> Result<Self, String> {
         if limits.max_memory_bytes < 64 * 1024 {
             return Err("script memory limit must be at least 65536 bytes".into());
         }
+        if limits.max_memory_bytes > MAX_MEMORY_BYTES {
+            return Err("script memory limit must not exceed 67108864 bytes".into());
+        }
         if limits.max_stack_bytes < 16 * 1024 {
             return Err("script stack limit must be at least 16384 bytes".into());
         }
+        if limits.max_stack_bytes > MAX_STACK_BYTES {
+            return Err("script stack limit must not exceed 8388608 bytes".into());
+        }
         if limits.max_interrupt_checks == 0 {
             return Err("script interrupt budget must be greater than zero".into());
+        }
+        if limits.max_interrupt_checks > MAX_INTERRUPT_CHECKS {
+            return Err("script interrupt budget must not exceed 1000000 checks".into());
         }
 
         let runtime =
@@ -213,6 +362,63 @@ impl ScriptVm {
         self.runtime.memory_usage().malloc_size.max(0) as usize
     }
 
+    pub fn status_code(&self) -> i32 {
+        if self.error.is_some() {
+            2
+        } else if self.hooks.is_some() && !self.disposed {
+            1
+        } else {
+            0
+        }
+    }
+
+    pub fn command_count(&self) -> usize {
+        self.commands.borrow().len()
+    }
+
+    pub fn command_kind(&self, index: usize) -> Option<u32> {
+        self.commands
+            .borrow()
+            .get(index)
+            .map(|command| match command {
+                ScriptCommand::Log(_) => 1,
+                ScriptCommand::SetPosition(_) => 2,
+                ScriptCommand::MoveBy(_) => 3,
+                ScriptCommand::EmitBurst { .. } => 4,
+            })
+    }
+
+    pub fn command_number(&self, index: usize, slot: usize) -> Option<f64> {
+        self.commands
+            .borrow()
+            .get(index)
+            .and_then(|command| match command {
+                ScriptCommand::Log(_) => None,
+                ScriptCommand::SetPosition(position) | ScriptCommand::MoveBy(position) => {
+                    position.get(slot).copied()
+                }
+                ScriptCommand::EmitBurst { count, direction } => match slot {
+                    0 => Some(*count as f64),
+                    1..=2 => direction.get(slot - 1).copied(),
+                    _ => None,
+                },
+            })
+    }
+
+    pub fn command_text(&self, index: usize) -> Option<String> {
+        self.commands
+            .borrow()
+            .get(index)
+            .and_then(|command| match command {
+                ScriptCommand::Log(message) => Some(message.clone()),
+                _ => None,
+            })
+    }
+
+    pub fn clear_commands(&mut self) {
+        self.commands.borrow_mut().clear();
+    }
+
     fn reset_budget(&self) {
         self.remaining_checks.set(self.limits.max_interrupt_checks);
         self.interrupted.set(false);
@@ -287,14 +493,18 @@ impl ScriptVm {
             self_object.set(
                 "setPosition",
                 Function::new(ctx.clone(), move |x: f64, y: f64, z: f64| {
-                    Self::push_command(&set_commands, ScriptCommand::SetPosition([x, y, z]));
+                    if let Some(position) = finite_position([x, y, z]) {
+                        Self::push_command(&set_commands, ScriptCommand::SetPosition(position));
+                    }
                 })?,
             )?;
             let move_commands = commands.clone();
             self_object.set(
                 "moveBy",
                 Function::new(ctx.clone(), move |x: f64, y: f64, z: f64| {
-                    Self::push_command(&move_commands, ScriptCommand::MoveBy([x, y, z]));
+                    if let Some(delta) = finite_position([x, y, z]) {
+                        Self::push_command(&move_commands, ScriptCommand::MoveBy(delta));
+                    }
                 })?,
             )?;
         }
@@ -324,8 +534,14 @@ impl ScriptVm {
                                 ScriptCommand::EmitBurst {
                                     count: (count as u32).min(MAX_PARTICLE_BURST),
                                     direction: [
-                                        direction_x.filter(|v| v.is_finite()).unwrap_or(0.0),
-                                        direction_y.filter(|v| v.is_finite()).unwrap_or(0.0),
+                                        direction_x
+                                            .filter(|v| v.is_finite())
+                                            .unwrap_or(0.0)
+                                            .clamp(-1_000_000.0, 1_000_000.0),
+                                        direction_y
+                                            .filter(|v| v.is_finite())
+                                            .unwrap_or(0.0)
+                                            .clamp(-1_000_000.0, 1_000_000.0),
                                     ],
                                 },
                             );
@@ -348,12 +564,29 @@ impl ScriptVm {
     }
 }
 
+fn finite_position(position: [f64; 3]) -> Option<[f64; 3]> {
+    position
+        .iter()
+        .all(|value| value.is_finite() && value.abs() <= 1_000_000_000.0)
+        .then_some(position)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{ScriptCommand, ScriptContextData, ScriptLimits, ScriptPermissions, ScriptVm};
+    use super::{
+        clear_script_commands, create_script_vm, script_command_count, script_command_kind,
+        script_command_number, script_command_text, script_destroy, script_update, with_script_vm,
+        ScriptCommand, ScriptContextData, ScriptLimits, ScriptPermissions, ScriptVm,
+    };
 
     fn context() -> ScriptContextData {
         ScriptContextData::new("player-1", [2.0, 3.0, 0.0])
+    }
+
+    #[test]
+    fn script_context_sanitizes_non_finite_positions() {
+        let context = ScriptContextData::new("player-1", [f64::NAN, f64::INFINITY, 0.0]);
+        assert_eq!(context.self_position, [0.0; 3]);
     }
 
     fn permissions() -> ScriptPermissions {
@@ -501,5 +734,73 @@ mod tests {
 
         assert!(vm.load("export default { update: 42 }").is_err());
         assert!(vm.error().unwrap().contains("update"));
+    }
+
+    #[test]
+    fn script_handles_isolate_commands_and_reject_destroyed_handles() {
+        let permissions = ScriptPermissions {
+            log: true,
+            ..ScriptPermissions::default()
+        };
+        let first = create_script_vm(ScriptLimits::default(), permissions).unwrap();
+        let second = create_script_vm(ScriptLimits::default(), permissions).unwrap();
+        for (handle, label) in [(first, "first"), (second, "second")] {
+            with_script_vm(handle, |vm| {
+                vm.load(&format!(
+                    "export default {{ onStart(ctx) {{ ctx.log('{label}'); }} }}"
+                ))
+                .unwrap();
+                vm.start(context());
+            })
+            .unwrap();
+        }
+
+        assert_eq!(script_command_count(first), Some(1));
+        assert_eq!(script_command_count(second), Some(1));
+        assert_eq!(script_command_text(first, 0).as_deref(), Some("first"));
+        assert_eq!(script_command_text(second, 0).as_deref(), Some("second"));
+        assert!(script_destroy(first));
+        assert!(with_script_vm(first, |_| ()).is_none());
+        assert!(!script_destroy(first));
+        script_destroy(second);
+    }
+
+    #[test]
+    fn script_ffi_command_view_uses_stable_scalar_slots() {
+        let handle = create_script_vm(ScriptLimits::default(), permissions()).unwrap();
+        with_script_vm(handle, |vm| {
+            vm.load("export default { onStart(ctx) { ctx.self.setPosition(4, 5, 6); ctx.particles.emitBurst(7, 0.25, -0.5); } }")
+                .unwrap();
+            vm.start(context());
+        })
+        .unwrap();
+
+        assert_eq!(script_command_kind(handle, 0), Some(2));
+        assert_eq!(script_command_number(handle, 0, 2), Some(6.0));
+        assert_eq!(script_command_kind(handle, 1), Some(4));
+        assert_eq!(script_command_number(handle, 1, 0), Some(7.0));
+        assert_eq!(script_command_number(handle, 1, 2), Some(-0.5));
+        assert_eq!(script_command_count(handle), Some(2));
+        clear_script_commands(handle);
+        assert_eq!(script_command_count(handle), Some(0));
+        script_destroy(handle);
+    }
+
+    #[test]
+    fn script_status_and_update_keep_guest_errors_local() {
+        let permissions = ScriptPermissions::default();
+        let handle = create_script_vm(ScriptLimits::default(), permissions).unwrap();
+        with_script_vm(handle, |vm| {
+            vm.load("export default { update() { throw new Error('guest failure'); } }")
+                .unwrap();
+            vm.start(context());
+        })
+        .unwrap();
+        assert_eq!(
+            script_update(handle, context(), 0.016),
+            Some(2),
+            "an exception should be exposed as script status, not cross the host boundary"
+        );
+        script_destroy(handle);
     }
 }
