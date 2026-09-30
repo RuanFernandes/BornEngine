@@ -277,12 +277,15 @@ class PreviewGame extends Game {
     const candidate = new ScriptComponent(this.scripting, javascript, {
       permissions: ['log', 'self.read', 'self.particles.emit'],
     });
-    const candidateError = candidate.error;
     const accepted = this.activeScript.replace(candidate,
       (script) => scene.scriptTarget.addComponent(script),
-      (previous) => { scene.scriptTarget.removeComponent(previous); });
+      (previous) => { scene.scriptTarget.removeComponent(previous); },
+      (script) => {
+        script.onStart();
+        return script.status === 'running';
+      });
     if (!accepted) {
-      this.post({ type: 'preview:script-result', revision, result: 'rejected', error: candidateError || 'Unable to attach the client script.' });
+      this.post({ type: 'preview:script-result', revision, result: 'rejected', error: candidate.error || 'Unable to initialize the client script.' });
       return false;
     }
 

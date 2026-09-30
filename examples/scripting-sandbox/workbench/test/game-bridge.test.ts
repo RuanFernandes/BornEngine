@@ -49,3 +49,27 @@ test('disposesCandidateWhenAttachmentFailsAndLeavesCurrentAlone', () => {
   assert.equal(candidate.disposed, true);
   assert.equal(active.disposed, false);
 });
+
+test('keepsPreviousComponentWhenCandidateFailsItsStartHook', () => {
+  const slot = new ScriptComponentSlot<FakeScript>();
+  const active = new FakeScript('ready');
+  const candidate = new FakeScript('ready');
+  const order: string[] = [];
+  slot.replace(active, (script) => script, () => {});
+
+  assert.equal(slot.replace(candidate, (script) => {
+    order.push('attached');
+    return script;
+  }, (script) => {
+    order.push(`detached:${script === candidate ? 'candidate' : 'active'}`);
+    script.dispose();
+  }, () => {
+    order.push('started');
+    return false;
+  }), false);
+
+  assert.equal(slot.current, active);
+  assert.equal(active.disposed, false);
+  assert.equal(candidate.disposed, true);
+  assert.deepEqual(order, ['attached', 'started', 'detached:candidate']);
+});

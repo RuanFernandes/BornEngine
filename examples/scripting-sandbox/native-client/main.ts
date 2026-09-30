@@ -15,10 +15,10 @@ import {
   Viewport2D,
 } from '@bornengine/engine';
 import type { Color, Room, SpriteFrame } from '@bornengine/engine';
-import { MovementInputThrottle } from '../server/src/protocol.js';
+import { MovementInputThrottle, ROOM_HEIGHT, ROOM_WIDTH } from '../server/src/protocol.js';
 
-const WORLD_WIDTH = 800;
-const WORLD_HEIGHT = 480;
+const WORLD_WIDTH = ROOM_WIDTH;
+const WORLD_HEIGHT = ROOM_HEIGHT;
 const SERVER_SCRIPT_LIMIT = 64 * 1024;
 const CLIENT_SCRIPT_LIMIT = 128 * 1024;
 const LOCAL_COLOR: Color = { r: 166, g: 235, b: 100, a: 255 };
@@ -219,8 +219,6 @@ class SandboxClientGame extends Game {
       return;
     }
 
-    this.currentScriptRevision = value.revision;
-    this.pendingScriptPayload = null;
     const candidate = new ScriptComponent(this.scripting, value.javascript, {
       permissions: ['log', 'self.read', 'self.transform.write', 'self.particles.emit'],
     });
@@ -234,10 +232,18 @@ class SandboxClientGame extends Game {
       candidate.dispose();
       return;
     }
+    candidate.onStart();
+    if (candidate.status !== 'running') {
+      this.status = `Revision ${value.revision} rejected locally: ${candidate.error || 'client script initialization failed'}`;
+      host.removeComponent(candidate);
+      return;
+    }
 
     const previous = this.activeScript;
     this.activeScript = candidate;
     if (previous !== null) host.removeComponent(previous);
+    this.currentScriptRevision = value.revision;
+    this.pendingScriptPayload = null;
     this.status = `Running shared script revision ${value.revision}`;
   }
 

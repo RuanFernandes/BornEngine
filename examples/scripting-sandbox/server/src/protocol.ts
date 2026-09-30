@@ -24,7 +24,9 @@ export class MovementInputThrottle {
     }
     if (this.elapsed < INPUT_SEND_INTERVAL_SECONDS) return false;
 
-    this.elapsed %= INPUT_SEND_INTERVAL_SECONDS;
+    // Reset from the actual send time. Carrying remainder across a long frame
+    // can make the next packet arrive inside the server's minimum interval.
+    this.elapsed = 0;
     this.lastX = movement.x;
     this.lastY = movement.y;
     return true;

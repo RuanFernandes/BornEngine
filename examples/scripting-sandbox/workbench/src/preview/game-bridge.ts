@@ -11,7 +11,12 @@ export class ScriptComponentSlot<T extends ScriptComponentLike> {
     return this.activeValue;
   }
 
-  replace(candidate: T, attach: (candidate: T) => T | null, detach: (active: T) => void): boolean {
+  replace(
+    candidate: T,
+    attach: (candidate: T) => T | null,
+    detach: (active: T) => void,
+    activate: (candidate: T) => boolean = () => true,
+  ): boolean {
     if (candidate.status !== 'ready') {
       candidate.dispose();
       return false;
@@ -19,6 +24,22 @@ export class ScriptComponentSlot<T extends ScriptComponentLike> {
     const attached = attach(candidate);
     if (attached === null) {
       candidate.dispose();
+      return false;
+    }
+    let activated = false;
+    try {
+      activated = activate(attached);
+    } catch (_error) {
+      activated = false;
+    }
+    if (!activated) {
+      try {
+        detach(attached);
+      } catch (_error) {
+        // The failed candidate must not prevent the currently active script
+        // from remaining installed.
+      }
+      attached.dispose();
       return false;
     }
     const previous = this.activeValue;

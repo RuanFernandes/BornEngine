@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Client } from '@colyseus/core';
+import { MovementInputThrottle } from '../src/protocol.js';
 import { SandboxRoom } from '../src/rooms/SandboxRoom.js';
 
 interface FakeClient {
@@ -78,6 +79,42 @@ test('boundsAndRateLimitsInput', () => {
   assert.equal(player.messages.at(-1)?.type, 'inputAccepted');
   handlers.acceptInput(player as unknown as Client, { sequence: 1, x: 1, y: 0 });
   assert.equal((player.messages.at(-1)?.payload as { reason: string }).reason, 'rate-limit');
+});
+
+test('acceptsAStopInputAfterUnevenClientFrames', () => {
+  const { room, handlers } = fixture();
+  const player = fakeClient('player');
+  room.onJoin(player as unknown as Client);
+  const initialX = room.state.players.get('player')!.x;
+  const throttle = new MovementInputThrottle();
+  const originalNow = Date.now;
+  let now = 1_000;
+  let sequence = 0;
+  Date.now = () => now;
+
+  const update = (delta: number, x: number, y: number): boolean => {
+    now += delta * 1_000;
+    if (!throttle.update(delta, { x, y })) return false;
+    handlers.acceptInput(player as unknown as Client, { sequence: sequence++, x, y });
+    return true;
+  };
+
+  try {
+    assert.equal(update(0.049, 1, 0), false);
+    assert.equal(update(0.040, 1, 0), true);
+    assert.equal(player.messages.at(-1)?.type, 'inputAccepted');
+    handlers.simulate();
+    const movedX = room.state.players.get('player')!.x;
+    assert.ok(movedX > initialX);
+
+    assert.equal(update(0.012, 0, 0), false);
+    assert.equal(update(0.050, 0, 0), true);
+    assert.equal(player.messages.at(-1)?.type, 'inputAccepted');
+    handlers.simulate();
+    assert.equal(room.state.players.get('player')!.x, movedX);
+  } finally {
+    Date.now = originalNow;
+  }
 });
 
 test('limitsRepeatedRejectionResponsesPerPlayer', async () => {
