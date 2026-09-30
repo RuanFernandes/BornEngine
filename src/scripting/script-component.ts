@@ -115,7 +115,6 @@ export class ScriptComponent extends GameComponent {
     }
     if (typeof source !== 'string' || source.length === 0 || source.length > MAX_SOURCE_BYTES) {
       this.fail('Script source must be a non-empty string no larger than 1 MiB.');
-      runtime._unregister(this);
       return;
     }
     const settings = options === null || options === undefined ? {} : options;
@@ -123,12 +122,10 @@ export class ScriptComponent extends GameComponent {
     const limits = normalizedLimits(settings.limits);
     if (mask === null) {
       this.fail('Script permissions contain an unsupported capability.');
-      runtime._unregister(this);
       return;
     }
     if (limits === null) {
       this.fail('Script limits are outside the supported memory, stack, or instruction bounds.');
-      runtime._unregister(this);
       return;
     }
 
@@ -137,7 +134,6 @@ export class ScriptComponent extends GameComponent {
       handle = scriptOperations.createScriptVm(mask, limits);
       if (!finite(handle) || handle <= 0 || Math.floor(handle) !== handle) {
         this.fail('Unable to create a JavaScript runtime for this component.');
-        runtime._unregister(this);
         return;
       }
       this.handleValue = handle;
@@ -145,7 +141,6 @@ export class ScriptComponent extends GameComponent {
         this.fail(scriptOperations.scriptVmError(handle) || 'Unable to load the JavaScript module.');
         scriptOperations.destroyScriptVm(handle);
         this.handleValue = 0;
-        runtime._unregister(this);
         return;
       }
       this.statusValue = 'ready';
@@ -154,7 +149,6 @@ export class ScriptComponent extends GameComponent {
       this.fail(error instanceof Error ? error.message : String(error));
       if (handle > 0) scriptOperations.destroyScriptVm(handle);
       this.handleValue = 0;
-      runtime._unregister(this);
     }
   }
 

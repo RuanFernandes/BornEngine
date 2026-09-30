@@ -73,13 +73,13 @@ Capabilities are denied by default. The host passes a list to `ScriptComponent`;
 | `self.transform.write` | `ctx.self.setPosition(x, y, z)`, `ctx.self.moveBy(x, y, z)` | Queue changes to the owning object's world position. |
 | `self.particles.emit` | `ctx.particles.emitBurst(count, directionX?, directionY?)` | Request a burst from a `ParticleEmitter2D` on the same `GameObject`. |
 
-Commands are buffered while guest code runs and applied after the callback returns. A particle request has no target unless that object owns a `ParticleEmitter2D`. To emit through the existing 3D `ParticleSystem`, call it from trusted host TypeScript; v1 does not give guest scripts 3D VFX access.
+Commands are buffered while guest code runs and applied after a synchronous callback succeeds. Hooks that throw or return a Promise report an error and discard commands queued during that hook. A particle request has no target unless that object owns a `ParticleEmitter2D`. To emit through the existing 3D `ParticleSystem`, call it from trusted host TypeScript; v1 does not give guest scripts 3D VFX access.
 
 The guest does not receive the `Game`, renderer, native resource handles, or other engine services. Node APIs, QuickJS `std` and `os`, filesystem, process, network, workers, dynamic imports, and external module loading are not enabled.
 
 ## Execution limits and failures
 
-Each component owns an isolated QuickJS runtime. Default limits are 16 MiB of guest heap, 256 KiB of stack, and 10,000 execution interrupt checks per hook. The host may override these in `limits`; maxima are 64 MiB, 8 MiB, and 1,000,000 checks. Source is limited to 1 MiB. `ScriptComponent` reports invalid limits, syntax errors, runtime failures, memory exhaustion, and interrupted execution as status/error data.
+Each component owns an isolated QuickJS runtime. Default limits are 16 MiB of guest heap, 256 KiB of stack, and 10,000 execution interrupt checks per hook. The host may override these in `limits`; maxima are 64 MiB, 8 MiB, and 1,000,000 checks. Source is limited to 1 MiB. Hooks must be synchronous. `ScriptComponent` reports invalid limits, syntax errors, runtime failures, memory exhaustion, and interrupted execution as status/error data. Failed components remain visible to the Inspector until disposed or removed.
 
 ```ts
 const behavior = new ScriptComponent(game.scripting, guestSource, {
@@ -122,12 +122,12 @@ bornengine script check
 bornengine script pack --output dist/scripts/player
 ```
 
-`check` validates the manifest, entry path, permissions, and module without executing it. `pack` stages the declared entry and manifest deterministically in a dedicated output directory; it refuses to overwrite files it does not own. See the [CLI script package reference](../../cli/scripts/) for details.
+`check` validates the manifest, entry path, permissions, and JavaScript syntax without executing it. It rejects imports because v1 has no module loader. `pack` stages the declared entry, manifest, and ownership marker deterministically in a dedicated output directory; it refuses to overwrite files it cannot verify as its own. See the [CLI script package reference](../../cli/scripts/) for details.
 
 In scripting v1 the game host supplies the JavaScript source string to `ScriptComponent`. The CLI package is not loaded by the runtime automatically: the host must read or embed the entry text and pass it to the component. The [scripted actor example](https://github.com/RuanFernandes/BornEngine/tree/main/examples/scripted-actor) demonstrates a build step that embeds the canonical `.js` source for Perry.
 
 ## Platform support and security
 
-The native shared runtime and Web/WASM backend are the v1 implementations. watchOS reports scripting as unsupported through `ScriptRuntime.isSupported`; other platform wrappers do not yet carry a v1 support claim. Check this property before offering script-driven content.
+Linux native and Web/WASM are the validated v1 targets. Other native targets and watchOS report scripting as unsupported through `ScriptRuntime.isSupported` until their runtime links are verified. Check this property before offering script-driven content.
 
 This is an in-process containment layer for game content, not a formally secure boundary against a JavaScript VM vulnerability or a modified multiplayer client. Do not treat a guest callback as an authority boundary: multiplayer servers still need to validate gameplay actions.

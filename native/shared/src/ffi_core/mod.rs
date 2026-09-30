@@ -136,4 +136,12 @@ mod macro_expansion_compile_check {
     }
 
     crate::define_core_ffi!();
+
+    #[test]
+    fn script_support_matches_validated_native_host() {
+        #[cfg(target_os = "linux")]
+        assert_eq!(bloom_script_supported(), 1.0);
+        #[cfg(not(target_os = "linux"))]
+        assert_eq!(bloom_script_supported(), 0.0);
+    }
 }

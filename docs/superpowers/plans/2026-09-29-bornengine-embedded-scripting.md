@@ -25,7 +25,7 @@
 - Infinite loops or deeply recursive code must return control without terminating the host game — Task 1 runtime tests.
 - One script exhausting memory or mutating globals must not exceed its limit or leak state into another script — Task 1 tests.
 - A denied capability must be absent and guest code must not change its host `GameObject` — Task 3 contract tests.
-- Guest transform and particle commands must be bounded, ordered, and applied only after guest execution returns — Task 3 tests.
+- Guest transform and particle commands must be bounded, ordered, and applied only after a synchronous guest hook succeeds — Task 3 tests and review fixes.
 - Malformed, missing, or escaping script package paths must fail validation without writing outside the package/output roots — Task 4 tests.
 
 ---
@@ -94,7 +94,7 @@
 
 **Interfaces:**
 - Produces `bornengine script check [--manifest <path>]` and `bornengine script pack --output <directory> [--manifest <path>]`.
-- The package manifest `bornengine.script.json` uses `format: "bornengine-script-v1"`, `apiVersion: 1`, a relative `.js`/`.mjs` `entry`, and a sorted unique `permissions` list. Pack output is deterministic and contains only the manifest and the declared regular entry file.
+- The package manifest `bornengine.script.json` uses `format: "bornengine-script-v1"`, `apiVersion: 1`, a relative `.js`/`.mjs` `entry`, and a sorted unique `permissions` list. Pack output is deterministic and contains the manifest, declared regular entry file, and an ownership marker that verifies their hashes before replacement.
 
 - [x] Write `script_check_accepts_valid_package`, `script_check_rejects_unknown_api_or_permission`, `script_check_rejects_missing_and_escaping_entry`, `script_pack_contains_only_the_declared_entry`, and `script_pack_is_deterministic` tests.
 - [x] Run focused CLI tests and verify expected failures before implementation.
@@ -116,3 +116,11 @@
 - [x] Implement the configurable script inspector panel, API and CLI docs, security/authority limitations, supported target matrix, package workflow, and runnable example.
 - [x] Run the example fixture, `node tools/validate-ffi.js`, the shared native and Web/WASM runtime checks, CLI tests and command smoke, plus the website check, tests, build, and distribution validation. Default native platform linking remains unavailable because the JoltPhysics submodule is missing from this checkout.
 - [x] Commit as `docs: document BornEngine scripting sandbox` (engine worktree).
+
+### Review fixes
+
+- [x] Add bounded, non-executing syntax validation to CLI check and pack; reject static imports, re-exports, and dynamic imports.
+- [x] Add deterministic ownership proof to packed output and refuse replacement after missing, modified, linked, or untracked content.
+- [x] Reject Promise-returning hooks, discard failed-hook commands, and preserve bounded guest exception message and stack details.
+- [x] Report support only on validated Linux native and Web/WASM targets; retain unsupported native FFI exports and watchOS stubs.
+- [x] Keep failed ScriptComponents in Game ownership for Inspector diagnostics until disposal; assert denial against the actual `ctx.self` API.

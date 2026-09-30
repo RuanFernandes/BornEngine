@@ -6,7 +6,7 @@ macro_rules! __bloom_ffi_scripting {
     () => {
         #[no_mangle]
         pub extern "C" fn bloom_script_supported() -> f64 {
-            1.0
+            f64::from(cfg!(target_os = "linux") as u8)
         }
 
         #[no_mangle]
@@ -17,6 +17,9 @@ macro_rules! __bloom_ffi_scripting {
             max_interrupt_checks: f64,
         ) -> f64 {
             $crate::ffi::guard("bloom_script_create", move || {
+                if bloom_script_supported() == 0.0 {
+                    return 0.0;
+                }
                 let integer = |value: f64, default: usize| -> Option<usize> {
                     if value == 0.0 {
                         return Some(default);

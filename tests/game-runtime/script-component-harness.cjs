@@ -160,8 +160,57 @@ const detached = new ScriptComponent(scriptRuntime, 'export default {}');
 assert.equal(scriptRuntime.scriptCount, 1, 'Game runtime tracks scripts even before scene attachment');
 assert.equal(detached._canAttachTo(owningContext), true, 'script accepts its own GameContext');
 assert.equal(detached._canAttachTo(context), false, 'script rejects another GameContext');
+
+const originalLoad = operations.loadScriptVm;
+operations.loadScriptVm = () => false;
+currentError = 'invalid guest module';
+const failed = new ScriptComponent(scriptRuntime, 'export default { broken( {');
+assert.equal(failed.status, 'error');
+assert.equal(failed.error, 'invalid guest module');
+assert.equal(scriptRuntime.scriptCount, 2,
+  'failed load remains owned so it can appear in diagnostics and be disposed');
+assert.ok(scriptRuntime._componentsSnapshot().includes(failed));
+const failedLimits = new ScriptComponent(scriptRuntime, 'export default {}', {
+  limits: { maxMemoryBytes: 1 },
+});
+assert.equal(failedLimits.status, 'error');
+assert.equal(scriptRuntime.scriptCount, 3,
+  'invalid limits remain visible and disposable');
+
+const inspectorPath = path.join(root, 'src/debug-ui/game-inspector.ts');
+const inspectorSource = fs.readFileSync(inspectorPath, 'utf8').replace(
+  'constructor(private readonly game: Game, options?: boolean | GameDebugOptions) {',
+  'constructor(game: Game, options?: boolean | GameDebugOptions) {\n    this.game = game;',
+);
+const inspectorCode = stripTypeScriptTypes(inspectorSource, { mode: 'strip' })
+  .replace(/^import[^\n]*\n/gm, '')
+  .replace(/^export /gm, '') + '\nthis.GameInspector = GameInspector;';
+sandbox.getFPS = () => 60;
+vm.runInNewContext(inspectorCode, sandbox, { filename: inspectorPath });
+const labels = [];
+const debugUi = {
+  isAvailable: () => true,
+  beginWindow() {},
+  label(_id, label) { labels.push(label); },
+  endWindow() {},
+};
+const inspector = new sandbox.GameInspector({
+  isReady: true,
+  window: { width: 800, height: 450 },
+  debugUi,
+  scripting: scriptRuntime,
+}, { enabled: true, metrics: false, sceneHierarchy: false, assets: false, scripts: true });
+inspector.render(1 / 60);
+assert.ok(labels.some((label) => label.includes('invalid guest module')),
+  'Inspector renders the load failure from the real ScriptComponent registry');
+assert.ok(labels.some((label) => label.includes('outside the supported')),
+  'Inspector renders the limits failure from the real ScriptComponent registry');
+operations.loadScriptVm = originalLoad;
+
 scriptRuntime.dispose();
 assert.equal(detached.status, 'disposed', 'Game disposal releases scripts detached from a scene');
+assert.equal(failed.status, 'disposed', 'Game disposal releases failed script components');
+assert.equal(failedLimits.status, 'disposed', 'Game disposal releases invalid-limit components');
 assert.equal(scriptRuntime.scriptCount, 0, 'runtime disposal clears its component registry');
 
 console.log('ScriptComponent contract fixture passed');

@@ -4,12 +4,13 @@ use std::{
 };
 
 use rquickjs::{
-    function::This, Context, Ctx, Function, Module, Object, Persistent, Runtime, Value,
+    function::This, CaughtError, Context, Ctx, Function, Module, Object, Persistent, Runtime, Value,
 };
 
 const MAX_SOURCE_BYTES: usize = 1024 * 1024;
 const MAX_COMMANDS_PER_CALLBACK: usize = 1024;
 const MAX_LOG_BYTES: usize = 4096;
+const MAX_ERROR_BYTES: usize = 1024;
 const MAX_PARTICLE_BURST: u32 = 4096;
 const DEFAULT_MAX_MEMORY_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_MAX_STACK_BYTES: usize = 256 * 1024;
@@ -292,22 +293,25 @@ impl ScriptVm {
         }
 
         self.reset_budget();
-        let module_result = self.context.with(|ctx| -> rquickjs::Result<_> {
-            let module = Module::declare(ctx.clone(), "bornengine-script.mjs", source)?;
-            let (module, promise) = module.eval()?;
-            promise.finish::<()>()?;
-            let namespace = module.namespace()?;
-            let default_export: Value = namespace.get("default")?;
-            let hooks = default_export
-                .as_object()
-                .ok_or_else(|| rquickjs::Error::new_from_js("default export", "object"))?;
-            for name in ["onStart", "update", "onDestroy"] {
-                let value: Value = hooks.get(name)?;
-                if !value.is_undefined() && value.as_function().is_none() {
-                    return Err(rquickjs::Error::new_from_js(name, "function or undefined"));
+        let module_result = self.context.with(|ctx| {
+            let result = (|| -> rquickjs::Result<_> {
+                let module = Module::declare(ctx.clone(), "bornengine-script.mjs", source)?;
+                let (module, promise) = module.eval()?;
+                promise.finish::<()>()?;
+                let namespace = module.namespace()?;
+                let default_export: Value = namespace.get("default")?;
+                let hooks = default_export
+                    .as_object()
+                    .ok_or_else(|| rquickjs::Error::new_from_js("default export", "object"))?;
+                for name in ["onStart", "update", "onDestroy"] {
+                    let value: Value = hooks.get(name)?;
+                    if !value.is_undefined() && value.as_function().is_none() {
+                        return Err(rquickjs::Error::new_from_js(name, "function or undefined"));
+                    }
                 }
-            }
-            Ok(Persistent::save(&ctx, hooks.clone()))
+                Ok(Persistent::save(&ctx, hooks.clone()))
+            })();
+            result.map_err(|error| Self::guest_error(&ctx, error))
         });
 
         match module_result {
@@ -317,7 +321,7 @@ impl ScriptVm {
                 Ok(())
             }
             Err(error) => {
-                let message = self.execution_error(error.to_string());
+                let message = self.execution_error(error);
                 self.error = Some(message.clone());
                 Err(message)
             }
@@ -333,7 +337,7 @@ impl ScriptVm {
     }
 
     pub fn update(&mut self, data: ScriptContextData, delta_time: f64) {
-        if self.disposed || !self.started || !delta_time.is_finite() {
+        if self.disposed || !self.started || self.error.is_some() || !delta_time.is_finite() {
             return;
         }
         self.invoke("update", data, Some(delta_time.clamp(0.0, 60.0)));
@@ -435,7 +439,30 @@ impl ScriptVm {
         } else if message.to_ascii_lowercase().contains("out of memory") {
             "script exceeded its memory limit".into()
         } else {
-            message.chars().take(1024).collect()
+            bounded_prefix(&message, MAX_ERROR_BYTES).to_owned()
+        }
+    }
+
+    fn guest_error(ctx: &Ctx<'_>, error: rquickjs::Error) -> String {
+        match CaughtError::from_error(ctx, error) {
+            CaughtError::Exception(exception) => {
+                let message = exception
+                    .message()
+                    .unwrap_or_else(|| "JavaScript exception".into());
+                let message = bounded_prefix(&message, MAX_ERROR_BYTES);
+                match exception.stack() {
+                    Some(stack) if !stack.is_empty() && message.len() + 1 < MAX_ERROR_BYTES => {
+                        let remaining = MAX_ERROR_BYTES - message.len() - 1;
+                        format!("{message}\n{}", bounded_prefix(&stack, remaining))
+                    }
+                    _ => message.to_owned(),
+                }
+            }
+            CaughtError::Value(value) => value
+                .as_string()
+                .and_then(|text| text.to_string().ok())
+                .unwrap_or_else(|| format!("JavaScript threw {value:?}")),
+            CaughtError::Error(error) => error.to_string(),
         }
     }
 
@@ -444,29 +471,39 @@ impl ScriptVm {
             return;
         };
         self.reset_budget();
+        let command_baseline = self.commands.borrow().len();
         let permissions = self.permissions;
         let commands = self.commands.clone();
-        let result = self.context.with(|ctx| -> rquickjs::Result<()> {
-            let hooks = persistent_hooks.restore(&ctx)?;
-            let callback_value: Value = hooks.get(hook)?;
-            let Some(callback) = callback_value.as_function() else {
-                return Ok(());
-            };
-            let callback_context = Self::make_callback_context(&ctx, data, permissions, commands)?;
-            match delta_time {
-                Some(dt) => {
-                    callback.call::<_, ()>((This(hooks), callback_context, dt))?;
-                }
-                None => {
-                    callback.call::<_, ()>((This(hooks), callback_context))?;
-                }
+        let result = self.context.with(|ctx| {
+            let call_result = (|| -> rquickjs::Result<Option<Value>> {
+                let hooks = persistent_hooks.restore(&ctx)?;
+                let callback_value: Value = hooks.get(hook)?;
+                let Some(callback) = callback_value.as_function() else {
+                    return Ok(None);
+                };
+                let callback_context =
+                    Self::make_callback_context(&ctx, data, permissions, commands)?;
+                let value = match delta_time {
+                    Some(dt) => callback.call::<_, Value>((This(hooks), callback_context, dt))?,
+                    None => callback.call::<_, Value>((This(hooks), callback_context))?,
+                };
+                Ok(Some(value))
+            })();
+            match call_result {
+                Ok(Some(value)) if value.is_promise() => Err(format!(
+                    "script hook `{hook}` returned a Promise; v1 hooks must be synchronous"
+                )),
+                Ok(_) => Ok(()),
+                Err(error) => Err(Self::guest_error(&ctx, error)),
             }
-            Ok(())
         });
 
         match result {
             Ok(()) => self.error = None,
-            Err(error) => self.error = Some(self.execution_error(error.to_string())),
+            Err(error) => {
+                self.commands.borrow_mut().truncate(command_baseline);
+                self.error = Some(self.execution_error(error));
+            }
         }
     }
 
@@ -571,6 +608,14 @@ fn finite_position(position: [f64; 3]) -> Option<[f64; 3]> {
         .then_some(position)
 }
 
+fn bounded_prefix(text: &str, max_bytes: usize) -> &str {
+    let mut end = text.len().min(max_bytes);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -623,7 +668,10 @@ mod tests {
         let mut vm = ScriptVm::new(ScriptLimits::default(), permissions()).unwrap();
 
         assert!(vm.load("export default { update( {").is_err());
-        assert!(vm.error().is_some());
+        let error = vm.error().unwrap();
+        assert!(error.contains("invalid property name"), "{error}");
+        assert!(error.contains("bornengine-script.mjs"), "{error}");
+        assert!(!error.eq_ignore_ascii_case("Exception"), "{error}");
     }
 
     #[test]
@@ -636,14 +684,85 @@ mod tests {
             },
         )
         .unwrap();
-        vm.load("export default { onStart(ctx) { ctx.log(typeof ctx.setPosition); } }")
+        vm.load("export default { onStart(ctx) { ctx.log(typeof ctx.self.setPosition); ctx.log(typeof ctx.self.moveBy); ctx.log(typeof ctx.self.id); ctx.log(typeof ctx.particles); ctx.log(typeof globalThis.std); } }")
             .unwrap();
 
         vm.start(context());
 
         assert_eq!(
             vm.drain_commands(),
-            vec![ScriptCommand::Log("undefined".into())]
+            vec![ScriptCommand::Log("undefined".into()); 5]
+        );
+        let mut imported = ScriptVm::new(ScriptLimits::default(), permissions()).unwrap();
+        assert!(imported
+            .load("import x from './private.js'; export default x;")
+            .is_err());
+        assert!(imported.error().is_some());
+    }
+
+    #[test]
+    fn script_vm_rejects_promise_hook_and_discards_queued_commands() {
+        let mut vm = ScriptVm::new(ScriptLimits::default(), permissions()).unwrap();
+        vm.load("export default { async update(ctx) { ctx.self.setPosition(9, 8, 7); await Promise.resolve(); ctx.log('late'); } }").unwrap();
+        vm.start(context());
+
+        vm.update(context(), 0.016);
+
+        assert_eq!(vm.status_code(), 2);
+        assert!(
+            vm.error().unwrap().contains("synchronous"),
+            "{:?}",
+            vm.error()
+        );
+        assert!(vm.drain_commands().is_empty());
+        vm.update(context(), 0.016);
+        assert!(vm.drain_commands().is_empty());
+    }
+
+    #[test]
+    fn script_vm_rejects_async_rejection_without_leaking_commands() {
+        let mut vm = ScriptVm::new(ScriptLimits::default(), permissions()).unwrap();
+        vm.load("export default { async update(ctx) { ctx.log('before'); await Promise.resolve(); ctx.log('after'); throw new Error('rejected'); } }").unwrap();
+        vm.start(context());
+
+        vm.update(context(), 0.016);
+
+        assert_eq!(vm.status_code(), 2);
+        assert!(
+            vm.error().unwrap().contains("synchronous"),
+            "{:?}",
+            vm.error()
+        );
+        assert!(vm.drain_commands().is_empty());
+    }
+
+    #[test]
+    fn script_vm_preserves_guest_exception_message_and_stack() {
+        let mut vm = ScriptVm::new(ScriptLimits::default(), permissions()).unwrap();
+        vm.load("export default { update(ctx) { ctx.log('discard'); throw new Error('guest failure detail'); } }").unwrap();
+        vm.start(context());
+
+        vm.update(context(), 0.016);
+
+        let error = vm.error().unwrap();
+        assert!(error.contains("guest failure detail"), "{error}");
+        assert!(error.contains("update"), "{error}");
+        assert!(error.len() <= 1024);
+        assert!(vm.drain_commands().is_empty());
+    }
+
+    #[test]
+    fn script_vm_bounds_unicode_guest_errors_by_bytes() {
+        let mut vm = ScriptVm::new(ScriptLimits::default(), permissions()).unwrap();
+        vm.load("export default { update() { throw new Error('🦀'.repeat(2000)); } }")
+            .unwrap();
+        vm.start(context());
+
+        vm.update(context(), 0.016);
+
+        assert!(
+            vm.error().unwrap().len() <= 1024,
+            "guest error exceeded byte limit"
         );
     }
 
