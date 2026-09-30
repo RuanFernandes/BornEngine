@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  EXAMPLE_ENTRYPOINTS,
   inspectPackage,
   inspectSource,
   isRunnablePerryEntrypoint,
@@ -86,4 +87,9 @@ test('does not treat browser workbench TypeScript as a Perry game entrypoint', (
   assert.equal(isRunnablePerryEntrypoint('examples/scripting-sandbox/workbench/src/main.ts'), false);
   assert.equal(isRunnablePerryEntrypoint('examples/pong/main.ts'), true);
   assert.equal(isRunnablePerryEntrypoint('examples/other/workbench/main.ts'), true);
+});
+
+test('includes the native scripting sandbox client in the Perry compile inventory', () => {
+  assert.equal(EXAMPLE_ENTRYPOINTS.includes('examples/scripting-sandbox/native-client/main.ts'), true);
+  assert.equal(isRunnablePerryEntrypoint('examples/scripting-sandbox/native-client/main.ts'), true);
 });

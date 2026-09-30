@@ -8,7 +8,7 @@ import type { Renderer } from '@bornengine/engine/core';
 import { ColyseusClient } from '@bornengine/engine/colyseus';
 import type { Room as ColyseusRoom } from '@bornengine/engine/colyseus';
 import { Key } from '@bornengine/engine/core';
-import { ScriptComponentSlot } from './game-bridge';
+import { ScriptComponentSlot, ScriptRevisionReceiver } from './game-bridge';
 import { isCurrentRoomCallback, PreviewRevisionGate } from './protocol';
 
 const PREVIEW_PROTOCOL_VERSION = 1;
@@ -36,7 +36,6 @@ interface PlayerSnapshot {
 
 interface SandboxRoomState {
   players: Record<string, PlayerSnapshot>;
-  publisherSessionId: string;
 }
 
 declare const window: PreviewWindow;
@@ -73,13 +72,6 @@ function playerMap(value: unknown): Record<string, { x: number; y: number }> | n
     result[sessionId] = { x: player.x, y: player.y };
   }
   return result;
-}
-
-function scriptSnapshot(value: unknown): { revision: number; source: string; javascript: string } | null {
-  if (!isRecord(value) || typeof value.revision !== 'number' || !Number.isSafeInteger(value.revision) ||
-      value.revision < 0 || typeof value.source !== 'string' || typeof value.javascript !== 'string' ||
-      utf8Length(value.source) > 64 * 1024 || utf8Length(value.javascript) > CLIENT_SCRIPT_OUTPUT_MAX_BYTES) return null;
-  return { revision: value.revision, source: value.source, javascript: value.javascript };
 }
 
 function isApplyRequest(value: unknown): value is { type: string; revision: number; javascript: string } {
@@ -188,9 +180,12 @@ class PreviewGame extends Game {
   private readonly activeScript = new ScriptComponentSlot<ScriptComponent>();
   private networkClient: ColyseusClient | null = null;
   private networkRoom: ColyseusRoom<SandboxRoomState> | null = null;
+  private scriptingRoom: ColyseusRoom<any> | null = null;
   private roomGeneration = 0;
   private localScriptRevision = -1;
-  private readonly roomScriptRevision = new PreviewRevisionGate(0);
+  private readonly roomScriptRevisions = new ScriptRevisionReceiver();
+  private managerRevision = -1;
+  private pendingEditorRevision = -1;
   private inputElapsed = 0;
   private inputSequence = 0;
   private readonly parentOrigin = window.location.origin;
@@ -296,7 +291,9 @@ class PreviewGame extends Game {
 
   private connectRoom(endpoint: string, roomName: string): void {
     this.disconnectRoom(false);
-    this.roomScriptRevision.reset(0);
+    this.roomScriptRevisions.reset();
+    this.managerRevision = -1;
+    this.pendingEditorRevision = -1;
     const generation = ++this.roomGeneration;
     const client = new ColyseusClient(this, endpoint);
     if (!client.isLoaded) {
@@ -307,56 +304,96 @@ class PreviewGame extends Game {
     this.networkClient = client;
     this.post({ type: 'preview:status', status: 'connecting', message: 'Connecting to room…' });
     client.joinOrCreate<SandboxRoomState>(roomName, { name: 'Player ' + String(Date.now() % 10_000) })
-      .then((room) => {
+      .then((gameRoom) => {
         if (generation !== this.roomGeneration) {
-          room.leave();
+          gameRoom.leave();
           client.dispose();
           return;
         }
-        this.networkRoom = room;
-        room.onStateChange((state) => {
-          if (!isCurrentRoomCallback(generation, this.roomGeneration, room, this.networkRoom)) return;
-          this.syncRoomState(room, state);
+        this.networkRoom = gameRoom;
+        gameRoom.onStateChange((state) => {
+          if (!isCurrentRoomCallback(generation, this.roomGeneration, gameRoom, this.networkRoom)) return;
+          this.syncRoomState(gameRoom, state);
         });
-        room.onMessage('clientScriptSnapshot', (payload: unknown) => {
-          if (!isCurrentRoomCallback(generation, this.roomGeneration, room, this.networkRoom)) return;
-          this.applyRoomScript(payload);
+        gameRoom.onMessage('inputAccepted', () => undefined);
+        gameRoom.onMessage('inputRejected', (payload: unknown) => {
+          if (!isCurrentRoomCallback(generation, this.roomGeneration, gameRoom, this.networkRoom)) return;
+          const reason = isRecord(payload) ? String(payload.reason || 'invalid input') : 'invalid input';
+          this.post({ type: 'preview:status', status: 'connected', message: `Movement input rejected: ${reason}` });
         });
-        room.onMessage('clientScriptResult', (payload: unknown) => {
-          if (!isCurrentRoomCallback(generation, this.roomGeneration, room, this.networkRoom)) return;
-          this.handlePublishResult(payload);
+        gameRoom.onLeave((_code, reason) => {
+          if (!isCurrentRoomCallback(generation, this.roomGeneration, gameRoom, this.networkRoom)) return;
+          this.disconnectRoom(false);
+          this.post({ type: 'preview:status', status: 'disconnected', message: reason || 'Gameplay room disconnected' });
         });
-        room.onLeave((_code, reason) => {
-          if (!isCurrentRoomCallback(generation, this.roomGeneration, room, this.networkRoom)) return;
-          this.networkRoom = null;
-          this.networkClient = null;
-          this.post({ type: 'preview:publisher', canPublish: false });
-          this.post({ type: 'preview:status', status: 'disconnected', message: reason || 'Room disconnected' });
-          client.dispose();
-        });
-        if (room.state !== null) this.syncRoomState(room, room.state);
-        room.send('requestClientScriptSnapshot', {});
-        this.post({ type: 'preview:status', status: 'connected', message: 'Connected to room' });
+        if (gameRoom.state !== null) this.syncRoomState(gameRoom, gameRoom.state);
+        client.joinOrCreate('scripting-manager').then((scriptingRoom) => {
+          if (generation !== this.roomGeneration) {
+            scriptingRoom.leave();
+            client.dispose();
+            return;
+          }
+          this.scriptingRoom = scriptingRoom;
+          scriptingRoom.onMessage('clientScriptSnapshot', (payload: unknown) => {
+            if (!isCurrentRoomCallback(generation, this.roomGeneration, scriptingRoom, this.scriptingRoom)) return;
+            this.applyRoomScript(payload);
+          });
+          scriptingRoom.onMessage('clientScriptReload', (payload: unknown) => {
+            if (!isCurrentRoomCallback(generation, this.roomGeneration, scriptingRoom, this.scriptingRoom)) return;
+            this.applyRoomScript(payload);
+          });
+          scriptingRoom.onMessage('clientScriptResult', (payload: unknown) => {
+            if (!isCurrentRoomCallback(generation, this.roomGeneration, scriptingRoom, this.scriptingRoom)) return;
+            this.handlePublishResult(payload);
+          });
+          scriptingRoom.onLeave((_code, reason) => {
+            if (!isCurrentRoomCallback(generation, this.roomGeneration, scriptingRoom, this.scriptingRoom)) return;
+            this.disconnectRoom(false);
+            this.post({ type: 'preview:status', status: 'disconnected', message: reason || 'Scripting manager disconnected' });
+          });
+          scriptingRoom.send('requestClientScriptSnapshot', {});
+          this.post({ type: 'preview:publisher', canPublish: true });
+          this.post({ type: 'preview:status', status: 'connected', message: 'Connected to gameplay and scripting rooms' });
+        })
+          .catch((error: unknown) => {
+            if (generation !== this.roomGeneration) return;
+            this.networkRoom = null;
+            this.scriptingRoom = null;
+            this.networkClient = null;
+            client.dispose();
+            this.post({ type: 'preview:publisher', canPublish: false });
+            this.post({ type: 'preview:status', status: 'error', message: error instanceof Error ? error.message : 'Scripting manager connection failed.' });
+          });
       })
       .catch((error: unknown) => {
         if (generation !== this.roomGeneration) return;
         this.networkRoom = null;
+        this.scriptingRoom = null;
         this.networkClient = null;
         client.dispose();
         this.post({ type: 'preview:publisher', canPublish: false });
-        this.post({ type: 'preview:status', status: 'error', message: error instanceof Error ? error.message : 'Room connection failed.' });
+        this.post({ type: 'preview:status', status: 'error', message: error instanceof Error ? error.message : 'Gameplay room connection failed.' });
       });
   }
 
   private disconnectRoom(reportStatus: boolean): void {
     this.roomGeneration++;
-    this.roomScriptRevision.reset(0);
-    const room = this.networkRoom;
+    this.roomScriptRevisions.reset();
+    this.managerRevision = -1;
+    this.pendingEditorRevision = -1;
+    const gameRoom = this.networkRoom;
+    const scriptingRoom = this.scriptingRoom;
     const client = this.networkClient;
     this.networkRoom = null;
+    this.scriptingRoom = null;
     this.networkClient = null;
     if (client !== null) {
-      if (room !== null) room.leave().finally(() => client.dispose());
+      if (scriptingRoom !== null) {
+        scriptingRoom.leave().finally(() => {
+          if (gameRoom !== null) gameRoom.leave().finally(() => client.dispose());
+          else client.dispose();
+        });
+      } else if (gameRoom !== null) gameRoom.leave().finally(() => client.dispose());
       else client.dispose();
     }
     this.post({ type: 'preview:publisher', canPublish: false });
@@ -366,56 +403,66 @@ class PreviewGame extends Game {
   private syncRoomState(room: ColyseusRoom<SandboxRoomState>, state: SandboxRoomState): void {
     const players = playerMap(state.players);
     if (players !== null) this.scene?.syncPlayers(players, room.sessionId);
-    this.post({ type: 'preview:publisher', canPublish: state.publisherSessionId === room.sessionId });
   }
 
   private applyRoomScript(value: unknown): void {
-    const snapshot = scriptSnapshot(value);
-    if (snapshot === null || snapshot.revision <= this.roomScriptRevision.revision) return;
-    if (snapshot.javascript.length === 0) {
-      this.roomScriptRevision.setRevision(snapshot.revision);
-      return;
+    const result = this.roomScriptRevisions.receive(value, (snapshot) =>
+      this.installScript(snapshot.revision, snapshot.javascript),
+    );
+    if (result !== 'invalid' && result !== 'stale') {
+      this.managerRevision = Math.max(this.managerRevision, this.roomScriptRevisions.revision);
     }
-    if (this.installScript(snapshot.revision, snapshot.javascript)) this.roomScriptRevision.setRevision(snapshot.revision);
   }
 
   private publishScript(editorRevision: number, source: string): void {
-    const room = this.networkRoom;
+    const room = this.scriptingRoom;
     if (room === null || !room.isConnected) {
       this.post({ type: 'preview:script-result', revision: editorRevision, result: 'rejected', error: 'Connect to a room before sharing a script.' });
       return;
     }
-    const nextRevision = this.roomScriptRevision.revision + 1;
-    if (!Number.isSafeInteger(nextRevision)) {
-      this.post({ type: 'preview:script-result', revision: editorRevision, result: 'rejected', error: 'The room script revision limit has been reached.' });
+    if (this.managerRevision < 0) {
+      this.post({ type: 'preview:script-result', revision: editorRevision, result: 'rejected', error: 'Waiting for the current scripting revision.' });
       return;
     }
-    this.roomScriptRevision.setRevision(nextRevision);
-    room.send('publishClientScript', { revision: nextRevision, source });
+    if (this.pendingEditorRevision >= 0) {
+      this.post({ type: 'preview:script-result', revision: editorRevision, result: 'rejected', error: 'A script publish is already in progress.' });
+      return;
+    }
+    this.pendingEditorRevision = editorRevision;
+    room.send('publishClientScript', { baseRevision: this.managerRevision, source });
   }
 
   private handlePublishResult(value: unknown): void {
     if (!isRecord(value) || typeof value.result !== 'string') return;
     if (value.result === 'accepted') {
+      const editorRevision = this.pendingEditorRevision;
+      this.pendingEditorRevision = -1;
       if (typeof value.revision === 'number' && Number.isSafeInteger(value.revision) && value.revision >= 0) {
-        this.roomScriptRevision.setRevision(value.revision);
+        this.managerRevision = Math.max(this.managerRevision, value.revision);
       }
-      this.post({ type: 'preview:script-result', revision: this.roomScriptRevision.revision, result: 'published' });
+      if (editorRevision >= 0) {
+        this.post({ type: 'preview:script-result', revision: editorRevision, result: 'published' });
+      }
       return;
     }
     if (value.result === 'rejected') {
       if (typeof value.currentRevision === 'number' && Number.isSafeInteger(value.currentRevision) && value.currentRevision >= 0) {
-        this.roomScriptRevision.setRevision(value.currentRevision);
+        this.managerRevision = Math.max(this.managerRevision, value.currentRevision);
       }
+      const editorRevision = this.pendingEditorRevision;
+      this.pendingEditorRevision = -1;
       const details = Array.isArray(value.diagnostics)
         ? value.diagnostics.filter((item) => typeof item === 'string').join('\n')
         : '';
-      this.post({
-        type: 'preview:script-result',
-        revision: typeof value.revision === 'number' ? value.revision : this.roomScriptRevision.revision,
-        result: 'rejected',
-        error: details || String(value.reason || 'The server rejected this client script.'),
-      });
+      if (editorRevision >= 0) {
+        this.post({
+          type: 'preview:script-result',
+          revision: editorRevision,
+          result: 'rejected',
+          error: details || String(value.reason || 'The server rejected this client script.'),
+        });
+      }
+      this.scriptingRoom?.send('requestClientScriptSnapshot', {});
     }
   }
 

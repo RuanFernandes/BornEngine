@@ -1,6 +1,7 @@
 packages:
   - server
   - workbench
+  - native-client
 
 allowBuilds:
   esbuild: true

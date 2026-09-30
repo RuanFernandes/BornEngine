@@ -166,6 +166,12 @@ importers:
 
   .: {}
 
+  native-client:
+    dependencies:
+      '@bornengine/engine':
+        specifier: file:../../../
+        version: file:../..
+
   server:
     dependencies:
       '@colyseus/core':

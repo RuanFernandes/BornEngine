@@ -11,3 +11,4 @@ workbench/public/preview/
 workbench/playwright-report/
 workbench/test-results/
 server/build/
+native-client/build/
