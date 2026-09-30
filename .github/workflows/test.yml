@@ -275,6 +275,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Test embedded scripting component contract
+        run: npm run test:scripting
+
       - name: Install Perry
         run: npm install --global @perryts/perry@0.5.1520
 

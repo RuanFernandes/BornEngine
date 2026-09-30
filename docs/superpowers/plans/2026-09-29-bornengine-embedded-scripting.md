@@ -61,10 +61,10 @@
 - String inputs use the existing Perry `StringHeader` helper on native and `&str` wrappers on Web. Numeric command data uses separate typed getters; no packed per-frame text parsing.
 - Unsupported platform stubs return status 0 and a stable unsupported error without panicking.
 
-- [ ] Add manifest and Rust macro-surface checks that fail when a new scripting operation is missing or has the wrong arity.
-- [ ] Implement guarded native and Web/WASM wrappers over the same Rust runtime API; add watchOS safe stubs and explicit availability/status reporting.
-- [ ] Run `node tools/validate-ffi.js`, `cargo test --release`, and `cargo check --target wasm32-unknown-unknown --no-default-features --features web`.
-- [ ] Commit as `feat: expose scripting runtime across FFI backends`.
+- [x] Add manifest and Rust macro-surface checks that fail when a new scripting operation is missing or has the wrong arity.
+- [x] Implement guarded native and Web/WASM wrappers over the same Rust runtime API; add watchOS safe stubs and explicit availability/status reporting.
+- [x] Run `node tools/validate-ffi.js`, the full shared Rust suite with `image-extras`, and a `wasm32-unknown-unknown` shared-crate build. The native Web crate's no-default-features build remains blocked by its existing unconditional 3D references.
+- [x] Commit as `feat: expose scripting runtime across FFI backends` (`8c6d679`).
 
 ### Task 3: Game-owned scripting API
 
@@ -76,12 +76,13 @@
 - Produces `game.scripting`, `ScriptRuntime`, `ScriptComponent extends GameComponent`, `ScriptPermission`, `ScriptContext`, `ScriptLimits`, and `ScriptStatus`.
 - `new ScriptComponent(game.scripting, source, options?)` attaches a default-exported guest module to one `GameObject`; options default to no permissions and bounded runtime limits.
 - `ScriptContext` exposes only the granted `log`, read-only own-object identity/transform, transform-command, and emitter-burst APIs. It never exposes `Game` or other objects.
+- `ScriptComponent.dispose()` releases its owned VM safely before or after scene attachment.
 
-- [ ] Write Perry-compatible contract tests for denied APIs, transform command order, attached-emitter burst, error isolation, detach/dispose, and game-context ownership.
-- [ ] Run the new Node contract test and confirm it fails before adding the API.
-- [ ] Implement the Game-owned service/component API, command drain/application, context-resource cleanup, root/subpath exports, and complete FFI declarations.
-- [ ] Run the contract test, TypeScript/Perry compatibility checks used by the repository, and the class-first smoke fixture.
-- [ ] Commit as `feat: add game-owned JavaScript script components`.
+- [x] Write Perry-compatible contract tests for denied APIs, transform command order, attached-emitter burst, error isolation, detach/dispose, and game-context ownership.
+- [x] Run the new Node contract test and confirm it fails before adding the API.
+- [x] Implement the Game-owned service/component API, command drain/application, context-resource cleanup, root/subpath exports, and complete FFI declarations.
+- [x] Run the contract test, Perry compile smoke fixture, and FFI validation.
+- [x] Commit as `feat: add game-owned JavaScript script components`.
 
 ### Task 4: Existing CLI script package commands
 

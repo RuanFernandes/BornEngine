@@ -3,6 +3,7 @@
   "version": "0.10.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
+    "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs",
     "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
     "examples:check:static": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs --static",
     "test:examples-validator": "node --test tools/validate-examples.test.mjs"
@@ -30,6 +31,7 @@
     "./world2d": "./src/world2d/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
+    "./scripting": "./src/scripting/index.ts",
     "./input": "./src/input/index.ts",
     "./storage": "./src/storage/index.ts",
     "./ui": "./src/ui/index.ts",

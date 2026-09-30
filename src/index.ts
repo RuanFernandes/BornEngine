@@ -1,5 +1,7 @@
 export { Game } from './core/game';
 export type { GameOptions, EmbeddedFrameCallbacks, GameDebugOptions } from './core/game';
+export { ScriptRuntime, ScriptComponent, DEFAULT_SCRIPT_LIMITS } from './scripting';
+export type { ScriptComponentOptions, ScriptContext, ScriptLimits, ScriptPermission, ScriptStatus } from './scripting';
 export { Window, Renderer } from './core';
 export type { WindowMode, WindowOptions, UpscaleMode, RendererStats } from './core';
 export { ColorConstants, Colors, Key, MouseButton, CursorShape, Platform, QualityPreset, Tonemap } from './core';
