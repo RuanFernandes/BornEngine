@@ -1,0 +1,7 @@
+packages:
+  - server
+  - workbench
+
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: false

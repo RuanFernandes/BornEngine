@@ -405,3 +405,24 @@ jobs:
 
       - name: Verify bundled Web Colyseus SDK
         run: test -s "$RUNNER_TEMP/bornengine-web/colyseus_bridge.bundle.js"
+
+  scripting-sandbox:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.5.1
+
+      - name: Install scripting sandbox dependencies
+        working-directory: examples/scripting-sandbox
+        run: pnpm install --frozen-lockfile
+
+      - name: Check and test scripting sandbox
+        working-directory: examples/scripting-sandbox
+        run: pnpm check && pnpm test && pnpm build:workbench

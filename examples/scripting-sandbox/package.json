@@ -1,0 +1,19 @@
+{
+  "name": "bornengine-scripting-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "pnpm build:preview && pnpm build:workbench",
+    "build:preview": "node scripts/dev.mjs --build-preview-only",
+    "build:workbench": "pnpm --dir workbench build",
+    "check": "pnpm --dir server check && pnpm --dir workbench check",
+    "test": "node --test scripts/*.test.mjs && pnpm --dir server test && pnpm --dir workbench test",
+    "e2e": "pnpm --dir workbench e2e"
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+.perry-cache/
+target/
+dist/
+core
+core.*
+*.core
+*.o
+.DS_Store
+workbench/public/preview/
+workbench/playwright-report/
+workbench/test-results/
+server/build/

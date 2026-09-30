@@ -27,6 +27,9 @@ class GameComponent {
 }
 class ParticleEmitter2D {
   emitBurst(count, options) { calls.push(['particles.emitBurst', count, options]); return true; }
+  _receiveScriptParticleBurst(count, directionX, directionY) {
+    return this.emitBurst(count, { direction: { x: directionX, y: directionY } });
+  }
 }
 const context = {};
 const runtime = {
@@ -84,7 +87,7 @@ function owner() {
       },
     },
     emitter: new ParticleEmitter2D(),
-    getComponent(type) { return type === ParticleEmitter2D ? this.emitter : null; },
+    _componentsSnapshot() { return [this.emitter]; },
   };
 }
 

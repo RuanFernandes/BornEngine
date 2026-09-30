@@ -1,9 +1,12 @@
 import { GameComponent } from '../game/game-component';
 import type { GameContext } from '../core/context';
-import type { Vec3, Vector2DLike } from '../core/types';
-import { ParticleEmitter2D } from '../sprites/particle-emitter-2d';
+import type { Vec3 } from '../core/types';
 import * as scriptOperations from './internal';
 import type { ScriptRuntime } from './script-runtime';
+
+interface ScriptParticleBurstReceiver {
+  _receiveScriptParticleBurst(count: number, directionX: number, directionY: number): void;
+}
 
 export type ScriptPermission = 'log' | 'self.read' | 'self.transform.write' | 'self.particles.emit';
 
@@ -250,14 +253,17 @@ export class ScriptComponent extends GameComponent {
             z: position.z + scriptOperations.scriptCommandNumber(handle, index, 2),
           });
         } else if (kind === 4 && owner !== null) {
-          const emitter = owner.getComponent(ParticleEmitter2D);
-          if (emitter !== null) {
-            emitter.emitBurst(scriptOperations.scriptCommandNumber(handle, index, 0), {
-              direction: {
-                x: scriptOperations.scriptCommandNumber(handle, index, 1),
-                y: scriptOperations.scriptCommandNumber(handle, index, 2),
-              } as Vector2DLike,
-            });
+          const components = owner._componentsSnapshot();
+          for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+            const receiver = components[componentIndex] as GameComponent & Partial<ScriptParticleBurstReceiver>;
+            if (typeof receiver._receiveScriptParticleBurst === 'function') {
+              receiver._receiveScriptParticleBurst(
+                scriptOperations.scriptCommandNumber(handle, index, 0),
+                scriptOperations.scriptCommandNumber(handle, index, 1),
+                scriptOperations.scriptCommandNumber(handle, index, 2),
+              );
+              break;
+            }
           }
         }
       }
