@@ -1,0 +1,11 @@
+{
+  "format": "bornengine-script-v1",
+  "apiVersion": 1,
+  "entry": "scripts/actor.js",
+  "permissions": [
+    "log",
+    "self.particles.emit",
+    "self.read",
+    "self.transform.write"
+  ]
+}

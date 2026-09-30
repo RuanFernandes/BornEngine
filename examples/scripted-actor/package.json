@@ -1,0 +1,18 @@
+{
+  "name": "bornengine-scripted-actor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.ts",
+  "scripts": {
+    "prepare:script": "node tools/embed-script.mjs",
+    "build": "npm run prepare:script && perry compile main.ts"
+  },
+  "dependencies": {
+    "@bornengine/engine": "file:../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine"]
+    }
+  }
+}

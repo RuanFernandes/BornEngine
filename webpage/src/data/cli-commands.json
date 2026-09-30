@@ -99,6 +99,28 @@
     "related": ["/docs/cli/assets/", "/docs/cli/build/"]
   },
   {
+    "id": "script/check",
+    "group": "scripts",
+    "title": "Validate a JavaScript behavior package",
+    "summary": "Check a self-contained guest module and its declared capabilities without executing it.",
+    "synopsis": "bornengine script check [--manifest <path>]",
+    "examples": ["bornengine script check", "bornengine script check --manifest config/bornengine.script.json"],
+    "options": ["--manifest <path> selects bornengine.script.json (defaults to the current directory)", "-v, --verbose (repeatable)"],
+    "behavior": "Validates the package format, API version, sorted unique permissions, and package-relative .js/.mjs entry. Guest JavaScript is never executed.",
+    "related": ["/docs/cli/scripts/", "/docs/api/scripting/"]
+  },
+  {
+    "id": "script/pack",
+    "group": "scripts",
+    "title": "Pack a JavaScript behavior package",
+    "summary": "Stage a validated script manifest and its declared entry in a deterministic output directory.",
+    "synopsis": "bornengine script pack --output <directory> [--manifest <path>]",
+    "examples": ["bornengine script pack --output dist/scripts/player", "bornengine script pack --manifest config/bornengine.script.json --output dist/scripts/player"],
+    "options": ["--output <directory> is required", "--manifest <path> selects bornengine.script.json (defaults to the current directory)", "-v, --verbose (repeatable)"],
+    "behavior": "Copies only the declared regular entry and manifest. Repeated packs are deterministic; existing output is replaced only when it contains files owned by this command.",
+    "related": ["/docs/cli/scripts/", "/docs/api/scripting/"]
+  },
+  {
     "id": "clean",
     "group": "diagnostics",
     "title": "Clean generated artifacts",

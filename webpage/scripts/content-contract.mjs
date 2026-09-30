@@ -1,5 +1,6 @@
 export const REQUIRED_COMMAND_IDS = [
   'create', 'new', 'init', 'build', 'run', 'dev', 'check',
+  'script/check', 'script/pack',
   'clean', 'doctor', 'info', 'version',
   'engine/current', 'engine/install', 'engine/list', 'engine/update',
   'engine/remove', 'engine/use', 'upgrade', 'update',

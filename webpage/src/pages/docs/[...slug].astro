@@ -24,19 +24,15 @@ const breadcrumbs = [
   ...(rootSection !== routeSlug ? [{ title: titleCase(rootSection), href: `/docs/${rootSection}/` }] : []),
   { title: entry.data.title },
 ];
-const commandGroup = routeSlug === 'cli/project'
-  ? 'project'
-  : routeSlug === 'cli/build'
-    ? 'build'
-      : routeSlug === 'cli/diagnostics'
-        ? 'diagnostics'
-        : routeSlug === 'cli/assets'
-          ? 'assets'
-          : routeSlug === 'cli/engine'
-            ? 'engine'
-            : routeSlug === 'cli/configuration'
-              ? 'configuration'
-              : undefined;
+const commandGroup =
+  routeSlug === 'cli/project' ? 'project'
+  : routeSlug === 'cli/build' ? 'build'
+  : routeSlug === 'cli/diagnostics' ? 'diagnostics'
+  : routeSlug === 'cli/assets' ? 'assets'
+  : routeSlug === 'cli/engine' ? 'engine'
+  : routeSlug === 'cli/configuration' ? 'configuration'
+  : routeSlug === 'cli/scripts' ? 'scripts'
+  : undefined;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TechArticle',

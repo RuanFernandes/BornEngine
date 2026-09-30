@@ -30,6 +30,8 @@ export interface GameDebugOptions {
   sceneHierarchy?: boolean;
   /** Show the loaded asset summary. Defaults to true. */
   assets?: boolean;
+  /** Show script status, guest memory use, errors, and callback cost. Defaults to true. */
+  scripts?: boolean;
 }
 
 /** Callbacks for a host that owns an embedded surface and frame scheduler. */

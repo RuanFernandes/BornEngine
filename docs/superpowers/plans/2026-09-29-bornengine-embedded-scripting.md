@@ -96,11 +96,11 @@
 - Produces `bornengine script check [--manifest <path>]` and `bornengine script pack --output <directory> [--manifest <path>]`.
 - The package manifest `bornengine.script.json` uses `format: "bornengine-script-v1"`, `apiVersion: 1`, a relative `.js`/`.mjs` `entry`, and a sorted unique `permissions` list. Pack output is deterministic and contains only the manifest and the declared regular entry file.
 
-- [ ] Write `script_check_accepts_valid_package`, `script_check_rejects_unknown_api_or_permission`, `script_check_rejects_missing_and_escaping_entry`, `script_pack_contains_only_the_declared_entry`, and `script_pack_is_deterministic` tests.
-- [ ] Run focused CLI tests and verify expected failures before implementation.
-- [ ] Implement strict path validation, schema validation, and staged/collision-safe deterministic packaging, following existing asset-pack safety patterns.
-- [ ] Run focused CLI tests and `cargo test` for the CLI repository.
-- [ ] Commit as `feat: validate and package script modules`.
+- [x] Write `script_check_accepts_valid_package`, `script_check_rejects_unknown_api_or_permission`, `script_check_rejects_missing_and_escaping_entry`, `script_pack_contains_only_the_declared_entry`, and `script_pack_is_deterministic` tests.
+- [x] Run focused CLI tests and verify expected failures before implementation.
+- [x] Implement strict path validation, schema validation, and staged/collision-safe deterministic packaging, following existing asset-pack safety patterns.
+- [x] Run focused CLI tests and `cargo test` for the CLI repository (134 tests pass); `cargo fmt --all -- --check` also passes.
+- [x] Commit as `feat: validate and package script modules` (`1f81bf1`).
 
 ### Task 5: Diagnostics, documentation, and example
 
@@ -112,7 +112,7 @@
 - The optional `Game.debug` inspector reports script status, current error, memory use, and last callback cost when the scripting runtime is available.
 - The example uses the CLI package format and demonstrates self movement, denied capability behavior, and a particle burst through an attached `ParticleEmitter2D`.
 
-- [ ] Add an example smoke fixture that compiles a guest module and checks the documented package/API shape.
-- [ ] Implement the script inspector panel, API docs, security/authority limitations, supported target matrix, package workflow, and runnable example.
-- [ ] Run the example fixture, `node tools/validate-ffi.js`, the native and Web/WASM runtime checks, CLI tests, and the website's documented check/build commands when available.
-- [ ] Commit as `docs: document BornEngine scripting sandbox`.
+- [x] Add an example smoke fixture that parses the guest module, checks the package/API shape, verifies that Perry embeds the canonical guest source, and compile the host example.
+- [x] Implement the configurable script inspector panel, API and CLI docs, security/authority limitations, supported target matrix, package workflow, and runnable example.
+- [x] Run the example fixture, `node tools/validate-ffi.js`, the shared native and Web/WASM runtime checks, CLI tests and command smoke, plus the website check, tests, build, and distribution validation. Default native platform linking remains unavailable because the JoltPhysics submodule is missing from this checkout.
+- [x] Commit as `docs: document BornEngine scripting sandbox` (engine worktree).

@@ -38,6 +38,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Diagnostics', href: '/docs/cli/diagnostics/' },
       { title: 'Engine versions', href: '/docs/cli/engine/' },
       { title: 'Configuration', href: '/docs/cli/configuration/' },
+      { title: 'Script packages', href: '/docs/cli/scripts/' },
     ],
   },
   {
@@ -56,6 +57,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Physics 2D', href: '/docs/api/physics2d/' },
       { title: 'Tilemaps', href: '/docs/api/tilemap/' },
       { title: 'Debug tools', href: '/docs/api/debug-ui/' },
+      { title: 'Embedded scripting', href: '/docs/api/scripting/' },
       { title: 'Text', href: '/docs/api/text/' },
       { title: 'Audio', href: '/docs/api/audio/' },
       { title: 'Colyseus', href: '/docs/api/colyseus/' },
