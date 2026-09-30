@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -11,7 +10,6 @@ import { Client, type Room as ClientRoom } from '@colyseus/sdk';
 import test from 'node:test';
 
 const serverDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DEV_ORIGIN = 'http://127.0.0.1:5173';
 const initialRules = 'export function createRules(): SandboxRules { return {}; }';
 const invalidRules = 'export function createRules(): SandboxRules { return { onTick( { }; }';
 const updatedRules = `export function createRules(): SandboxRules {
@@ -75,37 +73,30 @@ async function waitForPlayerCount(rooms: readonly ClientRoom<any, any>[], expect
   throw new Error(`Expected every client to observe ${expected} room players.`);
 }
 
-function developmentHeaders(token: string): HeadersInit {
-  return { origin: DEV_ORIGIN, 'x-bornengine-dev-token': token };
-}
-
-async function readReloadStatus(token: string, apiPort: number): Promise<{ state: string; revision: number; diagnostic?: string }> {
-  const response = await fetch(`http://127.0.0.1:${apiPort}/__dev/server-scripts/status`, {
-    headers: developmentHeaders(token),
-  });
+async function readReloadStatus(apiPort: number): Promise<{ state: string; revision: number; diagnostic?: string }> {
+  const response = await fetch(`http://127.0.0.1:${apiPort}/__dev/server-scripts/status`);
   if (!response.ok) throw new Error(`Server rule status request failed (${response.status}).`);
   return await response.json() as { state: string; revision: number; diagnostic?: string };
 }
 
 async function waitForReloadStatus(
-  token: string,
   apiPort: number,
   predicate: (status: { state: string; revision: number; diagnostic?: string }) => boolean,
 ): Promise<{ state: string; revision: number; diagnostic?: string }> {
   const deadline = Date.now() + 8_000;
-  let status = await readReloadStatus(token, apiPort);
+  let status = await readReloadStatus(apiPort);
   while (Date.now() < deadline) {
     if (predicate(status)) return status;
     await new Promise((resolve) => setTimeout(resolve, 100));
-    status = await readReloadStatus(token, apiPort);
+    status = await readReloadStatus(apiPort);
   }
   throw new Error(`Timed out waiting for server rule reload (${status.state}, revision ${status.revision}).`);
 }
 
-async function saveRules(token: string, apiPort: number, source: string): Promise<void> {
+async function saveRules(apiPort: number, source: string): Promise<void> {
   const response = await fetch(`http://127.0.0.1:${apiPort}/__dev/server-scripts/rules.ts`, {
     method: 'PUT',
-    headers: { ...developmentHeaders(token), 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ source }),
   });
   assert.equal(response.status, 200, await response.text());
@@ -114,7 +105,6 @@ async function saveRules(token: string, apiPort: number, source: string): Promis
 test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   const port = await reservePort();
   const apiPort = await reservePort();
-  const token = randomBytes(32).toString('hex');
   const projectDirectory = await mkdtemp(path.join(os.tmpdir(), 'bornengine-server-rules-'));
   await cp(path.join(serverDirectory, 'src'), path.join(projectDirectory, 'src'), { recursive: true });
   await cp(path.join(serverDirectory, 'package.json'), path.join(projectDirectory, 'package.json'));
@@ -130,7 +120,6 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
       HOST: '127.0.0.1',
       PORT: String(port),
       BORNENGINE_SANDBOX_DEV: '1',
-      BORNENGINE_SANDBOX_DEV_TOKEN: token,
       BORNENGINE_SANDBOX_DEV_PORT: String(apiPort),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -147,7 +136,7 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   });
 
   await waitForServer(child, port, output);
-  const initialStatus = await waitForReloadStatus(token, apiPort, (status) => status.state === 'ready' && status.revision === 1);
+  const initialStatus = await waitForReloadStatus(apiPort, (status) => status.state === 'ready' && status.revision === 1);
   assert.equal(initialStatus.revision, 1);
 
   const firstClient = new Client(`ws://127.0.0.1:${port}`);
@@ -159,8 +148,8 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   assert.equal((first.state.players as { size: number }).size, 2);
   assert.equal((second.state.players as { size: number }).size, 2);
 
-  await saveRules(token, apiPort, invalidRules);
-  const rejected = await waitForReloadStatus(token, apiPort, (status) => status.state === 'error');
+  await saveRules(apiPort, invalidRules);
+  const rejected = await waitForReloadStatus(apiPort, (status) => status.state === 'error');
   assert.equal(rejected.revision, 1);
   assert.match(rejected.diagnostic ?? '', /error|expected|'}'/i);
   assert.equal((first.state.players as { size: number }).size, 2);
@@ -172,8 +161,8 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   await waitForPlayerMovement(first, first.sessionId, beforeInvalidMovement.x);
   assert.equal(playerPosition(second, first.sessionId)?.x, playerPosition(first, first.sessionId)?.x);
 
-  await saveRules(token, apiPort, updatedRules);
-  const accepted = await waitForReloadStatus(token, apiPort, (status) => status.state === 'ready' && status.revision === 2);
+  await saveRules(apiPort, updatedRules);
+  const accepted = await waitForReloadStatus(apiPort, (status) => status.state === 'ready' && status.revision === 2);
   assert.equal(accepted.revision, 2);
   assert.equal((first.state.players as { size: number }).size, 2);
   assert.equal((second.state.players as { size: number }).size, 2);

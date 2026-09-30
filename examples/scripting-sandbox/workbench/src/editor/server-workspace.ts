@@ -23,6 +23,7 @@ export interface ServerWorkspaceOptions {
   readonly saveStatus: HTMLElement;
   readonly activate: (model: monaco.editor.ITextModel) => void;
   readonly showDiagnostics: (model: monaco.editor.ITextModel) => void;
+  readonly onStatus?: (message: string) => void;
 }
 
 async function serverApi<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -55,13 +56,13 @@ function modelFilename(model: monaco.editor.ITextModel): string | null {
   }
 }
 
-export function mountServerWorkspace(options: ServerWorkspaceOptions): void {
-  const { editor, tab, saveStatus, activate, showDiagnostics } = options;
+export function mountServerWorkspace(options: ServerWorkspaceOptions): () => void {
+  const { editor, tab, saveStatus, activate, showDiagnostics, onStatus } = options;
   const select = document.querySelector<HTMLSelectElement>('#server-script-select');
   const newButton = document.querySelector<HTMLButtonElement>('#server-script-new');
   const renameButton = document.querySelector<HTMLButtonElement>('#server-script-rename');
   const deleteButton = document.querySelector<HTMLButtonElement>('#server-script-delete');
-  if (!select || !newButton || !renameButton || !deleteButton) return;
+  if (!select || !newButton || !renameButton || !deleteButton) return () => undefined;
   const scriptSelect = select;
 
   const models = new Map<string, monaco.editor.ITextModel>();
@@ -72,6 +73,7 @@ export function mountServerWorkspace(options: ServerWorkspaceOptions): void {
   let suppressSave = false;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let saveSequence = 0;
+  const listeners = new AbortController();
 
   const currentModel = (): monaco.editor.ITextModel => models.get(activeFile) ?? fallback;
   const updateControls = (): void => {
@@ -157,15 +159,19 @@ export function mountServerWorkspace(options: ServerWorkspaceOptions): void {
       scriptSelect.value = activeFile;
       updateControls();
       showDiagnostics(currentModel());
+      onStatus?.(result.files.length === 0
+        ? 'Server workspace ready · rules.ts'
+        : `Server workspace ready · ${result.files.map((file) => file.name).join(', ')}`);
     } catch (error) {
       available = false;
       updateControls();
       saveStatus.textContent = error instanceof Error ? 'Local server editor unavailable' : 'Server scripts unavailable';
+      onStatus?.(error instanceof Error ? error.message : 'Server scripts unavailable');
     }
   }
 
-  tab.addEventListener('click', () => activate(currentModel()));
-  scriptSelect.addEventListener('change', () => activateFile(scriptSelect.value));
+  tab.addEventListener('click', () => activate(currentModel()), { signal: listeners.signal });
+  scriptSelect.addEventListener('change', () => activateFile(scriptSelect.value), { signal: listeners.signal });
   editor.onDidChangeModelContent(() => {
     const model = editor.getModel();
     const name = model === null ? null : modelFilename(model);
@@ -196,7 +202,7 @@ export function mountServerWorkspace(options: ServerWorkspaceOptions): void {
     } catch (error) {
       saveStatus.textContent = error instanceof Error ? error.message : 'Unable to create server script.';
     }
-  });
+  }, { signal: listeners.signal });
 
   renameButton.addEventListener('click', async () => {
     const enteredName = window.prompt('Rename server file', activeFile);
@@ -217,7 +223,7 @@ export function mountServerWorkspace(options: ServerWorkspaceOptions): void {
     } catch (error) {
       saveStatus.textContent = error instanceof Error ? error.message : 'Unable to rename server script.';
     }
-  });
+  }, { signal: listeners.signal });
 
   deleteButton.addEventListener('click', async () => {
     if (!window.confirm(`Delete ${activeFile}?`)) return;
@@ -232,11 +238,13 @@ export function mountServerWorkspace(options: ServerWorkspaceOptions): void {
     } catch (error) {
       saveStatus.textContent = error instanceof Error ? error.message : 'Unable to delete server script.';
     }
-  });
+  }, { signal: listeners.signal });
 
-  window.addEventListener('beforeunload', () => {
-    if (saveTimer !== null) clearTimeout(saveTimer);
-    for (const model of models.values()) model.dispose();
-  });
   void loadFiles();
+  return () => {
+    listeners.abort();
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveSequence++;
+    for (const model of models.values()) model.dispose();
+  };
 }

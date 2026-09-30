@@ -1,19 +1,16 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm, unlink, writeFile } from 'node:fs/promises';
-import { timingSafeEqual, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 const API_PATH = '/__dev/server-scripts';
 const MAX_SOURCE_BYTES = 64 * 1024;
 const MAX_REQUEST_BYTES = MAX_SOURCE_BYTES * 6 + 1024;
-const ALLOWED_ORIGIN = 'http://127.0.0.1:5173';
 
 export interface DevScriptApiOptions {
   readonly scriptsDirectory: string;
-  readonly token: string | null;
   readonly enabled: boolean;
   readonly host?: string;
-  readonly allowedOrigin?: string;
   readonly reloadStatus?: () => unknown;
   readonly onScriptChanged?: (name: string) => void;
 }
@@ -21,8 +18,6 @@ export interface DevScriptApiOptions {
 export interface DevScriptApiRequest {
   readonly method: string;
   readonly path: string;
-  readonly origin?: string;
-  readonly token?: string;
   readonly body?: unknown;
 }
 
@@ -45,13 +40,6 @@ function safeName(value: unknown): value is string {
   return typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}\.ts$/.test(value) && path.basename(value) === value;
 }
 
-function tokenMatches(expected: string, actual: string | undefined): boolean {
-  if (actual === undefined) return false;
-  const expectedBytes = Buffer.from(expected);
-  const actualBytes = Buffer.from(actual);
-  return expectedBytes.length === actualBytes.length && timingSafeEqual(expectedBytes, actualBytes);
-}
-
 function isMissing(error: unknown): boolean {
   return isRecord(error) && error.code === 'ENOENT';
 }
@@ -63,37 +51,25 @@ function withinDirectory(root: string, target: string): boolean {
 
 export class DevScriptApi {
   private readonly scriptsDirectory: string;
-  private readonly token: string | null;
   private readonly enabled: boolean;
   private readonly host: string;
-  private readonly allowedOrigin: string;
   private readonly reloadStatus: () => unknown;
   private readonly onScriptChanged: (name: string) => void;
   private server: Server | null = null;
 
   constructor(options: DevScriptApiOptions) {
     this.scriptsDirectory = path.resolve(options.scriptsDirectory);
-    this.token = options.token;
     this.enabled = options.enabled;
     this.host = options.host ?? '127.0.0.1';
-    this.allowedOrigin = options.allowedOrigin ?? ALLOWED_ORIGIN;
     this.reloadStatus = options.reloadStatus ?? (() => ({ state: 'idle', revision: 0 }));
     this.onScriptChanged = options.onScriptChanged ?? (() => undefined);
     if (this.enabled && !['127.0.0.1', '::1'].includes(this.host)) {
       throw new Error('The server script API can only bind to a loopback address.');
     }
-    if (this.enabled && (this.token === null || this.token.length < 16)) {
-      throw new Error('A development token of at least 16 characters is required.');
-    }
   }
 
   async handle(request: DevScriptApiRequest): Promise<DevScriptApiResponse> {
     if (!this.enabled) return { status: 404, body: { error: 'Not found.' } };
-    if (request.origin !== this.allowedOrigin) return { status: 403, body: { error: 'Origin rejected.' } };
-    if (this.token === null || !tokenMatches(this.token, request.token)) {
-      return { status: 401, body: { error: 'Development token required.' } };
-    }
-
     try {
       return await this.dispatch(request.method.toUpperCase(), request.path, request.body);
     } catch (error) {
@@ -269,8 +245,6 @@ export class DevScriptApi {
       const result = await this.handle({
         method: request.method ?? 'GET',
         path: request.url ?? '/',
-        origin: request.headers.origin,
-        token: request.headers['x-bornengine-dev-token'] as string | undefined,
         body,
       });
       response.writeHead(result.status, {

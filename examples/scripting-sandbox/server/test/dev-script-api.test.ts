@@ -6,48 +6,38 @@ import test from 'node:test';
 import { DevScriptApi } from '../src/sandbox/dev-script-api.js';
 
 const BASE = '/__dev/server-scripts';
-const TOKEN = 'test-only-development-token';
-const ORIGIN = 'http://127.0.0.1:5173';
 
 async function fixture(changes: string[] = []) {
   const scriptsDirectory = await mkdtemp(path.join(tmpdir(), 'bornengine-server-scripts-'));
   const api = new DevScriptApi({
     scriptsDirectory,
-    token: TOKEN,
     enabled: true,
     onScriptChanged: (name) => changes.push(name),
   });
   return { api, scriptsDirectory, changes };
 }
 
-function request(api: DevScriptApi, method: string, path: string, body?: unknown, overrides: { origin?: string; token?: string } = {}) {
-  return api.handle({
-    method,
-    path,
-    origin: overrides.origin ?? ORIGIN,
-    token: overrides.token ?? TOKEN,
-    body,
-  });
+function request(api: DevScriptApi, method: string, path: string, body?: unknown) {
+  return api.handle({ method, path, body });
 }
 
-test('requiresDevelopmentToken', async (t) => {
+test('allowsLocalDevelopmentRequestsWithoutAToken', async (t) => {
   const { api, scriptsDirectory } = await fixture();
   t.after(() => rm(scriptsDirectory, { recursive: true, force: true }));
-  const response = await api.handle({ method: 'GET', path: BASE, origin: ORIGIN, body: undefined });
-  assert.equal(response.status, 401);
+  const response = await request(api, 'GET', BASE);
+  assert.equal(response.status, 200);
 });
 
-test('requiresExactAllowedOrigin', async (t) => {
+test('doesNotRequireAnOriginHeaderForLocalRequests', async (t) => {
   const { api, scriptsDirectory } = await fixture();
   t.after(() => rm(scriptsDirectory, { recursive: true, force: true }));
-  const response = await request(api, 'GET', BASE, undefined, { origin: 'http://evil.example' });
-  assert.equal(response.status, 403);
+  const response = await request(api, 'GET', BASE);
+  assert.equal(response.status, 200);
 });
 
 test('rejectsNonLoopbackBinding', () => {
   assert.throws(() => new DevScriptApi({
     scriptsDirectory: '/tmp/server-scripts',
-    token: TOKEN,
     host: '0.0.0.0',
     enabled: true,
   }), /loopback/i);
@@ -101,11 +91,7 @@ test('accepts64KiBSourceThroughEscapedJsonEnvelope', async (t) => {
   assert.ok(Buffer.byteLength(body) > 68 * 1024);
   const response = await fetch(`http://127.0.0.1:${address.port}${BASE}`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      origin: ORIGIN,
-      'x-bornengine-dev-token': TOKEN,
-    },
+    headers: { 'content-type': 'application/json' },
     body,
   });
 
@@ -141,8 +127,8 @@ test('notifiesLiveReloadAfterScriptMutations', async (t) => {
 test('omitsRoutesOutsideDevelopment', async (t) => {
   const scriptsDirectory = await mkdtemp(path.join(tmpdir(), 'bornengine-production-scripts-'));
   t.after(() => rm(scriptsDirectory, { recursive: true, force: true }));
-  const api = new DevScriptApi({ scriptsDirectory, token: null, enabled: false });
-  const response = await api.handle({ method: 'GET', path: BASE, origin: ORIGIN, body: undefined });
+  const api = new DevScriptApi({ scriptsDirectory, enabled: false });
+  const response = await api.handle({ method: 'GET', path: BASE });
   assert.equal(response.status, 404);
   assert.equal(await api.listen(), null);
 });

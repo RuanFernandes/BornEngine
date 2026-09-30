@@ -1,10 +1,12 @@
 import { defineConfig } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const developmentToken = randomBytes(32).toString('hex');
+const gamePort = process.env.BORNENGINE_SANDBOX_E2E_GAME_PORT ?? '2578';
+const apiPort = process.env.BORNENGINE_SANDBOX_E2E_API_PORT ?? '2579';
+const workbenchPort = process.env.BORNENGINE_SANDBOX_E2E_WORKBENCH_PORT ?? '5180';
+const editorOrigin = `http://127.0.0.1:${workbenchPort}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -12,7 +14,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: editorOrigin,
     browserName: 'chromium',
     headless: true,
     viewport: { width: 1440, height: 900 },
@@ -34,22 +36,22 @@ export default defineConfig({
     {
       command: 'node_modules/.bin/tsx src/index.ts',
       cwd: path.join(projectRoot, 'server'),
-      url: 'http://127.0.0.1:2568/health',
+      url: `http://127.0.0.1:${gamePort}/health`,
       reuseExistingServer: !process.env.CI,
       env: {
         HOST: '127.0.0.1',
-        PORT: '2568',
+        PORT: gamePort,
         BORNENGINE_SANDBOX_DEV: '1',
-        BORNENGINE_SANDBOX_DEV_TOKEN: developmentToken,
+        BORNENGINE_SANDBOX_DEV_PORT: apiPort,
       },
       timeout: 30_000,
     },
     {
-      command: 'node_modules/.bin/vite --host 127.0.0.1 --port 5173',
+      command: `node_modules/.bin/vite --host 127.0.0.1 --port ${workbenchPort}`,
       cwd: path.dirname(fileURLToPath(import.meta.url)),
-      url: 'http://127.0.0.1:5173',
+      url: editorOrigin,
       reuseExistingServer: !process.env.CI,
-      env: { BORNENGINE_SANDBOX_DEV_TOKEN: developmentToken },
+      env: { BORNENGINE_SANDBOX_DEV: '1', BORNENGINE_SANDBOX_DEV_PORT: apiPort, VITE_SANDBOX_GAME_ENDPOINT: `ws://127.0.0.1:${gamePort}` },
       timeout: 30_000,
     },
   ],

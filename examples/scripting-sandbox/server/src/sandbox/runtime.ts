@@ -60,18 +60,14 @@ export function sandboxDevApiPort(environment: { readonly BORNENGINE_SANDBOX_DEV
   return port;
 }
 
-export async function startSandboxDevRuntime(token: string | undefined): Promise<{ close(): Promise<void> } | null> {
+export async function startSandboxDevRuntime(): Promise<{ close(): Promise<void> } | null> {
   if (!shouldEnableSandboxDevRuntime(process.env)) return null;
-  if (token === undefined || token.length < 16) {
-    throw new Error('BORNENGINE_SANDBOX_DEV_TOKEN must contain at least 16 characters for local server editing.');
-  }
 
   await mkdir(scriptsDirectory, { recursive: true });
   await loadInitialRules();
   let requestReload = (): void => undefined;
   const api = new DevScriptApi({
     scriptsDirectory,
-    token,
     enabled: true,
     reloadStatus: getServerRulesReloadStatus,
     onScriptChanged: () => requestReload(),

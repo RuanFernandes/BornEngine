@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -85,7 +84,6 @@ async function main() {
   );
   if (buildOnly) return;
 
-  const token = randomBytes(32).toString('hex');
   const server = start(process.execPath, [path.join(projectRoot, 'server/node_modules/tsx/dist/cli.mjs'), 'src/index.ts'], {
     cwd: path.join(projectRoot, 'server'),
     env: {
@@ -93,18 +91,15 @@ async function main() {
       HOST: '127.0.0.1',
       PORT: '2568',
       BORNENGINE_SANDBOX_DEV: '1',
-      BORNENGINE_SANDBOX_DEV_TOKEN: token,
     },
   });
   await waitFor('http://127.0.0.1:2568/health', server);
-  await waitFor('http://127.0.0.1:2569/__dev/server-scripts/status', server, {
-    headers: { Origin: 'http://127.0.0.1:5173', 'x-bornengine-dev-token': token },
-  });
+  await waitFor('http://127.0.0.1:2569/__dev/server-scripts/status', server);
 
   const workbenchOptions = createWorkbenchLaunchOptions(projectRoot);
   const workbench = start(process.execPath, [workbenchOptions.entry, '--host', '127.0.0.1', '--port', '5173'], {
     cwd: workbenchOptions.cwd,
-    env: { ...process.env, BORNENGINE_SANDBOX_DEV_TOKEN: token },
+    env: { ...process.env, BORNENGINE_SANDBOX_DEV: '1', BORNENGINE_SANDBOX_DEV_PORT: '2569' },
   });
   await waitFor('http://127.0.0.1:5173/', workbench);
   console.log('Sandbox ready at http://127.0.0.1:5173');
