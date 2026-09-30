@@ -51,6 +51,15 @@ export function shouldEnableSandboxDevRuntime(environment: {
   return environment.NODE_ENV !== 'production' && environment.BORNENGINE_SANDBOX_DEV === '1';
 }
 
+export function sandboxDevApiPort(environment: { readonly BORNENGINE_SANDBOX_DEV_PORT?: string }): number {
+  const value = environment.BORNENGINE_SANDBOX_DEV_PORT;
+  if (value === undefined) return 2569;
+  if (!/^\d{1,5}$/.test(value)) throw new Error('BORNENGINE_SANDBOX_DEV_PORT must be a valid TCP port.');
+  const port = Number(value);
+  if (port < 1 || port > 65535) throw new Error('BORNENGINE_SANDBOX_DEV_PORT must be a valid TCP port.');
+  return port;
+}
+
 export async function startSandboxDevRuntime(token: string | undefined): Promise<{ close(): Promise<void> } | null> {
   if (!shouldEnableSandboxDevRuntime(process.env)) return null;
   if (token === undefined || token.length < 16) {
@@ -67,7 +76,7 @@ export async function startSandboxDevRuntime(token: string | undefined): Promise
     reloadStatus: getServerRulesReloadStatus,
     onScriptChanged: () => requestReload(),
   });
-  await api.listen(2569);
+  await api.listen(sandboxDevApiPort(process.env));
   const watcher = watch(scriptsDirectory, { persistent: true });
   let debounce: ReturnType<typeof setTimeout> | null = null;
   let revisionToken = 0;

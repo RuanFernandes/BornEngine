@@ -8,7 +8,6 @@ import {
   clampPlayerPosition,
   normalizeMoveInput,
 } from '../protocol.js';
-import { validateAndCompileClientScript } from '../sandbox/client-script.js';
 import { registerRuleRoom, unregisterRuleRoom } from '../sandbox/runtime.js';
 import type {
   ActiveRuleRoom,
@@ -20,7 +19,6 @@ import type {
 } from '../sandbox/server-rule-contract.js';
 
 const MAX_CLIENTS = 8;
-const CLIENT_SCRIPT_PUBLISH_INTERVAL_MS = 500;
 const CLIENT_REJECTION_MIN_INTERVAL_MS = 250;
 const RULE_MESSAGE_MIN_INTERVAL_MS = 100;
 const MAX_RULE_MESSAGE_BYTES = 8 * 1024;
@@ -35,7 +33,6 @@ export class SandboxPlayerState extends Schema {
 
 export class SandboxRoomState extends Schema {
   @type({ map: SandboxPlayerState }) players = new MapSchema<SandboxPlayerState>();
-  @type('string') publisherSessionId = '';
 }
 
 interface MovementInput {
@@ -51,7 +48,7 @@ function onlyKeys(value: Record<string, unknown>, keys: readonly string[]): bool
   return Object.keys(value).length === keys.length && Object.keys(value).every((key) => keys.includes(key));
 }
 
-/** Colyseus owns canonical movement and relays only validated client scripts. */
+/** Colyseus owns canonical movement and applies trusted server rules. */
 export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements ActiveRuleRoom {
   maxClients = MAX_CLIENTS;
   state = new SandboxRoomState();
@@ -59,12 +56,8 @@ export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements Ac
   private readonly movementBySession = new Map<string, MovementInput>();
   private readonly lastSequences = new Map<string, number>();
   private readonly lastInputAt = new Map<string, number>();
-  private readonly lastPublishAttemptAt = new Map<string, number>();
   private readonly lastRuleMessageAt = new Map<string, number>();
   private readonly lastRejectionAt = new Map<string, Map<string, number>>();
-  private scriptRevision = 0;
-  private scriptSource = '';
-  private scriptJavascript = '';
   private movementSpeed = PLAYER_SPEED;
   private activeRules: SandboxRules = {};
 
@@ -74,8 +67,6 @@ export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements Ac
 
   onCreate(): void {
     this.onMessage('input', (client, payload: unknown) => this.acceptInput(client, payload));
-    this.onMessage('publishClientScript', (client, payload: unknown) => this.acceptClientScript(client, payload));
-    this.onMessage('requestClientScriptSnapshot', (client) => this.sendClientScriptSnapshot(client));
     this.onMessage('ruleMessage', (client, payload: unknown) => this.acceptRuleMessage(client, payload));
     this.setSimulationInterval(() => this.simulate(), SIMULATION_STEP_SECONDS * 1000);
     registerRuleRoom(this);
@@ -98,20 +89,7 @@ export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements Ac
     this.movementBySession.set(client.sessionId, { x: 0, y: 0 });
     this.lastSequences.set(client.sessionId, -1);
 
-    if (this.state.publisherSessionId.length === 0) {
-      this.state.publisherSessionId = client.sessionId;
-      this.broadcast('publisherChanged', { sessionId: client.sessionId });
-    }
     this.activeRules.onPlayerJoin?.(this.snapshotPlayer(client.sessionId, player), INTERNAL_RULE_CONTEXT);
-    this.sendClientScriptSnapshot(client);
-  }
-
-  private sendClientScriptSnapshot(client: Client): void {
-    client.send('clientScriptSnapshot', {
-      revision: this.scriptRevision,
-      source: this.scriptSource,
-      javascript: this.scriptJavascript,
-    });
   }
 
   onLeave(client: Client): void {
@@ -123,17 +101,8 @@ export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements Ac
     this.movementBySession.delete(client.sessionId);
     this.lastSequences.delete(client.sessionId);
     this.lastInputAt.delete(client.sessionId);
-    this.lastPublishAttemptAt.delete(client.sessionId);
     this.lastRuleMessageAt.delete(client.sessionId);
     this.lastRejectionAt.delete(client.sessionId);
-
-    if (this.state.publisherSessionId === client.sessionId) {
-      const nextPublisher = this.clients.find((connected) => connected.sessionId !== client.sessionId);
-      this.state.publisherSessionId = nextPublisher?.sessionId ?? '';
-      if (this.state.publisherSessionId.length > 0) {
-        this.broadcast('publisherChanged', { sessionId: this.state.publisherSessionId });
-      }
-    }
   }
 
   private acceptInput(client: Client, payload: unknown): void {
@@ -196,78 +165,6 @@ export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements Ac
     );
   }
 
-  private acceptClientScript(client: Client, payload: unknown): void {
-    if (client.sessionId !== this.state.publisherSessionId) {
-      this.sendRejection(client, 'clientScriptResult', {
-        currentRevision: this.scriptRevision,
-        result: 'rejected',
-        reason: 'publisher-only',
-      });
-      return;
-    }
-    if (!isRecord(payload) || !onlyKeys(payload, ['revision', 'source']) ||
-        typeof payload.revision !== 'number' || !Number.isSafeInteger(payload.revision) || payload.revision < 1 ||
-        typeof payload.source !== 'string') {
-      this.sendRejection(client, 'clientScriptResult', {
-        currentRevision: this.scriptRevision,
-        result: 'rejected',
-        reason: 'malformed',
-      });
-      return;
-    }
-    if (payload.revision <= this.scriptRevision) {
-      this.sendRejection(client, 'clientScriptResult', {
-        revision: payload.revision,
-        currentRevision: this.scriptRevision,
-        result: 'rejected',
-        reason: 'stale',
-      });
-      return;
-    }
-    if (payload.revision !== this.scriptRevision + 1) {
-      this.sendRejection(client, 'clientScriptResult', {
-        revision: payload.revision,
-        currentRevision: this.scriptRevision,
-        result: 'rejected',
-        reason: 'revision-gap',
-      });
-      return;
-    }
-    const now = Date.now();
-    const lastAt = this.lastPublishAttemptAt.get(client.sessionId) ?? 0;
-    if (now - lastAt < CLIENT_SCRIPT_PUBLISH_INTERVAL_MS) {
-      this.sendRejection(client, 'clientScriptResult', {
-        revision: payload.revision,
-        currentRevision: this.scriptRevision,
-        result: 'rejected',
-        reason: 'rate-limit',
-      });
-      return;
-    }
-    this.lastPublishAttemptAt.set(client.sessionId, now);
-    const result = validateAndCompileClientScript(payload.source);
-    if (!result.ok) {
-      this.sendRejection(client, 'clientScriptResult', {
-        revision: payload.revision,
-        currentRevision: this.scriptRevision,
-        result: 'rejected',
-        reason: 'invalid-script',
-        diagnostics: result.diagnostics,
-      });
-      return;
-    }
-
-    this.scriptRevision = payload.revision;
-    this.scriptSource = payload.source;
-    this.scriptJavascript = result.javascript;
-    this.broadcast('clientScriptSnapshot', {
-      revision: this.scriptRevision,
-      source: this.scriptSource,
-      javascript: this.scriptJavascript,
-    });
-    this.broadcast('clientScriptResult', { revision: this.scriptRevision, result: 'accepted' });
-  }
-
   private sendRejection(client: Client, type: string, payload: unknown): void {
     const now = Date.now();
     let lastByType = this.lastRejectionAt.get(client.sessionId);
@@ -297,11 +194,6 @@ export class SandboxRoom extends Room<{ state: SandboxRoomState }> implements Ac
     if (typeof value !== 'string') return `Player ${index + 1}`;
     const name = value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
     return name.length === 0 ? `Player ${index + 1}` : name;
-  }
-
-  /** Test and dev inspection surface for the currently accepted room code. */
-  getClientScriptSnapshot(): { readonly revision: number; readonly source: string; readonly javascript: string } {
-    return { revision: this.scriptRevision, source: this.scriptSource, javascript: this.scriptJavascript };
   }
 
   replaceRules(rules: SandboxRules): void {

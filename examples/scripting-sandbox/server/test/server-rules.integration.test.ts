@@ -79,8 +79,8 @@ function developmentHeaders(token: string): HeadersInit {
   return { origin: DEV_ORIGIN, 'x-bornengine-dev-token': token };
 }
 
-async function readReloadStatus(token: string): Promise<{ state: string; revision: number; diagnostic?: string }> {
-  const response = await fetch('http://127.0.0.1:2569/__dev/server-scripts/status', {
+async function readReloadStatus(token: string, apiPort: number): Promise<{ state: string; revision: number; diagnostic?: string }> {
+  const response = await fetch(`http://127.0.0.1:${apiPort}/__dev/server-scripts/status`, {
     headers: developmentHeaders(token),
   });
   if (!response.ok) throw new Error(`Server rule status request failed (${response.status}).`);
@@ -89,20 +89,21 @@ async function readReloadStatus(token: string): Promise<{ state: string; revisio
 
 async function waitForReloadStatus(
   token: string,
+  apiPort: number,
   predicate: (status: { state: string; revision: number; diagnostic?: string }) => boolean,
 ): Promise<{ state: string; revision: number; diagnostic?: string }> {
   const deadline = Date.now() + 8_000;
-  let status = await readReloadStatus(token);
+  let status = await readReloadStatus(token, apiPort);
   while (Date.now() < deadline) {
     if (predicate(status)) return status;
     await new Promise((resolve) => setTimeout(resolve, 100));
-    status = await readReloadStatus(token);
+    status = await readReloadStatus(token, apiPort);
   }
   throw new Error(`Timed out waiting for server rule reload (${status.state}, revision ${status.revision}).`);
 }
 
-async function saveRules(token: string, source: string): Promise<void> {
-  const response = await fetch('http://127.0.0.1:2569/__dev/server-scripts/rules.ts', {
+async function saveRules(token: string, apiPort: number, source: string): Promise<void> {
+  const response = await fetch(`http://127.0.0.1:${apiPort}/__dev/server-scripts/rules.ts`, {
     method: 'PUT',
     headers: { ...developmentHeaders(token), 'content-type': 'application/json' },
     body: JSON.stringify({ source }),
@@ -112,6 +113,7 @@ async function saveRules(token: string, source: string): Promise<void> {
 
 test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   const port = await reservePort();
+  const apiPort = await reservePort();
   const token = randomBytes(32).toString('hex');
   const projectDirectory = await mkdtemp(path.join(os.tmpdir(), 'bornengine-server-rules-'));
   await cp(path.join(serverDirectory, 'src'), path.join(projectDirectory, 'src'), { recursive: true });
@@ -129,6 +131,7 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
       PORT: String(port),
       BORNENGINE_SANDBOX_DEV: '1',
       BORNENGINE_SANDBOX_DEV_TOKEN: token,
+      BORNENGINE_SANDBOX_DEV_PORT: String(apiPort),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -144,7 +147,7 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   });
 
   await waitForServer(child, port, output);
-  const initialStatus = await waitForReloadStatus(token, (status) => status.state === 'ready' && status.revision === 1);
+  const initialStatus = await waitForReloadStatus(token, apiPort, (status) => status.state === 'ready' && status.revision === 1);
   assert.equal(initialStatus.revision, 1);
 
   const firstClient = new Client(`ws://127.0.0.1:${port}`);
@@ -156,8 +159,8 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   assert.equal((first.state.players as { size: number }).size, 2);
   assert.equal((second.state.players as { size: number }).size, 2);
 
-  await saveRules(token, invalidRules);
-  const rejected = await waitForReloadStatus(token, (status) => status.state === 'error');
+  await saveRules(token, apiPort, invalidRules);
+  const rejected = await waitForReloadStatus(token, apiPort, (status) => status.state === 'error');
   assert.equal(rejected.revision, 1);
   assert.match(rejected.diagnostic ?? '', /error|expected|'}'/i);
   assert.equal((first.state.players as { size: number }).size, 2);
@@ -169,8 +172,8 @@ test('keepsActiveMultiplayerRoomWhenServerRulesReloadOrFail', async (t) => {
   await waitForPlayerMovement(first, first.sessionId, beforeInvalidMovement.x);
   assert.equal(playerPosition(second, first.sessionId)?.x, playerPosition(first, first.sessionId)?.x);
 
-  await saveRules(token, updatedRules);
-  const accepted = await waitForReloadStatus(token, (status) => status.state === 'ready' && status.revision === 2);
+  await saveRules(token, apiPort, updatedRules);
+  const accepted = await waitForReloadStatus(token, apiPort, (status) => status.state === 'ready' && status.revision === 2);
   assert.equal(accepted.revision, 2);
   assert.equal((first.state.players as { size: number }).size, 2);
   assert.equal((second.state.players as { size: number }).size, 2);

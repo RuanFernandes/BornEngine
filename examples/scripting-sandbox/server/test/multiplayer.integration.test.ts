@@ -67,7 +67,7 @@ async function waitForMovement(room: ClientRoom<any, any>, sessionId: string, pr
   throw new Error('Server-authoritative movement did not reach the client.');
 }
 
-test('twoRealClientsShareScriptAndServerComputedMovement', async (t) => {
+test('gameplayAndScriptingManagerRoomsKeepSeparateResponsibilities', async (t) => {
   const port = await reservePort();
   const output: string[] = [];
   const child = spawn(process.execPath, [path.join(serverDirectory, 'node_modules/tsx/dist/cli.mjs'), 'src/index.ts'], {
@@ -78,7 +78,6 @@ test('twoRealClientsShareScriptAndServerComputedMovement', async (t) => {
   child.stdout?.setEncoding('utf8').on('data', (chunk: string) => output.push(chunk));
   child.stderr?.setEncoding('utf8').on('data', (chunk: string) => output.push(chunk));
   const rooms: ClientRoom<any, any>[] = [];
-  const clients: Client[] = [];
   t.after(async () => {
     await Promise.all(rooms.map((room) => room.leave().catch(() => undefined)));
     child.kill('SIGTERM');
@@ -89,38 +88,55 @@ test('twoRealClientsShareScriptAndServerComputedMovement', async (t) => {
   await waitForServer(child, port, output);
   const firstClient = new Client(`ws://127.0.0.1:${port}`);
   const secondClient = new Client(`ws://127.0.0.1:${port}`);
-  clients.push(firstClient, secondClient);
-  const first = await firstClient.joinOrCreate('sandbox', { name: 'Ada' }) as ClientRoom<any, any>;
-  const second = await secondClient.joinOrCreate('sandbox', { name: 'Lin' }) as ClientRoom<any, any>;
-  rooms.push(first, second);
+  const firstGame = await firstClient.joinOrCreate('sandbox', { name: 'Ada' }) as ClientRoom<any, any>;
+  const secondGame = await secondClient.joinOrCreate('sandbox', { name: 'Lin' }) as ClientRoom<any, any>;
+  const firstManager = await firstClient.joinOrCreate('scripting-manager') as ClientRoom<any, any>;
+  const secondManager = await secondClient.joinOrCreate('scripting-manager') as ClientRoom<any, any>;
+  rooms.push(firstGame, secondGame, firstManager, secondManager);
 
-  const initialSnapshot = waitForMessage<{ revision: number }>(second, 'clientScriptSnapshot', (payload) => payload.revision === 0);
-  second.send('requestClientScriptSnapshot', {});
+  const initialSnapshot = waitForMessage<{ revision: number }>(secondManager, 'clientScriptSnapshot', (payload) => payload.revision === 0);
+  secondManager.send('requestClientScriptSnapshot', {});
   await initialSnapshot;
 
-  const publishedScript = waitForMessage<{ revision: number; source: string }>(
-    second,
+  const reloadAtFirst = waitForMessage<{ revision: number; source: string }>(
+    firstManager,
+    'clientScriptReload',
+    (payload) => payload.revision === 1,
+  );
+  const resultAtPublisher = waitForMessage<{ result: string; revision?: number; reason?: string }>(
+    secondManager,
+    'clientScriptResult',
+    () => true,
+  );
+  secondManager.send('publishClientScript', { baseRevision: 0, source: SERVER_SCRIPT });
+  const [accepted, reload] = await Promise.all([resultAtPublisher, reloadAtFirst]);
+  assert.equal(accepted.result, 'accepted', accepted.reason);
+  assert.equal(accepted.revision, 1);
+  assert.equal(reload.source, SERVER_SCRIPT);
+
+  const lateManagerClient = new Client(`ws://127.0.0.1:${port}`);
+  const lateManager = await lateManagerClient.joinOrCreate('scripting-manager') as ClientRoom<any, any>;
+  rooms.push(lateManager);
+  const lateSnapshot = waitForMessage<{ revision: number; source: string }>(
+    lateManager,
     'clientScriptSnapshot',
     (payload) => payload.revision === 1,
   );
-  const publishResult = waitForMessage<{ result: string; reason?: string }>(first, 'clientScriptResult', () => true);
-  first.send('publishClientScript', { revision: 1, source: SERVER_SCRIPT });
-  const [accepted, snapshot] = await Promise.all([publishResult, publishedScript]);
-  assert.equal(accepted.result, 'accepted', accepted.reason);
-  assert.equal(snapshot.source, SERVER_SCRIPT);
+  lateManager.send('requestClientScriptSnapshot', {});
+  assert.equal((await lateSnapshot).source, SERVER_SCRIPT);
 
-  const initialFirst = playerState(first, first.sessionId);
-  const initialSecond = playerState(second, second.sessionId);
+  const initialFirst = playerState(firstGame);
+  const initialSecond = playerState(secondGame);
   assert.ok(initialFirst);
   assert.ok(initialSecond);
-  const rejectedInput = waitForMessage<{ reason: string }>(second, 'inputRejected', (payload) => payload.reason === 'malformed');
-  second.send('input', { sequence: 0, x: 0, y: 0, position: { x: 950, y: 500 } });
+  const rejectedInput = waitForMessage<{ reason: string }>(secondGame, 'inputRejected', (payload) => payload.reason === 'malformed');
+  secondGame.send('input', { sequence: 0, x: 0, y: 0, position: { x: 950, y: 500 } });
   await rejectedInput;
-  assert.equal(playerState(second)?.x, initialSecond.x);
+  assert.equal(playerState(secondGame)?.x, initialSecond.x);
 
-  first.send('input', { sequence: 0, x: 1, y: 0 });
-  const movedFirst = await waitForMovement(first, first.sessionId, initialFirst.x);
-  const movedSecond = await waitForMovement(second, first.sessionId, initialFirst.x);
+  firstGame.send('input', { sequence: 0, x: 1, y: 0 });
+  const movedFirst = await waitForMovement(firstGame, firstGame.sessionId, initialFirst.x);
+  const movedSecond = await waitForMovement(secondGame, firstGame.sessionId, initialFirst.x);
   assert.equal(movedSecond.x, movedFirst.x);
   assert.equal(movedSecond.y, movedFirst.y);
 });
