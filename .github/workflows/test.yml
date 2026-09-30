@@ -423,6 +423,6 @@ jobs:
         working-directory: examples/scripting-sandbox
         run: pnpm install --frozen-lockfile
 
-      - name: Check and test scripting sandbox
+      - name: Check, test, and build scripting sandbox
         working-directory: examples/scripting-sandbox
         run: pnpm check && pnpm test && pnpm build:workbench

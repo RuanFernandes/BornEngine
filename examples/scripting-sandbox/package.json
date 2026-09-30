@@ -12,6 +12,9 @@
     "build": "pnpm build:preview && pnpm build:workbench",
     "build:preview": "node scripts/dev.mjs --build-preview-only",
     "build:workbench": "pnpm --dir workbench build",
+    "native:check": "pnpm --dir native-client compile:check",
+    "native:build": "pnpm --dir native-client build",
+    "native:start": "pnpm --dir native-client start",
     "check": "pnpm --dir server check && pnpm --dir workbench check",
     "test": "node --test scripts/*.test.mjs && pnpm --dir server test && pnpm --dir workbench test",
     "e2e": "pnpm --dir workbench e2e"

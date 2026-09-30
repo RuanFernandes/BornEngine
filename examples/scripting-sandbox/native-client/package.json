@@ -5,7 +5,7 @@
   "main": "main.ts",
   "scripts": {
     "compile:check": "BORNENGINE_NATIVE_CLIENT_DIR=\"$PWD\" && cd \"${TMPDIR:-/tmp}\" && PERRY_ALLOW_PERRY_FEATURES=1 perry compile \"$BORNENGINE_NATIVE_CLIENT_DIR/main.ts\" --target linux --no-link -o bornengine-scripting-sandbox-check",
-    "build": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --target linux -o build/scripting-sandbox-native",
+    "build": "mkdir -p build && PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --target linux -o build/scripting-sandbox-native",
     "start": "./build/scripting-sandbox-native"
   },
   "dependencies": {

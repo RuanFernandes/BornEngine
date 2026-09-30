@@ -9,7 +9,7 @@ These samples target the current BornEngine API from this repository. Game examp
 - Run `npm install` in a sample's package directory before its first build. Multiplayer servers have separate manifests and lockfiles; use the commands in that sample's README.
 - The [`scripting-sandbox`](./scripting-sandbox/) uses a pnpm workspace; install its dependencies from that example's directory with `pnpm install`.
 - From the repository root, run `npm run examples:check:static` for the API/import audit and validator tests, or `npm run examples:check` to compile the Perry entrypoints and run both multiplayer server test suites. The compile check uses `--no-link`, so it validates TypeScript and Perry code generation without claiming a native game launch.
-- The browser scripting sandbox has its own TypeScript and integration checks; run `pnpm check`, `pnpm test`, and `pnpm e2e` from `scripting-sandbox/`.
+- The scripting sandbox has React/Monaco and built-in docs, plus browser and native game clients. Run `pnpm check`, `pnpm test`, `pnpm e2e`, and `pnpm native:check` from `scripting-sandbox/`.
 - Launch graphical samples from their example directory so relative asset paths resolve as documented.
 
 For a standard native sample, build and launch from its directory:
@@ -63,7 +63,7 @@ Use the entrypoint listed below instead of `main.ts` for the scene-graph program
 
 | Example | What it demonstrates | Entry point |
 | --- | --- | --- |
-| [`scripting-sandbox`](./scripting-sandbox/) | Monaco editor, QuickJS-isolated client scripts, live WebAssembly preview, Colyseus multiplayer, and hot-reloaded trusted server rules | Browser workbench; see its README |
+| [`scripting-sandbox`](./scripting-sandbox/) | React/Monaco script manager, built-in docs, QuickJS-isolated client scripts, revisioned Colyseus hot reload, browser preview, Perry-native Linux multiplayer client, and trusted server rules | Browser workbench and `native-client/main.ts`; see its README |
 
 ## Multiplayer samples
 
