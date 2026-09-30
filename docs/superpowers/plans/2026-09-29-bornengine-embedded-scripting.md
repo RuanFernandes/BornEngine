@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Guest JavaScript receives no host `Game`, native handles, filesystem, process, network, workers, or dynamic module loading.
-- Each guest script has its own runtime heap and configurable memory, stack, and interrupt-check limits.
+- Each guest script has its own runtime heap and configurable memory, stack, and interrupt-check limits. The supported stack ceiling is 256 KiB, equal to the default, so lower values remain configurable with host stack headroom.
 - Guest failures stay local to the script and never cross Perry FFI as exceptions or panic the game.
 - Every native operation is declared in `package.json`; native, Web/WASM, and watchOS stub surfaces match the manifest and Perry argument limits.
 - Native/WASM compilation success is not a claim that every mobile or watch target is supported; unsupported targets report that state safely.
@@ -122,5 +122,8 @@
 - [x] Add bounded, non-executing syntax validation to CLI check and pack; reject static imports, re-exports, and dynamic imports.
 - [x] Add deterministic ownership proof to packed output and refuse replacement after missing, modified, linked, or untracked content.
 - [x] Reject Promise-returning hooks, discard failed-hook commands, and preserve bounded guest exception message and stack details.
+- [x] Cap the guest stack at the 256 KiB default in Rust and TypeScript; verify recursive guest failure in an isolated child test process.
+- [x] Reject source nesting above 128 levels before Boa parsing and AST visitation; check the 1,000-parentheses regression through the CLI subprocess.
+- [x] Bound incoming and prior packed manifests and ownership markers to 64 KiB before JSON parsing; preserve output on validation failures.
 - [x] Report support only on validated Linux native and Web/WASM targets; retain unsupported native FFI exports and watchOS stubs.
 - [x] Keep failed ScriptComponents in Game ownership for Inspector diagnostics until disposal; assert denial against the actual `ctx.self` API.

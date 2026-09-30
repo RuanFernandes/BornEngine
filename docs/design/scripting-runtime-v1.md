@@ -15,7 +15,7 @@ Let a game host user-authored JavaScript behaviors with a small, explicit BornEn
 
 ## Limits and failures
 
-- Apply configurable heap, stack, and interrupt-check limits to every guest runtime. Invalid configuration, syntax errors, guest exceptions, memory exhaustion, and interrupted loops become status/error data; they do not throw through Perry FFI or stop the host game.
+- Apply configurable heap, stack, and interrupt-check limits to every guest runtime. The stack defaults to and is capped at 256 KiB to leave host stack headroom on supported targets; smaller values are allowed. Invalid configuration, syntax errors, guest exceptions, memory exhaustion, and interrupted loops become status/error data; they do not throw through Perry FFI or stop the host game.
 - Omit Node, QuickJS `std`/`os`, filesystem, networking, workers, and module loading from the guest context. Capability denial is enforced by not installing the corresponding host function.
 - v1 is an in-process containment layer for accidental or untrusted game content, not a claim of a formally secure boundary against a JavaScript VM vulnerability or a modified multiplayer client. Authoritative servers must still validate actions.
 - Linux native and Web/WASM are the validated v1 backends. Other platform backends expose an explicit unsupported result until their runtime link is verified; watchOS keeps link-safe stubs.
@@ -25,7 +25,7 @@ Let a game host user-authored JavaScript behaviors with a small, explicit BornEn
 - Guest code is JavaScript. BornEngine host code remains TypeScript compiled by Perry.
 - A package uses `bornengine.script.json` with `format: "bornengine-script-v1"`, `apiVersion: 1`, one package-relative `.js`/`.mjs` `entry`, and a sorted list of `permissions`.
 - `bornengine script check` validates the package manifest, entry path, declared permissions, and module files without executing user code.
-- `bornengine script check` parses bounded UTF-8 JavaScript without running it and rejects static and dynamic imports and module re-exports. `bornengine script pack` applies the same validation and writes the declared entry, manifest, and a deterministic ownership marker with content hashes. It replaces existing output only when that marker and the expected inventory verify unchanged CLI-owned files.
+- `bornengine script check` parses UTF-8 JavaScript up to 1 MiB without running it, first rejecting syntax nesting deeper than 128 levels to bound parser and AST visitor recursion. It rejects static and dynamic imports and module re-exports. Package manifests are limited to 64 KiB. `bornengine script pack` applies the same validation and writes the declared entry, manifest, and a deterministic ownership marker with content hashes. It reads the prior packed manifest and marker through the same 64 KiB metadata bound, and replaces existing output only when that marker and the expected inventory verify unchanged CLI-owned files.
 
 ## Non-goals for v1
 

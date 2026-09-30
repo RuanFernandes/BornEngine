@@ -79,7 +79,7 @@ The guest does not receive the `Game`, renderer, native resource handles, or oth
 
 ## Execution limits and failures
 
-Each component owns an isolated QuickJS runtime. Default limits are 16 MiB of guest heap, 256 KiB of stack, and 10,000 execution interrupt checks per hook. The host may override these in `limits`; maxima are 64 MiB, 8 MiB, and 1,000,000 checks. Source is limited to 1 MiB. Hooks must be synchronous. `ScriptComponent` reports invalid limits, syntax errors, runtime failures, memory exhaustion, and interrupted execution as status/error data. Failed components remain visible to the Inspector until disposed or removed.
+Each component owns an isolated QuickJS runtime. Default limits are 16 MiB of guest heap, 256 KiB of stack, and 10,000 execution interrupt checks per hook. The host may override these in `limits`; maxima are 64 MiB, 256 KiB, and 1,000,000 checks. The stack maximum is also the default to leave host stack headroom on supported targets; hosts may select a smaller stack. Source is limited to 1 MiB. Hooks must be synchronous. `ScriptComponent` reports invalid limits, syntax errors, runtime failures, memory exhaustion, and interrupted execution as status/error data. Failed components remain visible to the Inspector until disposed or removed.
 
 ```ts
 const behavior = new ScriptComponent(game.scripting, guestSource, {

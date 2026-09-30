@@ -47,7 +47,7 @@ export const DEFAULT_SCRIPT_LIMITS: ScriptLimits = {
 
 const MAX_SOURCE_BYTES = 1024 * 1024;
 const MAX_MEMORY_BYTES = 64 * 1024 * 1024;
-const MAX_STACK_BYTES = 8 * 1024 * 1024;
+const MAX_STACK_BYTES = 256 * 1024;
 const MAX_INTERRUPT_CHECKS = 1_000_000;
 
 function finite(value: number): boolean {

@@ -16,7 +16,7 @@ const DEFAULT_MAX_MEMORY_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_MAX_STACK_BYTES: usize = 256 * 1024;
 const DEFAULT_MAX_INTERRUPT_CHECKS: usize = 10_000;
 const MAX_MEMORY_BYTES: usize = 64 * 1024 * 1024;
-const MAX_STACK_BYTES: usize = 8 * 1024 * 1024;
+const MAX_STACK_BYTES: usize = 256 * 1024;
 const MAX_INTERRUPT_CHECKS: usize = 1_000_000;
 const SCRIPT_HANDLE_SLOT_BITS: u32 = 16;
 const SCRIPT_HANDLE_SLOT_MASK: u32 = (1 << SCRIPT_HANDLE_SLOT_BITS) - 1;
@@ -235,7 +235,7 @@ impl ScriptVm {
             return Err("script stack limit must be at least 16384 bytes".into());
         }
         if limits.max_stack_bytes > MAX_STACK_BYTES {
-            return Err("script stack limit must not exceed 8388608 bytes".into());
+            return Err("script stack limit must not exceed 262144 bytes".into());
         }
         if limits.max_interrupt_checks == 0 {
             return Err("script interrupt budget must be greater than zero".into());
@@ -641,6 +641,54 @@ mod tests {
             self_transform_write: true,
             self_particles_emit: true,
         }
+    }
+
+    #[test]
+    fn script_vm_rejects_stack_above_supported_maximum() {
+        let limits = ScriptLimits {
+            max_stack_bytes: 256 * 1024 + 1,
+            ..ScriptLimits::default()
+        };
+        let error = ScriptVm::new(limits, permissions())
+            .err()
+            .expect("limit rejected");
+        assert!(error.contains("262144"), "{error}");
+    }
+
+    #[test]
+    fn script_vm_recursion_at_maximum_reports_guest_error_in_child() {
+        const PROBE_ENV: &str = "BORNENGINE_SCRIPT_STACK_PROBE";
+        if std::env::var_os(PROBE_ENV).is_some() {
+            let limits = ScriptLimits {
+                max_stack_bytes: 256 * 1024,
+                ..ScriptLimits::default()
+            };
+            let mut vm = ScriptVm::new(limits, permissions()).unwrap();
+            vm.load("export default { update() { function recurse() { recurse(); } recurse(); } }")
+                .unwrap();
+            vm.start(context());
+            vm.update(context(), 0.016);
+            assert_eq!(vm.status_code(), 2);
+            assert!(vm.error().is_some());
+            return;
+        }
+
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "scripting::tests::script_vm_recursion_at_maximum_reports_guest_error_in_child",
+                "--nocapture",
+            ])
+            .env(PROBE_ENV, "1")
+            .output()
+            .unwrap();
+        assert_eq!(
+            child.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&child.stderr)
+        );
+        assert!(String::from_utf8_lossy(&child.stdout).contains("1 passed"));
     }
 
     #[test]

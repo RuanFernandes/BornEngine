@@ -137,6 +137,15 @@ assert.equal(calls.findLast((entry) => entry[0] === 'create')[1], 0,
   'scripts receive no capabilities unless the game explicitly grants them');
 denied.onDestroy();
 
+const createsBeforeExcessiveStack = calls.filter((entry) => entry[0] === 'create').length;
+const excessiveStack = new ScriptComponent(runtime, 'export default {}', {
+  limits: { maxStackBytes: 256 * 1024 + 1 },
+});
+assert.equal(excessiveStack.status, 'error', 'stack values above 256 KiB are rejected');
+assert.equal(calls.filter((entry) => entry[0] === 'create').length, createsBeforeExcessiveStack,
+  'invalid stack limit never reaches the native runtime');
+excessiveStack.dispose();
+
 const unmounted = new ScriptComponent(runtime, 'export default {}');
 assert.equal(typeof unmounted.dispose, 'function',
   'an unattached component can release its owned JavaScript runtime');
