@@ -10,6 +10,7 @@ import type { Room as ColyseusRoom } from '@bornengine/engine/colyseus';
 import { Key } from '@bornengine/engine/core';
 import { ScriptComponentSlot, ScriptRevisionReceiver } from './game-bridge';
 import { isCurrentRoomCallback, PreviewRevisionGate } from './protocol';
+import { MovementInputThrottle } from '../../../server/src/protocol.js';
 
 const PREVIEW_PROTOCOL_VERSION = 1;
 const CLIENT_SCRIPT_OUTPUT_MAX_BYTES = 128 * 1024;
@@ -186,7 +187,7 @@ class PreviewGame extends Game {
   private readonly roomScriptRevisions = new ScriptRevisionReceiver();
   private managerRevision = -1;
   private pendingEditorRevision = -1;
-  private inputElapsed = 0;
+  private readonly inputThrottle = new MovementInputThrottle();
   private inputSequence = 0;
   private readonly parentOrigin = window.location.origin;
   private readonly messageListener = (event: PreviewMessageEvent): void => this.handleMessage(event);
@@ -469,13 +470,11 @@ class PreviewGame extends Game {
   private sendMovementInput(deltaTime: number): void {
     const room = this.networkRoom;
     if (room === null || !room.isConnected) return;
-    this.inputElapsed += Math.max(0, Math.min(0.25, deltaTime));
-    if (this.inputElapsed < 1 / 30) return;
-    this.inputElapsed %= 1 / 30;
     const x = (this.input.isKeyDown(Key.D) || this.input.isKeyDown(Key.RIGHT) ? 1 : 0) -
       (this.input.isKeyDown(Key.A) || this.input.isKeyDown(Key.LEFT) ? 1 : 0);
     const y = (this.input.isKeyDown(Key.S) || this.input.isKeyDown(Key.DOWN) ? 1 : 0) -
       (this.input.isKeyDown(Key.W) || this.input.isKeyDown(Key.UP) ? 1 : 0);
+    if (!this.inputThrottle.update(deltaTime, { x, y })) return;
     room.send('input', { sequence: this.inputSequence++, x, y });
   }
 

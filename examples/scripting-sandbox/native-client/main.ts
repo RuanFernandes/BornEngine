@@ -1,3 +1,4 @@
+import process from 'node:process';
 import {
   ColyseusClient,
   Colors,
@@ -14,12 +15,10 @@ import {
   Viewport2D,
 } from '@bornengine/engine';
 import type { Color, Room, SpriteFrame } from '@bornengine/engine';
-
-declare const process: { argv: string[] };
+import { MovementInputThrottle } from '../server/src/protocol.js';
 
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 480;
-const INPUT_INTERVAL = 1 / 30;
 const SERVER_SCRIPT_LIMIT = 64 * 1024;
 const CLIENT_SCRIPT_LIMIT = 128 * 1024;
 const LOCAL_COLOR: Color = { r: 166, g: 235, b: 100, a: 255 };
@@ -86,9 +85,9 @@ class SandboxClientGame extends Game {
   private currentScriptRevision = -1;
   private pendingScriptPayload: any = null;
   private particleFrame: SpriteFrame | null = null;
+  private readonly inputThrottle = new MovementInputThrottle();
   private status = 'Connecting to Colyseus…';
   private sequence = 0;
-  private inputElapsed = 0;
 
   constructor(private readonly endpoint: string) {
     super({
@@ -133,9 +132,7 @@ class SandboxClientGame extends Game {
     if (this.input.isKeyDown(Key.S) || this.input.isKeyDown(Key.DOWN)) y += 1;
     const movement = Vector2D.clampMagnitude(new Vector2D(x, y), 1);
 
-    this.inputElapsed += Math.max(0, Math.min(0.25, deltaTime));
-    if (this.inputElapsed >= INPUT_INTERVAL) {
-      this.inputElapsed %= INPUT_INTERVAL;
+    if (this.inputThrottle.update(deltaTime, movement)) {
       room.send('input', { sequence: this.sequence++, x: movement.x, y: movement.y });
     }
   }
