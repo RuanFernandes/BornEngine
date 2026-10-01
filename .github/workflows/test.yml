@@ -238,7 +238,7 @@ jobs:
           sudo apt-get install -y \
             libx11-dev libxcb1-dev libxrandr-dev libxi-dev libxcursor-dev \
             libasound2-dev libpulse-dev zstd \
-            pkg-config cmake build-essential
+            pkg-config cmake build-essential xvfb xauth mesa-vulkan-drivers
 
       - name: Fingerprint Jolt cache inputs
         id: jolt-cache
@@ -350,7 +350,17 @@ jobs:
 
       - name: Run native Game lifecycle smoke test
         working-directory: examples/colyseus-smoke
-        run: npm run test:lifecycle
+        run: |
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "Mesa lavapipe Vulkan ICD was not installed."
+            exit 1
+          fi
+          xvfb-run -a env \
+            BLOOM_HEADLESS=1 \
+            WGPU_BACKEND=vulkan \
+            VK_ICD_FILENAMES="$lvp_icd" \
+            npm run test:lifecycle
 
   build-windows:
     runs-on: windows-latest
