@@ -294,7 +294,8 @@ jobs:
 
       - name: Prepare Perry runtime libraries
         run: |
-          runtime_package="$(npm root -g)/@perryts/perry-linux-x64/lib"
+          perry_package="$(npm root -g)/@perryts/perry"
+          runtime_package="$(node -e 'const path = require("path"); const manifest = require.resolve("@perryts/perry-linux-x64/package.json", { paths: [process.argv[1]] }); process.stdout.write(path.join(path.dirname(manifest), "lib"));' "$perry_package")"
           runtime_dir="$RUNNER_TEMP/perry-runtime"
           mkdir -p "$runtime_dir"
           zstd -d "$runtime_package/libperry_runtime.a.zst" -o "$runtime_dir/libperry_runtime.a"
