@@ -65,5 +65,10 @@ rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"] 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
 
+# QuickJS is only shipped on Linux and Web. Other native targets retain the
+# scripting FFI surface through scripting_stub.rs without compiling rquickjs-sys.
+[target.'cfg(any(target_os = "linux", target_arch = "wasm32"))'.dependencies]
+rquickjs = { version = "0.14.0", default-features = false, features = ["std"] }
+
 [dev-dependencies]
 pollster = "0.4"

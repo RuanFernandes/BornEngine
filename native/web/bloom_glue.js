@@ -107,10 +107,7 @@ export async function bootBloomGame() {
     Object.assign(globalThis.__ffiImports, ffi);
   }
 
-  // 5. DOM wiring (input + HiDPI canvas sizing + audio unlock).
-  setupDomBridge();
-
-  // 6. Pre-initialise the window and WAIT for the async wgpu setup. Perry's
+  // 5. Pre-initialise the window and WAIT for the async wgpu setup. Perry's
   //    main() is synchronous and calls engine functions immediately after its
   //    own initWindow (which is an idempotent no-op once this ran) — booting
   //    the game before the device exists panics with "Engine not initialized".
@@ -143,7 +140,11 @@ export async function bootBloomGame() {
     await new Promise((r) => setTimeout(r, 16));
   }
 
-  // 7. Hand over to the game. Keep the loading indicator up — the game's own
+  // Input accessors require EngineState, so install DOM handlers only after
+  // the renderer has finished creating it.
+  setupDomBridge();
+
+  // 6. Hand over to the game. Keep the loading indicator up — the game's own
   //    synchronous boot (asset decode, pool init) runs next; remove it on the
   //    first real frame instead.
   setStatus('Starting game…');

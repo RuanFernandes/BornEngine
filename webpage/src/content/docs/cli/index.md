@@ -14,6 +14,7 @@ order: 20
 - [Asset audit](assets/) — validate references, media headers, budgets, JSON reports, and deterministic packs.
 - [Diagnostics](diagnostics/) — `clean`, `doctor`, `info`, and `version`.
 - [Engine versions](engine/) — the `engine` group plus `upgrade`.
+- [Script packages](scripts/) — validate and pack self-contained JavaScript behavior modules.
 - [Configuration](configuration/) — `config set|get|list` plus `update`.
 
 ## Target selection

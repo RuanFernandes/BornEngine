@@ -34,6 +34,8 @@ export const EXAMPLE_ENTRYPOINTS = [
   'examples/scene-graph/r3f-bridge.ts',
   'examples/scene-graph/room.ts',
   'examples/scene-graph/shadows.ts',
+  'examples/scripted-actor/main.ts',
+  'examples/scripting-sandbox/native-client/main.ts',
   'examples/space-blaster/main.ts',
   'examples/sponza/main.ts',
   'examples/sprite-animation/main.ts',
@@ -161,15 +163,18 @@ function discoverExampleSources() {
   return walkFiles(EXAMPLES_ROOT, (name) => name.endsWith('.ts'));
 }
 
+export function isRunnablePerryEntrypoint(file) {
+  if (file.startsWith('examples/scripting-sandbox/workbench/')) return false;
+  const segments = file.split('/');
+  if (segments.some((segment) => NON_GAME_TS_DIRS.has(segment))) return false;
+  if (basename(file) === 'main.ts') return true;
+  if (segments[1] === 'scene-graph') return true;
+  return file === 'examples/colyseus-smoke/lifecycle-smoke.ts'
+    || file === 'examples/colyseus-smoke/math-smoke.ts';
+}
+
 function discoverRunnableEntrypoints() {
-  return discoverExampleSources().filter((file) => {
-    const segments = file.split('/');
-    if (segments.some((segment) => NON_GAME_TS_DIRS.has(segment))) return false;
-    if (basename(file) === 'main.ts') return true;
-    if (segments[1] === 'scene-graph') return true;
-    return file === 'examples/colyseus-smoke/lifecycle-smoke.ts'
-      || file === 'examples/colyseus-smoke/math-smoke.ts';
-  });
+  return discoverExampleSources().filter(isRunnablePerryEntrypoint);
 }
 
 function inspectAllExamples() {

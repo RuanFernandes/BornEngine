@@ -63,6 +63,12 @@ export const apiCoverage = [
     sections: ['Atlas frames', 'Sprite components and camera', 'Animation and state machines', '2D particle emitters', 'Marker-driven effects'],
   },
   {
+    slug: 'scripting',
+    file: 'api/scripting.md',
+    href: '/docs/api/scripting/',
+    sections: ['Attach a behavior', 'Guest module hooks', 'Capabilities', 'Execution limits and failures', 'Script packages', 'Platform support and security'],
+  },
+  {
     slug: 'text',
     file: 'api/text.md',
     href: '/docs/api/text/',

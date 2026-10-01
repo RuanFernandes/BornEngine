@@ -3,6 +3,7 @@
   "version": "0.10.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
+    "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --experimental-vm-modules --disable-warning=ExperimentalWarning tests/game-runtime/scripted-actor-package-harness.cjs",
     "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
     "examples:check:static": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs --static",
     "test:examples-validator": "node --test tools/validate-examples.test.mjs"
@@ -30,6 +31,7 @@
     "./world2d": "./src/world2d/index.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
+    "./scripting": "./src/scripting/index.ts",
     "./input": "./src/input/index.ts",
     "./storage": "./src/storage/index.ts",
     "./ui": "./src/ui/index.ts",
@@ -4473,6 +4475,81 @@
             "f64"
           ],
           "returns": "string"
+        },
+        {
+          "name": "bloom_script_supported",
+          "params": [],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_create",
+          "params": ["f64", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_load",
+          "params": ["f64", "string"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_start",
+          "params": ["f64", "string", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_update",
+          "params": ["f64", "string", "f64", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_dispose",
+          "params": ["f64", "string", "f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_count",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_kind",
+          "params": ["f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_number",
+          "params": ["f64", "f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_command_text",
+          "params": ["f64", "f64"],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_script_clear_commands",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_script_status",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_error",
+          "params": ["f64"],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_script_memory_used",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_script_destroy",
+          "params": ["f64"],
+          "returns": "void"
         }
       ],
       "targets": {

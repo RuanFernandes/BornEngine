@@ -14,3 +14,4 @@ export { RigidBodyComponent } from './adapters/rigid-body-component';
 export type { RigidBodyMotionType, RigidBodyComponentOptions } from './adapters/rigid-body-component';
 export { AudioSourceComponent } from './adapters/audio-source-component';
 export type { AudioSourceComponentOptions } from './adapters/audio-source-component';
+export { ScriptComponent } from '../scripting/script-component';

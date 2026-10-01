@@ -11,6 +11,7 @@ import { Ui } from '../ui';
 import { DebugUi } from '../debug-ui';
 import { GameInspector } from '../debug-ui/game-inspector';
 import { AssetManager } from '../assets';
+import { ScriptRuntime } from '../scripting/script-runtime';
 import { beginDrawing, endDrawing, getPlatform, runGame, setTargetFPS, Platform } from './internal';
 
 export interface GameOptions {
@@ -29,6 +30,8 @@ export interface GameDebugOptions {
   sceneHierarchy?: boolean;
   /** Show the loaded asset summary. Defaults to true. */
   assets?: boolean;
+  /** Show script status, guest memory use, errors, and callback cost. Defaults to true. */
+  scripts?: boolean;
 }
 
 /** Callbacks for a host that owns an embedded surface and frame scheduler. */
@@ -61,6 +64,7 @@ export class Game {
   readonly ui: Ui;
   readonly debugUi: DebugUi;
   readonly assets: AssetManager;
+  readonly scripting: ScriptRuntime;
 
   private readonly inspector: GameInspector;
   private disposed = false;
@@ -100,6 +104,7 @@ export class Game {
     this.ui = new Ui(this);
     this.debugUi = new DebugUi(this);
     this.assets = new AssetManager(this);
+    this.scripting = new ScriptRuntime(this);
     this.inspector = new GameInspector(this, options.debug);
 
     if (getGameContext(this).isReady) {
@@ -315,6 +320,7 @@ export class Game {
     if (this.disposed) return;
     try {
       try { this.scenes.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.scripting.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.sceneGraph.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.mobile.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.assets.dispose(); } catch (error) { this.recordRunError(error); }

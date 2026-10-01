@@ -1,0 +1,19 @@
+{
+  "name": "bornengine-scripting-sandbox-native-client",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.ts",
+  "scripts": {
+    "compile:check": "BORNENGINE_NATIVE_CLIENT_DIR=\"$PWD\" && cd \"${TMPDIR:-/tmp}\" && PERRY_ALLOW_PERRY_FEATURES=1 perry compile \"$BORNENGINE_NATIVE_CLIENT_DIR/main.ts\" --target linux --no-link -o bornengine-scripting-sandbox-check",
+    "build": "mkdir -p build && PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --target linux -o build/scripting-sandbox-native",
+    "start": "./build/scripting-sandbox-native"
+  },
+  "dependencies": {
+    "@bornengine/engine": "file:../../../"
+  },
+  "perry": {
+    "allow": {
+      "nativeLibrary": ["@bornengine/engine"]
+    }
+  }
+}

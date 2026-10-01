@@ -55,3 +55,11 @@ test('navigation entries use documentation routes or approved HTTPS links', asyn
   assert.ok(hrefs.length > 20, 'navigation should cover the complete documentation surface');
   assert.ok(hrefs.every((href) => href.startsWith('/docs/') || href.startsWith('https://')));
 });
+
+test('script package docs state both syntax limits and flat collection behavior', async () => {
+  const source = await readFile(new URL('../src/content/docs/cli/scripts.md', import.meta.url), 'utf8');
+  assert.match(source, /128 delimiter levels/);
+  assert.match(source, /128 recursive syntax steps in an expression chain/);
+  assert.match(source, /flat array and object entries.*1 MiB source limit/i);
+  assert.match(source, /separators reset.*chain/i);
+});
