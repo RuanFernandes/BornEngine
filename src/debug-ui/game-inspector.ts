@@ -53,8 +53,9 @@ export class GameInspector {
 
   private renderMetrics(deltaTime: number): void {
     const ui = this.game.debugUi;
-    ui.beginWindow(WINDOW_METRICS, 'BornEngine | Performance', 16, 16, 300, 176);
+    ui.beginWindow(WINDOW_METRICS, 'BornEngine | Performance', 16, 16, 300, 252);
     const stats: RendererStats = this.game.renderer.stats;
+    const gameStats = this.game.stats;
     const fps = stats.fps > 0 ? stats.fps : getFPS();
     const frameTime = stats.frameIntervalMs > 0 ? stats.frameIntervalMs : deltaTime * 1000;
     ui.label(WINDOW_METRICS + 1, 'FPS: ' + formatNumber(fps, 1));
@@ -63,6 +64,10 @@ export class GameInspector {
     ui.label(WINDOW_METRICS + 3, '2D submissions: ' + stats.drawSubmissions2D);
     ui.label(WINDOW_METRICS + 4, 'Sprites: ' + stats.spritesDrawn);
     ui.label(WINDOW_METRICS + 5, 'Culled sprites: ' + stats.spritesCulled);
+    ui.label(WINDOW_METRICS + 6, 'Update: ' + formatNumber(gameStats.updateTimeMs, 2) + ' ms');
+    ui.label(WINDOW_METRICS + 7, 'Render: ' + formatNumber(gameStats.renderTimeMs, 2) + ' ms');
+    ui.label(WINDOW_METRICS + 8, 'Objects: ' + gameStats.activeObjectCount + ' active / ' + gameStats.objectCount + ' total');
+    ui.label(WINDOW_METRICS + 9, 'Components: ' + gameStats.activeComponentCount + ' active / ' + gameStats.componentCount + ' total');
     ui.endWindow(WINDOW_METRICS);
   }
 
@@ -132,7 +137,7 @@ export class GameInspector {
 
   private renderAssets(): void {
     const ui = this.game.debugUi;
-    ui.beginWindow(WINDOW_ASSETS, 'BornEngine | Assets', 16, 208, 300, 144);
+    ui.beginWindow(WINDOW_ASSETS, 'BornEngine | Assets', 16, 280, 300, 144);
     ui.label(WINDOW_ASSETS + 1, 'Textures: ' + this.game.assets.textureCount);
     ui.endWindow(WINDOW_ASSETS);
   }

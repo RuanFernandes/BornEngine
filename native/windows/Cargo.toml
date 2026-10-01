@@ -16,16 +16,15 @@ crate-type = ["staticlib"]
 # `libDirs` entry pointing at the stable Jolt build output
 # (`native/third_party/bloom_jolt/build/windows-x86_64/lib`) plus `Jolt` /
 # `bloom_jolt` in `libs`, which perry turns into `/LIBPATH:` + `*.lib` on the
-# link line (perry >= 0.5.1126 manifest libDirs support). Pure-2D Windows
-# games opt out via Perry feature forwarding in perry.toml:
-#   [native-library."@bornengine/engine"]
-#   default-features = false
-default = ["jolt", "models3d", "image-extras"]
+# link line (perry >= 0.5.1126 manifest libDirs support). BornEngine CLI
+# profiles disable Jolt and other unused features for 2D builds.
+default = ["mp3", "jolt", "models3d", "image-extras"]
+mp3 = ["bloom-shared/mp3"]
 jolt = ["bloom-shared/jolt"]
-# EN-014 — see native/shared/Cargo.toml. Default-on so existing games are
-# unaffected; pure-2D games opt out via Perry feature forwarding.
+# EN-014 — see native/shared/Cargo.toml. Default-on for direct Cargo builds;
+# BornEngine CLI profiles disable unused features for native game builds.
 models3d = ["bloom-shared/models3d"]
-image-extras = ["bloom-shared/image-extras"]
+image-extras = ["bloom-shared/image-extras", "image/hdr"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
 debug-ui = ["bloom-shared/debug-ui"]
@@ -42,8 +41,8 @@ panic = "abort"
 debug = "line-tables-only"
 
 [dependencies]
-bloom-shared = { path = "../shared", default-features = false, features = ["mp3"] }
-image = { version = "0.25", default-features = false, features = ["hdr"] }
+bloom-shared = { path = "../shared", default-features = false }
+image = { version = "0.25", default-features = false }
 raw-window-handle = "0.6"
 wgpu = "29"
 

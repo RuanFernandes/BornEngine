@@ -1,5 +1,5 @@
 export { Game } from './core/game';
-export type { GameOptions, EmbeddedFrameCallbacks, GameDebugOptions } from './core/game';
+export type { GameOptions, EmbeddedFrameCallbacks, GameDebugOptions, GameStats } from './core/game';
 export { ScriptRuntime, ScriptComponent, DEFAULT_SCRIPT_LIMITS } from './scripting';
 export type { ScriptComponentOptions, ScriptContext, ScriptLimits, ScriptPermission, ScriptStatus } from './scripting';
 export { Window, Renderer } from './core';
@@ -11,7 +11,7 @@ export { Vector2D, Vec3, Vec4, Quat, Matrix4, Mathf, Collision } from './math';
 export type { Matrix4Array } from './math';
 
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
-export { AssetManager, AssetGroup } from './assets';
+export { AssetManager, SceneAssetManager, AssetGroup } from './assets';
 export type { AssetGroupAsset, AssetGroupEntryResult, AssetGroupEntryState, AssetGroupKind, AssetGroupState } from './assets';
 export { SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D } from './sprites';
 export type {
@@ -50,6 +50,7 @@ export {
 export type {
   GameComponentType, GameObjectOptions, ParentOptions,
   SceneState, SceneOptions, SceneOwnedResource,
+  SceneStats,
   TransformOptions, TransformTRS,
   SceneNodeComponentOptions, RigidBodyMotionType, RigidBodyComponentOptions,
   AudioSourceComponentOptions,
@@ -119,7 +120,7 @@ export type {
 
 export { TouchControls, VirtualJoystick, VirtualButton } from './mobile';
 export type { VirtualJoystickOptions, VirtualButtonOptions } from './mobile';
-export { ParticleSystem, DecalSystem } from './vfx';
+export { ParticleSystem, DecalSystem, SceneVfx } from './vfx';
 export type { ParticleConfig, ParticleEmitOptions, DecalStyle } from './vfx';
 export { Ui, UiBackend, UiOpcode } from './ui';
 export { DebugUi } from './debug-ui';

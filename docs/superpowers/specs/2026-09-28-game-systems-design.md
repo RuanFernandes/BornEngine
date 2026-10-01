@@ -50,7 +50,7 @@ ordinary game build keeps debug UI dependencies opt-in.
 
 ## Compatibility and constraints
 
-- Keep existing `Texture(game, source)`, `models.Animation`, 3D physics, and
+- This initial proposal retained game-scoped resource constructors; the approved asset-scope API now routes asset creation through `game.assets` or `scene.assets`. Preserve `models.Animation`, 3D physics, and
   game-loop APIs working.
 - No `throw` from engine TypeScript paths compiled by Perry.
 - Declare every new FFI in the package manifest, keep arity within Perry's

@@ -23,21 +23,16 @@ Use `WorldData.serialize(document.document)` for a JSON representation or static
 ## Loading and instantiation
 
 ```ts
-import { Game, Model, WorldData } from '@bornengine/engine';
+import { Game, WorldData } from '@bornengine/engine';
 const game = new Game();
 const worldData = new WorldData('assets/worlds/main.world.json');
 if (!worldData.load()) {
   console.error(worldData.error || 'World load failed');
 } else {
-  const models = new Map<string, Model>();
   const instance = worldData.instantiate(game, {
     getModel(path) {
-      let model = models.get(path);
-      if (model === undefined) {
-        model = new Model(game, path);
-        models.set(path, model);
-      }
-      return model.isLoaded ? model : null;
+      const model = game.assets.loadModel(path);
+      return model !== null && model.isLoaded ? model : null;
     },
   });
   if (!instance.isLoaded) console.error(instance.error);

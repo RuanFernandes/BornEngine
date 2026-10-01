@@ -8,17 +8,18 @@ name = "bloom_android"
 crate-type = ["staticlib", "cdylib"]
 
 [features]
-default = ["jolt", "models3d", "image-extras"]
+default = ["mp3", "jolt", "models3d", "image-extras"]
+mp3 = ["bloom-shared/mp3"]
 jolt = ["bloom-shared/jolt"]
-# EN-014 — see native/shared/Cargo.toml. Default-on so existing games are
-# unaffected; pure-2D games opt out via Perry feature forwarding.
+# EN-014 — see native/shared/Cargo.toml. Default-on for direct Cargo builds;
+# BornEngine CLI profiles disable unused features for native game builds.
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras", "image/hdr"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
 
 [dependencies]
-bloom-shared = { path = "../shared", default-features = false, features = ["mp3"] }
+bloom-shared = { path = "../shared", default-features = false }
 image = { version = "0.25", default-features = false }
 raw-window-handle = "0.6"
 wgpu = "29"

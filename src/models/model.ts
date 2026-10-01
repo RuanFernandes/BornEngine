@@ -6,7 +6,7 @@ import type { BoundingBox, Color, Mat4, Vec3 } from '../core/types';
 
 type ModelData = { handle: number; meshCount: number; materialCount: number; transform: Mat4 };
 
-/** A game-owned model loaded from a supported asset file. */
+/** A 3D model loaded from a supported asset file and owned by an asset scope. */
 export class Model implements ContextResource {
   readonly error: string | null;
   readonly meshCount: number;
@@ -16,7 +16,10 @@ export class Model implements ContextResource {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(game: Game, readonly path: string) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, path: string): Model { return new Model(game, path); }
+
+  private constructor(game: Game, readonly path: string) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
@@ -95,7 +98,12 @@ export class Mesh implements ContextResource {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(game: Game, vertices: number[], indices: number[]) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, vertices: number[], indices: number[]): Mesh {
+    return new Mesh(game, vertices, indices);
+  }
+
+  private constructor(game: Game, vertices: number[], indices: number[]) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || vertices.length === 0 || indices.length === 0) {

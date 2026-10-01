@@ -8,14 +8,19 @@ import type { Color, Vec3 } from '../core/types';
 
 export type MaterialKind = 'opaque' | 'refractive' | 'transparent' | 'additive' | 'cutout';
 
-/** Compiled, game-owned GPU material. */
+/** Compiled GPU material owned by a Game or Scene asset scope. */
 export class Material implements ContextResource {
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(game: Game, readonly source: string, readonly kind: MaterialKind = 'opaque') {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, source: string, kind: MaterialKind = 'opaque'): Material {
+    return new Material(game, source, kind);
+  }
+
+  private constructor(game: Game, readonly source: string, readonly kind: MaterialKind = 'opaque') {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || source.length === 0) {

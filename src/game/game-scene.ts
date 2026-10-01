@@ -16,6 +16,14 @@ interface RenderEntry {
   sequence: number;
 }
 
+/** A snapshot of the objects and components currently attached to a scene. */
+export interface SceneStats {
+  objectCount: number;
+  activeObjectCount: number;
+  componentCount: number;
+  activeComponentCount: number;
+}
+
 function removeAt<T>(values: T[], index: number): void {
   for (let current = index; current + 1 < values.length; current++) {
     values[current] = values[current + 1];
@@ -38,6 +46,29 @@ export class GameScene implements ContextResource {
 
   get objects(): readonly GameObject[] {
     return this.sceneObjects.slice();
+  }
+
+  /** Counts all attached objects and components, including inactive ones. */
+  get stats(): SceneStats {
+    const objects = this.sceneObjects;
+    let activeObjectCount = 0;
+    let componentCount = 0;
+    let activeComponentCount = 0;
+    for (let objectIndex = 0; objectIndex < objects.length; objectIndex++) {
+      const object = objects[objectIndex];
+      if (object.activeInHierarchy) activeObjectCount++;
+      const components = object._componentsSnapshot();
+      componentCount += components.length;
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+        if (components[componentIndex].isActiveAndEnabled) activeComponentCount++;
+      }
+    }
+    return {
+      objectCount: objects.length,
+      activeObjectCount,
+      componentCount,
+      activeComponentCount,
+    };
   }
 
   add<T extends GameObject>(object: T): T | null {

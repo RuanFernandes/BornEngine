@@ -41,7 +41,7 @@ export class AudioSystem {
   }
 
   loadSound(path: string): Sound {
-    const sound = new Sound(this.game, path);
+    const sound = Sound._create(this.game, path);
     this.sounds.push(sound);
     return sound;
   }
@@ -52,7 +52,7 @@ export class AudioSystem {
     return this.trackSound(staged.commit());
   }
 
-  /** @internal Load or reuse a Game-owned sound for preload groups. */
+  /** @internal Load or reuse a sound asset for an asset-scope preload group. */
   async loadSharedSound(path: string): Promise<Sound> {
     for (let index = 0; index < this.sounds.length; index++) {
       const sound = this.sounds[index];
@@ -77,7 +77,7 @@ export class AudioSystem {
   }
 
   loadMusic(path: string): Music {
-    const music = new Music(this.game, path);
+    const music = Music._create(this.game, path);
     this.musics.push(music);
     return music;
   }
@@ -88,7 +88,7 @@ export class AudioSystem {
     return this.trackMusic(staged.commit());
   }
 
-  /** @internal Load or reuse a Game-owned music asset for preload groups. */
+  /** @internal Load or reuse a music asset for an asset-scope preload group. */
   async loadSharedMusic(path: string): Promise<Music> {
     for (let index = 0; index < this.musics.length; index++) {
       const music = this.musics[index];
@@ -170,6 +170,18 @@ export class AudioSystem {
 
   /** @internal */
   trackMusic(music: Music): Music { if (this.musics.indexOf(music) < 0) this.musics.push(music); return music; }
+
+  /** @internal Removes an asset when its owning scope releases it. */
+  untrackSound(sound: Sound): void {
+    const index = this.sounds.lastIndexOf(sound);
+    if (index >= 0) this.sounds.splice(index, 1);
+  }
+
+  /** @internal Removes an asset when its owning scope releases it. */
+  untrackMusic(music: Music): void {
+    const index = this.musics.lastIndexOf(music);
+    if (index >= 0) this.musics.splice(index, 1);
+  }
 
   dispose(): void {
     if (this.disposed) return;

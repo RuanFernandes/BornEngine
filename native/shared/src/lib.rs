@@ -2,6 +2,8 @@ pub mod string_header;
 pub mod ffi;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ffi_core;
+#[cfg(not(target_arch = "wasm32"))]
+mod physics_ffi_stubs;
 pub mod handles;
 pub mod input;
 pub mod renderer;

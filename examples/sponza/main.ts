@@ -6,7 +6,7 @@
 // Tests: shadows through columns, AO in arches, IBL on marble,
 // auto-exposure in bright courtyard vs shadowed corridors.
 
-import { Game, Key, Matrix4, Model, Mathf } from '@bornengine/engine';
+import { Game, Key, Matrix4, Mathf } from '@bornengine/engine';
 
 const SCREEN_W = 800;
 const SCREEN_H = 450;
@@ -143,12 +143,16 @@ game.renderer.setVignette(0.25, 0.25);
 game.renderer.setChromaticAberration(0.001);
 
 // ---- Load Sponza into scene graph ----
-const sponza = new Model(game, "assets/Sponza.glb");
+const sponza = game.assets.loadModel("assets/Sponza.glb");
 const identity = Matrix4.identity().toArray();
-for (let i = 0; sponza.isLoaded && i < sponza.meshCount; i = i + 1) {
-  const node = game.sceneGraph.createNode();
-  node.attachModel(sponza, i);
-  node.setTransform(identity);
+if (sponza === null || !sponza.isLoaded) {
+  console.error(sponza?.error || "Unable to load Sponza model.");
+} else {
+  for (let i = 0; i < sponza.meshCount; i = i + 1) {
+    const node = game.sceneGraph.createNode();
+    node.attachModel(sponza, i);
+    node.setTransform(identity);
+  }
 }
 
 // ---- Camera ----

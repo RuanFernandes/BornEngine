@@ -7,6 +7,18 @@ edition = "2021"
 name = "bloom_watchos"
 crate-type = ["staticlib"]
 
+[features]
+default = []
+# These no-op feature names keep the CLI's shared profile flags valid for this
+# target. watchOS renders its 3D path through SceneKit without Rust Jolt or the
+# filesystem hot-reload backend.
+mp3 = []
+jolt = []
+models3d = []
+image-extras = []
+hot-reload = []
+dev = ["hot-reload"]
+
 [dependencies]
 libc = "0.2"
 serde_json = "1"

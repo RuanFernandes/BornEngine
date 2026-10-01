@@ -9,7 +9,7 @@ import * as spriteOperations from '../sprites/internal';
 
 type TextureSource = string | ImageData | RenderTexture;
 
-/** A game-owned texture. Its native handle is kept private to the engine. */
+/** A texture resource owned by a Game or Scene asset scope. Its native handle stays private. */
 export class Texture implements ContextDrawable {
   readonly resourceKind = 'texture';
   readonly width: number;
@@ -21,7 +21,10 @@ export class Texture implements ContextDrawable {
   private renderTextureSource: RenderTexture | null = null;
   private readonly context: GameContext;
 
-  constructor(private readonly game: Game, source: TextureSource) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, source: TextureSource): Texture { return new Texture(game, source); }
+
+  private constructor(private readonly game: Game, source: TextureSource) {
     this.context = getGameContext(game);
     const context = this.context;
     let loaded: { handle: number; width: number; height: number } | null = null;

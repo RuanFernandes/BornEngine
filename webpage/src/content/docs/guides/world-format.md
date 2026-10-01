@@ -39,7 +39,7 @@ if (!validation.ok) {
 ```
 
 ```ts
-import { Game, Model, WorldData, WorldInstance } from '@bornengine/engine';
+import { Game, WorldData, WorldInstance } from '@bornengine/engine';
 
 class ExampleGame extends Game {
   world: WorldInstance | null = null;
@@ -54,19 +54,14 @@ class ExampleGame extends Game {
 }
 
 const game = new ExampleGame();
-const models = new Map<string, Model>();
 const worldData = new WorldData('assets/worlds/main.world.json');
 if (!worldData.load()) {
   console.error(worldData.error || 'World load failed');
 } else {
   const instance = worldData.instantiate(game, {
     getModel(path) {
-      let model = models.get(path);
-      if (model === undefined) {
-        model = new Model(game, path);
-        models.set(path, model);
-      }
-      return model.isLoaded ? model : null;
+      const model = game.assets.loadModel(path);
+      return model !== null && model.isLoaded ? model : null;
     },
   });
 

@@ -95,11 +95,11 @@ Components such as `SceneNodeComponent`, `RigidBodyComponent`, and `AudioSourceC
 `game.sceneGraph.createNode()` creates retained renderer nodes. Attach a Game-owned model and set node transforms or material values on the node instance; its native identity stays private.
 
 ```ts
-import { Game, Model } from '@bornengine/engine';
+import { Game } from '@bornengine/engine';
 const game = new Game();
-const statue = new Model(game, 'assets/statue.glb');
+const statue = game.assets.loadModel('assets/statue.glb');
 const node = game.sceneGraph.createNode({ name: 'Statue' });
-if (statue.isLoaded) node.attachModel(statue);
+if (statue !== null && statue.isLoaded) node.attachModel(statue);
 node.setTrs({ x: 0, y: 0, z: -5 }, 0, 1);
 ```
 

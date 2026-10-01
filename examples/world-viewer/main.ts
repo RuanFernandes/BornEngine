@@ -34,14 +34,13 @@ const game = new WorldViewerGame({
 });
 if (!game.isReady) throw new Error(game.error || 'Game startup failed');
 
-const modelCache = new Map<string, Model>();
 function getModel(path: string): Model | null {
-  const cached = modelCache.get(path);
-  if (cached !== undefined) return cached.isLoaded ? cached : null;
-  const model = new Model(game, path);
-  modelCache.set(path, model);
-  if (!model.isLoaded) console.error('world-viewer: ' + model.error);
-  return model.isLoaded ? model : null;
+  const model = game.assets.loadModel(path);
+  if (model === null || !model.isLoaded) {
+    console.error('world-viewer: ' + (model?.error || 'Unable to create model resource for ' + path));
+    return null;
+  }
+  return model;
 }
 
 let prefabs: PrefabLibrary | null = null;

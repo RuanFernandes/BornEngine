@@ -24,8 +24,8 @@ BornEngine 0.6 changes the public TypeScript surface to classes owned by a `Game
 | --- | --- |
 | `clearBackground(color)` | `game.renderer.clear(color)` |
 | `drawRect(...)`, `drawText(...)` | `game.renderer.drawRectangle(...)`, `game.renderer.drawText(...)` |
-| `loadTexture(path)` / `unloadTexture(texture)` | `new Texture(game, path)` / `texture.dispose()` |
-| `loadModel(path)` / `unloadModel(model)` | `new Model(game, path)` / `model.dispose()` |
+| `loadTexture(path)` / `unloadTexture(texture)` | `game.assets.loadTexture(path)` / `game.assets.releaseTexture(path)` |
+| `loadModel(path)` / `unloadModel(model)` | `game.assets.loadModel(path)` / `game.assets.releaseModel(path)` |
 | `loadSound(path)` / `playSound(sound)` | `game.audio.loadSound(path)` / `sound.play()` |
 | `loadMusic(path)` / `updateMusicStream(music)` | `game.audio.loadMusic(path)` / `game.audio.update(deltaTime)` |
 | `isKeyDown(key)` | `game.input.isKeyDown(key)` |

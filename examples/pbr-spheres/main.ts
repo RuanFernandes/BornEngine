@@ -14,7 +14,7 @@
 //   - Headless:    --camera px py pz tx ty tz fov --out path.png
 //                  (matches renderer-test's headless interface).
 
-import { Game, Mesh } from '@bornengine/engine';
+import { Game } from '@bornengine/engine';
 import type { Camera3D } from '@bornengine/engine';
 
 // ---- Scene parameters ----
@@ -134,8 +134,10 @@ function makeSphere(segs: number, rings: number): {
 }
 
 const sphereData = makeSphere(24, 16);
-const sphereMesh = new Mesh(game, sphereData.vertices, sphereData.indices);
-if (!sphereMesh.isLoaded) console.error(sphereMesh.error);
+const sphereMesh = game.assets.createMesh(sphereData.vertices, sphereData.indices);
+if (sphereMesh === null || !sphereMesh.isLoaded) {
+  console.error(sphereMesh?.error || 'Unable to create sphere mesh.');
+}
 
 // Build the grid. Roughness clamped away from exact 0 / 1 because
 // the GGX BRDF is undefined at zero roughness and the prefilter
@@ -145,7 +147,7 @@ if (!sphereMesh.isLoaded) console.error(sphereMesh.error);
 const ROUGH_MIN = 0.05;
 const ROUGH_MAX = 0.95;
 
-for (let row = 0; row < GRID_N; row = row + 1) {
+if (sphereMesh !== null && sphereMesh.isLoaded) for (let row = 0; row < GRID_N; row = row + 1) {
   // metallic varies along Y (top row = full metal)
   const metallic = (GRID_N - 1 - row) / (GRID_N - 1);
   for (let col = 0; col < GRID_N; col = col + 1) {

@@ -12,7 +12,10 @@ export class ImageData {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(private readonly game: Game, readonly path: string) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, path: string): ImageData { return new ImageData(game, path); }
+
+  private constructor(game: Game, readonly path: string) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
@@ -41,8 +44,6 @@ export class ImageData {
 
   flipHorizontal(): boolean { if (!this.isLoaded) return false; operations.imageFlipH(this.handleValue); return true; }
   flipVertical(): boolean { if (!this.isLoaded) return false; operations.imageFlipV(this.handleValue); return true; }
-  createTexture(): Texture { return new Texture(this.game, this); }
-
   dispose(): void {
     if (this.disposed) return;
     // The current native ABI has no image-data release operation.

@@ -3,6 +3,7 @@ export type { GameComponentType } from './game-component';
 export { GameObject } from './game-object';
 export type { GameObjectOptions, ParentOptions } from './game-object';
 export { GameScene } from './game-scene';
+export type { SceneStats } from './game-scene';
 export { Scene } from './scene';
 export type { SceneState, SceneOptions, SceneOwnedResource } from './scene';
 export { SceneManager } from './scene-manager';

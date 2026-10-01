@@ -5,7 +5,7 @@ import { Colors } from '../core/colors';
 import type { Color, Vector2DLike } from '../core/types';
 import { Texture } from './texture';
 
-/** Game-owned offscreen target. Rendering into it is controlled by Renderer. */
+/** Offscreen target owned by a Game or Scene asset scope. Renderer controls its contents. */
 export class RenderTexture implements ContextDrawable {
   readonly resourceKind = 'render-texture';
   readonly error: string | null;
@@ -14,7 +14,12 @@ export class RenderTexture implements ContextDrawable {
   private textureValue: Texture | null = null;
   private readonly context: GameContext;
 
-  constructor(private readonly game: Game, readonly width: number, readonly height: number) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, width: number, height: number): RenderTexture {
+    return new RenderTexture(game, width, height);
+  }
+
+  private constructor(private readonly game: Game, readonly width: number, readonly height: number) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || width <= 0 || height <= 0) {
@@ -30,7 +35,7 @@ export class RenderTexture implements ContextDrawable {
   get isDisposed(): boolean { return this.disposed; }
 
   get texture(): Texture {
-    if (this.textureValue === null) this.textureValue = new Texture(this.game, this);
+    if (this.textureValue === null) this.textureValue = Texture._create(this.game, this);
     return this.textureValue;
   }
 
@@ -68,6 +73,8 @@ export class RenderTexture implements ContextDrawable {
     if (this.disposed) return;
     this.context.endRenderTarget(this);
     if (this.handleValue !== 0) operations.unloadRenderTexture(this.handleValue);
+    if (this.textureValue !== null) this.textureValue.dispose();
+    this.textureValue = null;
     this.handleValue = 0;
     this.disposed = true;
     this.context.unregister(this);

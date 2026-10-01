@@ -69,14 +69,18 @@ class Window {
 }
 let platform = 1;
 let webFrame;
+let clockSeconds = 0;
 const sandbox = {
   GameContext: Context, CONTEXT_ALREADY_ACTIVE_ERROR: 'active',
   bindGameContext: (g,c) => contexts.set(g,c), getGameContext: g => contexts.get(g),
   Window, Renderer: Service, InputSystem, AudioSystem: Service,
-  SceneManager, SceneGraph, TouchControls: Service,
+  SceneManager: class SceneManager extends Service { constructor(...args) { super(...args); this.currentScene = null; } },
+  SceneGraph, TouchControls: Service,
   Ui: Service, DebugUi: Service, GameInspector: Service, AssetManager: Service,
+  ScriptRuntime: Service,
   beginDrawing: () => events.push('begin'), endDrawing: () => events.push('end'),
   getPlatform: () => platform, Platform: {WEB:7}, setTargetFPS: () => {},
+  getTime: () => { clockSeconds += 0.005; return clockSeconds; },
   runGame: (frame, shouldContinue) => {
     if (platform === 7) { webFrame = frame; return; }
     let count = 0;
@@ -153,6 +157,12 @@ async function main() {
   await completion;
   assert.equal(game.starts, 1); assert.equal(game.stops, 1);
   assert.deepEqual(events.filter(x => ['start','loop','render','stop'].includes(x)), ['start','loop','render','stop']);
+  const stats = game.stats;
+  assert.ok(Math.abs(stats.frameTimeMs - (1000 / 60)) < 0.001, 'Game.stats reports frame delta in milliseconds');
+  assert.ok(Math.abs(stats.updateTimeMs - 5) < 0.001, 'Game.stats measures update time with the monotonic engine clock');
+  assert.ok(Math.abs(stats.renderTimeMs - 5) < 0.001, 'Game.stats measures render time with the monotonic engine clock');
+  assert.deepEqual([stats.objectCount, stats.activeObjectCount, stats.componentCount, stats.activeComponentCount], [0, 0, 0, 0],
+    'Game.stats reports zero scene counts without an active scene');
   assert.equal(game.isDisposed, true, 'completion follows disposal');
   game.stop(); game.dispose(); assert.equal(game.stops, 1);
   class SavesControls extends Game {

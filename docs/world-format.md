@@ -123,10 +123,10 @@ if (!data.load()) {
     getModel(path) {
       let model = models.get(path);
       if (model === undefined) {
-        model = new Model(game, path);
-        models.set(path, model);
+        model = game.assets.loadModel(path) ?? undefined;
+        if (model !== undefined) models.set(path, model);
       }
-      return model.isLoaded ? model : null;
+      return model !== undefined && model.isLoaded ? model : null;
     },
     prefabs: null,
   });

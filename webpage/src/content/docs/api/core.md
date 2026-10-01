@@ -15,15 +15,15 @@ Override `onStart`, `loop`, and `render`, then call `run()` with no arguments. `
 import { Colors, Game, Texture } from '@bornengine/engine';
 
 class Undertale extends Game {
-  private readonly player: Texture;
+  private player: Texture | null = null;
 
   constructor() {
     super({ window: { title: 'Undertale', width: 800, height: 450 } });
-    this.player = new Texture(this, 'assets/player.png');
   }
 
   protected override onStart(): void {
     console.log('The game is ready.');
+    this.player = this.assets.loadTexture('assets/player.png');
   }
 
   protected override loop(_deltaTime: number): void {
@@ -32,7 +32,7 @@ class Undertale extends Game {
 
   protected override render(): void {
     this.renderer.clear(Colors.SNOW);
-    if (this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+    if (this.player !== null && this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
   }
 
   protected override onStop(): void {
@@ -43,7 +43,7 @@ class Undertale extends Game {
 new Undertale().run();
 ```
 
-Resources such as `Texture` still receive the owning Game explicitly. Inside a subclass, pass `this`; this keeps native ownership visible and prevents a resource from silently attaching to another runtime. The subclass lifecycle disposes the Game after `onStop`. `run()` returns a Promise that resolves after shutdown and cleanup; lifecycle failures are recorded in `game.error` and do not reject that Promise. If a lifecycle hook fails, the loop shuts down, runs `onStop`, and releases owned resources. Inspect `game.error` after awaiting completion.
+Create shared resources through `game.assets` and per-level resources through `scene.assets`. The owning scope checks runtime ownership and releases native state when its lifetime ends. The subclass lifecycle disposes the Game after `onStop`. `run()` returns a Promise that resolves after shutdown and cleanup; lifecycle failures are recorded in `game.error` and do not reject that Promise. If a lifecycle hook fails, the loop shuts down, runs `onStop`, and releases owned resources. Inspect `game.error` after awaiting completion.
 
 `runFrame(deltaTime, callbacks)` is for embedded hosts that own the native surface and frame scheduler. Standalone games should override the `Game` hooks and call `run()` with no callback object.
 

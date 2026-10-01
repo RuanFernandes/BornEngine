@@ -13,10 +13,10 @@ MyGame/
 ├── package.json            # engine dependency and project scripts
 ├── <lockfile>              # npm, pnpm, or Yarn resolution
 ├── assets/                 # textures, sounds, fonts, models, worlds
-└── perry.native.json       # generated native-library allowlist
+└── perry.toml              # Perry entry plus BornEngine native profile
 ```
 
-The exact generated files can vary with the selected package manager and Perry version. Use `bornengine info` to inspect the resolved project and toolchain instead of assuming a global engine install.
+The CLI writes Perry's native-library allowlist to `package.json` and stores the BornEngine profile under `[bornengine].native_profile` in `perry.toml`. `bornengine build`, `run`, and `dev` apply the selected features to the native engine crate; `dev` also enables native hot reload. Direct Perry commands use the package's default features. The Web target currently uses a prebuilt WASM package and is not profile-pruned. The exact lockfile name varies with the selected package manager. Use `bornengine info` to inspect the resolved project and toolchain instead of assuming a global engine install.
 
 ## Generated build directories
 

@@ -185,21 +185,30 @@ examples/
 
 ## Runtime ownership
 
-Create one `Game` for the active runtime. Stateful resources are constructed with that owner, keep their native handles private, and expose lifecycle state directly:
+Create one `Game` for the active runtime. Its asset scope owns shared textures and models, keeps native handles private, and exposes load state directly:
 
 ~~~typescript
-import { Game, Model, Texture, Vec3 } from "@bornengine/engine";
+import { Game, Vec3 } from "@bornengine/engine";
+import type { Model, Texture } from "@bornengine/engine";
 
-const game = new Game({ window: { title: "Adventure", width: 1280, height: 720 } });
-const hero = new Texture(game, "assets/hero.png");
-const world = new Model(game, "assets/world.glb");
+class Adventure extends Game {
+  hero: Texture | null = null;
+  world: Model | null = null;
+
+  protected override onStart(): void {
+    this.hero = this.assets.loadTexture("assets/hero.png");
+    this.world = this.assets.loadModel("assets/world.glb");
+  }
+}
+
+const game = new Adventure({ window: { title: "Adventure", width: 1280, height: 720 } });
 const spawn = new Vec3(0, 1, -4);
 
-if (!hero.isLoaded) console.error(hero.error);
-if (!world.isLoaded) console.error(world.error);
+if (game.hero !== null && !game.hero.isLoaded) console.error(game.hero.error);
+if (game.world !== null && !game.world.isLoaded) console.error(game.world.error);
 ~~~
 
-Value types such as vectors, colors, rectangles, and camera descriptions stay lightweight. `Game.dispose()` releases any still-owned runtime resources.
+Use `scene.assets` for resources that should be released when a level unloads. Value types such as vectors, colors, rectangles, and camera descriptions stay lightweight. `Game.dispose()` releases its shared asset cache and other runtime resources.
 
 ## Fullscreen
 
@@ -224,27 +233,31 @@ The initial window dimensions are restored when leaving fullscreen where the pla
 BornEngine supports GPU-accelerated skeletal animation from glTF/GLB models. The pipeline uses four-bone linear blend skinning and a 128-joint uniform buffer.
 
 ~~~typescript
-import { Animation, Colors, Game, Model } from "@bornengine/engine";
+import { Colors, Game } from "@bornengine/engine";
+import type { Animation, Model } from "@bornengine/engine";
+
+let character: Model | null = null;
+let animation: Animation | null = null;
 
 class ExampleGame extends Game {
   protected override loop(deltaTime: number): void {
-    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
+    if (animation !== null && animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
   }
 
   protected override render(): void {
     this.renderer.clear(Colors.SKYBLUE);
-    if (character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: 0 });
+    if (character !== null && character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: 0 });
   }
 }
 
 const game = new ExampleGame({ window: { title: "Animation Demo" } });
-const character = new Model(game, "assets/models/character.glb");
-const animation = new Animation(game, "assets/models/character.glb");
+character = game.assets.loadModel("assets/models/character.glb");
+animation = game.assets.createAnimation("assets/models/character.glb");
 
 game.run();
 ~~~
 
-Create animation resources with their Game, play a clip with `animation.play(index)`, and update them before drawing. See the [skeletal animation guide](docs/skeletal-animation.md) for the Blender export pipeline.
+Create models and animation controllers through `game.assets`, play a clip with `animation.play(index)`, and update it before drawing. See the [skeletal animation guide](docs/skeletal-animation.md) for the Blender export pipeline.
 
 ## Built with the original Bloom Engine
 

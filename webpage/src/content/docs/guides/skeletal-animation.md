@@ -8,23 +8,27 @@ order: 61
 BornEngine supports GPU-accelerated skeletal animation from glTF/GLB files. The current path uses four-bone linear blend skinning and a 128-joint uniform buffer.
 
 ```ts
-import { Animation, Colors, Game, Model } from '@bornengine/engine';
+import { Colors, Game } from '@bornengine/engine';
+import type { Animation, Model } from '@bornengine/engine';
+
+let character: Model | null = null;
+let animation: Animation | null = null;
 
 class ExampleGame extends Game {
   protected override loop(deltaTime: number): void {
-    if (animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
+    if (animation !== null && animation.isLoaded) animation.update(deltaTime, { x: 0, y: 0, z: 0 });
   }
 
   protected override render(): void {
     this.renderer.clear(Colors.BLACK);
-    if (character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: 0 });
+    if (character !== null && character.isLoaded) character.draw(this.renderer, { x: 0, y: 0, z: 0 });
   }
 }
 
 const game = new ExampleGame({ window: { title: 'Animation demo' } });
-const character = new Model(game, 'assets/models/character.glb');
-const animation = new Animation(game, 'assets/models/character.glb');
-if (animation.isLoaded) animation.play(0);
+character = game.assets.loadModel('assets/models/character.glb');
+animation = game.assets.createAnimation('assets/models/character.glb');
+if (animation !== null && animation.isLoaded) animation.play(0);
 
 game.run();
 ```

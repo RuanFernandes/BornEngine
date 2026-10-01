@@ -213,11 +213,19 @@ function modelReference(model: Model | Mesh, meshCount: number, materialCount = 
   return { handle: model.isLoaded ? managedModelCount : 0, meshCount, materialCount, transform: Matrix4.identity().toArray() };
 }
 function createTestMesh(vertices: number[], indices: number[]): ModelReference {
-  const mesh = new Mesh(game, vertices, indices);
+  const mesh = game.assets.createMesh(vertices, indices);
+  if (mesh === null) {
+    console.error('Unable to create test mesh.');
+    return { handle: 0, meshCount: 0, materialCount: 0, transform: Matrix4.identity().toArray() };
+  }
   return modelReference(mesh, 1);
 }
 function loadTestModel(path: string): ModelReference {
-  const model = new Model(game, path);
+  const model = game.assets.loadModel(path);
+  if (model === null) {
+    console.error('Unable to create model resource: ' + path);
+    return { handle: 0, meshCount: 0, materialCount: 0, transform: Matrix4.identity().toArray() };
+  }
   return modelReference(model, model.meshCount, model.materialCount);
 }
 function attachTestModel(nodeHandle: number, modelHandle: number, meshIndex = 0): void {

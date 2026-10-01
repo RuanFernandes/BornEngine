@@ -323,8 +323,19 @@ impl ParticleManager {
     pub fn new() -> Self { Self { systems: Vec::new() } }
 
     pub fn create(&mut self, capacity: usize, instance_buffer: u32) -> u32 {
+        for (index, slot) in self.systems.iter_mut().enumerate() {
+            if slot.is_none() {
+                *slot = Some(ParticleSystem::new(capacity, instance_buffer));
+                return index as u32 + 1;
+            }
+        }
         self.systems.push(Some(ParticleSystem::new(capacity, instance_buffer)));
         self.systems.len() as u32
+    }
+
+    pub fn destroy(&mut self, handle: u32) -> Option<ParticleSystem> {
+        if handle == 0 { return None; }
+        self.systems.get_mut(handle as usize - 1)?.take()
     }
 
     pub fn get_mut(&mut self, handle: u32) -> Option<&mut ParticleSystem> {
@@ -363,6 +374,23 @@ mod tests {
         s.emit([0.0; 3], [0.0, 1.0, 0.0], 500);
         assert_eq!(s.live, 64);
         assert_eq!(s.update(0.016), 64);
+    }
+
+    #[test]
+    fn destroy_releases_system_and_reuses_its_handle_slot() {
+        let mut manager = ParticleManager::new();
+        let first = manager.create(16, 1);
+        let second = manager.create(32, 2);
+
+        let destroyed = manager.destroy(first).unwrap();
+        assert_eq!(destroyed.capacity, 16);
+        assert!(manager.get_mut(first).is_none());
+
+        let reused = manager.create(64, 3);
+        assert_eq!(reused, first);
+        assert_eq!(manager.get_mut(reused).unwrap().capacity, 64);
+        assert_eq!(manager.get_mut(second).unwrap().capacity, 32);
+        assert!(manager.destroy(0).is_none());
     }
 
     #[test]

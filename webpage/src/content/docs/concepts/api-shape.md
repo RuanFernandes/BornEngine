@@ -5,21 +5,20 @@ section: Concepts
 order: 11
 ---
 
-BornEngine uses a class-first TypeScript API. Extend `Game` to keep startup, simulation, and rendering with the services they use. The runtime exposes `renderer`, `input`, `audio`, `scenes`, and `sceneGraph` on the same instance. Resource constructors receive that owner so the engine can validate ownership and release native state safely.
+BornEngine uses a class-first TypeScript API. Extend `Game` to keep startup, simulation, and rendering with the services they use. The runtime exposes `renderer`, `input`, `audio`, `scenes`, and `sceneGraph` on the same instance. Create shared resources through `game.assets`; create scene-lifetime resources through `scene.assets` and effects through `scene.vfx`.
 
 ```ts
 import { Colors, Game, Texture } from '@bornengine/engine';
 
 class SpriteGame extends Game {
-  private readonly player: Texture;
+  private player: Texture | null = null;
 
   constructor() {
     super({ window: { title: 'Sprite demo' } });
-    this.player = new Texture(this, 'assets/player.png');
   }
 
   protected override onStart(): void {
-    // Prepare game-specific systems here.
+    this.player = this.assets.loadTexture('assets/player.png');
   }
 
   protected override loop(deltaTime: number): void {
@@ -28,7 +27,7 @@ class SpriteGame extends Game {
 
   protected override render(): void {
     this.renderer.clear(Colors.BLACK);
-    if (this.player.isLoaded) this.player.draw({ x: 100, y: 120 });
+    if (this.player !== null && this.player.isLoaded) this.player.draw({ x: 100, y: 120 });
   }
 }
 
@@ -39,7 +38,7 @@ new SpriteGame().run();
 
 ## Ownership
 
-A `Game` is the root owner for one engine context. Today the native runtime is process-global, so only one active `Game` can run at a time. Services and resources created for another game are rejected instead of silently crossing runtime boundaries.
+A `Game` is the root owner for one engine context. Today the native runtime is process-global, so only one active `Game` can run at a time. Services and resources created for another game are rejected instead of silently crossing runtime boundaries. Game asset scopes live until shutdown; Scene scopes release their resources on unload.
 
 ## Classes and values
 

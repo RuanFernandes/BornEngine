@@ -10,7 +10,10 @@ export class Animation implements ContextResource {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(game: Game, readonly path: string) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, path: string): Animation { return new Animation(game, path); }
+
+  private constructor(game: Game, readonly path: string) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {

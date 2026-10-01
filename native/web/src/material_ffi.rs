@@ -615,6 +615,14 @@ pub fn bloom_particles_clear(sys: f64) {
 }
 
 #[wasm_bindgen]
+pub fn bloom_particles_destroy(sys: f64) {
+    let eng = engine();
+    if let Some(system) = eng.particles.destroy(sys as u32) {
+        eng.renderer.destroy_instance_buffer(system.instance_buffer);
+    }
+}
+
+#[wasm_bindgen]
 pub fn bloom_particles_live(sys: f64) -> f64 {
     engine().particles.get_mut(sys as u32).map(|s| s.live as f64).unwrap_or(0.0)
 }
