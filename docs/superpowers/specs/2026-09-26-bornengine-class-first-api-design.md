@@ -86,7 +86,7 @@ const game = new Game({
   targetFps: 60,
 });
 
-const playerTexture = new Texture(game, 'assets/player.png');
+const playerTexture = game.assets.loadTexture('assets/player.png');
 const scene = new GameScene(game);
 scene.add(new GameObject({ name: 'Player' }));
 game.scenes.changeTo(scene);

@@ -1332,3 +1332,6 @@ fn bloom_jolt_ffi_physics() -> JoltEngineGuard {
 
 #[cfg(feature = "jolt")]
 bloom_shared::define_physics_ffi!();
+
+#[cfg(not(feature = "jolt"))]
+bloom_shared::define_physics_ffi_stubs!();

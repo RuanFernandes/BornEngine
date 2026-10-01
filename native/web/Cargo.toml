@@ -7,10 +7,12 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-# Mirror native/macos: everything defaults ON so existing web games are
-# unaffected; pure-2D games opt out via Perry's per-package feature
-# forwarding (see native/shared/Cargo.toml for the EN-014 rationale).
+# Mirror native/macos: direct Cargo builds include all engine features. The
+# published Web target uses a prebuilt WASM package, so BornEngine CLI native
+# profiles do not change that artifact.
 default = ["jolt", "models3d", "image-extras"]
+# Retained for shared profile naming; MP3 decoding is unsupported in WASM.
+mp3 = []
 jolt = ["bloom-shared/jolt"]
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]

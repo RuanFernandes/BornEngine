@@ -204,9 +204,9 @@ macro_rules! __bloom_ffi_vfx {
         #[no_mangle]
         pub extern "C" fn bloom_particles_configure(sys: f64) {
             $crate::ffi::guard("bloom_particles_configure", move || {
-                let mut eng = engine();
                 #[cfg(feature = "models3d")]
                 {
+                    let mut eng = engine();
                     let $crate::engine::EngineState { models, particles, .. } = &mut *eng;
                     let params: Vec<f32> = models.scratch_f32.clone();
                     models.mesh_scratch_reset();
@@ -279,6 +279,16 @@ macro_rules! __bloom_ffi_vfx {
             $crate::ffi::guard("bloom_particles_clear", move || {
                 if let Some(s) = engine().particles.get_mut(sys as u32) { s.clear(); }
         })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_particles_destroy(sys: f64) {
+            $crate::ffi::guard("bloom_particles_destroy", move || {
+                let mut eng = engine();
+                if let Some(system) = eng.particles.destroy(sys as u32) {
+                    eng.renderer.destroy_instance_buffer(system.instance_buffer);
+                }
+            })
         }
 
         #[no_mangle]

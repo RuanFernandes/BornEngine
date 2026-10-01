@@ -5,14 +5,17 @@ import { Vector2D } from '../math/vector2d';
 import type { Renderer } from '../core/renderer';
 import type { Color, Vector2DLike } from '../core/types';
 
-/** A game-owned font resource. Draw it through the owning Renderer. */
+/** Font resource owned by a Game or Scene asset scope. Draw it through the owning Renderer. */
 export class Font implements ContextResource {
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(game: Game, readonly path: string, readonly size: number) {
+  /** @internal Resource construction is routed through an asset scope. */
+  static _create(game: Game, path: string, size: number): Font { return new Font(game, path, size); }
+
+  private constructor(game: Game, readonly path: string, readonly size: number) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || size <= 0) {

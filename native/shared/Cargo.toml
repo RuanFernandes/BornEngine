@@ -13,10 +13,9 @@ jolt = []
 # the dep tree entirely.
 hot-reload = ["dep:notify"]
 web = ["dep:web-time"]
-# EN-014 — 3D model loading (glTF + DDS) and the ModelManager. Pure-2D
-# games disable this via Perry's `[native-library."<pkg>"]` feature
-# forwarding to drop gltf/gltf_json/image_dds from the binary entirely.
-# Default-on so existing 3D games are unaffected.
+# EN-014 — 3D model loading (glTF + DDS) and the ModelManager. BornEngine
+# CLI native profiles disable this for 2D games, dropping gltf/gltf_json and
+# image_dds from the native dependency graph. Default-on for direct Cargo builds.
 models3d = ["dep:gltf", "dep:image_dds"]
 # EN-014 — image codecs beyond PNG. `image::load_from_memory` is
 # format-agnostic, so disabling this only changes which file formats

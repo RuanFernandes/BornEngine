@@ -22,12 +22,15 @@ The inspector draws after the game's render hook through the Dear ImGui debug su
 
 ## Desktop feature
 
-Dear ImGui is opt-in on native desktop targets. Add `debug-ui` to the engine features in your project's existing `perry.toml` configuration:
+Dear ImGui is opt-in on native desktop targets. Add `debug-ui` to the BornEngine CLI's native feature list in `perry.toml`. Keep the selected game profile; this example shows a 2D project:
 
 ```toml
-[native-library."@bornengine/engine"]
-features = ["debug-ui"]
+[bornengine]
+native_profile = "2d"
+native_features = ["debug-ui"]
 ```
+
+Build with `bornengine build`, `run`, or `dev` so the CLI forwards both the profile and extra feature to the Rust crate. This setting does not affect direct Perry commands or the prebuilt Web/WASM package.
 
 Check `game.debugUi.isAvailable()` before drawing custom panels. On other targets, or when the desktop feature is off, it returns `false`; gameplay can keep using the same `Game` options without platform checks.
 

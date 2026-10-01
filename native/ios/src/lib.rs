@@ -1334,3 +1334,6 @@ fn bloom_jolt_ffi_physics() -> &'static mut bloom_shared::physics_jolt::JoltPhys
 
 #[cfg(feature = "jolt")]
 bloom_shared::define_physics_ffi!();
+
+#[cfg(not(feature = "jolt"))]
+bloom_shared::define_physics_ffi_stubs!();

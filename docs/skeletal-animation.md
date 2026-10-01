@@ -134,19 +134,19 @@ Joint matrices are written to the GPU in `end_frame()` via `flush_joint_matrices
 
 ## TypeScript API
 
-`Model` and `Animation` instances belong to one `Game`. Create them after the game is ready, inspect load failures, and dispose them when their scene ends. `Game.dispose()` also releases every remaining game-owned resource.
+`Model` and `Animation` instances belong to one `Game`. Create them through `game.assets` after the game is ready, inspect load failures, and dispose them when their scene ends. Use `scene.assets` for scene-local ownership; `Game.dispose()` releases every remaining game-owned resource.
 
 ### Load a model and animation
 
 ```typescript
-import { Animation, Game, Model } from "@bornengine/engine";
+import { Game } from "@bornengine/engine";
 
 const game = new Game({ window: { title: "Animation Demo" } });
-const model = new Model(game, "assets/models/character.glb");
-const animation = new Animation(game, "assets/models/character.glb");
+const model = game.assets.loadModel("assets/models/character.glb");
+const animation = game.assets.createAnimation("assets/models/character.glb");
 
-if (!model.isLoaded) console.error(model.error);
-if (!animation.isLoaded) console.error(animation.error);
+if (model === null || !model.isLoaded) console.error(model?.error || "Unable to load model.");
+if (animation === null || !animation.isLoaded) console.error(animation?.error || "Unable to load animation.");
 ```
 
 ### Control animation
@@ -174,23 +174,23 @@ if (animation.isFinished()) console.log("clip finished");
 Use the owning renderer or the model convenience method. Pass the same scale to animation update and model drawing when the animation pose incorporates scale. `Game.run()` handles frame completion and submits the staged joint matrices after rendering.
 
 ```typescript
-import { Animation, Colors, Game, Model } from "@bornengine/engine";
+import { Colors, Game } from "@bornengine/engine";
 
 class ExampleGame extends Game {
   protected override loop(deltaTime: number): void {
-    if (animation.isLoaded) animation.update(deltaTime, position, 1);
+    if (animation !== null && animation.isLoaded) animation.update(deltaTime, position, 1);
   }
 
   protected override render(): void {
     this.renderer.clear(Colors.SKYBLUE);
-    if (model.isLoaded) model.draw(this.renderer, position, 1, Colors.WHITE);
+    if (model !== null && model.isLoaded) model.draw(this.renderer, position, 1, Colors.WHITE);
   }
 }
 
 const game = new ExampleGame({ window: { title: "Animation Demo", width: 800, height: 600 } });
-const model = new Model(game, "assets/models/character.glb");
-const animation = new Animation(game, "assets/models/character.glb");
-if (animation.isLoaded) animation.play(0);
+const model = game.assets.loadModel("assets/models/character.glb");
+const animation = game.assets.createAnimation("assets/models/character.glb");
+if (animation !== null && animation.isLoaded) animation.play(0);
 
 const position = { x: 0, y: 0, z: 0 };
 game.run();
@@ -386,8 +386,8 @@ See `scripts/export_mixamo_glb.py` for full documentation.
 ### TypeScript (API surface)
 
 - **`src/models/index.ts`** -- Public API:
-  - `new Model(game, path)` loads a drawable model and exposes `isLoaded`, `error`, mesh/material counts, and bounds.
-  - `new Animation(game, path)` creates an animation controller with private native identity and inspectable load state.
+  - `game.assets.loadModel(path)` loads a drawable model and exposes `isLoaded`, `error`, mesh/material counts, and bounds.
+  - `game.assets.createAnimation(path)` creates an animation controller with private native identity and inspectable load state.
   - `Animation.play()`, `setLayer()`, and `setRootMotion()` configure playback; `update(deltaTime, position, scale, rotationY)` advances the pose.
   - `Animation.findJoint()`, `getJointWorldTransformComponent()`, `getClipDuration()`, and `getRootMotionDelta()` query the active animation.
   - `Model.draw(renderer, position, scale, tint)` submits the model through its owning renderer.

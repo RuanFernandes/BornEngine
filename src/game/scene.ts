@@ -6,6 +6,8 @@ import type { PhysicsWorld } from '../physics';
 import type { Camera2D } from '../core/types';
 import type { CameraRig2D } from '../camera2d/camera-rig-2d';
 import type { Viewport2D } from '../camera2d/viewport-2d';
+import { SceneAssetManager } from '../assets/asset-manager';
+import { SceneVfx } from '../vfx/scene-vfx';
 
 export type SceneState = 'ready' | 'active' | 'paused' | 'unloaded';
 
@@ -34,6 +36,8 @@ function removeAt<T>(values: T[], index: number): void {
 
 export class Scene extends GameScene {
   readonly name: string;
+  readonly assets: SceneAssetManager;
+  readonly vfx: SceneVfx;
   viewport2D: Viewport2D | null = null;
   private cameraValue: Camera2D | null = null;
   private fallbackCameraValue: Camera2D | null = null;
@@ -50,6 +54,8 @@ export class Scene extends GameScene {
   constructor(owner: Game, options: SceneOptions = {}) {
     super(owner);
     this.name = options.name === undefined ? '' : options.name;
+    this.assets = new SceneAssetManager(owner);
+    this.vfx = new SceneVfx(owner, this);
   }
 
   get camera2D(): Camera2D | null {
@@ -115,6 +121,8 @@ export class Scene extends GameScene {
     this.invokeLifecycleHook('unload');
 
     super.destroy();
+    this.vfx.dispose();
+    this.assets.dispose();
 
     if (this.boundCameraRig !== null) {
       this.cameraValue = this.fallbackCameraValue;
@@ -187,6 +195,7 @@ export class Scene extends GameScene {
   /** @internal Advances scene-owned resources from the manager's frame loop. */
   _updateOwnedResources(dt: number): void {
     if (this.currentState !== 'active' && this.currentState !== 'paused') return;
+    this.vfx.update(dt);
     const resources = this.ownedResources.slice();
     for (let index = 0; index < resources.length; index++) {
       if (this.isUnloaded()) return;
@@ -220,5 +229,10 @@ export class Scene extends GameScene {
 
   private isUnloaded(): boolean {
     return this.currentState === 'unloaded';
+  }
+
+  /** @internal Scoped managers use this to reject allocations during unload. */
+  _canCreateScopedResources(): boolean {
+    return !this.unloading && this.currentState !== 'unloaded';
   }
 }

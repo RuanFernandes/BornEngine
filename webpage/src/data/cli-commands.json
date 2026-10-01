@@ -16,7 +16,7 @@
     "title": "Create a project non-interactively",
     "summary": "Scaffold a project from a script or CI job.",
     "synopsis": "bornengine new <project-name> [--package-manager <pnpm|npm|yarn>] [--engine-version <version>] [--engine-path <path>]",
-    "examples": ["bornengine new MyGame --package-manager npm --engine-version 0.8.0"],
+    "examples": ["bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.12.0"],
     "options": ["--package-manager <pnpm|npm|yarn>, --pm <pnpm|npm|yarn>", "--engine-version <version>, -e <version>", "--engine-path <path>, --engine <path>", "-v, --verbose (repeatable)"],
     "behavior": "Uses explicit arguments instead of prompts and refuses to overwrite populated or conflicting files.",
     "related": ["/docs/cli/project/", "/docs/getting-started/quickstart/"]
@@ -181,7 +181,7 @@
     "title": "Install an engine version",
     "summary": "Install a BornEngine engine release for later selection.",
     "synopsis": "bornengine engine install [version]",
-    "examples": ["bornengine engine install 0.8.0", "bornengine engine install"],
+    "examples": ["bornengine engine install 0.12.0", "bornengine engine install"],
     "options": ["[version] selects a release; omit it for the CLI's default", "-v, --verbose (repeatable)"],
     "behavior": "Adds an engine version to the local engine store. Installation does not implicitly rewrite the project's selected version.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]
@@ -225,7 +225,7 @@
     "title": "Select an engine source",
     "summary": "Choose an installed version or a local engine path for the project.",
     "synopsis": "bornengine engine use <version-or-path>",
-    "examples": ["bornengine engine use 0.8.0", "bornengine engine use ../BornEngine"],
+    "examples": ["bornengine engine use 0.12.0", "bornengine engine use ../BornEngine"],
     "options": ["<version-or-path> can identify an installed release or local path", "-v, --verbose (repeatable)"],
     "behavior": "Changes the engine source used by subsequent project commands.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]

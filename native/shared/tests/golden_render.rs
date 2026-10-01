@@ -382,6 +382,7 @@ fn golden_lod_selection() {
 }
 
 #[test]
+#[cfg(feature = "image-extras")]
 fn cooked_bc7_texture_matches_raw() {
     let Some(mut eng) = try_engine() else {
         eprintln!("skip: no GPU adapter");

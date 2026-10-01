@@ -16,18 +16,18 @@ cd MyGame
 bornengine run main.ts
 ```
 
-`create` asks for the project name, package manager, and stable engine version from npm. It writes the starter files, installs the selected engine package, and creates the package-manager lockfile.
+`create` asks for the project name, game profile, package manager, and stable engine version from npm. It writes the starter files and a BornEngine native Rust profile in `perry.toml`, installs the selected engine package, and creates the package-manager lockfile. Choose 2D, 2.5D, or 3D based on the rendering and physics features your game needs. Use `bornengine build`, `run`, or `dev` to apply that profile to the native Rust build.
 
 ## Scriptable setup
 
 For repeatable scripts or CI, use `new`:
 
 ```sh
-bornengine new MyGame --package-manager npm --engine-version 0.8.0
+bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.12.0
 bornengine build main.ts --name my-game --os linux
 ```
 
-`new` is the non-interactive path. Scaffolding refuses to overwrite a populated or conflicting directory.
+`new` is the non-interactive path. `--game-type` accepts `2d`, `2.5d`, or `3d` and defaults to `2d`; it writes `[bornengine].native_profile` in `perry.toml`. The BornEngine CLI applies that profile when it builds the engine's native Rust crate. The Web target currently uses a prebuilt WASM package, so its artifact is not reduced by this setting. Scaffolding refuses to overwrite a populated or conflicting directory.
 
 ## The first source file
 
@@ -37,7 +37,7 @@ A `Game` subclass owns the application lifecycle. Put startup, simulation, and r
 import { Colors, Game, Texture } from '@bornengine/engine';
 
 class MyGame extends Game {
-  private readonly player: Texture;
+  private player: Texture | null = null;
 
   constructor() {
     super({
@@ -45,11 +45,13 @@ class MyGame extends Game {
       targetFps: 60,
     });
     if (!this.isReady) console.error(this.error || 'Engine startup failed');
-    this.player = new Texture(this, 'assets/player.png');
   }
 
   protected override onStart(): void {
-    // Initialize game-specific systems.
+    this.player = this.assets.loadTexture('assets/player.png');
+    if (this.player === null || !this.player.isLoaded) {
+      console.error(this.player?.error || 'Unable to load player texture.');
+    }
   }
 
   protected override loop(deltaTime: number): void {
@@ -58,7 +60,7 @@ class MyGame extends Game {
 
   protected override render(): void {
     this.renderer.clear(Colors.SNOW);
-    if (this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+    if (this.player !== null && this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
   }
 }
 

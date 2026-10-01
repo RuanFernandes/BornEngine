@@ -26,15 +26,14 @@ The default font is available without creating a separate resource. Position is 
 
 ## Custom fonts
 
-A Font is constructed with its owning Game. Inspect the load result and call `dispose()` when the custom font is no longer needed.
+A Font comes from the owning asset scope. Inspect the load result; Game shutdown or Scene unload releases it with the rest of that scope.
 
 ```ts
-import { Font, Game } from '@bornengine/engine';
-const font = new Font(game, 'assets/fonts/heading.ttf', 32);
-if (!font.isLoaded) console.error(font.error);
+const font = game.assets.loadFont('assets/fonts/heading.ttf', 32);
+if (font === null || !font.isLoaded) console.error(font?.error || 'Unable to load font.');
 ```
 
-Use the Font only with its owner's renderer; foreign-game resources are rejected.
+Use the Font only with its owner's renderer; foreign-game resources are rejected. For a custom typeface used by one level, load it through `scene.assets.loadFont(...)`.
 
 ## Measurement
 

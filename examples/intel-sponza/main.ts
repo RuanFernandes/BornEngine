@@ -253,8 +253,12 @@ function setSponzaNodeCastShadow(nodeHandle: number, enabled: boolean): void {
   if (node !== undefined) node.setCastShadow(enabled);
 }
 function dumpShadowMap(path: string): void { game.sceneGraph.dumpShadowMap(path); }
-function loadSponzaModel(path: string): { model: Model; meshCount: number } {
-  const model = new Model(game, path);
+function loadSponzaModel(path: string): { model: Model | null; meshCount: number } {
+  const model = game.assets.loadModel(path);
+  if (model === null) {
+    console.error('Unable to create model resource: ' + path);
+    return { model: null, meshCount: 0 };
+  }
   managedModels[managedModelCount] = model;
   managedModelCount += 1;
   return { model, meshCount: model.meshCount };
@@ -354,10 +358,14 @@ if (taaOverride === 1) { setTaaEnabled(true); }
 const sponzaData = loadSponzaModel("assets/NewSponza_Main_glTF_003.gltf");
 const sponza = sponzaData.model;
 const identity = mat4Identity();
-for (let i = 0; i < sponzaData.meshCount; i = i + 1) {
-  const node = createSponzaNode();
-  attachSponzaModel(node, sponza, i);
-  setSponzaNodeTransform(node, identity);
+if (sponza !== null && sponza.isLoaded) {
+  for (let i = 0; i < sponzaData.meshCount; i = i + 1) {
+    const node = createSponzaNode();
+    attachSponzaModel(node, sponza, i);
+    setSponzaNodeTransform(node, identity);
+  }
+} else {
+  console.error(sponza?.error || "Unable to load Intel Sponza model.");
 }
 
 // ---- Camera ----

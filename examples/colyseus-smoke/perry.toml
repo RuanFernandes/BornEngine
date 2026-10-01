@@ -1,0 +1,6 @@
+[project]
+name = "bornengine-colyseus-smoke"
+entry = "main.ts"
+
+[bornengine]
+native_profile = "2d"

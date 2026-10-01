@@ -269,6 +269,8 @@
 }
 #[no_mangle] pub extern "C" fn bloom_particles_clear(_p0: f64) {
 }
+#[no_mangle] pub extern "C" fn bloom_particles_destroy(_p0: f64) {
+}
 #[no_mangle] pub extern "C" fn bloom_particles_live(_p0: f64) -> f64 {
     0.0
 }

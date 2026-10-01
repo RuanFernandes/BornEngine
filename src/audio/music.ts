@@ -34,7 +34,7 @@ export class StagedMusic implements ContextResource {
   }
 
   get isReady(): boolean { return !this.consumed && this.handleValue !== 0 && this.context.isReady; }
-  commit(): Music { return new Music(this.game, this); }
+  commit(): Music { return Music._create(this.game, this); }
 
   private get context(): GameContext { return getGameContext(this.game); }
 
@@ -56,7 +56,7 @@ export class StagedMusic implements ContextResource {
   }
 }
 
-/** Game-owned streamed music resource. */
+/** Streamed music resource owned by an asset scope. */
 export class Music implements ContextResource {
   readonly error: string | null;
   readonly path: string;
@@ -64,7 +64,10 @@ export class Music implements ContextResource {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(private readonly game: Game, source: string | StagedMusic) {
+  /** @internal Audio resources are created by AudioSystem or an asset scope. */
+  static _create(game: Game, source: string | StagedMusic): Music { return new Music(game, source); }
+
+  private constructor(private readonly game: Game, source: string | StagedMusic) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
@@ -112,5 +115,6 @@ export class Music implements ContextResource {
     this.handleValue = 0;
     this.disposed = true;
     this.context.unregister(this);
+    this.game.audio.untrackMusic(this);
   }
 }

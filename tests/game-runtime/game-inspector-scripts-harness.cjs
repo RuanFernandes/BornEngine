@@ -55,6 +55,14 @@ const game = {
       spritesCulled: 0,
     },
   },
+  stats: {
+    updateTimeMs: 2.5,
+    renderTimeMs: 3.75,
+    objectCount: 5,
+    activeObjectCount: 3,
+    componentCount: 8,
+    activeComponentCount: 6,
+  },
   scenes: { currentScene: null },
   assets: { textureCount: 0 },
   scripting: {
@@ -101,5 +109,23 @@ const hiddenInspector = new GameInspector({ ...game, debugUi: hiddenUi }, {
 hiddenInspector.render(1 / 60);
 assert.ok(!hiddenUi.windows.includes('BornEngine | Scripts'),
   'Game.debug can hide scripting diagnostics independently');
+
+const metricsUi = new FakeDebugUi();
+const metricsInspector = new GameInspector({ ...game, debugUi: metricsUi }, {
+  enabled: true,
+  metrics: true,
+  sceneHierarchy: false,
+  assets: false,
+  scripts: false,
+});
+metricsInspector.render(1 / 60);
+assert.ok(metricsUi.labels.some((label) => label === 'Update: 2.5 ms'),
+  'performance diagnostics show update cost');
+assert.ok(metricsUi.labels.some((label) => label === 'Render: 3.75 ms'),
+  'performance diagnostics show render cost');
+assert.ok(metricsUi.labels.some((label) => label === 'Objects: 3 active / 5 total'),
+  'performance diagnostics show active and total scene objects');
+assert.ok(metricsUi.labels.some((label) => label === 'Components: 6 active / 8 total'),
+  'performance diagnostics show active and total scene components');
 
 console.log('GameInspector scripting contract fixture passed');

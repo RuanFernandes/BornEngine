@@ -1,5 +1,5 @@
 // glTF loader sample for watchOS and native targets.
-import { Game, Model } from '@bornengine/engine';
+import { Game } from '@bornengine/engine';
 
 class TestGltfWatchGame extends Game {
   protected override loop(deltaTime: number): void {
@@ -37,9 +37,9 @@ game.renderer.setVignette(0.5, 0.3);
 // game.renderer.setChromaticAberration(6.0);
 // game.renderer.setFilmGrain(0.1);
 
-const buggy = new Model(game, 'assets/Buggy.glb');
+const buggy = game.assets.loadModel('assets/Buggy.glb');
 const root = game.sceneGraph.createNode({ name: 'Buggy' });
-if (buggy.isLoaded) root.attachModel(buggy);
+if (buggy !== null && buggy.isLoaded) root.attachModel(buggy);
 
 let elapsed = 0;
 const camera = {

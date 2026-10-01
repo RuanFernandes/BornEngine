@@ -76,16 +76,19 @@ The engine calls update before render, opens and closes the drawing frame, and u
 
 ## Asset Loading
 
-Create assets with their owning Game, inspect load failures, and keep their paths relative to the project:
+Load shared assets through `game.assets`, or create scene-local assets through `scene.assets`. Inspect failures and keep asset paths relative to the project:
 
 ```typescript
-import { Font, Game, Model, Texture } from "@bornengine/engine";
+import { Game } from "@bornengine/engine";
 
 const game = new Game();
-const texture = new Texture(game, "assets/player.png");
-const sound = game.audio.loadSound("assets/jump.wav");
-const model = new Model(game, "assets/scene.glb");
-const font = new Font(game, "assets/font.ttf", 20);
+const texture = game.assets.loadTexture("assets/player.png");
+const sound = game.assets.loadSound("assets/jump.wav");
+const model = game.assets.loadModel("assets/scene.glb");
+const font = game.assets.loadFont("assets/font.ttf", 20);
+if (texture === null || sound === null || model === null || font === null) {
+  console.error("One or more assets could not be created.");
+}
 ```
 
 Supported formats:

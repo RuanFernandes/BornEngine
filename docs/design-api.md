@@ -6,7 +6,7 @@ BornEngine presents a class-first TypeScript API for building native and Web/WAS
 - `game.renderer` owns drawing commands and render-pass state.
 - `game.input` polls devices and creates action maps.
 - `game.audio` owns audio playback and resources.
-- `game.assets` caches textures and creates preload groups.
+- `game.assets` loads and caches shared assets, creates GPU resources, and creates preload groups.
 - `game.scenes` manages gameplay scenes and lifecycle.
 - `game.sceneGraph` is the retained renderer scene. Construct physics with `new PhysicsWorld(game)`; UI, mobile controls, and VFX are also owned by their game-facing instances.
 
@@ -40,9 +40,9 @@ game.run();
 
 Native state is process-global on current targets, so only one active `Game` runtime can exist at a time. A second `Game` reports `isReady === false` and exposes a readable `error`. Dispose the active game before creating another.
 
-Create runtime resources with their owner, for example `new Texture(game, path)`, `new Model(game, path)`, `new PhysicsWorld(game)`, or `new ColyseusClient(game, endpoint)`. The owner checks that resources are used by the correct game. Resources expose `isLoaded` and `error` where loading can fail and an idempotent `dispose()` method when they own native state. `game.dispose()` releases resources still owned by the game.
+Load or create assets through the owning asset scope instead of passing a `Game` into every resource constructor. Use `game.assets` for resources shared across scenes and `scene.assets` for scene-local resources; unloading a scene disposes its local assets and VFX. `game.dispose()` releases all remaining game-owned resources. Subsystems that are not assets, such as `new PhysicsWorld(game)` and `new ColyseusClient(game, endpoint)`, still take their owning `Game` where they need its runtime context. Resources expose `isLoaded` and `error` where loading can fail and an idempotent `dispose()` method when they own native state.
 
-`game.assets.createGroup(name)` returns a preload batch. Add texture, sound, and music paths before calling `load()`, then inspect group progress and per-entry status. A group keeps references to resources; `AssetManager` or `AudioSystem` remains responsible for disposing them.
+`game.assets.createGroup(name)` returns a preload batch. Add texture, sound, and music paths before calling `load()`, then inspect group progress and per-entry status. Loaded resources belong to the asset scope that created the group, so a scene-local group releases its assets when that scene unloads.
 
 ```ts
 async function preloadBootAssets() {
@@ -63,12 +63,12 @@ Value-only utilities remain static or plain data. `Vec3`, `Quat`, and `Matrix4` 
 Perry-compiled applications should not rely on catching exceptions from native operations. Startup and resource constructors report failure through `isReady`, `isLoaded`, and `error`; operations that can fail return `false`, `null`, or an empty result. Async operations such as matchmaking return promises and reject when the operation cannot complete.
 
 ```ts
-import { Game, Texture } from '@bornengine/engine';
+import { Game } from '@bornengine/engine';
 
 const game = new Game();
-const player = new Texture(game, 'assets/player.png');
-if (!player.isLoaded) {
-  console.error(player.error);
+const player = game.assets.loadTexture('assets/player.png');
+if (player === null || !player.isLoaded) {
+  console.error(player?.error || 'Unable to load player texture.');
   game.dispose();
 }
 ```

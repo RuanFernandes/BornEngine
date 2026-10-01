@@ -7,6 +7,8 @@ order: 40
 
 Physics uses meters, seconds, and kilograms in a right-handed, Y-up world. Each PhysicsWorld owns its colliders, bodies, joints, characters, and vehicles.
 
+Native builds include Jolt only in the `3d` game profile. Select it with `bornengine new MyGame --game-type 3d` or `bornengine init --game-type 3d`; the `2d` and `2.5d` profiles omit Jolt. For 2D collision and rigid-body simulation, use [`PhysicsWorld2D`](../physics2d/). Web builds use the prebuilt physics runtime and are not trimmed by native profiles.
+
 ## World stepping
 
 ```ts

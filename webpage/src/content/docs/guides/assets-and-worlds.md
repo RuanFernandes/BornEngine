@@ -22,7 +22,7 @@ assets/
 Cache textures and models by path so gameplay objects share resources instead of repeatedly loading them.
 
 ```ts
-import { Game, Model, Texture, WorldInstance } from '@bornengine/engine';
+import { Game, WorldInstance } from '@bornengine/engine';
 class WorldViewerGame extends Game {
   world: WorldInstance | null = null;
 
@@ -36,13 +36,9 @@ class WorldViewerGame extends Game {
 }
 
 const game = new WorldViewerGame();
-const models = new Map<string, Model>();
-const textures = new Map<string, Texture>();
-
-function getModel(path: string): Model {
-  let value = models.get(path);
-  if (value === undefined) { value = new Model(game, path); models.set(path, value); }
-  return value;
+function getModel(path: string) {
+  const model = game.assets.loadModel(path);
+  return model !== null && model.isLoaded ? model : null;
 }
 ```
 
@@ -71,7 +67,7 @@ if (!worldData.load()) {
 ## Complete example
 
 ```ts
-import { Game, Model, WorldData, WorldInstance } from '@bornengine/engine';
+import { Game, WorldData, WorldInstance } from '@bornengine/engine';
 
 class ExampleGame extends Game {
   world: WorldInstance | null = null;
@@ -86,7 +82,6 @@ class ExampleGame extends Game {
 }
 
 const game = new ExampleGame({ window: { title: 'World viewer' } });
-const models = new Map<string, Model>();
 const worldData = new WorldData('assets/worlds/main.world.json');
 if (!game.isReady) console.error(game.error || 'Engine startup failed');
 if (!worldData.load()) {
@@ -94,9 +89,8 @@ if (!worldData.load()) {
 } else {
   const instance = worldData.instantiate(game, {
     getModel(path) {
-      let model = models.get(path);
-      if (model === undefined) { model = new Model(game, path); models.set(path, model); }
-      return model.isLoaded ? model : null;
+      const model = game.assets.loadModel(path);
+      return model !== null && model.isLoaded ? model : null;
     },
   });
   if (!instance.isLoaded) {

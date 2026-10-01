@@ -8,14 +8,11 @@ name = "bloom_macos"
 crate-type = ["staticlib"]
 
 [features]
-# Everything defaults ON so existing games are unaffected. Pure-2D games
-# opt out per-project via Perry's `[native-library."<pkg>"]` feature
-# forwarding in perry.toml (perry >= 0.5.1126), e.g.:
-#   [native-library."@bornengine/engine"]
-#   default-features = false
-# which drops Jolt, glTF/DDS model loading, and the non-PNG image codecs
-# from the game binary.
-default = ["jolt", "models3d", "image-extras"]
+# Direct Cargo builds include all engine features. BornEngine CLI profiles
+# disable unused native features for builds started with `bornengine build`,
+# `run`, or `dev`.
+default = ["mp3", "jolt", "models3d", "image-extras"]
+mp3 = ["bloom-shared/mp3"]
 jolt = ["bloom-shared/jolt"]
 # EN-014 — glTF/DDS model loading + ModelManager (and this crate's
 # bloom_load_model/draw_model/... FFI surface).
@@ -36,7 +33,7 @@ debug-ui = ["bloom-shared/debug-ui"]
 panic = "abort"
 
 [dependencies]
-bloom-shared = { path = "../shared", default-features = false, features = ["mp3"] }
+bloom-shared = { path = "../shared", default-features = false }
 image = { version = "0.25", default-features = false }
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSDate", "NSRunLoop", "NSString", "NSThread", "NSLocale", "NSArray"] }

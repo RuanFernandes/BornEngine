@@ -16,11 +16,11 @@ export interface AssetGroupEntryResult {
   error: string | null;
 }
 
-/** @internal Loading operations supplied by the Game-owned AssetManager. */
+/** @internal Loading operations supplied by the owning AssetManager. */
 export interface AssetGroupLoader {
   loadTexture(path: string): Texture | null;
-  loadSound(path: string): Promise<Sound>;
-  loadMusic(path: string): Promise<Music>;
+  loadSound(path: string): Promise<Sound | null>;
+  loadMusic(path: string): Promise<Music | null>;
   removeGroup(group: AssetGroup): void;
 }
 
@@ -39,8 +39,8 @@ function resourceError(resource: AssetGroupAsset | null): string {
 }
 
 /**
- * A named preload batch. Entry resources remain owned by AssetManager or
- * AudioSystem; disposing this group only releases its result references.
+ * A named preload batch. Entry resources remain owned by its AssetManager;
+ * disposing this group only releases its result references.
  */
 export class AssetGroup {
   private entriesValue: AssetGroupEntry[] = [];
@@ -109,7 +109,7 @@ export class AssetGroup {
     return this.pendingLoad;
   }
 
-  /** Mark unresolved work cancelled; already-owned resources stay Game-owned. */
+  /** Mark unresolved work cancelled; loaded resources stay owned by the AssetManager. */
   cancel(): void {
     if (this.currentState !== 'idle' && this.currentState !== 'loading') return;
     this.currentState = 'cancelled';
@@ -164,7 +164,7 @@ export class AssetGroup {
       return;
     }
 
-    let loading: Promise<Sound | Music>;
+    let loading: Promise<Sound | Music | null>;
     try {
       loading = entry.kind === 'sound'
         ? this.loader.loadSound(entry.path)

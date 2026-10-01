@@ -19,7 +19,7 @@
 // variant `assets/bistrox.gltf` also exists — swap the filename
 // below to open that one instead.
 
-import { Game, Key, Matrix4, Model, Mathf } from '@bornengine/engine';
+import { Game, Key, Matrix4, Mathf } from '@bornengine/engine';
 
 const SCREEN_W = 800;
 const SCREEN_H = 450;
@@ -159,12 +159,16 @@ game.renderer.setChromaticAberration(0.0005);
 // ---- Load Bistro into scene graph ----
 // `bistro.gltf` = exterior street corner. Swap to `bistrox.gltf`
 // for the interior wine-bar variant.
-const bistro = new Model(game, "assets/bistro.gltf");
+const bistro = game.assets.loadModel("assets/bistro.gltf");
 const identity = Matrix4.identity().toArray();
-for (let i = 0; bistro.isLoaded && i < bistro.meshCount; i = i + 1) {
-  const node = game.sceneGraph.createNode();
-  node.attachModel(bistro, i);
-  node.setTransform(identity);
+if (bistro === null || !bistro.isLoaded) {
+  console.error(bistro?.error || "Unable to load Bistro model.");
+} else {
+  for (let i = 0; i < bistro.meshCount; i = i + 1) {
+    const node = game.sceneGraph.createNode();
+    node.attachModel(bistro, i);
+    node.setTransform(identity);
+  }
 }
 
 // ---- Camera ----

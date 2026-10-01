@@ -58,7 +58,7 @@ export class StagedSound implements ContextResource {
 
   get isReady(): boolean { return !this.consumed && this.handleValue !== 0 && this.context.isReady; }
 
-  commit(): Sound { return new Sound(this.game, this); }
+  commit(): Sound { return Sound._create(this.game, this); }
 
   private get context(): GameContext { return getGameContext(this.game); }
 
@@ -80,7 +80,7 @@ export class StagedSound implements ContextResource {
   }
 }
 
-/** Game-owned sound asset with playback and mixer controls. */
+/** Sound asset with playback and mixer controls, owned by an asset scope. */
 export class Sound implements ContextResource {
   readonly error: string | null;
   readonly path: string;
@@ -89,7 +89,10 @@ export class Sound implements ContextResource {
   private voices: AudioVoice[] = [];
   private readonly context: GameContext;
 
-  constructor(private readonly game: Game, source: string | StagedSound) {
+  /** @internal Audio resources are created by AudioSystem or an asset scope. */
+  static _create(game: Game, source: string | StagedSound): Sound { return new Sound(game, source); }
+
+  private constructor(private readonly game: Game, source: string | StagedSound) {
     this.context = getGameContext(game);
     const context = this.context;
     let loaded: { handle: number } = { handle: 0 };
@@ -191,6 +194,7 @@ export class Sound implements ContextResource {
     this.handleValue = 0;
     this.disposed = true;
     this.context.unregister(this);
+    this.game.audio.untrackSound(this);
   }
 }
 

@@ -14,6 +14,7 @@ declare function bloom_particles_emit(sys: number, x: number, y: number, z: numb
 declare function bloom_particles_update(sys: number, dt: number): number;
 declare function bloom_particles_instance_buffer(sys: number): number;
 declare function bloom_particles_clear(sys: number): void;
+declare function bloom_particles_destroy(sys: number): void;
 declare function bloom_particles_live(sys: number): number;
 declare function bloom_decals_init(capacity: number): number;
 declare function bloom_decals_spawn(x: number, y: number, z: number, nx: number, ny: number, nz: number, size: number, roll: number): void;
@@ -53,7 +54,7 @@ export interface ParticleEmitOptions {
   count: number;
 }
 
-/** Game-owned particle pool. Configure it once, emit bursts, update, then draw through Renderer. */
+/** Scene-owned 3D particle pool. Configure it once, emit bursts, then draw through Renderer. */
 export class ParticleSystem implements ContextResource, InstancedDrawSource {
   readonly error: string | null;
   private handleValue = 0;
@@ -63,7 +64,12 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
 
   private readonly context: GameContext;
 
-  constructor(owner: Game, readonly capacity: number, config: ParticleConfig = {}) {
+  /** @internal SceneVfx is the public factory for particle pools. */
+  static _create(owner: Game, capacity: number, config: ParticleConfig = {}): ParticleSystem {
+    return new ParticleSystem(owner, capacity, config);
+  }
+
+  private constructor(owner: Game, readonly capacity: number, config: ParticleConfig = {}) {
     const context = getGameContext(owner);
     this.context = context;
     if (!context.isReady || context.isDisposed || capacity <= 0) {
@@ -79,6 +85,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
   }
 
   get isLoaded(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed && this.context.owns(this) && this.handleValue !== 0; }
+  get isDisposed(): boolean { return this.disposed; }
   get liveCount(): number { return this.isLoaded ? bloom_particles_live(this.handleValue) : 0; }
 
   configure(config: ParticleConfig): boolean {
@@ -130,8 +137,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
 
   dispose(): void {
     if (this.disposed) return;
-    if (this.handleValue !== 0) bloom_particles_clear(this.handleValue);
-    // The current native ABI has no particle-pool release function.
+    if (this.handleValue !== 0) bloom_particles_destroy(this.handleValue);
     this.handleValue = 0;
     this.bufferValue = 0;
     this.liveCountValue = 0;
@@ -149,7 +155,7 @@ export interface DecalStyle {
 
 const DECAL_RUNTIME_SLOT = {};
 
-/** Game-owned decal ring. The native ABI provides one ring per runtime. */
+/** Scene-owned view of the Game's decal ring. The native ABI provides one ring per runtime. */
 export class DecalSystem implements ContextResource, InstancedDrawSource {
   readonly error: string | null;
   private handleValue = 0;
@@ -159,7 +165,10 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
   private readonly context: GameContext;
   private readonly ownsRuntimeSlot: boolean;
 
-  constructor(owner: Game, readonly capacity: number) {
+  /** @internal SceneVfx is the public factory for decal pools. */
+  static _create(owner: Game, capacity: number): DecalSystem { return new DecalSystem(owner, capacity); }
+
+  private constructor(owner: Game, readonly capacity: number) {
     this.context = getGameContext(owner);
     const registered = this.context.getOrCreateService(DECAL_RUNTIME_SLOT, () => this);
     this.ownsRuntimeSlot = registered === this;
@@ -177,6 +186,7 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
   }
 
   get isLoaded(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed && this.context.owns(this) && this.handleValue !== 0; }
+  get isDisposed(): boolean { return this.disposed; }
   get liveCount(): number { return this.liveCountValue; }
 
   setStyle(style: DecalStyle): boolean {
@@ -233,3 +243,5 @@ function toNativeModel(model: Model | Mesh): any {
     transform: (model as any).transform as number[],
   };
 }
+
+export { SceneVfx } from './scene-vfx';

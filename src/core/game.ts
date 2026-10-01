@@ -12,7 +12,25 @@ import { DebugUi } from '../debug-ui';
 import { GameInspector } from '../debug-ui/game-inspector';
 import { AssetManager } from '../assets';
 import { ScriptRuntime } from '../scripting/script-runtime';
-import { beginDrawing, endDrawing, getPlatform, runGame, setTargetFPS, Platform } from './internal';
+import { beginDrawing, endDrawing, getPlatform, getTime, runGame, setTargetFPS, Platform } from './internal';
+
+/** Runtime measurements for the most recent Game frame and active scene. */
+export interface GameStats {
+  /** Frame delta supplied by the runtime, in milliseconds. */
+  frameTimeMs: number;
+  /** Time spent processing input, engine services, and the Game update hook. */
+  updateTimeMs: number;
+  /** Time spent in the Game render hook, excluding the optional inspector. */
+  renderTimeMs: number;
+  /** Total objects currently attached to the active scene. */
+  objectCount: number;
+  /** Active objects currently attached to the active scene. */
+  activeObjectCount: number;
+  /** Total components currently attached to the active scene. */
+  componentCount: number;
+  /** Enabled components on active objects in the active scene. */
+  activeComponentCount: number;
+}
 
 export interface GameOptions {
   window?: WindowOptions;
@@ -43,6 +61,11 @@ export interface EmbeddedFrameCallbacks {
 
 function validTargetFps(value: number): boolean {
   return value > 0 && value !== Infinity && value !== -Infinity && value === value;
+}
+
+function elapsedMilliseconds(start: number): number {
+  const elapsed = (getTime() - start) * 1000;
+  return elapsed >= 0 && elapsed !== Infinity && elapsed !== -Infinity && elapsed === elapsed ? elapsed : 0;
 }
 
 // Consumer subclasses live in separate modules, so lifecycle calls must keep
@@ -76,6 +99,9 @@ export class Game {
   private inFrame = false;
   private completionScheduled = false;
   private webRuntime = false;
+  private frameTimeMsValue = 0;
+  private updateTimeMsValue = 0;
+  private renderTimeMsValue = 0;
   private callbacks: EmbeddedFrameCallbacks | null = null;
   private standaloneRun = false;
   private completion: Promise<void> | null = null;
@@ -117,6 +143,22 @@ export class Game {
   get isRunning(): boolean { return this.hasRun && !this.runCompleted && !this.disposed; }
   get isDisposed(): boolean { return this.disposed; }
   get error(): string | null { return getGameContext(this).error; }
+  /** Snapshot of the most recent frame timings and active scene workload. */
+  get stats(): GameStats {
+    const scene = this.scenes.currentScene;
+    const sceneStats = scene === null
+      ? { objectCount: 0, activeObjectCount: 0, componentCount: 0, activeComponentCount: 0 }
+      : scene.stats;
+    return {
+      frameTimeMs: this.frameTimeMsValue,
+      updateTimeMs: this.updateTimeMsValue,
+      renderTimeMs: this.renderTimeMsValue,
+      objectCount: sceneStats.objectCount,
+      activeObjectCount: sceneStats.activeObjectCount,
+      componentCount: sceneStats.componentCount,
+      activeComponentCount: sceneStats.activeComponentCount,
+    };
+  }
 
   /** Called once before a subclass-driven run starts. */
   protected onStart(): void {}
@@ -249,14 +291,29 @@ export class Game {
   private dispatchFrame(deltaTime: number, callbacks: EmbeddedFrameCallbacks): void {
     if (!this.isReady || this.stopRequested) return;
     this.inFrame = true;
+    this.frameTimeMsValue = deltaTime > 0 && deltaTime !== Infinity && deltaTime !== -Infinity && deltaTime === deltaTime
+      ? deltaTime * 1000
+      : 0;
+    this.updateTimeMsValue = 0;
+    this.renderTimeMsValue = 0;
     try {
       this.renderer._beginFrame(deltaTime);
-      this.input.update();
-      getGameContext(this).updateFrameServices(deltaTime);
-      this.audio.update(deltaTime);
-      this.mobile.update();
-      callbacks.update(deltaTime);
-      callbacks.render();
+      const updateStartedAt = getTime();
+      try {
+        this.input.update();
+        getGameContext(this).updateFrameServices(deltaTime);
+        this.audio.update(deltaTime);
+        this.mobile.update();
+        callbacks.update(deltaTime);
+      } finally {
+        this.updateTimeMsValue = elapsedMilliseconds(updateStartedAt);
+      }
+      const renderStartedAt = getTime();
+      try {
+        callbacks.render();
+      } finally {
+        this.renderTimeMsValue = elapsedMilliseconds(renderStartedAt);
+      }
       this.inspector.render(deltaTime);
     } catch (error) {
       this.stopRequested = true;

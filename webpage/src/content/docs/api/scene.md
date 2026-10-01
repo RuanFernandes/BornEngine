@@ -10,11 +10,11 @@ order: 41
 ## Nodes
 
 ```ts
-import { Game, Model } from '@bornengine/engine';
+import { Game } from '@bornengine/engine';
 const game = new Game();
-const model = new Model(game, 'assets/models/statue.glb');
+const model = game.assets.loadModel('assets/models/statue.glb');
 const node = game.sceneGraph.createNode({ name: 'Statue' });
-if (model.isLoaded) node.attachModel(model);
+if (model !== null && model.isLoaded) node.attachModel(model);
 node.setTrs({ x: 0, y: 0, z: -5 }, 0, 1);
 node.setVisible(true);
 ```

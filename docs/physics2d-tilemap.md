@@ -88,10 +88,11 @@ Contacts and collision callbacks are ordered by the pair's body creation IDs. Wh
 `Tilemap` is a render component that draws non-empty grid cells through a `SpriteSheet`. It keeps row-major integer tile IDs, with ID 0 reserved for empty cells. Tile definitions can name an atlas frame, mark a full tile as solid, or provide a custom collision rectangle measured from the cell's top-left corner.
 
 ```ts
-import { SpriteSheet, Texture } from '@bornengine/engine';
+import { GameObject, SpriteSheet } from '@bornengine/engine';
 import { Tilemap } from '@bornengine/engine/tilemap';
 
-const texture = new Texture(game, 'assets/tiles.png');
+const texture = scene.assets.loadTexture('assets/tiles.png');
+if (texture === null || !texture.isLoaded) return;
 const sheet = new SpriteSheet(texture, { frameWidth: 16, frameHeight: 16, spacing: { x: 1, y: 1 } });
 const floor = new Tilemap(sheet, {
   columns: 24,
