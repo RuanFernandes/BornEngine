@@ -77,7 +77,7 @@ macro_rules! __bloom_ffi_scripting {
                 let Some(source) = $crate::string_header::try_str_from_header(source) else {
                     return 0.0;
                 };
-                $crate::scripting::with_script_vm(handle, |vm| vm.load(source).is_ok())
+                $crate::scripting::with_script_vm(handle, |vm| vm.load(&source).is_ok())
                     .unwrap_or(false) as u8 as f64
             })
         }
@@ -97,7 +97,7 @@ macro_rules! __bloom_ffi_scripting {
                 let self_id = $crate::string_header::str_from_header(self_id);
                 $crate::scripting::script_start(
                     handle,
-                    $crate::scripting::ScriptContextData::new(self_id, [x, y, z]),
+                    $crate::scripting::ScriptContextData::new(&self_id, [x, y, z]),
                 )
                 .unwrap_or(0) as f64
             })

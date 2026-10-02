@@ -100,13 +100,13 @@ test('acceptsAStopInputAfterUnevenClientFrames', () => {
   };
 
   try {
-    assert.equal(update(0.049, 1, 0), false);
-    assert.equal(update(0.040, 1, 0), true);
+    assert.equal(update(0.049, 1, 0), true);
     assert.equal(player.messages.at(-1)?.type, 'inputAccepted');
     handlers.simulate();
     const movedX = room.state.players.get('player')!.x;
     assert.ok(movedX > initialX);
 
+    assert.equal(update(0.040, 1, 0), false);
     assert.equal(update(0.012, 0, 0), false);
     assert.equal(update(0.050, 0, 0), true);
     assert.equal(player.messages.at(-1)?.type, 'inputAccepted');

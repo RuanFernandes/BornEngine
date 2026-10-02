@@ -197,8 +197,10 @@ mod x11_impl {
                 x11::xlib::XWhitePixel(DISPLAY, screen),
             );
 
-            let title_cstr = std::ffi::CString::new(title).unwrap();
-            x11::xlib::XStoreName(DISPLAY, X11_WINDOW, title_cstr.as_ptr());
+            // XStoreName writes the legacy Latin-1 WM_NAME property. Use
+            // the same helper as runtime title changes so UTF-8 titles are
+            // also published through EWMH's _NET_WM_NAME.
+            set_window_title(title);
 
             x11::xlib::XSelectInput(DISPLAY, X11_WINDOW,
                 x11::xlib::ExposureMask | x11::xlib::KeyPressMask | x11::xlib::KeyReleaseMask |
@@ -571,7 +573,7 @@ pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u
             .unwrap_or(false);
         x11_impl::set_no_fullscreen(no_fullscreen);
 
-        let (phys_w, phys_h) = x11_impl::create_window(width, height, title, headless);
+        let (phys_w, phys_h) = x11_impl::create_window(width, height, &title, headless);
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN | wgpu::Backends::GL,
@@ -958,13 +960,13 @@ pub extern "C" fn bloom_toggle_fullscreen() {
 pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
     let title = str_from_header(title_ptr);
     #[cfg(target_os = "linux")]
-    x11_impl::set_window_title(title);
+    x11_impl::set_window_title(&title);
 }
 #[no_mangle]
 pub extern "C" fn bloom_set_window_icon(path_ptr: *const u8) {
     let path = str_from_header(path_ptr);
     #[cfg(target_os = "linux")]
-    x11_impl::set_window_icon(path);
+    x11_impl::set_window_icon(&path);
 }
 
 #[no_mangle]
@@ -1009,7 +1011,7 @@ pub extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *cons
     let title = str_from_header(title_ptr);
     let mut dialog = rfd::FileDialog::new().set_title(title);
     if !filter.is_empty() {
-        dialog = dialog.add_filter("Files", &[filter]);
+        dialog = dialog.add_filter("Files", &[filter.as_str()]);
     }
     match dialog.pick_file() {
         Some(path) => alloc_perry_string(&path.to_string_lossy()),

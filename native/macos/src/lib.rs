@@ -307,7 +307,7 @@ pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u
         )
     };
 
-    let ns_title = NSString::from_str(title);
+    let ns_title = NSString::from_str(&title);
     window.setTitle(&ns_title);
 
     // Don't persist window size/fullscreen state across launches.
@@ -926,7 +926,7 @@ pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
     let title = str_from_header(title_ptr);
     unsafe {
         if let Some(window) = &WINDOW {
-            let ns_title = NSString::from_str(title);
+            let ns_title = NSString::from_str(&title);
             window.setTitle(&ns_title);
         }
     }
@@ -936,7 +936,7 @@ pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
 pub extern "C" fn bloom_set_window_icon(path_ptr: *const u8) {
     let path = str_from_header(path_ptr);
     unsafe {
-        let ns_path = NSString::from_str(path);
+        let ns_path = NSString::from_str(&path);
         let image_cls = objc2::runtime::AnyClass::get(c"NSImage").unwrap();
         let image: *mut objc2::runtime::AnyObject =
             msg_send![image_cls, alloc];
@@ -1002,7 +1002,7 @@ pub extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *cons
     let title = str_from_header(title_ptr);
     let mut dialog = rfd::FileDialog::new().set_title(title);
     if !filter.is_empty() {
-        dialog = dialog.add_filter("Files", &[filter]);
+        dialog = dialog.add_filter("Files", &[filter.as_str()]);
     }
     match dialog.pick_file() {
         Some(path) => alloc_perry_string(&path.to_string_lossy()),

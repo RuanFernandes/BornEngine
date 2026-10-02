@@ -8,7 +8,7 @@ macro_rules! __bloom_ffi_colyseus {
         pub extern "C" fn bloom_colyseus_client_create(url_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_colyseus_client_create", move || {
                 let url = $crate::string_header::str_from_header(url_ptr);
-                $crate::colyseus::client_create(url) as f64
+                $crate::colyseus::client_create(&url) as f64
             })
         }
 
@@ -22,7 +22,7 @@ macro_rules! __bloom_ffi_colyseus {
             $crate::ffi::guard("bloom_colyseus_client_join", move || {
                 let target = $crate::string_header::str_from_header(target_ptr);
                 let options = $crate::string_header::str_from_header(options_ptr);
-                $crate::colyseus::client_join(client as u64, method as u32, target, options) as f64
+                $crate::colyseus::client_join(client as u64, method as u32, &target, &options) as f64
             })
         }
 
@@ -37,6 +37,13 @@ macro_rules! __bloom_ffi_colyseus {
         pub extern "C" fn bloom_colyseus_poll() {
             $crate::ffi::guard("bloom_colyseus_poll", move || {
                 $crate::colyseus::poll();
+            })
+        }
+
+        #[no_mangle]
+        pub extern "C" fn bloom_colyseus_has_event() -> f64 {
+            $crate::ffi::guard("bloom_colyseus_has_event", move || {
+                $crate::colyseus::has_event() as u8 as f64
             })
         }
 
@@ -57,7 +64,7 @@ macro_rules! __bloom_ffi_colyseus {
             $crate::ffi::guard("bloom_colyseus_room_send", move || {
                 let message_type = $crate::string_header::str_from_header(type_ptr);
                 let payload = $crate::string_header::str_from_header(payload_ptr);
-                $crate::colyseus::room_send(room as u64, message_type, payload);
+                $crate::colyseus::room_send(room as u64, &message_type, &payload);
             })
         }
 
@@ -70,7 +77,7 @@ macro_rules! __bloom_ffi_colyseus {
             $crate::ffi::guard("bloom_colyseus_room_send_bytes", move || {
                 let message_type = $crate::string_header::str_from_header(type_ptr);
                 let bytes = $crate::string_header::str_from_header(bytes_ptr);
-                $crate::colyseus::room_send_bytes(room as u64, message_type, bytes);
+                $crate::colyseus::room_send_bytes(room as u64, &message_type, &bytes);
             })
         }
 
@@ -83,7 +90,7 @@ macro_rules! __bloom_ffi_colyseus {
             $crate::ffi::guard("bloom_colyseus_room_request", move || {
                 let message_type = $crate::string_header::str_from_header(type_ptr);
                 let payload = $crate::string_header::str_from_header(payload_ptr);
-                $crate::colyseus::room_request(room as u64, message_type, payload) as f64
+                $crate::colyseus::room_request(room as u64, &message_type, &payload) as f64
             })
         }
 

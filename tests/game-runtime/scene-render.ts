@@ -95,6 +95,12 @@ managed.addNode(managedObject);
 expect(manager.changeTo(managed), 'manager activates the scene');
 manager.render(renderer);
 expect(renderEvents[renderEvents.length - 1] === 'managed', 'manager renders its active scene');
+const lateManaged = new GameObject();
+lateManaged.addComponent(new RenderProbe('managed-late'));
+expect(managed.addNode(lateManaged) === lateManaged, 'active scene accepts a late visual object');
+manager.render(renderer);
+expect(renderEvents[renderEvents.length - 1] === 'managed-late',
+  'manager renders objects attached after scene activation');
 expect(manager.pause(), 'manager pauses the scene');
 manager.render(renderer);
 expect(renderEvents[renderEvents.length - 1] === 'managed', 'manager continues rendering its paused scene');

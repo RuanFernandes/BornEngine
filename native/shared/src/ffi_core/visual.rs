@@ -16,7 +16,7 @@ macro_rules! __bloom_ffi_visual {
         pub extern "C" fn bloom_set_env_clear_from_hdr(path_ptr: *const u8) {
             $crate::ffi::guard("bloom_set_env_clear_from_hdr", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 engine().renderer.set_env_clear_from_hdr_file(path);
         })
         }
@@ -141,7 +141,7 @@ macro_rules! __bloom_ffi_visual {
         pub extern "C" fn bloom_set_post_pass(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_set_post_pass", move || {
                 let source = $crate::string_header::str_from_header(source_ptr);
-                match engine().renderer.set_post_pass(source) {
+                match engine().renderer.set_post_pass(&source) {
                     Ok(()) => 1.0,
                     Err(e) => { eprintln!("[post_pass] compile failed: {:?}", e); 0.0 }
                 }

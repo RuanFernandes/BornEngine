@@ -624,7 +624,7 @@ pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u
     #[cfg(windows)]
     {
         crash_report::install();
-        let (hwnd, phys_w, phys_h) = win32::create_window(width, height, title);
+        let (hwnd, phys_w, phys_h) = win32::create_window(width, height, &title);
         unsafe { init_engine_for_hwnd(hwnd, width as u32, height as u32, phys_w, phys_h); }
         if fullscreen != 0.0 {
             win32::set_fullscreen(true);

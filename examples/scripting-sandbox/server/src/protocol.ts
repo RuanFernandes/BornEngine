@@ -4,29 +4,27 @@ export const PLAYER_RADIUS = 20;
 export const PLAYER_SPEED = 220;
 export const SIMULATION_STEP_SECONDS = 1 / 30;
 export const INPUT_MIN_INTERVAL_MS = 30;
-export const INPUT_SEND_INTERVAL_SECONDS = 1 / 20;
+export const INPUT_SEND_INTERVAL_MS = 60;
+export const INPUT_SEND_INTERVAL_SECONDS = INPUT_SEND_INTERVAL_MS / 1_000;
 export const MAX_INPUT_SEQUENCE = 2_147_483_647;
 
 export class MovementInputThrottle {
-  private elapsed = 0;
+  private lastSentAt: number | null = null;
   private lastX = 0;
   private lastY = 0;
 
-  update(deltaTime: number, movement: { readonly x: number; readonly y: number }): boolean {
-    const safeDelta = Number.isFinite(deltaTime) ? Math.max(0, Math.min(0.25, deltaTime)) : 0;
-    this.elapsed += safeDelta;
-
+  update(_deltaTime: number, movement: { readonly x: number; readonly y: number }): boolean {
+    const now = Date.now();
+    if (!Number.isFinite(now)) return false;
     const changed = movement.x !== this.lastX || movement.y !== this.lastY;
     const isMoving = movement.x !== 0 || movement.y !== 0;
-    if (!isMoving && !changed) {
-      this.elapsed = 0;
-      return false;
-    }
-    if (this.elapsed < INPUT_SEND_INTERVAL_SECONDS) return false;
+    if (!isMoving && !changed) return false;
+    if (this.lastSentAt !== null &&
+        (now < this.lastSentAt || now - this.lastSentAt < INPUT_SEND_INTERVAL_MS)) return false;
 
-    // Reset from the actual send time. Carrying remainder across a long frame
-    // can make the next packet arrive inside the server's minimum interval.
-    this.elapsed = 0;
+    // The server rate limit uses wall-clock time, so pace packets against the
+    // same clock rather than simulated frame time (which can run ahead).
+    this.lastSentAt = now;
     this.lastX = movement.x;
     this.lastY = movement.y;
     return true;

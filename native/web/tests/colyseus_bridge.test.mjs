@@ -95,6 +95,15 @@ function drain(bridge) {
   }
 }
 
+test('pending event probe avoids allocating an empty event string', async () => {
+  const { bridge } = createHarness();
+  assert.equal(bridge.bloom_colyseus_has_event(), 0);
+  await Promise.resolve();
+  assert.equal(bridge.bloom_colyseus_has_event(), 1);
+  assert.ok(bridge.bloom_colyseus_next_event());
+  assert.equal(bridge.bloom_colyseus_has_event(), 0);
+});
+
 test('client methods map to the official matchmaking methods and queue join snapshots', async () => {
   const { bridge, client, fakeClient, room, roomHandle } = createHarness();
   await Promise.resolve();

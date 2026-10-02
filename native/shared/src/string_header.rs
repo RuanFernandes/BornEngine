@@ -82,16 +82,11 @@ fn abi_mismatch_warn_once(what: &str) {
     }
 }
 
-/// Extract a `&str` from a `*const StringHeader` pointer (Perry string
-/// format).
+/// Decode a Perry string passed through the native FFI.
 ///
-/// The returned slice borrows Perry-owned memory that is only guaranteed
-/// to live for the duration of the FFI call — copy it (`to_string`) before
-/// stashing it anywhere. The `'static` lifetime is a legacy artifact of
-/// the FFI signatures, not a promise.
-///
-/// Never causes undefined behavior: null/garbage pointers, implausible
-/// headers, and invalid UTF-8 all yield `""` plus a one-time diagnostic.
+/// Heap strings arrive as a pointer to `StringHeader`. Perry may also pass a
+/// short string inline as its bytes in the low 32 bits of the argument value.
+/// Copy both forms so the result remains valid after the FFI call.
 /// Like [`str_from_header`], but says whether it FAILED rather than papering over it
 /// with an empty string.
 ///
@@ -101,9 +96,30 @@ fn abi_mismatch_warn_once(what: &str) {
 /// saved and reported that it had saved it. An empty string and a failed string are
 /// not the same thing, and any FFI that *persists* its input has to know which it
 /// is holding.
-pub fn try_str_from_header(ptr: *const u8) -> Option<&'static str> {
-    if ptr.is_null() || (ptr as usize) < 0x1000 {
-        return Some("");
+pub fn try_str_from_header(ptr: *const u8) -> Option<String> {
+    let address = ptr as usize;
+    if address == 0 {
+        return Some(String::new());
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    if address <= u32::MAX as usize {
+        let bytes = address.to_le_bytes();
+        let inline_bytes = &bytes[..4];
+        let len = inline_bytes.iter().position(|byte| *byte == 0).unwrap_or(4);
+        return match std::str::from_utf8(&inline_bytes[..len]) {
+            Ok(value) if value.chars().any(char::is_control) => Some(String::new()),
+            Ok(value) => Some(value.to_owned()),
+            _ => {
+                abi_mismatch_warn_once("invalid inline string");
+                None
+            }
+        };
+    }
+
+    if address < 0x1000 || address % std::mem::align_of::<StringHeader>() != 0 {
+        abi_mismatch_warn_once("invalid or unaligned header pointer");
+        return None;
     }
     unsafe {
         let header = &*(ptr as *const StringHeader);
@@ -114,7 +130,7 @@ pub fn try_str_from_header(ptr: *const u8) -> Option<&'static str> {
         let len = header.byte_len as usize;
         let data = ptr.add(std::mem::size_of::<StringHeader>());
         match std::str::from_utf8(std::slice::from_raw_parts(data, len)) {
-            Ok(s) => Some(s),
+            Ok(s) => Some(s.to_owned()),
             Err(_) => {
                 abi_mismatch_warn_once("payload is not UTF-8");
                 None
@@ -123,26 +139,8 @@ pub fn try_str_from_header(ptr: *const u8) -> Option<&'static str> {
     }
 }
 
-pub fn str_from_header(ptr: *const u8) -> &'static str {
-    if ptr.is_null() || (ptr as usize) < 0x1000 {
-        return "";
-    }
-    unsafe {
-        let header = &*(ptr as *const StringHeader);
-        if !header_looks_valid(header) {
-            abi_mismatch_warn_once("header invariants violated");
-            return "";
-        }
-        let len = header.byte_len as usize;
-        let data = ptr.add(std::mem::size_of::<StringHeader>());
-        match std::str::from_utf8(std::slice::from_raw_parts(data, len)) {
-            Ok(s) => s,
-            Err(_) => {
-                abi_mismatch_warn_once("payload is not UTF-8");
-                ""
-            }
-        }
-    }
+pub fn str_from_header(ptr: *const u8) -> String {
+    try_str_from_header(ptr).unwrap_or_default()
 }
 
 /// Allocate a Perry heap string suitable for returning across the FFI
@@ -224,6 +222,18 @@ mod tests {
     fn rejects_null_and_low_pointers() {
         assert_eq!(str_from_header(std::ptr::null()), "");
         assert_eq!(str_from_header(0x10 as *const u8), "");
+    }
+
+    #[test]
+    fn decodes_inline_short_strings() {
+        assert_eq!(str_from_header(0x6c6c756e as *const u8), "null");
+        assert_eq!(str_from_header(0x7d7b as *const u8), "{}");
+        assert_eq!(str_from_header(b'x' as *const u8), "x");
+    }
+
+    #[test]
+    fn rejects_unaligned_header_pointers() {
+        assert_eq!(try_str_from_header(0x1_0000_0001 as *const u8), None);
     }
 
     #[test]

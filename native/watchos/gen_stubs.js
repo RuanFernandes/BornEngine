@@ -84,7 +84,7 @@ const OVERRIDES = new Set([
   'bloom_set_manual_exposure', 'bloom_set_auto_exposure', 'bloom_set_sun_shafts',
   // Colyseus client bridge, implemented in src/colyseus.rs.
   'bloom_colyseus_client_create', 'bloom_colyseus_client_join',
-  'bloom_colyseus_client_dispose', 'bloom_colyseus_poll', 'bloom_colyseus_next_event',
+  'bloom_colyseus_client_dispose', 'bloom_colyseus_poll', 'bloom_colyseus_has_event', 'bloom_colyseus_next_event',
   'bloom_colyseus_room_send', 'bloom_colyseus_room_send_bytes',
   'bloom_colyseus_room_request', 'bloom_colyseus_room_cancel_request',
   'bloom_colyseus_room_leave', 'bloom_colyseus_room_is_connected',

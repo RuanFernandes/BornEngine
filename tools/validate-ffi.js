@@ -259,14 +259,13 @@ if (!NATIVE_ONLY) {
     // Scene-node setters (round-2) — same Perry-WASM linear-memory bridge
     // TODO as bloom_scene_set_lod above.
     'bloom_scene_set_trs',
-    // Colyseus currently links the official C SDK on supported native targets.
-    // Web uses wasm32-unknown-unknown, while the SDK's WASM archive is built
-    // for Emscripten; bloom_glue.js provides explicit unsupported stubs until
-    // a browser backend is added.
+    // The browser binds these through the official JS SDK bridge in
+    // bloom_glue.js rather than Rust exports from the WebAssembly module.
     'bloom_colyseus_client_create',
     'bloom_colyseus_client_join',
     'bloom_colyseus_client_dispose',
     'bloom_colyseus_poll',
+    'bloom_colyseus_has_event',
     'bloom_colyseus_next_event',
     'bloom_colyseus_room_send',
     'bloom_colyseus_room_send_bytes',

@@ -349,6 +349,14 @@ fn registry() -> MutexGuard<'static, Registry> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+pub fn has_event() -> bool {
+    events_available(&registry().events)
+}
+
+fn events_available(events: &VecDeque<String>) -> bool {
+    !events.is_empty()
+}
+
 fn allocate_handle(registry: &mut Registry) -> u64 {
     registry.next_handle = registry.next_handle.wrapping_add(1).max(1);
     registry.next_handle
@@ -637,6 +645,23 @@ pub fn poll() {}
 pub fn next_event() -> String {
     registry().events.pop_front().unwrap_or_default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_event_tracks_queue_emptiness_without_consuming_events() {
+        let mut events = VecDeque::new();
+        assert!(!events_available(&events));
+        events.push_back(String::from("{\"kind\":\"join\"}"));
+        assert!(events_available(&events));
+        assert_eq!(events.front().map(String::as_str), Some("{\"kind\":\"join\"}"));
+        events.pop_front();
+        assert!(!events_available(&events));
+    }
+}
+
 
 #[cfg(colyseus_native_sdk)]
 pub fn room_send(room_handle: u64, message_type: &str, payload_json: &str) {

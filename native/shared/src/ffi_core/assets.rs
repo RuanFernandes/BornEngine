@@ -14,7 +14,7 @@ macro_rules! __bloom_ffi_assets {
         #[no_mangle]
         pub extern "C" fn bloom_take_screenshot(path_ptr: *const u8) {
             $crate::ffi::guard("bloom_take_screenshot", move || {
-                let path = $crate::string_header::str_from_header(path_ptr).to_string();
+                let path = $crate::string_header::str_from_header(path_ptr);
                 eprintln!("bloom: screenshot requested -> '{}'", path);
                 let mut eng = engine();
                 eng.renderer.screenshot_requested = true;
@@ -27,7 +27,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_load_font(path_ptr: *const u8, _size: f64) -> f64 {
             $crate::ffi::guard("bloom_load_font", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => engine().text.load_font(&data) as f64,
                     Err(_) => 0.0,
@@ -48,7 +48,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_load_sound(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_sound", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => match $crate::audio::decode_audio(path, &data) {
                         Some(s) => engine().audio.load_sound(s),
@@ -64,7 +64,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_load_texture(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_texture", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => {
                         let mut eng = engine();
@@ -109,7 +109,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_load_image(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_image", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => engine().textures.load_image(&data),
                     Err(_) => 0.0,
@@ -173,7 +173,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_load_shader(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_shader", move || {
                 let source = $crate::string_header::str_from_header(source_ptr);
-                engine().renderer.load_custom_shader(source) as f64
+                engine().renderer.load_custom_shader(&source) as f64
         })
         }
 
@@ -182,7 +182,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_load_music(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_music", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     // Streams OGG/MP3 from the compressed bytes (background
                     // decode worker); WAV and wasm32 fully decode.
@@ -197,7 +197,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_write_file(path_ptr: *const u8, data_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_write_file", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 // A string that failed ABI validation must NOT be written as "" and
                 // reported as a success. That is not a save, it is a deletion with a
                 // thumbs-up, and it is exactly what happened to every world the
@@ -245,7 +245,7 @@ macro_rules! __bloom_ffi_assets {
                 // right there in <project>. Which is exactly what it did.
                 let bare = !cmd.chars().any(|ch| ch == '/' || ch == std::path::MAIN_SEPARATOR);
                 let resolved: std::path::PathBuf = if !cwd.is_empty() && bare {
-                    std::path::Path::new(cwd).join(cmd)
+                    std::path::Path::new(&cwd).join(&cmd)
                 } else {
                     std::path::PathBuf::from(cmd)
                 };
@@ -271,7 +271,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_file_exists(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_file_exists", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 if std::path::Path::new(path).exists() { 1.0 } else { 0.0 }
         })
         }
@@ -281,7 +281,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_read_file(path_ptr: *const u8) -> *const u8 {
             $crate::ffi::guard("bloom_read_file", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read_to_string(path) {
                     Ok(contents) => $crate::string_header::alloc_perry_string(&contents),
                     Err(_) => $crate::string_header::alloc_perry_string(""),
@@ -324,7 +324,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_stage_texture(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_texture", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => $crate::staging::decode_and_stage_texture(&data),
                     Err(_) => 0.0,
@@ -337,7 +337,7 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_stage_sound(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_sound", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path: &str = &bloom_resolve_asset_path(path);
+                let path: &str = &bloom_resolve_asset_path(&path);
                 let data = match std::fs::read(path) { Ok(d) => d, Err(_) => return 0.0 };
                 match $crate::audio::decode_audio(path, &data) {
                     Some(s) => $crate::staging::stage_sound(s),

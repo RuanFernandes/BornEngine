@@ -57,7 +57,7 @@ fn resolve_path(path: &str) -> String {
 #[no_mangle]
 pub extern "C" fn bloom_android_set_asset_path(path_ptr: *const u8) {
     let path = str_from_header(path_ptr);
-    let data_path = std::path::PathBuf::from(path);
+    let data_path = std::path::PathBuf::from(&path);
     if data_path.is_absolute() { let _ = DATABASE_DATA_PATH.set(data_path); }
     unsafe {
         ASSET_BASE_PATH = Some(path.to_string());

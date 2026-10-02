@@ -3,24 +3,22 @@ import {
   ColyseusClient,
   Colors,
   Game,
-  GameComponent,
   GameObject,
   Key,
   ParticleEmitter2D,
-  Renderer,
   Scene,
   ScriptComponent,
   SpriteSheet,
   Vector2D,
-  Viewport2D,
 } from '@bornengine/engine';
-import type { Color, Room, SpriteFrame } from '@bornengine/engine';
+import type { Camera2D, Color, ColyseusError, Room, SpriteFrame } from '@bornengine/engine';
 import { MovementInputThrottle, ROOM_HEIGHT, ROOM_WIDTH } from '../server/src/protocol.js';
 
 const WORLD_WIDTH = ROOM_WIDTH;
 const WORLD_HEIGHT = ROOM_HEIGHT;
 const SERVER_SCRIPT_LIMIT = 64 * 1024;
 const CLIENT_SCRIPT_LIMIT = 128 * 1024;
+const PLAYER_RADIUS = 20;
 const LOCAL_COLOR: Color = { r: 166, g: 235, b: 100, a: 255 };
 const REMOTE_COLOR: Color = { r: 83, g: 176, b: 247, a: 255 };
 
@@ -31,43 +29,62 @@ function endpointFromArgs(): string {
   return 'ws://127.0.0.1:2568';
 }
 
-class SandboxField extends GameComponent {
-  override render(renderer: Renderer): void {
-    if (!this.isActiveAndEnabled) return;
-    renderer.drawRectangle(
-      { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
-      { r: 20, g: 31, b: 42, a: 255 },
-    );
-    renderer.drawRectangleOutline(
-      { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
-      { r: 66, g: 95, b: 112, a: 255 },
-      2,
-    );
-  }
+const COLYSEUS_ENDPOINT = endpointFromArgs();
+let activeSandboxGame: SandboxClientGame | null = null;
+
+function dispatchGameplayJoin(room: Room<any>): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleGameplayJoined(room);
 }
 
-class PlayerMarker extends GameComponent {
-  constructor(private readonly color: Color) {
-    super();
-    this.renderOrder = 10;
-  }
+function dispatchGameplayError(error: ColyseusError): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleGameplayError(error);
+}
 
-  override render(renderer: Renderer): void {
-    if (!this.isActiveAndEnabled || this.gameObject === null) return;
-    const position = this.gameObject.transform.worldPosition;
-    const center = new Vector2D(position.x, position.y);
-    renderer.drawCircle(center, 13, this.color);
-    renderer.drawCircleOutline(center, 13, Colors.WHITE);
-  }
+function dispatchGameplayState(state: any): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.syncPlayers(state);
+}
+
+function dispatchInputAccepted(_message: any): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleInputAccepted();
+}
+
+function dispatchInputRejected(message: any): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleInputRejected(message);
+}
+
+function dispatchGameplayLeave(_code: number, reason: string): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleGameplayLeave(reason);
+}
+
+function dispatchManagerJoin(room: Room<any>): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleScriptingManagerJoined(room);
+}
+
+function dispatchManagerError(error: ColyseusError): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleScriptingManagerError(error);
+}
+
+function dispatchClientScript(payload: any): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.applyScriptRevision(payload);
+}
+
+function dispatchManagerLeave(_code: number, reason: string): void {
+  const game = activeSandboxGame;
+  if (game !== null) game.handleScriptingManagerLeave(reason);
 }
 
 class SandboxScene extends Scene {
   constructor(game: Game) {
     super(game, { name: 'Scripting Sandbox' });
-    this.viewport2D = new Viewport2D({ width: WORLD_WIDTH, height: WORLD_HEIGHT, mode: 'fit' });
-    const field = new GameObject({ name: 'Arena' });
-    field.addComponent(new SandboxField());
-    this.addNode(field);
   }
 }
 
@@ -85,18 +102,24 @@ class SandboxClientGame extends Game {
   private currentScriptRevision = -1;
   private pendingScriptPayload: any = null;
   private particleFrame: SpriteFrame | null = null;
+  private localParticles: ParticleEmitter2D | null = null;
+  private particleSetupStatus = 'loading';
   private readonly inputThrottle = new MovementInputThrottle();
   private status = 'Connecting to Colyseus…';
+  private movementRejectionSeconds = 0;
+  private movementRejectionCount = 0;
   private sequence = 0;
 
-  constructor(private readonly endpoint: string) {
+  constructor() {
     super({
-      window: { title: 'BornEngine · Scripting Sandbox', width: 1000, height: 640 },
+      window: { title: 'BornEngine - Scripting Sandbox', width: 1000, height: 640 },
       targetFps: 60,
+      renderMode: '2d',
     });
   }
 
   protected override onStart(): void {
+    activeSandboxGame = this;
     const scene = new SandboxScene(this);
     this.scene = scene;
     if (this.scenes.changeTo(scene) === false) {
@@ -105,7 +128,7 @@ class SandboxClientGame extends Game {
     }
     this.loadParticleFrame();
 
-    const network = new ColyseusClient(this, this.endpoint);
+    const network = new ColyseusClient(this, COLYSEUS_ENDPOINT);
     this.network = network;
     if (network.error !== null) {
       this.status = `Network error: ${network.error}`;
@@ -113,13 +136,22 @@ class SandboxClientGame extends Game {
     }
 
     const started = network.joinOrCreateWithCallbacks('sandbox', { name: 'Native Player' }, {
-      onJoin: (room) => this.onGameplayJoined(room),
-      onError: (error) => { this.status = `Could not join gameplay: ${error.message}`; },
+      onJoin: dispatchGameplayJoin,
+      onError: dispatchGameplayError,
     });
     if (!started) this.status = network.error || 'Could not start gameplay room join.';
+    else this.joinScriptingManager();
   }
 
   protected override loop(deltaTime: number): void {
+    if (this.movementRejectionSeconds > 0) {
+      this.movementRejectionSeconds = Math.max(0, this.movementRejectionSeconds - Math.max(0, deltaTime));
+      if (this.movementRejectionSeconds === 0 && this.status.indexOf('Movement rejected:') === 0) {
+        this.status = this.gameplayRoom !== null && this.gameplayRoom.isConnected
+          ? `Connected · ${this.localSessionId.slice(0, 8)} · gameplay active`
+          : 'Connecting to Colyseus…';
+      }
+    }
     this.scenes.update(deltaTime);
     const room = this.gameplayRoom;
     if (room === null || !room.isConnected) return;
@@ -139,19 +171,60 @@ class SandboxClientGame extends Game {
 
   protected override render(): void {
     this.renderer.clear({ r: 13, g: 22, b: 32, a: 255 });
-    super.render();
+    const camera: Camera2D = {
+      offset: { x: 20, y: 50 },
+      target: { x: 0, y: 0 },
+      rotation: 0,
+      zoom: 1,
+    };
+    const cameraStarted = this.renderer.begin2D(camera);
+    try {
+      this.renderer.drawRectangle(
+        { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
+        { r: 20, g: 31, b: 42, a: 255 },
+      );
+      this.renderer.drawRectangleOutline(
+        { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
+        { r: 66, g: 95, b: 112, a: 255 },
+        2,
+      );
+
+      for (let index = 0; index < this.playerNodes.length; index++) {
+        const player = this.playerNodes[index];
+        if (!player.activeInHierarchy) continue;
+        const position = player.transform.worldPosition;
+        const color = this.playerIds[index] === this.localSessionId ? LOCAL_COLOR : REMOTE_COLOR;
+        const center = new Vector2D(position.x, position.y);
+        this.renderer.drawCircle(center, PLAYER_RADIUS, color);
+        this.renderer.drawCircleOutline(center, PLAYER_RADIUS, Colors.WHITE);
+        const particles = player.getComponent(ParticleEmitter2D);
+        if (particles !== null) particles.render(this.renderer);
+      }
+    } finally {
+      if (cameraStarted) this.renderer.end2D();
+    }
+
     this.renderer.drawText('WASD / arrows: move · scripts run locally in QuickJS', new Vector2D(18, 14), 18, Colors.WHITE);
     this.renderer.drawText(this.status, new Vector2D(18, 40), 15, Colors.LIGHTGRAY);
-    this.renderer.drawText(`Script revision: ${Math.max(0, this.currentScriptRevision)} · players: ${this.playerIds.length}`, new Vector2D(18, 62), 15, Colors.LIGHTGRAY);
+    const scriptStatus = this.activeScript === null ? 'waiting for script' : this.activeScript.status;
+    const particleStatus = this.localParticles === null
+      ? this.particleSetupStatus
+      : `${this.localParticles.liveCount} live particles`;
+    this.renderer.drawText(
+      `Script revision: ${Math.max(0, this.currentScriptRevision)} · players: ${this.playerIds.length} · script: ${scriptStatus} · FX: ${particleStatus}`,
+      new Vector2D(18, 62), 15, Colors.LIGHTGRAY,
+    );
   }
 
   protected override onStop(): void {
+    if (activeSandboxGame === this) activeSandboxGame = null;
     if (this.stateDisposer !== null) this.stateDisposer();
     this.stateDisposer = null;
     if (this.gameplayRoom !== null) this.gameplayRoom.leave();
     if (this.scriptingRoom !== null) this.scriptingRoom.leave();
     this.gameplayRoom = null;
     this.scriptingRoom = null;
+    this.localParticles = null;
     if (this.network !== null) this.network.dispose();
     this.network = null;
     if (this.activeScript !== null) this.activeScript.dispose();
@@ -160,47 +233,89 @@ class SandboxClientGame extends Game {
 
   private loadParticleFrame(): void {
     const texture = this.assets.loadTexture('assets/particle.png');
-    if (texture === null || !texture.isLoaded) return;
+    if (texture === null) {
+      this.particleSetupStatus = 'particle texture unavailable';
+      return;
+    }
+    if (!texture.isLoaded) {
+      this.particleSetupStatus = texture.error || 'particle texture failed to load';
+      return;
+    }
     const sheet = new SpriteSheet(texture, { frameWidth: 16, frameHeight: 16 });
-    if (sheet.error !== null) return;
-    this.particleFrame = sheet.gridFrame(0, 0);
+    if (sheet.error !== null) {
+      this.particleSetupStatus = sheet.error;
+      return;
+    }
+    const frame = sheet.gridFrame(0, 0);
+    if (frame === null) {
+      this.particleSetupStatus = 'particle atlas has no usable frame';
+      return;
+    }
+    this.particleFrame = frame;
+    this.particleSetupStatus = 'ready';
+    if (this.localPlayer !== null) this.attachParticleEmitter(this.localPlayer);
   }
 
-  private onGameplayJoined(room: Room<any>): void {
+  handleGameplayJoined(room: Room<any>): void {
     this.gameplayRoom = room;
     this.localSessionId = room.sessionId;
     this.status = `Connected · ${room.sessionId.slice(0, 8)} · joining scripting manager…`;
-    this.stateDisposer = room.onStateChange((state: any) => this.syncPlayers(state));
-    room.onMessage('inputAccepted', () => undefined);
-    room.onMessage('inputRejected', (message: any) => {
-      this.status = `Movement rejected: ${String(message.reason || 'invalid input')}`;
-    });
-    room.onLeave((_code, reason) => {
-      this.status = `Gameplay disconnected: ${reason || 'room closed'}`;
-    });
+    this.stateDisposer = room.onStateChange(dispatchGameplayState);
+    room.onMessage('inputAccepted', dispatchInputAccepted);
+    room.onMessage('inputRejected', dispatchInputRejected);
+    room.onLeave(dispatchGameplayLeave);
     this.syncPlayers(room.state);
+  }
 
+  handleGameplayError(error: ColyseusError): void {
+    this.status = `Could not join gameplay: ${error.message}`;
+  }
+
+  handleInputRejected(message: any): void {
+    this.movementRejectionCount++;
+    this.status = `Movement rejected: ${String(message.reason || 'invalid input')} (${this.movementRejectionCount})`;
+    this.movementRejectionSeconds = 1.5;
+  }
+
+  handleInputAccepted(): void {
+    this.movementRejectionSeconds = 0;
+    if (this.status.indexOf('Movement rejected:') === 0) {
+      this.status = `Connected · ${this.localSessionId.slice(0, 8)} · gameplay active`;
+    }
+  }
+
+  handleGameplayLeave(reason: string): void {
+    this.status = `Gameplay disconnected: ${reason || 'room closed'}`;
+  }
+
+  handleScriptingManagerError(error: ColyseusError): void {
+    this.status = `Scripting manager unavailable: ${error.message}`;
+  }
+
+  handleScriptingManagerLeave(reason: string): void {
+    this.status = `Scripting manager disconnected: ${reason || 'room closed'}`;
+  }
+
+  private joinScriptingManager(): void {
     const network = this.network;
     if (network === null) return;
     const started = network.joinOrCreateWithCallbacks('scripting-manager', {}, {
-      onJoin: (managerRoom) => this.onScriptingManagerJoined(managerRoom),
-      onError: (error) => { this.status = `Scripting manager error: ${error.message}`; },
+      onJoin: dispatchManagerJoin,
+      onError: dispatchManagerError,
     });
     if (!started) this.status = network.error || 'Could not start scripting manager join.';
   }
 
-  private onScriptingManagerJoined(room: Room<any>): void {
+  handleScriptingManagerJoined(room: Room<any>): void {
     this.scriptingRoom = room;
-    room.onMessage('clientScriptSnapshot', (payload: any) => this.applyScriptRevision(payload));
-    room.onMessage('clientScriptReload', (payload: any) => this.applyScriptRevision(payload));
-    room.onLeave((_code, reason) => {
-      this.status = `Scripting manager disconnected: ${reason || 'room closed'}`;
-    });
+    room.onMessage('clientScriptSnapshot', dispatchClientScript);
+    room.onMessage('clientScriptReload', dispatchClientScript);
+    room.onLeave(dispatchManagerLeave);
     room.send('requestClientScriptSnapshot', {});
     this.status = `Connected · ${this.localSessionId.slice(0, 8)} · awaiting scripts`;
   }
 
-  private applyScriptRevision(value: any): void {
+  applyScriptRevision(value: any): void {
     const pendingRevision = this.pendingScriptPayload === null ? -1 : this.pendingScriptPayload.revision;
     if (value === null || typeof value !== 'object' || Array.isArray(value) ||
         !Number.isSafeInteger(value.revision) || value.revision < 0 ||
@@ -259,6 +374,7 @@ class SandboxClientGame extends Game {
       if (node === this.localPlayer) {
         this.localPlayer = null;
         this.activeScript = null;
+        this.localParticles = null;
       }
       this.playerIds.splice(index, 1);
       this.playerNodes.splice(index, 1);
@@ -271,7 +387,6 @@ class SandboxClientGame extends Game {
       let index = this.playerIds.indexOf(sessionId);
       if (index < 0) {
         const node = new GameObject({ name: sessionId === this.localSessionId ? 'Local player' : `Player ${sessionId.slice(0, 8)}` });
-        node.addComponent(new PlayerMarker(sessionId === this.localSessionId ? LOCAL_COLOR : REMOTE_COLOR));
         if (this.scene.addNode(node) === null) continue;
         this.playerIds.push(sessionId);
         this.playerNodes.push(node);
@@ -295,6 +410,7 @@ class SandboxClientGame extends Game {
   }
 
   private attachParticleEmitter(player: GameObject): void {
+    if (this.localParticles !== null && this.localParticles.isLoaded) return;
     const frame = this.particleFrame;
     if (frame === null) return;
     const particles = new ParticleEmitter2D({
@@ -312,9 +428,12 @@ class SandboxClientGame extends Game {
     });
     particles.renderOrder = -1;
     if (player.addComponent(particles) === null || !particles.isLoaded) {
-      this.status = particles.error || 'Local particle emitter could not be created.';
+      this.particleSetupStatus = particles.error || 'particle emitter could not be created';
+      return;
     }
+    this.localParticles = particles;
+    this.particleSetupStatus = 'ready';
   }
 }
 
-new SandboxClientGame(endpointFromArgs()).run();
+new SandboxClientGame().run();

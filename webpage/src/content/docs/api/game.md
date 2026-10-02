@@ -71,7 +71,13 @@ game.scenes.changeTo(new MenuScene(game));
 
 ## Game configuration and inspector
 
-`Game` accepts the optional Dear ImGui inspector through its `debug` setting. It is disabled by default and requires a desktop native build with the `debug-ui` feature enabled.
+`Game` accepts a rendering mode and the optional Dear ImGui inspector through its options. Choose `2d` for a pure 2D game: it uses the lightweight 2D pipeline and skips the deferred 3D renderer. Choose `3d` or `2.5d` when the game uses the 3D scene renderer. The default remains the full scene renderer. This runtime choice is separate from the Perry build profile, which controls which native features are compiled into the executable.
+
+```ts
+const game = new Game({ renderMode: '2d' });
+```
+
+The inspector is disabled by default and requires a desktop native build with the `debug-ui` feature enabled.
 
 ```ts
 const game = new Game({

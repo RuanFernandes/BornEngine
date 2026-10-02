@@ -17,7 +17,7 @@ macro_rules! __bloom_ffi_database {
         #[no_mangle]
         pub extern "C" fn bloom_database_scratch_push_string(value: *const u8) {
             let value = $crate::string_header::try_str_from_header(value);
-            $crate::database::scratch_push_string(value);
+            $crate::database::scratch_push_string(value.as_deref());
         }
 
         #[no_mangle]

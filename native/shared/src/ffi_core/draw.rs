@@ -82,7 +82,7 @@ macro_rules! __bloom_ffi_draw {
                 let mut eng = engine();
                 // Need to split borrow: take text out temporarily
                 let mut text_renderer = std::mem::replace(&mut eng.text, $crate::text_renderer::TextRenderer::empty());
-                text_renderer.draw_text(&mut eng.renderer, text, x, y, size as u32, r, g, b, a);
+                text_renderer.draw_text(&mut eng.renderer, &text, x, y, size as u32, r, g, b, a);
                 eng.text = text_renderer;
         })
         }
@@ -92,7 +92,7 @@ macro_rules! __bloom_ffi_draw {
         pub extern "C" fn bloom_measure_text(text_ptr: *const u8, size: f64) -> f64 {
             $crate::ffi::guard("bloom_measure_text", move || {
                 let text = $crate::string_header::str_from_header(text_ptr);
-                engine().text.measure_text(text, size as u32)
+                engine().text.measure_text(&text, size as u32)
         })
         }
 
@@ -103,7 +103,7 @@ macro_rules! __bloom_ffi_draw {
                 let text = $crate::string_header::str_from_header(text_ptr);
                 let mut eng = engine();
                 let mut text_renderer = std::mem::replace(&mut eng.text, $crate::text_renderer::TextRenderer::empty());
-                text_renderer.draw_text_ex(&mut eng.renderer, font_handle as usize, text, x, y, size as u32, spacing as f32, r, g, b, a);
+                text_renderer.draw_text_ex(&mut eng.renderer, font_handle as usize, &text, x, y, size as u32, spacing as f32, r, g, b, a);
                 eng.text = text_renderer;
         })
         }
@@ -113,7 +113,7 @@ macro_rules! __bloom_ffi_draw {
         pub extern "C" fn bloom_measure_text_ex(font_handle: f64, text_ptr: *const u8, size: f64, spacing: f64) -> f64 {
             $crate::ffi::guard("bloom_measure_text_ex", move || {
                 let text = $crate::string_header::str_from_header(text_ptr);
-                engine().text.measure_text_ex(font_handle as usize, text, size as u32, spacing as f32)
+                engine().text.measure_text_ex(font_handle as usize, &text, size as u32, spacing as f32)
         })
         }
 

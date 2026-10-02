@@ -16,7 +16,7 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_load_model(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_model", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path = bloom_resolve_asset_path(path);
+                let path = bloom_resolve_asset_path(&path);
                 match std::fs::read(path.as_ref()) {
                     Ok(data) => {
                         let mut eng = engine();
@@ -255,7 +255,7 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_compile_material(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material", move || {
                 let source = $crate::string_header::str_from_header(source_ptr);
-                match engine().renderer.compile_material(source) {
+                match engine().renderer.compile_material(&source) {
                     Ok(handle) => handle as f64,
                     Err(e) => {
                         eprintln!("[material] compile failed: {:?}", e);
@@ -272,7 +272,7 @@ macro_rules! __bloom_ffi_models {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
                 let source = $crate::string_header::str_from_header(source_ptr);
                 match engine().renderer.compile_material_with_options(
-                    source, FragmentProfile::Translucent, Bucket::Refractive, true, false,
+                    &source, FragmentProfile::Translucent, Bucket::Refractive, true, false,
                 ) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[refractive] compile failed: {:?}", e); 0.0 }
@@ -287,7 +287,7 @@ macro_rules! __bloom_ffi_models {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
                 let source = $crate::string_header::str_from_header(source_ptr);
                 match engine().renderer.compile_material_with_options(
-                    source, FragmentProfile::Translucent, Bucket::Transparent, false, false,
+                    &source, FragmentProfile::Translucent, Bucket::Transparent, false, false,
                 ) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] compile failed: {:?}", e); 0.0 }
@@ -302,7 +302,7 @@ macro_rules! __bloom_ffi_models {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
                 let source = $crate::string_header::str_from_header(source_ptr);
                 match engine().renderer.compile_material_with_options(
-                    source, FragmentProfile::Translucent, Bucket::Additive, false, false,
+                    &source, FragmentProfile::Translucent, Bucket::Additive, false, false,
                 ) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] compile failed: {:?}", e); 0.0 }
@@ -317,7 +317,7 @@ macro_rules! __bloom_ffi_models {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
                 let source = $crate::string_header::str_from_header(source_ptr);
                 match engine().renderer.compile_material_with_options(
-                    source, FragmentProfile::Opaque, Bucket::Cutout, false, false,
+                    &source, FragmentProfile::Opaque, Bucket::Cutout, false, false,
                 ) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] compile failed: {:?}", e); 0.0 }
@@ -330,7 +330,7 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_compile_material_instanced(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material_instanced", move || {
                 let source = $crate::string_header::str_from_header(source_ptr);
-                match engine().renderer.compile_material_instanced(source) {
+                match engine().renderer.compile_material_instanced(&source) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] instanced compile failed: {:?}", e); 0.0 }
                 }
@@ -350,7 +350,7 @@ macro_rules! __bloom_ffi_models {
             $crate::ffi::guard("bloom_compile_material_instanced_bucket", move || {
                 let source = $crate::string_header::str_from_header(source_ptr);
                 match engine().renderer.compile_material_instanced_bucket(
-                    source, bucket as u32, reads_scene != 0.0)
+                    &source, bucket as u32, reads_scene != 0.0)
                 {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] instanced compile failed: {:?}", e); 0.0 }
@@ -426,7 +426,7 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_load_model_animation(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_model_animation", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path = bloom_resolve_asset_path(path);
+                let path = bloom_resolve_asset_path(&path);
                 match std::fs::read(path.as_ref()) {
                     Ok(data) => engine().models.load_model_animation(&data),
                     Err(_) => 0.0,
@@ -812,7 +812,7 @@ macro_rules! __bloom_ffi_models {
         pub extern "C" fn bloom_stage_model(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_model", move || {
                 let path = $crate::string_header::str_from_header(path_ptr);
-                let path = bloom_resolve_asset_path(path);
+                let path = bloom_resolve_asset_path(&path);
                 let data = match std::fs::read(path.as_ref()) {
                     Ok(d) => d,
                     Err(_) => return 0.0,
@@ -897,7 +897,7 @@ macro_rules! __bloom_ffi_models {
                 // the desktop hosts. On iOS the CWD is not the app bundle, so
                 // every from-file material failed to canonicalize and the whole
                 // scene lost its shaders.
-                let path = bloom_resolve_asset_path(path);
+                let path = bloom_resolve_asset_path(&path);
                 let (profile, bucket, reads_scene) = match bucket_kind as u32 {
                     0 => (FragmentProfile::Opaque,      Bucket::Opaque,      false),
                     1 => (FragmentProfile::Translucent, Bucket::Transparent, false),

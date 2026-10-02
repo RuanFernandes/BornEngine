@@ -4402,6 +4402,11 @@
           "returns": "void"
         },
         {
+          "name": "bloom_colyseus_has_event",
+          "params": [],
+          "returns": "f64"
+        },
+        {
           "name": "bloom_colyseus_next_event",
           "params": [],
           "returns": "string"

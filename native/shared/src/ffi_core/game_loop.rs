@@ -309,7 +309,7 @@ macro_rules! __bloom_ffi_game_loop {
         pub extern "C" fn bloom_add_post_pass(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_add_post_pass", move || {
                 let source = $crate::string_header::str_from_header(source_ptr);
-                match engine().renderer.add_post_pass(source) {
+                match engine().renderer.add_post_pass(&source) {
                     Ok(h) => h as f64,
                     Err(e) => { eprintln!("[post_pass] compile failed: {:?}", e); 0.0 }
                 }

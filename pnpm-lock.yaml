@@ -1,0 +1,22 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@bornengine/jolt-prebuilt':
+        specifier: 0.4.1
+        version: 0.4.1
+
+packages:
+
+  '@bornengine/jolt-prebuilt@0.4.1':
+    resolution: {integrity: sha512-s5l/Xtfhs5Zya87dy29xZQcS6p3o8/5G+sUwQCIAcTWXTw3SDM4DsS/95sFU8tx0Zd30PsL79sN7SsU+JLuhTw==}
+
+snapshots:
+
+  '@bornengine/jolt-prebuilt@0.4.1': {}

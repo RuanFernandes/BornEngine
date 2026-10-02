@@ -7,6 +7,7 @@ declare function bloom_colyseus_client_create(url: string): number;
 declare function bloom_colyseus_client_join(client: number, method: number, target: string, options: string): number;
 declare function bloom_colyseus_client_dispose(client: number): void;
 declare function bloom_colyseus_poll(): void;
+declare function bloom_colyseus_has_event(): number;
 declare function bloom_colyseus_next_event(): string;
 declare function bloom_colyseus_room_send(room: number, type: string, payload: string): void;
 declare function bloom_colyseus_room_send_bytes(room: number, type: string, bytes: string): void;
@@ -47,6 +48,13 @@ interface PendingRequest { id: number; deadline: number; resolve: (value: any) =
 class NativeRoomHandle { constructor(readonly value: number) {} }
 const COLYSEUS_RUNTIME_SLOT = {};
 
+function serializeRoomOptions(options: object): string {
+  const serialized = JSON.stringify(options);
+  // Perry may represent an empty options object as JSON null. Empty native
+  // strings are treated as the default {} by the Rust Colyseus bridge.
+  return serialized === undefined || serialized === 'null' ? '' : serialized;
+}
+
 class ColyseusRuntime implements ContextFrameService {
   private clients: ColyseusClient[] = [];
   private disposed = false;
@@ -69,8 +77,8 @@ class ColyseusRuntime implements ContextFrameService {
     if (this.disposed || this.clients.length === 0 || !this.context.isReady) return;
     bloom_colyseus_poll();
     for (let count = 0; count < 4096; count++) {
+      if (bloom_colyseus_has_event() === 0) break;
       const encoded = bloom_colyseus_next_event();
-      if (encoded.length === 0) break;
       let event: NativeRoomEvent;
       try { event = JSON.parse(encoded) as NativeRoomEvent; }
       catch (_error) { continue; }
@@ -193,10 +201,10 @@ export class ColyseusClient implements ContextResource {
 
   private startJoin<TState>(method: number, target: string, options: object): Promise<Room<TState>> {
     if (!this.isLoaded) return Promise.reject(new Error(this.errorValue || 'Colyseus client has been disposed.'));
-    const optionsJson = JSON.stringify(options);
+    const optionsJson = serializeRoomOptions(options);
     return new Promise<Room<TState>>((resolve, reject) => {
       const nativeHandle = bloom_colyseus_client_join(this.handleValue, method, target,
-        optionsJson === undefined ? '{}' : optionsJson);
+        optionsJson);
       if (nativeHandle === 0) { reject(new Error('Unable to start Colyseus matchmaking')); return; }
       const room = new Room<TState>(new NativeRoomHandle(nativeHandle), this);
       this.rooms.push(room);
@@ -215,9 +223,9 @@ export class ColyseusClient implements ContextResource {
       return false;
     }
 
-    const optionsJson = JSON.stringify(options);
+    const optionsJson = serializeRoomOptions(options);
     const nativeHandle = bloom_colyseus_client_join(this.handleValue, method, target,
-      optionsJson === undefined ? '{}' : optionsJson);
+      optionsJson);
     if (nativeHandle === 0) {
       callbacks.onError(new Error('Unable to start Colyseus matchmaking') as ColyseusError);
       return false;
@@ -227,7 +235,7 @@ export class ColyseusClient implements ContextResource {
     this.rooms.push(room);
     this.pendingJoins.push({
       room,
-      onJoin: (joined) => callbacks.onJoin(joined as Room<TState>),
+      onJoin: callbacks.onJoin as (joined: Room) => void,
       onError: callbacks.onError,
     });
     return true;

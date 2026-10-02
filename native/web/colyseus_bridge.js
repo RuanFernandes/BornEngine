@@ -198,6 +198,10 @@ export function createColyseusBridge({ Client }) {
 
     bloom_colyseus_poll() {},
 
+    bloom_colyseus_has_event() {
+      return events.length > 0 ? 1 : 0;
+    },
+
     bloom_colyseus_next_event() {
       const event = events.shift();
       return event === undefined ? '' : encode(event);

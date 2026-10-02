@@ -31,6 +31,11 @@ pub extern "C" fn bloom_colyseus_poll() {
 }
 
 #[no_mangle]
+pub extern "C" fn bloom_colyseus_has_event() -> f64 {
+    crate::colyseus::has_event() as u8 as f64
+}
+
+#[no_mangle]
 pub extern "C" fn bloom_colyseus_next_event() -> i64 {
     crate::alloc_perry_string(&crate::colyseus::next_event())
 }

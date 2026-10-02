@@ -298,11 +298,13 @@ impl EngineState {
         self.profiler.frame_end(&self.renderer.device);
         self.input.end_frame();
 
-        // Vsync (PresentMode::Fifo, the wgpu default) already caps frame rate.
-        // Only apply CPU sleep-based cap when vsync is not active.
+        // Vsync caps frames to the display refresh rate, which may be much
+        // higher than the game's target (for example, 240 Hz vs 60 FPS).
+        // Measure after present and sleep only for the remaining frame budget;
+        // this also covers drivers where FIFO present returns before vblank.
         // On WASM, frame pacing is handled by requestAnimationFrame.
         #[cfg(not(target_arch = "wasm32"))]
-        if self.target_fps > 0.0 && !self.renderer.vsync_active() {
+        if self.target_fps > 0.0 {
             let target_frame_time = 1.0 / self.target_fps;
             let elapsed = self.last_frame_time.elapsed().as_secs_f64();
             if elapsed < target_frame_time {

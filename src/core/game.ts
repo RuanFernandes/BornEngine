@@ -12,7 +12,10 @@ import { DebugUi } from '../debug-ui';
 import { GameInspector } from '../debug-ui/game-inspector';
 import { AssetManager } from '../assets';
 import { ScriptRuntime } from '../scripting/script-runtime';
-import { beginDrawing, endDrawing, getPlatform, getTime, runGame, setTargetFPS, Platform } from './internal';
+import { beginDrawing, endDrawing, getPlatform, getTime, runGame, setDirect2DMode, setTargetFPS, Platform } from './internal';
+
+/** Selects the native rendering path used by a Game. */
+export type GameRenderMode = '2d' | '3d' | '2.5d';
 
 /** Runtime measurements for the most recent Game frame and active scene. */
 export interface GameStats {
@@ -35,6 +38,12 @@ export interface GameStats {
 export interface GameOptions {
   window?: WindowOptions;
   targetFps?: number;
+  /**
+   * Select the rendering path. `2d` skips the deferred 3D renderer and uses
+   * the lightweight 2D pipeline; `3d` and `2.5d` use the full scene renderer.
+   * Defaults to the full scene renderer.
+   */
+  renderMode?: GameRenderMode;
   /** Opt-in engine inspector backed by the optional Dear ImGui desktop build. */
   debug?: boolean | GameDebugOptions;
 }
@@ -135,6 +144,7 @@ export class Game {
 
     if (getGameContext(this).isReady) {
       if (options.targetFps !== undefined) setTargetFPS(options.targetFps);
+      if (options.renderMode !== undefined) setDirect2DMode(options.renderMode === '2d');
       this.activateServices();
     }
   }
