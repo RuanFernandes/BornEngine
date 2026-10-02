@@ -69,7 +69,10 @@ const LANGUAGE_LOADERS = Object.freeze({
   css: () => import('monaco-editor/languages/definitions/css/register.js'),
   html: () => import('monaco-editor/languages/definitions/html/register.js'),
   javascript: () => import('monaco-editor/languages/definitions/javascript/register.js'),
-  json: () => import('monaco-editor/language/json/monaco.contribution.js'),
+  json: async (monaco) => {
+    const { registerJsonLanguage } = await import('./json-language.mjs');
+    registerJsonLanguage(monaco);
+  },
   rust: () => import('monaco-editor/languages/definitions/rust/register.js'),
   shell: () => import('monaco-editor/languages/definitions/shell/register.js'),
   typescript: () => import('monaco-editor/languages/definitions/typescript/register.js'),
@@ -81,11 +84,11 @@ function loadMonaco() {
   return monacoPromise;
 }
 
-function loadLanguage(language) {
+function loadLanguage(monaco, language) {
   const normalized = monacoLanguage(language);
   const loader = LANGUAGE_LOADERS[normalized];
   if (!loader) return Promise.resolve();
-  if (!languagePromises.has(normalized)) languagePromises.set(normalized, loader());
+  if (!languagePromises.has(normalized)) languagePromises.set(normalized, loader(monaco));
   return languagePromises.get(normalized);
 }
 
@@ -115,7 +118,7 @@ async function mountCodeBlock(block) {
 
   try {
     const monaco = await loadMonaco();
-    await loadLanguage(language);
+    await loadLanguage(monaco, language);
     const theme = document.documentElement.dataset.theme ?? 'ink';
     const editor = monaco.editor.create(
       target,
