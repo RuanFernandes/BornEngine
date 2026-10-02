@@ -11,7 +11,7 @@ per second, and stamps the sender identity before broadcasting.
 
 ## Requirements
 
-- Node.js 20.9 or newer for the server tests and server runtime.
+- Node.js 22 or newer for the server tests and server runtime.
 - The BornEngine CLI and Perry for the native client.
 
 ## Start the local server
