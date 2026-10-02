@@ -1,4 +1,4 @@
-/// Platform-agnostic input state.
+//! Platform-agnostic input state.
 
 const MAX_KEYS: usize = 512;
 const MAX_MOUSE_BUTTONS: usize = 8;
@@ -111,6 +111,12 @@ pub struct InputState {
     // begin_frame publishes them for exactly one frame.
     keys_repeated: [bool; MAX_KEYS],
     repeat_pending: [bool; MAX_KEYS],
+}
+
+impl Default for InputState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl InputState {

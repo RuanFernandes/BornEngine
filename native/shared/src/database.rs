@@ -832,7 +832,7 @@ fn database_path(root: &Path, app_id: &str, name: &str) -> Result<PathBuf, Datab
 }
 
 fn valid_handle(value: f64) -> bool {
-    value.is_finite() && value >= 1.0 && value <= MAX_SAFE_INTEGER && value.fract() == 0.0
+    value.is_finite() && (1.0..=MAX_SAFE_INTEGER).contains(&value) && value.fract() == 0.0
 }
 
 fn valid_namespace(value: &str) -> bool {

@@ -105,6 +105,7 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
 ///      skips the per-sample `-p32 / (depth + p22)` reconstruction.
 ///   3. Contact-shadow march is gated on `dot(N, light_vs) > 0.1` —
 ///      back-facing pixels skip the whole 12-step march.
+///
 /// Output layout is unchanged: R = noisy AO, G = contact shadow.
 pub(in crate::renderer) const SSAO_SHADER_WGSL: &str = "
 struct SsaoParams {
@@ -567,4 +568,3 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     return vec4<f32>(ao_blurred, center.g, 0.0, 1.0);
 }
 ";
-

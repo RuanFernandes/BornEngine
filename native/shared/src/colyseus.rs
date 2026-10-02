@@ -1587,7 +1587,7 @@ unsafe fn static_field_to_json(
         1 => serde_json::json!(*(value as *const f64)),
         2 => serde_json::Value::Bool(*(value as *const bool)),
         3 => serde_json::json!(*(value as *const i8)),
-        4 => serde_json::json!(*(value as *const u8)),
+        4 => serde_json::json!(*value),
         5 => serde_json::json!(*(value as *const i16)),
         6 => serde_json::json!(*(value as *const u16)),
         7 => serde_json::json!(*(value as *const i32)),

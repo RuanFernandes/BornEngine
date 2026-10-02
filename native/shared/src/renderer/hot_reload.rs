@@ -69,6 +69,12 @@ pub struct MaterialHotReload {
 
 const DEBOUNCE_WINDOW: Duration = Duration::from_millis(120);
 
+impl Default for MaterialHotReload {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MaterialHotReload {
     pub fn new() -> Self {
         let (tx, rx) = channel::<PathBuf>();

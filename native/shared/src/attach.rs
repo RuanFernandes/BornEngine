@@ -24,16 +24,9 @@ use crate::renderer::Renderer;
 /// no extra dependency on `pollster`.
 fn block_on<F: std::future::Future>(future: F) -> F::Output {
     use std::pin::Pin;
-    use std::sync::Arc;
-    use std::task::{Context, Poll, Wake, Waker};
+    use std::task::{Context, Poll, Waker};
 
-    struct NoopWaker;
-    impl Wake for NoopWaker {
-        fn wake(self: Arc<Self>) {}
-    }
-
-    let waker = Waker::from(Arc::new(NoopWaker));
-    let mut cx = Context::from_waker(&waker);
+    let mut cx = Context::from_waker(Waker::noop());
     let mut future = unsafe { Pin::new_unchecked(Box::new(future)) };
     loop {
         match future.as_mut().poll(&mut cx) {

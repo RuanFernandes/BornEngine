@@ -218,8 +218,8 @@ impl EguiUi {
             positions,
             sizes,
             default_window_size: Vec2::new(
-                (screen_rect[2].min(372.0).max(128.0) - 32.0).max(96.0),
-                (screen_rect[3].min(452.0).max(128.0) - 32.0).max(96.0),
+                (screen_rect[2].clamp(128.0, 372.0) - 32.0).max(96.0),
+                (screen_rect[3].clamp(128.0, 452.0) - 32.0).max(96.0),
             ),
             responses: HashMap::new(),
             registered_textures: HashMap::new(),
@@ -846,7 +846,7 @@ impl EvalState<'_> {
             UiOpcode::PaintPolyline | UiOpcode::PaintPolygon => {
                 let coordinate_count = values.len().saturating_sub(5) & !1;
                 let points: Vec<_> = values[..coordinate_count]
-                    .chunks_exact(2)
+                    .as_chunks::<2>().0.iter()
                     .filter_map(|point| {
                         Some(origin + Vec2::new(finite_f32(point[0])?, finite_f32(point[1])?))
                     })

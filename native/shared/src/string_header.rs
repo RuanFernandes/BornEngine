@@ -127,7 +127,7 @@ pub unsafe fn try_str_from_header(ptr: *const u8) -> Option<String> {
         };
     }
 
-    if address < 0x1000 || address % std::mem::align_of::<StringHeader>() != 0 {
+    if address < 0x1000 || !address.is_multiple_of(std::mem::align_of::<StringHeader>()) {
         abi_mismatch_warn_once("invalid or unaligned header pointer");
         return None;
     }

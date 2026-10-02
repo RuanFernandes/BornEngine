@@ -42,7 +42,6 @@ impl Renderer {
         let scene_bounds = scene.compute_shadow_bounds();
         self.shadow_map.compute_cascade_vps(
             light_dir,
-            self.current_camera_pos,
             self.current_view_matrix,
             // Use the pre-jitter projection so the cascade VPs
             // stay byte-stable when the camera is actually

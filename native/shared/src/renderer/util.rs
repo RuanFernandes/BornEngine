@@ -101,9 +101,9 @@ pub fn mat4_translate(m: [[f32; 4]; 4], v: [f32; 3]) -> [[f32; 4]; 4] {
 
 pub fn mat4_scale(m: [[f32; 4]; 4], v: [f32; 3]) -> [[f32; 4]; 4] {
     let mut out = m;
-    for i in 0..4 { out[0][i] *= v[0]; }
-    for i in 0..4 { out[1][i] *= v[1]; }
-    for i in 0..4 { out[2][i] *= v[2]; }
+    for value in &mut out[0] { *value *= v[0]; }
+    for value in &mut out[1] { *value *= v[1]; }
+    for value in &mut out[2] { *value *= v[2]; }
     out
 }
 

@@ -123,6 +123,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: validate-ffi
         run: node tools/validate-ffi.js
+      - name: test FFI parser
+        run: node --test tools/ffi-parser.test.cjs
       - name: validate Colyseus runtime matrix
         run: node --test tests/colyseus/platform-matrix.test.mjs
       - name: file line limit (2000, ratcheting baseline)
@@ -145,8 +147,9 @@ jobs:
         run: cargo +nightly check -Z build-std=std,panic_abort --manifest-path native/watchos/Cargo.toml --target aarch64-apple-watchos --no-default-features --features mp3,jolt,models3d,image-extras,dev
 
   # ---------------------------------------------------------------------------
-  # Lint: rustfmt + clippy. Advisory while the codebase is still in flux.
-  # Flip `continue-on-error: false` once the lint baseline is clean.
+  # Lint: Clippy is blocking. rustfmt remains advisory because the shared
+  # crate's existing formatting baseline produces about 42,824 lines of diff;
+  # formatting it wholesale would also exceed the ratcheting file-line limit.
   # ---------------------------------------------------------------------------
   lint:
     runs-on: macos-14
@@ -165,9 +168,8 @@ jobs:
         continue-on-error: true
         run: cargo fmt --check
 
-      - name: clippy (shared, advisory)
+      - name: clippy (shared)
         working-directory: native/shared
-        continue-on-error: true
         run: cargo clippy --release --no-deps -- -D warnings
 
   # ---------------------------------------------------------------------------

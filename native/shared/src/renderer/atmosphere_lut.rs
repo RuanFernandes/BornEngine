@@ -231,7 +231,7 @@ pub fn build_transmittance_lut(w: u32, h: u32) -> Vec<u16> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let nthreads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-        let rows_per_thread = (h as usize + nthreads - 1) / nthreads;
+        let rows_per_thread = (h as usize).div_ceil(nthreads);
         let mut all_rows: Vec<Option<Vec<Vec<u16>>>> = (0..nthreads).map(|_| None).collect();
         std::thread::scope(|s| {
             let mut handles = Vec::with_capacity(nthreads);
@@ -337,14 +337,12 @@ fn scattering_at(altitude_km: f32) -> ([f32; 3], f32) {
 /// LUT (already-baked transmittance) for the sun-to-point path.
 fn integrate_single_scatter_along_ray(
     transmittance_lut: &[u16],
-    tw: u32,
-    th: u32,
-    r: f32,
-    mu: f32,
-    mu_s: f32,
-    nu: f32, // cos(angle between view ray and sun direction) — for phase
+    dimensions: (u32, u32),
+    ray: [f32; 4], // radius, view zenith, sun zenith, view-sun cosine
     steps: u32,
 ) -> ([f32; 3], [f32; 3]) {
+    let (tw, th) = dimensions;
+    let [r, mu, mu_s, nu] = ray;
     // Returns (L_2_contribution, F_ms_contribution) — both per-channel.
     let total_dist = distance_to_boundary(r, mu);
     if total_dist <= 0.0 {
@@ -409,12 +407,8 @@ fn build_multi_scattering_row(transmittance_lut: &[u16], tw: u32, th: u32, y: u3
                 let nu = dir[0] * sin_su + dir[2] * mu_s;
                 let (l, f) = integrate_single_scatter_along_ray(
                     transmittance_lut,
-                    tw,
-                    th,
-                    r,
-                    mu,
-                    mu_s,
-                    nu,
+                    (tw, th),
+                    [r, mu, mu_s, nu],
                     20,
                 );
                 // Solid angle element sin(θ) dθ dφ; uniform sampling already.
@@ -448,7 +442,7 @@ pub fn build_multi_scattering_lut(transmittance_lut: &[u16], tw: u32, th: u32, s
     #[cfg(not(target_arch = "wasm32"))]
     {
         let nthreads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-        let rows_per_thread = (size as usize + nthreads - 1) / nthreads;
+        let rows_per_thread = (size as usize).div_ceil(nthreads);
         let mut all_rows: Vec<Option<Vec<Vec<u16>>>> = (0..nthreads).map(|_| None).collect();
         std::thread::scope(|s| {
             let mut handles = Vec::with_capacity(nthreads);

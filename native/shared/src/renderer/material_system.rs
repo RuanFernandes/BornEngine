@@ -708,6 +708,7 @@ impl MaterialSystem {
 
     /// Compile a material and return its handle. Handles are 1-based;
     /// 0 is reserved for "invalid material".
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn compile(
         &mut self,
         device: &wgpu::Device,
@@ -1207,6 +1208,7 @@ impl MaterialSystem {
     /// `MaterialFactors.shading_model.yzw` (transmission_color) and
     /// `foliage_params.xy` (transmission_amount, wrap_factor). Lazily
     /// allocates a per-material UBO on first call.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn set_material_foliage(
         &mut self,
         device: &wgpu::Device,
@@ -1524,6 +1526,7 @@ impl MaterialSystem {
     /// Submit a draw against a compiled material. Allocates (or reuses)
     /// a per-draw UBO slot, writes the MVP / model / tint / skin info,
     /// and queues the command for dispatch.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn submit_draw(
         &mut self,
         device: &wgpu::Device,
@@ -1590,6 +1593,7 @@ impl MaterialSystem {
     /// `scale` typically dominate, so callers usually pass identity
     /// for `model` and the camera VP for `mvp`. `tint` is multiplied
     /// per-draw (in addition to the per-instance tint).
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn submit_draw_instanced(
         &mut self,
         device: &wgpu::Device,

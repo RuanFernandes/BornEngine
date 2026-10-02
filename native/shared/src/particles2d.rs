@@ -218,8 +218,8 @@ impl ParticleEmitter2D {
         {
             return false;
         }
-        for color_index in 16..24 {
-            if !(0.0..=255.0).contains(&values[color_index]) {
+        for &channel in &values[16..24] {
+            if !(0.0..=255.0).contains(&channel) {
                 return false;
             }
         }

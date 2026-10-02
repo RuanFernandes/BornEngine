@@ -8,6 +8,11 @@ use wgpu::util::DeviceExt;
 use crate::handles::HandleRegistry;
 use crate::renderer::Vertex3D;
 
+pub type ReflectionDraw<'a> = (
+    &'a wgpu::Buffer, &'a wgpu::Buffer, u32, &'a wgpu::BindGroup,
+    [[f32; 4]; 4], [f32; 3], [f32; 3],
+);
+
 // ============================================================
 // PBR Material
 // ============================================================
@@ -332,6 +337,12 @@ pub struct SceneGraph {
     /// in a per-frame budget via a compute pass. Static meshes
     /// never re-bake once their SDF lands.
     pub pending_sdf_bakes: Vec<f64>,
+}
+
+impl Default for SceneGraph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SceneGraph {
@@ -697,6 +708,7 @@ impl SceneGraph {
     /// Q8: Set a water-like material on a scene node. The actual animated
     /// wave shader requires a dedicated WGSL pipeline pass (deferred).
     /// For now, this sets a translucent tinted material that approximates water.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn set_material_water(&mut self, handle: f64, _wave_amp: f32, _wave_speed: f32, r: f32, g: f32, b: f32, a: f32) {
         if let Some(node) = self.nodes.get_mut(handle) {
             node.material.color = [r, g, b];
@@ -1237,7 +1249,7 @@ impl SceneGraph {
     /// LOD pop would be more visible than the detail it saves.
     /// (Treats node.transform as world — flat hierarchies.)
     pub fn reflect_draw_list(&self)
-        -> Vec<(&wgpu::Buffer, &wgpu::Buffer, u32, &wgpu::BindGroup, [[f32; 4]; 4], [f32; 3], [f32; 3])>
+        -> Vec<ReflectionDraw<'_>>
     {
         let mut out = Vec::new();
         for (_handle, node) in self.nodes.iter() {

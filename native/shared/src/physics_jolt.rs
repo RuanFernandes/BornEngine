@@ -487,7 +487,7 @@ impl JoltPhysics {
     }
 
     pub fn create_mesh_shape(&mut self, vertices: &[BjVec3], indices: &[u32]) -> f64 {
-        debug_assert!(indices.len() % 3 == 0);
+        debug_assert!(indices.len().is_multiple_of(3));
         let s = unsafe {
             bj_shape_mesh(
                 vertices.as_ptr(), vertices.len() as u32,
@@ -856,6 +856,7 @@ impl JoltPhysics {
         self.ray_hit_cache.hits.get(i).map(|h| h.sub_shape_id).unwrap_or(0)
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn overlap_sphere(&mut self, world_h: f64, cx: f32, cy: f32, cz: f32, r: f32, layer_mask: u32, max_results: u32) -> u32 {
         self.overlap_cache.bodies.clear();
         let world = match self.worlds.get(world_h) { Some(&w) => w, None => return 0 };
@@ -909,7 +910,7 @@ impl JoltPhysics {
 
     // -------------------------------------------------------- Constraints
 
-    fn make_anchors(&self, body_a_h: f64, body_b_h: f64, ax: f32, ay: f32, az: f32, bx: f32, by: f32, bz: f32, world_space: bool) -> Option<(bj_world, BjConstraintAnchors)> {
+    fn make_anchors(&self, body_a_h: f64, body_b_h: f64, anchor_a: [f32; 3], anchor_b: [f32; 3], world_space: bool) -> Option<(bj_world, BjConstraintAnchors)> {
         let (wa, ba) = self.resolve_body(body_a_h)?;
         let bb = if body_b_h == 0.0 {
             BJ_INVALID
@@ -920,22 +921,22 @@ impl JoltPhysics {
         };
         Some((wa, BjConstraintAnchors {
             body_a: ba, body_b: bb,
-            anchor_a: BjVec3 { x: ax, y: ay, z: az },
-            anchor_b: BjVec3 { x: bx, y: by, z: bz },
+            anchor_a: BjVec3 { x: anchor_a[0], y: anchor_a[1], z: anchor_a[2] },
+            anchor_b: BjVec3 { x: anchor_b[0], y: anchor_b[1], z: anchor_b[2] },
             use_world_space: world_space as u8,
         }))
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn constraint_fixed(&mut self, body_a: f64, body_b: f64, ax: f32, ay: f32, az: f32, bx: f32, by: f32, bz: f32, world_space: bool) -> f64 {
-        let (w, anchors) = match self.make_anchors(body_a, body_b, ax, ay, az, bx, by, bz, world_space) { Some(v) => v, None => return 0.0 };
+        let (w, anchors) = match self.make_anchors(body_a, body_b, [ax, ay, az], [bx, by, bz], world_space) { Some(v) => v, None => return 0.0 };
         let c = unsafe { bj_constraint_fixed(w, &anchors) };
         if c == BJ_INVALID { 0.0 } else { self.constraints.alloc((w, c)) }
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn constraint_point(&mut self, body_a: f64, body_b: f64, ax: f32, ay: f32, az: f32, bx: f32, by: f32, bz: f32, world_space: bool) -> f64 {
-        let (w, anchors) = match self.make_anchors(body_a, body_b, ax, ay, az, bx, by, bz, world_space) { Some(v) => v, None => return 0.0 };
+        let (w, anchors) = match self.make_anchors(body_a, body_b, [ax, ay, az], [bx, by, bz], world_space) { Some(v) => v, None => return 0.0 };
         let c = unsafe { bj_constraint_point(w, &anchors) };
         if c == BJ_INVALID { 0.0 } else { self.constraints.alloc((w, c)) }
     }
@@ -953,7 +954,7 @@ impl JoltPhysics {
         ax: f32, ay: f32, az: f32, bx: f32, by: f32, bz: f32,
         rot_limits: [f32; 6], world_space: bool,
     ) -> f64 {
-        let (w, anchors) = match self.make_anchors(body_a, body_b, ax, ay, az, bx, by, bz, world_space) {
+        let (w, anchors) = match self.make_anchors(body_a, body_b, [ax, ay, az], [bx, by, bz], world_space) {
             Some(v) => v, None => return 0.0,
         };
         // min >= max means LOCKED (see the shim header), so this pins all three
@@ -989,7 +990,7 @@ impl JoltPhysics {
         axis_x: f32, axis_y: f32, axis_z: f32,
         limit_min: f32, limit_max: f32, world_space: bool,
     ) -> f64 {
-        let (w, anchors) = match self.make_anchors(body_a, body_b, ax, ay, az, bx, by, bz, world_space) { Some(v) => v, None => return 0.0 };
+        let (w, anchors) = match self.make_anchors(body_a, body_b, [ax, ay, az], [bx, by, bz], world_space) { Some(v) => v, None => return 0.0 };
         let c = unsafe {
             bj_constraint_hinge(w, &anchors, BjVec3 { x: axis_x, y: axis_y, z: axis_z }, limit_min, limit_max)
         };
@@ -1003,7 +1004,7 @@ impl JoltPhysics {
         axis_x: f32, axis_y: f32, axis_z: f32,
         limit_min: f32, limit_max: f32, world_space: bool,
     ) -> f64 {
-        let (w, anchors) = match self.make_anchors(body_a, body_b, ax, ay, az, bx, by, bz, world_space) { Some(v) => v, None => return 0.0 };
+        let (w, anchors) = match self.make_anchors(body_a, body_b, [ax, ay, az], [bx, by, bz], world_space) { Some(v) => v, None => return 0.0 };
         let c = unsafe {
             bj_constraint_slider(w, &anchors, BjVec3 { x: axis_x, y: axis_y, z: axis_z }, limit_min, limit_max)
         };
@@ -1016,7 +1017,7 @@ impl JoltPhysics {
         ax: f32, ay: f32, az: f32, bx: f32, by: f32, bz: f32,
         min_distance: f32, max_distance: f32, world_space: bool,
     ) -> f64 {
-        let (w, anchors) = match self.make_anchors(body_a, body_b, ax, ay, az, bx, by, bz, world_space) { Some(v) => v, None => return 0.0 };
+        let (w, anchors) = match self.make_anchors(body_a, body_b, [ax, ay, az], [bx, by, bz], world_space) { Some(v) => v, None => return 0.0 };
         let c = unsafe { bj_constraint_distance(w, &anchors, min_distance, max_distance) };
         if c == BJ_INVALID { 0.0 } else { self.constraints.alloc((w, c)) }
     }
