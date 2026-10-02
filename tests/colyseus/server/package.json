@@ -11,9 +11,9 @@
     "test": "tsx src/smoke-test.ts"
   },
   "dependencies": {
-    "@colyseus/schema": "^5.0.8",
-    "@colyseus/tools": "next",
-    "colyseus": "^0.18.1"
+    "@colyseus/schema": "^5.0.35",
+    "@colyseus/tools": "^0.18.7",
+    "colyseus": "^0.18.9"
   },
   "devDependencies": {
     "@colyseus/sdk": "0.18.4",
