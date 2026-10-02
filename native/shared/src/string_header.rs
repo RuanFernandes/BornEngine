@@ -70,6 +70,10 @@ fn header_looks_valid(h: &StringHeader) -> bool {
         && (h.flags & !KNOWN_FLAGS) == 0
 }
 
+fn heap_header_address_looks_valid(address: usize) -> bool {
+    address >= 0x1000 && address.is_multiple_of(std::mem::align_of::<StringHeader>())
+}
+
 fn abi_mismatch_warn_once(what: &str) {
     use std::sync::atomic::{AtomicBool, Ordering};
     static WARNED: AtomicBool = AtomicBool::new(false);
@@ -101,9 +105,10 @@ fn abi_mismatch_warn_once(what: &str) {
 ///
 /// # Safety
 ///
-/// For a heap string, `ptr` must point to a readable Perry `StringHeader`
-/// followed by at least `byte_len` readable bytes, and remain valid for this
-/// call. Null and Perry's 32-bit inline-string representations are also valid.
+/// For a heap string, `ptr` must be aligned for `StringHeader` and point to a
+/// readable Perry `StringHeader` followed by at least `byte_len` readable
+/// bytes, and remain valid for this call. Null and Perry's 32-bit inline-string
+/// representations are also valid.
 /// Header checks detect malformed readable data; they cannot establish that
 /// an arbitrary address is mapped or that its claimed payload is allocated.
 pub unsafe fn try_str_from_header(ptr: *const u8) -> Option<String> {
@@ -127,7 +132,7 @@ pub unsafe fn try_str_from_header(ptr: *const u8) -> Option<String> {
         };
     }
 
-    if address < 0x1000 || !address.is_multiple_of(std::mem::align_of::<StringHeader>()) {
+    if !heap_header_address_looks_valid(address) {
         abi_mismatch_warn_once("invalid or unaligned header pointer");
         return None;
     }
@@ -250,11 +255,9 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unaligned_header_pointers() {
-        assert_eq!(
-            unsafe { try_str_from_header(0x1_0000_0001 as *const u8) },
-            None
-        );
+    fn rejects_unaligned_header_addresses() {
+        assert!(!heap_header_address_looks_valid(0x1_0000_0001));
+        assert!(heap_header_address_looks_valid(0x1_0000_0000));
     }
 
     #[test]
@@ -262,8 +265,8 @@ mod tests {
         // byte_len > capacity — the signature of a shifted layout.
         let bogus = StringHeader {
             utf16_len: 7,
-            byte_len: 100,
-            capacity: 8,
+            byte_len: 7,
+            capacity: 6,
             refcount: 1,
             flags: 0,
         };

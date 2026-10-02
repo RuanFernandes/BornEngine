@@ -161,7 +161,7 @@ mod macro_expansion_compile_check {
         let path_string = alloc_perry_string(path.to_str().unwrap());
         let malformed = alloc_perry_string("new data");
         unsafe {
-            (*(malformed as *mut StringHeader)).byte_len = 100;
+            (*(malformed as *mut StringHeader)).capacity = 7;
         }
 
         // SAFETY: Both pointers refer to readable Perry allocations. The bad

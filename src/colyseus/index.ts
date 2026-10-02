@@ -526,10 +526,13 @@ export class Room<TState = any> {
   }
 
   _checkRequestTimeouts(now: number): void {
-    for (let index = this.pendingRequests.length - 1; index >= 0; index--) {
-      const request = this.pendingRequests[index];
+    const pending = this.pendingRequests.slice();
+    for (let index = pending.length - 1; index >= 0; index--) {
+      const request = pending[index];
       if (request.deadline > now) continue;
-      this.pendingRequests.splice(index, 1);
+      const pendingIndex = this.pendingRequests.indexOf(request);
+      if (pendingIndex < 0) continue;
+      this.pendingRequests.splice(pendingIndex, 1);
       bloom_colyseus_room_cancel_request(this.handle.value, request.id);
       const error = new Error('Colyseus request timed out') as ColyseusError;
       if (request.onError !== undefined) request.onError(error);

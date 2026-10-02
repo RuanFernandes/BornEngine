@@ -17,6 +17,9 @@ class ColyseusSmokeGame extends Game {
   private requestPassed = false;
   private requestTimeoutStarted = false;
   private requestTimeoutPassed = false;
+  private nestedTimeoutStarted = false;
+  private nestedTimeoutPassed = false;
+  private disposalClient: ColyseusClient | null = null;
   private leaveStarted = false;
   private finished = false;
   private failed = false;
@@ -96,12 +99,45 @@ class ColyseusSmokeGame extends Game {
     }
 
     if (this.requestTimeoutPassed && !this.leaveStarted) {
+      if (!this.nestedTimeoutStarted) {
+        this.nestedTimeoutStarted = true;
+        this.state = 'checking nested request timeout polling';
+        let olderErrors = 0;
+        let newerErrors = 0;
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Older nested-poll request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus request timed out') {
+              this.fail('Older nested-poll request failed: ' + error.message);
+              return;
+            }
+            olderErrors++;
+          },
+        }, { timeout: 0 });
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Newer nested-poll request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus request timed out') {
+              this.fail('Newer nested-poll request failed: ' + error.message);
+              return;
+            }
+            newerErrors++;
+            room.poll();
+            if (olderErrors !== 1 || newerErrors !== 1) {
+              this.fail('Nested polling did not settle each timed-out request once');
+              return;
+            }
+            this.nestedTimeoutPassed = true;
+          },
+        }, { timeout: 0 });
+      }
+    }
+
+    if (this.nestedTimeoutPassed && !this.leaveStarted) {
       this.leaveStarted = true;
       this.state = 'leaving room';
       room.onLeave(() => {
-        this.finished = true;
-        this.state = 'passed';
-        this.stop();
+        this.startDisposalTimeoutCheck();
       });
       room.leave();
     }
@@ -119,7 +155,54 @@ class ColyseusSmokeGame extends Game {
 
   protected override onStop(): void {
     if (this.client !== null) this.client.dispose();
-    if (this.finished) console.log('COLYSEUS_NATIVE_SMOKE_PASSED: transport, state, and movement');
+    if (this.disposalClient !== null) this.disposalClient.dispose();
+    if (this.finished && this.error === null) console.log('COLYSEUS_NATIVE_SMOKE_PASSED: transport, state, and movement');
+  }
+
+  private startDisposalTimeoutCheck(): void {
+    this.state = 'checking disposal during request timeout';
+    const client = new ColyseusClient(this, endpoint);
+    this.disposalClient = client;
+    if (client.error !== null) {
+      this.fail(client.error);
+      return;
+    }
+    const started = client.joinOrCreateWithCallbacks('test_room', {}, {
+      onJoin: (room) => {
+        let olderErrors = 0;
+        let newerErrors = 0;
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Older disposal request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus room was disposed') {
+              this.fail('Older disposal request failed: ' + error.message);
+              return;
+            }
+            olderErrors++;
+          },
+        }, { timeout: 0 });
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Newer disposal request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus request timed out') {
+              this.fail('Newer disposal request failed: ' + error.message);
+              return;
+            }
+            newerErrors++;
+            client.dispose();
+            if (olderErrors !== 1 || newerErrors !== 1) {
+              this.fail('Disposal did not settle each pending request once');
+              return;
+            }
+            this.finished = true;
+            this.state = 'passed';
+            this.stop();
+          },
+        }, { timeout: 0 });
+      },
+      onError: (error) => this.fail(String(error)),
+    });
+    if (!started) this.fail(client.error || 'Could not start disposal test matchmaking.');
   }
 
   private onJoined(room: Room<any>): void {
@@ -161,5 +244,6 @@ const game = new ColyseusSmokeGame({
   renderMode: '2d',
 });
 game.run().then(() => {
+  if (game.error !== null) console.error('COLYSEUS_NATIVE_SMOKE_FAILED: ' + game.error);
   if (game.exitCode !== 0) console.error('COLYSEUS_NATIVE_SMOKE_FAILED: game exited with code ' + game.exitCode);
 });
