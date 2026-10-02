@@ -10,8 +10,8 @@ Projects use an exact stable engine dependency. The CLI does not install a machi
 ```sh
 bornengine engine current
 bornengine engine list
-bornengine engine install 0.12.0
-bornengine engine use 0.12.0
+bornengine engine install 0.13.0
+bornengine engine use 0.13.0
 bornengine engine use ../BornEngine
 ```
 
