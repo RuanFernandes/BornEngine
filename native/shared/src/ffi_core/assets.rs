@@ -12,9 +12,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_take_screenshot  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_take_screenshot(path_ptr: *const u8) {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_take_screenshot(path_ptr: *const u8) {
             $crate::ffi::guard("bloom_take_screenshot", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 eprintln!("bloom: screenshot requested -> '{}'", path);
                 let mut eng = engine();
                 eng.renderer.screenshot_requested = true;
@@ -24,9 +28,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_load_font  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_load_font(path_ptr: *const u8, _size: f64) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_font(path_ptr: *const u8, _size: f64) -> f64 {
             $crate::ffi::guard("bloom_load_font", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => engine().text.load_font(&data) as f64,
@@ -45,9 +53,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_load_sound  [source: curated]
         #[no_mangle]
-        pub extern "C" fn bloom_load_sound(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_sound(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_sound", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => match $crate::audio::decode_audio(path, &data) {
@@ -61,9 +73,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_load_texture  [source: curated]
         #[no_mangle]
-        pub extern "C" fn bloom_load_texture(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_texture(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_texture", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => {
@@ -106,9 +122,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_load_image  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_load_image(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_image(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_image", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => engine().textures.load_image(&data),
@@ -170,18 +190,26 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_load_shader  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_load_shader(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_shader(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_shader", move || {
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 engine().renderer.load_custom_shader(&source) as f64
         })
         }
 
         // bloom_load_music  [source: curated]
         #[no_mangle]
-        pub extern "C" fn bloom_load_music(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_music(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_music", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     // Streams OGG/MP3 from the compressed bytes (background
@@ -194,15 +222,20 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_write_file  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_write_file(path_ptr: *const u8, data_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_write_file(path_ptr: *const u8, data_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_write_file", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 // A string that failed ABI validation must NOT be written as "" and
                 // reported as a success. That is not a save, it is a deletion with a
                 // thumbs-up, and it is exactly what happened to every world the
                 // editor ever saved.
-                let data = match $crate::string_header::try_str_from_header(data_ptr) {
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let data = match unsafe { $crate::string_header::try_str_from_header(data_ptr) } {
                     Some(d) => d,
                     None => return 0.0,
                 };
@@ -227,14 +260,20 @@ macro_rules! __bloom_ffi_assets {
         // `args` is newline-separated. Not shell-escaped and not shell-interpreted —
         // there is no shell here, which is also why there is nothing to inject into.
         #[no_mangle]
-        pub extern "C" fn bloom_launch_process(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_launch_process(
             cmd_ptr: *const u8, args_ptr: *const u8, cwd_ptr: *const u8,
         ) -> f64 {
             $crate::ffi::guard("bloom_launch_process", move || {
-                let cmd = $crate::string_header::str_from_header(cmd_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let cmd = unsafe { $crate::string_header::str_from_header(cmd_ptr) };
                 if cmd.is_empty() { return 0.0; }
-                let args = $crate::string_header::str_from_header(args_ptr);
-                let cwd = $crate::string_header::str_from_header(cwd_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let args = unsafe { $crate::string_header::str_from_header(args_ptr) };
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let cwd = unsafe { $crate::string_header::str_from_header(cwd_ptr) };
 
                 // Resolve the program against `cwd` when it is a bare name.
                 //
@@ -268,9 +307,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_file_exists  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_file_exists(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_file_exists(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_file_exists", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 if std::path::Path::new(path).exists() { 1.0 } else { 0.0 }
         })
@@ -278,9 +321,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_read_file  [source: curated]
         #[no_mangle]
-        pub extern "C" fn bloom_read_file(path_ptr: *const u8) -> *const u8 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_read_file(path_ptr: *const u8) -> *const u8 {
             $crate::ffi::guard("bloom_read_file", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read_to_string(path) {
                     Ok(contents) => $crate::string_header::alloc_perry_string(&contents),
@@ -321,9 +368,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_stage_texture  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_stage_texture(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_stage_texture(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_texture", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => $crate::staging::decode_and_stage_texture(&data),
@@ -334,9 +385,13 @@ macro_rules! __bloom_ffi_assets {
 
         // bloom_stage_sound  [source: curated]
         #[no_mangle]
-        pub extern "C" fn bloom_stage_sound(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_stage_sound(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_sound", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 let data = match std::fs::read(path) { Ok(d) => d, Err(_) => return 0.0 };
                 match $crate::audio::decode_audio(path, &data) {

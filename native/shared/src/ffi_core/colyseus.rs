@@ -5,23 +5,32 @@
 macro_rules! __bloom_ffi_colyseus {
     () => {
         #[no_mangle]
-        pub extern "C" fn bloom_colyseus_client_create(url_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_colyseus_client_create(url_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_colyseus_client_create", move || {
-                let url = $crate::string_header::str_from_header(url_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let url = unsafe { $crate::string_header::str_from_header(url_ptr) };
                 $crate::colyseus::client_create(&url) as f64
             })
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_colyseus_client_join(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_colyseus_client_join(
             client: f64,
             method: f64,
             target_ptr: *const u8,
             options_ptr: *const u8,
         ) -> f64 {
             $crate::ffi::guard("bloom_colyseus_client_join", move || {
-                let target = $crate::string_header::str_from_header(target_ptr);
-                let options = $crate::string_header::str_from_header(options_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let target = unsafe { $crate::string_header::str_from_header(target_ptr) };
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let options = unsafe { $crate::string_header::str_from_header(options_ptr) };
                 $crate::colyseus::client_join(client as u64, method as u32, &target, &options) as f64
             })
         }
@@ -56,40 +65,55 @@ macro_rules! __bloom_ffi_colyseus {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_colyseus_room_send(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_colyseus_room_send(
             room: f64,
             type_ptr: *const u8,
             payload_ptr: *const u8,
         ) {
             $crate::ffi::guard("bloom_colyseus_room_send", move || {
-                let message_type = $crate::string_header::str_from_header(type_ptr);
-                let payload = $crate::string_header::str_from_header(payload_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let message_type = unsafe { $crate::string_header::str_from_header(type_ptr) };
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let payload = unsafe { $crate::string_header::str_from_header(payload_ptr) };
                 $crate::colyseus::room_send(room as u64, &message_type, &payload);
             })
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_colyseus_room_send_bytes(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_colyseus_room_send_bytes(
             room: f64,
             type_ptr: *const u8,
             bytes_ptr: *const u8,
         ) {
             $crate::ffi::guard("bloom_colyseus_room_send_bytes", move || {
-                let message_type = $crate::string_header::str_from_header(type_ptr);
-                let bytes = $crate::string_header::str_from_header(bytes_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let message_type = unsafe { $crate::string_header::str_from_header(type_ptr) };
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let bytes = unsafe { $crate::string_header::str_from_header(bytes_ptr) };
                 $crate::colyseus::room_send_bytes(room as u64, &message_type, &bytes);
             })
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_colyseus_room_request(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_colyseus_room_request(
             room: f64,
             type_ptr: *const u8,
             payload_ptr: *const u8,
         ) -> f64 {
             $crate::ffi::guard("bloom_colyseus_room_request", move || {
-                let message_type = $crate::string_header::str_from_header(type_ptr);
-                let payload = $crate::string_header::str_from_header(payload_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let message_type = unsafe { $crate::string_header::str_from_header(type_ptr) };
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let payload = unsafe { $crate::string_header::str_from_header(payload_ptr) };
                 $crate::colyseus::room_request(room as u64, &message_type, &payload) as f64
             })
         }

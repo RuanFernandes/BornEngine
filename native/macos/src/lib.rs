@@ -266,8 +266,12 @@ unsafe extern "C" fn audio_render_callback(
 // ============================================================
 
 #[no_mangle]
-pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u8, fullscreen: f64) {
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u8, fullscreen: f64) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     let mtm = MainThreadMarker::from(unsafe { MainThreadMarker::new_unchecked() });
 
     // Headless mode: BLOOM_HEADLESS=1 keeps the NSWindow + CAMetalLayer
@@ -922,8 +926,12 @@ pub extern "C" fn bloom_toggle_fullscreen() {
 }
 
 #[no_mangle]
-pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     unsafe {
         if let Some(window) = &WINDOW {
             let ns_title = NSString::from_str(&title);
@@ -933,8 +941,12 @@ pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn bloom_set_window_icon(path_ptr: *const u8) {
-    let path = str_from_header(path_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_window_icon(path_ptr: *const u8) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let path = unsafe { str_from_header(path_ptr) };
     unsafe {
         let ns_path = NSString::from_str(&path);
         let image_cls = objc2::runtime::AnyClass::get(c"NSImage").unwrap();
@@ -977,8 +989,12 @@ pub extern "C" fn bloom_enable_cursor() {
 
 // E4: Clipboard
 #[no_mangle]
-pub extern "C" fn bloom_set_clipboard_text(text_ptr: *const u8) {
-    let text = str_from_header(text_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_clipboard_text(text_ptr: *const u8) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let text = unsafe { str_from_header(text_ptr) };
     if let Ok(mut clipboard) = arboard::Clipboard::new() {
         let _ = clipboard.set_text(text.to_string());
     }
@@ -997,9 +1013,14 @@ pub extern "C" fn bloom_get_clipboard_text() -> *const u8 {
 
 // E5b: Native file dialogs (via rfd crate)
 #[no_mangle]
-pub extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
-    let filter = str_from_header(filter_ptr);
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let filter = unsafe { str_from_header(filter_ptr) };
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     let mut dialog = rfd::FileDialog::new().set_title(title);
     if !filter.is_empty() {
         dialog = dialog.add_filter("Files", &[filter.as_str()]);
@@ -1011,9 +1032,14 @@ pub extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *cons
 }
 
 #[no_mangle]
-pub extern "C" fn bloom_save_file_dialog(default_name_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
-    let default_name = str_from_header(default_name_ptr);
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_save_file_dialog(default_name_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let default_name = unsafe { str_from_header(default_name_ptr) };
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     let dialog = rfd::FileDialog::new()
         .set_title(title)
         .set_file_name(default_name);

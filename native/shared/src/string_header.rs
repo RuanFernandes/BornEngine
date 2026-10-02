@@ -18,8 +18,10 @@
 //!      string the engine receives (typically the window title in
 //!      `bloom_init_window`), turning silent corruption into a loud
 //!      log-once diagnostic.
-//!   3. Checked UTF-8 conversion — a wrong `byte_len` can no longer cause
-//!      undefined behavior, only an empty string + diagnostic.
+//!   3. Header invariants and checked UTF-8 conversion reject malformed
+//!      readable values with an empty string + diagnostic. They cannot prove
+//!      that an arbitrary pointer or claimed payload length is readable;
+//!      the FFI caller must uphold that part of the contract.
 //!
 //! When bumping Perry across a runtime-ABI change: update the struct,
 //! the assertions, and the doc reference above in the same commit.
@@ -96,7 +98,15 @@ fn abi_mismatch_warn_once(what: &str) {
 /// saved and reported that it had saved it. An empty string and a failed string are
 /// not the same thing, and any FFI that *persists* its input has to know which it
 /// is holding.
-pub fn try_str_from_header(ptr: *const u8) -> Option<String> {
+///
+/// # Safety
+///
+/// For a heap string, `ptr` must point to a readable Perry `StringHeader`
+/// followed by at least `byte_len` readable bytes, and remain valid for this
+/// call. Null and Perry's 32-bit inline-string representations are also valid.
+/// Header checks detect malformed readable data; they cannot establish that
+/// an arbitrary address is mapped or that its claimed payload is allocated.
+pub unsafe fn try_str_from_header(ptr: *const u8) -> Option<String> {
     let address = ptr as usize;
     if address == 0 {
         return Some(String::new());
@@ -139,8 +149,13 @@ pub fn try_str_from_header(ptr: *const u8) -> Option<String> {
     }
 }
 
-pub fn str_from_header(ptr: *const u8) -> String {
-    try_str_from_header(ptr).unwrap_or_default()
+/// Decode a Perry string, returning an empty string if validation fails.
+///
+/// # Safety
+///
+/// The same pointer validity requirements as [`try_str_from_header`] apply.
+pub unsafe fn str_from_header(ptr: *const u8) -> String {
+    unsafe { try_str_from_header(ptr) }.unwrap_or_default()
 }
 
 /// Allocate a Perry heap string suitable for returning across the FFI
@@ -205,13 +220,13 @@ mod tests {
     #[test]
     fn round_trip_ascii() {
         let p = alloc_perry_string("hello bloom");
-        assert_eq!(str_from_header(p), "hello bloom");
+        assert_eq!(unsafe { str_from_header(p) }, "hello bloom");
     }
 
     #[test]
     fn round_trip_multibyte() {
         let p = alloc_perry_string("héllo 🌸");
-        assert_eq!(str_from_header(p), "héllo 🌸");
+        assert_eq!(unsafe { str_from_header(p) }, "héllo 🌸");
         // utf16_len: 'héllo ' = 6 units, emoji = 2 (surrogate pair)
         let h = unsafe { &*(p as *const StringHeader) };
         assert_eq!(h.utf16_len, 8);
@@ -220,20 +235,26 @@ mod tests {
 
     #[test]
     fn rejects_null_and_low_pointers() {
-        assert_eq!(str_from_header(std::ptr::null()), "");
-        assert_eq!(str_from_header(0x10 as *const u8), "");
+        assert_eq!(
+            unsafe { try_str_from_header(std::ptr::null()) },
+            Some(String::new())
+        );
+        assert_eq!(unsafe { str_from_header(0x10 as *const u8) }, "");
     }
 
     #[test]
     fn decodes_inline_short_strings() {
-        assert_eq!(str_from_header(0x6c6c756e as *const u8), "null");
-        assert_eq!(str_from_header(0x7d7b as *const u8), "{}");
-        assert_eq!(str_from_header(b'x' as *const u8), "x");
+        assert_eq!(unsafe { str_from_header(0x6c6c756e as *const u8) }, "null");
+        assert_eq!(unsafe { str_from_header(0x7d7b as *const u8) }, "{}");
+        assert_eq!(unsafe { str_from_header(b'x' as *const u8) }, "x");
     }
 
     #[test]
     fn rejects_unaligned_header_pointers() {
-        assert_eq!(try_str_from_header(0x1_0000_0001 as *const u8), None);
+        assert_eq!(
+            unsafe { try_str_from_header(0x1_0000_0001 as *const u8) },
+            None
+        );
     }
 
     #[test]
@@ -246,11 +267,20 @@ mod tests {
             refcount: 1,
             flags: 0,
         };
-        let mut buf = vec![0u8; std::mem::size_of::<StringHeader>() + 8];
+        let ptr = alloc_perry_string("payload");
         unsafe {
-            (buf.as_mut_ptr() as *mut StringHeader).write(bogus);
+            (ptr as *mut StringHeader).write(bogus);
         }
-        assert_eq!(str_from_header(buf.as_ptr()), "");
+        assert_eq!(unsafe { try_str_from_header(ptr) }, None);
+    }
+
+    #[test]
+    fn rejects_unknown_header_flags() {
+        let ptr = alloc_perry_string("payload");
+        unsafe {
+            (*(ptr as *mut StringHeader)).flags = 2;
+        }
+        assert_eq!(unsafe { try_str_from_header(ptr) }, None);
     }
 
     #[test]
@@ -260,7 +290,11 @@ mod tests {
         let p = alloc_perry_string("abc");
         let payload_end = std::mem::size_of::<StringHeader>() + 3;
         for i in 0..TAIL_PAD {
-            assert_eq!(unsafe { *p.add(payload_end + i) }, 0, "pad byte {i} not zero");
+            assert_eq!(
+                unsafe { *p.add(payload_end + i) },
+                0,
+                "pad byte {i} not zero"
+            );
         }
     }
 
@@ -271,6 +305,6 @@ mod tests {
             // stomp the payload with a bare continuation byte
             *p.add(std::mem::size_of::<StringHeader>()) = 0xFF;
         }
-        assert_eq!(str_from_header(p), "");
+        assert_eq!(unsafe { try_str_from_header(p) }, None);
     }
 }

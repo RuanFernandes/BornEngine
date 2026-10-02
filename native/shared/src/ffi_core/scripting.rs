@@ -69,12 +69,16 @@ macro_rules! __bloom_ffi_scripting {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_script_load(handle: f64, source: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_script_load(handle: f64, source: *const u8) -> f64 {
             $crate::ffi::guard("bloom_script_load", move || {
                 let Some(handle) = $crate::__bloom_script_parse_handle!(handle) else {
                     return 0.0;
                 };
-                let Some(source) = $crate::string_header::try_str_from_header(source) else {
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let Some(source) = (unsafe { $crate::string_header::try_str_from_header(source) }) else {
                     return 0.0;
                 };
                 $crate::scripting::with_script_vm(handle, |vm| vm.load(&source).is_ok())
@@ -83,7 +87,10 @@ macro_rules! __bloom_ffi_scripting {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_script_start(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_script_start(
             handle: f64,
             self_id: *const u8,
             x: f64,
@@ -94,7 +101,8 @@ macro_rules! __bloom_ffi_scripting {
                 let Some(handle) = $crate::__bloom_script_parse_handle!(handle) else {
                     return 0.0;
                 };
-                let self_id = $crate::string_header::str_from_header(self_id);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let self_id = unsafe { $crate::string_header::str_from_header(self_id) };
                 $crate::scripting::script_start(
                     handle,
                     $crate::scripting::ScriptContextData::new(&self_id, [x, y, z]),
@@ -104,7 +112,10 @@ macro_rules! __bloom_ffi_scripting {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_script_update(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_script_update(
             handle: f64,
             self_id: *const u8,
             x: f64,
@@ -116,7 +127,8 @@ macro_rules! __bloom_ffi_scripting {
                 let Some(handle) = $crate::__bloom_script_parse_handle!(handle) else {
                     return 0.0;
                 };
-                let self_id = $crate::string_header::str_from_header(self_id);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let self_id = unsafe { $crate::string_header::str_from_header(self_id) };
                 $crate::scripting::script_update(
                     handle,
                     $crate::scripting::ScriptContextData::new(self_id, [x, y, z]),
@@ -127,7 +139,10 @@ macro_rules! __bloom_ffi_scripting {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_script_dispose(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_script_dispose(
             handle: f64,
             self_id: *const u8,
             x: f64,
@@ -138,7 +153,8 @@ macro_rules! __bloom_ffi_scripting {
                 let Some(handle) = $crate::__bloom_script_parse_handle!(handle) else {
                     return 0.0;
                 };
-                let self_id = $crate::string_header::str_from_header(self_id);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let self_id = unsafe { $crate::string_header::str_from_header(self_id) };
                 $crate::scripting::script_dispose(
                     handle,
                     $crate::scripting::ScriptContextData::new(self_id, [x, y, z]),

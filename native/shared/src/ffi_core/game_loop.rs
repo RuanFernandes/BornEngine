@@ -259,11 +259,15 @@ macro_rules! __bloom_ffi_game_loop {
         // on a per-frame path (perry-quirks #5). Layers must share dimensions;
         // the first file's size wins and any mismatch is skipped with a warning.
         #[no_mangle]
-        pub extern "C" fn bloom_create_texture_array_from_files(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_create_texture_array_from_files(
             paths_ptr: *const u8, format: f64, mip_levels: f64,
         ) -> f64 {
             $crate::ffi::guard("bloom_create_texture_array_from_files", move || {
-                let list = $crate::string_header::str_from_header(paths_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let list = unsafe { $crate::string_header::str_from_header(paths_ptr) };
                 let mut decoded: Vec<(Vec<u8>, u32, u32)> = Vec::new();
                 for p in list.split(',') {
                     let p = p.trim();
@@ -306,9 +310,13 @@ macro_rules! __bloom_ffi_game_loop {
 
         // bloom_add_post_pass  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_add_post_pass(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_add_post_pass(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_add_post_pass", move || {
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.add_post_pass(&source) {
                     Ok(h) => h as f64,
                     Err(e) => { eprintln!("[post_pass] compile failed: {:?}", e); 0.0 }

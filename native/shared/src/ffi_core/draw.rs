@@ -76,9 +76,13 @@ macro_rules! __bloom_ffi_draw {
 
         // bloom_draw_text  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_draw_text(text_ptr: *const u8, x: f64, y: f64, size: f64, r: f64, g: f64, b: f64, a: f64) {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_draw_text(text_ptr: *const u8, x: f64, y: f64, size: f64, r: f64, g: f64, b: f64, a: f64) {
             $crate::ffi::guard("bloom_draw_text", move || {
-                let text = $crate::string_header::str_from_header(text_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) };
                 let mut eng = engine();
                 // Need to split borrow: take text out temporarily
                 let mut text_renderer = std::mem::replace(&mut eng.text, $crate::text_renderer::TextRenderer::empty());
@@ -89,18 +93,26 @@ macro_rules! __bloom_ffi_draw {
 
         // bloom_measure_text  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_measure_text(text_ptr: *const u8, size: f64) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_measure_text(text_ptr: *const u8, size: f64) -> f64 {
             $crate::ffi::guard("bloom_measure_text", move || {
-                let text = $crate::string_header::str_from_header(text_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) };
                 engine().text.measure_text(&text, size as u32)
         })
         }
 
         // bloom_draw_text_ex  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_draw_text_ex(font_handle: f64, text_ptr: *const u8, x: f64, y: f64, size: f64, spacing: f64, r: f64, g: f64, b: f64, a: f64) {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_draw_text_ex(font_handle: f64, text_ptr: *const u8, x: f64, y: f64, size: f64, spacing: f64, r: f64, g: f64, b: f64, a: f64) {
             $crate::ffi::guard("bloom_draw_text_ex", move || {
-                let text = $crate::string_header::str_from_header(text_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) };
                 let mut eng = engine();
                 let mut text_renderer = std::mem::replace(&mut eng.text, $crate::text_renderer::TextRenderer::empty());
                 text_renderer.draw_text_ex(&mut eng.renderer, font_handle as usize, &text, x, y, size as u32, spacing as f32, r, g, b, a);
@@ -110,9 +122,13 @@ macro_rules! __bloom_ffi_draw {
 
         // bloom_measure_text_ex  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_measure_text_ex(font_handle: f64, text_ptr: *const u8, size: f64, spacing: f64) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_measure_text_ex(font_handle: f64, text_ptr: *const u8, size: f64, spacing: f64) -> f64 {
             $crate::ffi::guard("bloom_measure_text_ex", move || {
-                let text = $crate::string_header::str_from_header(text_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) };
                 engine().text.measure_text_ex(font_handle as usize, &text, size as u32, spacing as f32)
         })
         }

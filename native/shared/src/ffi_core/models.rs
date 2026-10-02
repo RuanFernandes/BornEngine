@@ -13,9 +13,13 @@ macro_rules! __bloom_ffi_models {
         // bloom_load_model  [source: curated; gated: models3d]
         #[cfg(feature = "models3d")]
         #[no_mangle]
-        pub extern "C" fn bloom_load_model(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_model(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_model", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path = bloom_resolve_asset_path(&path);
                 match std::fs::read(path.as_ref()) {
                     Ok(data) => {
@@ -252,9 +256,13 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material", move || {
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material(&source) {
                     Ok(handle) => handle as f64,
                     Err(e) => {
@@ -267,10 +275,14 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material_refractive  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_refractive(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_refractive(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material_refractive", move || {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material_with_options(
                     &source, FragmentProfile::Translucent, Bucket::Refractive, true, false,
                 ) {
@@ -282,10 +294,14 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material_transparent  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_transparent(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_transparent(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material_transparent", move || {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material_with_options(
                     &source, FragmentProfile::Translucent, Bucket::Transparent, false, false,
                 ) {
@@ -297,10 +313,14 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material_additive  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_additive(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_additive(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material_additive", move || {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material_with_options(
                     &source, FragmentProfile::Translucent, Bucket::Additive, false, false,
                 ) {
@@ -312,10 +332,14 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material_cutout  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_cutout(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_cutout(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material_cutout", move || {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material_with_options(
                     &source, FragmentProfile::Opaque, Bucket::Cutout, false, false,
                 ) {
@@ -327,9 +351,13 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material_instanced  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_instanced(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_instanced(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_compile_material_instanced", move || {
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material_instanced(&source) {
                     Ok(handle) => handle as f64,
                     Err(e) => { eprintln!("[material] instanced compile failed: {:?}", e); 0.0 }
@@ -344,11 +372,15 @@ macro_rules! __bloom_ffi_models {
         // right for grass and wrong for the two things that most want
         // instancing: particles (additive) and decals (cutout).
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_instanced_bucket(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_instanced_bucket(
             source_ptr: *const u8, bucket: f64, reads_scene: f64,
         ) -> f64 {
             $crate::ffi::guard("bloom_compile_material_instanced_bucket", move || {
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.compile_material_instanced_bucket(
                     &source, bucket as u32, reads_scene != 0.0)
                 {
@@ -423,9 +455,13 @@ macro_rules! __bloom_ffi_models {
         // bloom_load_model_animation  [source: linux; gated: models3d]
         #[cfg(feature = "models3d")]
         #[no_mangle]
-        pub extern "C" fn bloom_load_model_animation(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_load_model_animation(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_load_model_animation", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path = bloom_resolve_asset_path(&path);
                 match std::fs::read(path.as_ref()) {
                     Ok(data) => engine().models.load_model_animation(&data),
@@ -809,9 +845,13 @@ macro_rules! __bloom_ffi_models {
         // bloom_stage_model  [source: linux; gated: models3d]
         #[cfg(feature = "models3d")]
         #[no_mangle]
-        pub extern "C" fn bloom_stage_model(path_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_stage_model(path_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_stage_model", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path = bloom_resolve_asset_path(&path);
                 let data = match std::fs::read(path.as_ref()) {
                     Ok(d) => d,
@@ -884,13 +924,17 @@ macro_rules! __bloom_ffi_models {
 
         // bloom_compile_material_from_file  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_compile_material_from_file(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_compile_material_from_file(
             path_ptr: *const u8,
             bucket_kind: f64,
         ) -> f64 {
             $crate::ffi::guard("bloom_compile_material_from_file", move || {
                 use $crate::renderer::material_pipeline::{FragmentProfile, Bucket};
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 // Every other asset loader routes through the platform's
                 // resolve hook; this one read the raw relative path straight
                 // off the working directory, which is only the asset root on
@@ -1117,9 +1161,13 @@ macro_rules! __bloom_ffi_models {
         // perry-quirks #5.
         #[cfg(feature = "models3d")]
         #[no_mangle]
-        pub extern "C" fn bloom_model_find_joint(handle: f64, name_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_model_find_joint(handle: f64, name_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_model_find_joint", move || {
-                let name = $crate::string_header::str_from_header(name_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let name = unsafe { $crate::string_header::str_from_header(name_ptr) };
                 engine().models.find_joint(handle, &name) as f64
         })
         }

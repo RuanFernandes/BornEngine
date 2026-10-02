@@ -8,7 +8,10 @@
 macro_rules! __bloom_ffi_ui {
     () => {
         #[no_mangle]
-        pub extern "C" fn bloom_ui_command(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_ui_command(
             backend: f64,
             opcode: f64,
             id: f64,
@@ -28,7 +31,8 @@ macro_rules! __bloom_ffi_ui {
                 let Some(id) = $crate::ui::id_from_abi(id) else {
                     return 0.0;
                 };
-                let text = $crate::string_header::str_from_header(text_ptr).to_owned();
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) }.to_owned();
                 let command = $crate::ui::UiCommand::new(backend, opcode, id, [a, b, c, d], text);
                 if engine().ui.queue_command(command) {
                     1.0
@@ -59,7 +63,10 @@ macro_rules! __bloom_ffi_ui {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_ui_scratch_command(
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_ui_scratch_command(
             backend: f64,
             opcode: f64,
             id: f64,
@@ -79,7 +86,8 @@ macro_rules! __bloom_ffi_ui {
                 let Some(count) = $crate::ui::id_from_abi(count) else {
                     return 0.0;
                 };
-                let text = $crate::string_header::str_from_header(text_ptr).to_owned();
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) }.to_owned();
                 if engine()
                     .ui
                     .queue_scratch_command(backend, opcode, id, count as usize, text)
@@ -92,9 +100,13 @@ macro_rules! __bloom_ffi_ui {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_ui_inject_text(text_ptr: *const u8) {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_ui_inject_text(text_ptr: *const u8) {
             $crate::ffi::guard("bloom_ui_inject_text", move || {
-                let text = $crate::string_header::str_from_header(text_ptr).to_owned();
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let text = unsafe { $crate::string_header::str_from_header(text_ptr) }.to_owned();
                 engine().ui.inject_text(text);
             })
         }

@@ -618,8 +618,12 @@ mod win32 {
 }
 
 #[no_mangle]
-pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u8, fullscreen: f64) {
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u8, fullscreen: f64) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
 
     #[cfg(windows)]
     {
@@ -1295,18 +1299,25 @@ pub extern "C" fn bloom_toggle_fullscreen() {
     win32::toggle_fullscreen();
 }
 #[no_mangle]
-pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_window_title(title_ptr: *const u8) {
     // Real since 2026-07-17 — the stub read the string and discarded it.
     use windows::Win32::UI::WindowsAndMessaging::SetWindowTextW;
     use windows::core::PCWSTR;
-    let title = str_from_header(title_ptr);
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     if let Some(hwnd) = win32::main_hwnd() {
         let wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
         unsafe { let _ = SetWindowTextW(hwnd, PCWSTR(wide.as_ptr())); }
     }
 }
 #[no_mangle]
-pub extern "C" fn bloom_set_window_icon(path_ptr: *const u8) { let _ = str_from_header(path_ptr); }
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_window_icon(path_ptr: *const u8) { let _ = unsafe { str_from_header(path_ptr) }; }
 
 #[no_mangle]
 pub extern "C" fn bloom_disable_cursor() {
@@ -1324,7 +1335,10 @@ pub extern "C" fn bloom_enable_cursor() {
 // E4: Clipboard — real Win32 implementation (was a stub until 2026-07-17,
 // so paste in the editor's text fields silently never worked on Windows).
 #[no_mangle]
-pub extern "C" fn bloom_set_clipboard_text(text_ptr: *const u8) {
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_clipboard_text(text_ptr: *const u8) {
     use windows::Win32::System::DataExchange::{
         OpenClipboard, CloseClipboard, EmptyClipboard, SetClipboardData,
     };
@@ -1332,7 +1346,8 @@ pub extern "C" fn bloom_set_clipboard_text(text_ptr: *const u8) {
     use windows::Win32::System::Ole::CF_UNICODETEXT;
     use windows::Win32::Foundation::{HANDLE, HWND};
 
-    let text = str_from_header(text_ptr);
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let text = unsafe { str_from_header(text_ptr) };
     unsafe {
         let owner = win32::main_hwnd().unwrap_or(HWND(std::ptr::null_mut()));
         if OpenClipboard(owner).is_err() {
@@ -1445,17 +1460,27 @@ fn run_file_dialog(filter: &str, title: &str, save: bool, default_name: &str) ->
 }
 
 #[no_mangle]
-pub extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
-    let filter = str_from_header(filter_ptr);
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let filter = unsafe { str_from_header(filter_ptr) };
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     let path = run_file_dialog(&filter, &title, false, "");
     alloc_perry_string(&path)
 }
 
 #[no_mangle]
-pub extern "C" fn bloom_save_file_dialog(default_name_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
-    let default_name = str_from_header(default_name_ptr);
-    let title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_save_file_dialog(default_name_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let default_name = unsafe { str_from_header(default_name_ptr) };
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let title = unsafe { str_from_header(title_ptr) };
     let path = run_file_dialog("", &title, true, &default_name);
     alloc_perry_string(&path)
 }
