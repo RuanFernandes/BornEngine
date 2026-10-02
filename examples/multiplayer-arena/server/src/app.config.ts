@@ -1,4 +1,4 @@
-import { defineRoom, defineServer } from "colyseus";
+import { defineRoom, defineServer } from "@colyseus/core";
 import { ArenaRoom } from "./rooms/ArenaRoom.js";
 
 export default defineServer({
