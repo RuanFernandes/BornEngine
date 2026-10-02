@@ -50,6 +50,7 @@ use shaders::*;
 pub mod shader_include;
 pub mod shader_library;
 pub mod material_pipeline;
+pub(crate) mod material_args;
 pub mod material_system;
 // wasm32-only material bind-group helpers, split out to keep material_system.rs
 // under the 2000-line policy (EN-063).
@@ -11965,15 +11966,8 @@ impl Renderer {
         self.material_system.compile(
             &self.device,
             wgsl_source,
-            profile,
-            bucket,
-            reads_scene,
-            wants_instancing,
-            formats::HDR_FORMAT,
-            formats::MATERIAL_FORMAT,
-            formats::VELOCITY_FORMAT,
-            wgpu::TextureFormat::Rgba8Unorm,
-            formats::DEPTH_FORMAT,
+            material_args::MaterialCompileOptions { profile, bucket, reads_scene, wants_instancing },
+            material_args::MaterialTargetFormats::standard(),
         )
     }
 
@@ -12013,15 +12007,8 @@ impl Renderer {
         self.material_system.compile(
             &self.device,
             wgsl_source,
-            profile,
-            bucket,
-            reads_scene,
-            true, // wants_instancing
-            formats::HDR_FORMAT,
-            formats::MATERIAL_FORMAT,
-            formats::VELOCITY_FORMAT,
-            wgpu::TextureFormat::Rgba8Unorm,
-            formats::DEPTH_FORMAT,
+            material_args::MaterialCompileOptions { profile, bucket, reads_scene, wants_instancing: true },
+            material_args::MaterialTargetFormats::standard(),
         )
     }
 
@@ -12164,13 +12151,11 @@ impl Renderer {
             // log and keep the old pipeline running.
             match self.material_system.compile(
                 &self.device, &source,
-                desc.profile, desc.bucket, desc.reads_scene,
-                desc.wants_instancing,
-                formats::HDR_FORMAT,
-                formats::MATERIAL_FORMAT,
-                formats::VELOCITY_FORMAT,
-                wgpu::TextureFormat::Rgba8Unorm,
-                formats::DEPTH_FORMAT,
+                material_args::MaterialCompileOptions {
+                    profile: desc.profile, bucket: desc.bucket,
+                    reads_scene: desc.reads_scene, wants_instancing: desc.wants_instancing,
+                },
+                material_args::MaterialTargetFormats::standard(),
             ) {
                 Ok(new_handle) => {
                     // material_system.compile pushes a NEW slot.
@@ -12211,9 +12196,8 @@ impl Renderer {
         );
         let mvp = mat4_multiply(self.current_vp_matrix, model);
         self.material_system.submit_draw(
-            &self.device, &self.queue, &self.joint_buffer,
-            material, mesh_handle, mesh_idx,
-            mvp, model, mvp, tint, [0, 0, 0, 0],
+            material_args::MaterialGpuContext { device: &self.device, queue: &self.queue, joint_buffer: &self.joint_buffer },
+            material_args::MaterialDrawParams { material, mesh_handle, mesh_idx, mvp, model, tint, skin_info: [0; 4] },
         );
     }
 
@@ -12234,10 +12218,11 @@ impl Renderer {
         let model = IDENTITY_MAT4;
         let mvp = self.current_vp_matrix;
         self.material_system.submit_draw_instanced(
-            &self.device, &self.queue, &self.joint_buffer,
-            material, mesh_handle, mesh_idx,
-            instance_buffer, instance_count,
-            mvp, model, mvp, [1.0, 1.0, 1.0, 1.0], [0, 0, 0, 0],
+            material_args::MaterialGpuContext { device: &self.device, queue: &self.queue, joint_buffer: &self.joint_buffer },
+            material_args::MaterialDrawParams {
+                material, mesh_handle, mesh_idx, mvp, model, tint: [1.0; 4], skin_info: [0; 4],
+            },
+            material_system::InstanceDrawInfo { buffer_handle: instance_buffer, count: instance_count },
         );
     }
 
@@ -12422,7 +12407,8 @@ impl Renderer {
         let probe_view = self.resolve_probe_view_for_material(material);
         if let Err(e) = self.material_system.set_material_foliage(
             &self.device, &self.queue, material,
-            trans_color, trans_amount, wrap_factor, &probe_view,
+            material_args::FoliageParams { color: trans_color, amount: trans_amount, wrap: wrap_factor },
+            &probe_view,
         ) {
             eprintln!("[foliage] set_material_foliage failed: {e}");
         }

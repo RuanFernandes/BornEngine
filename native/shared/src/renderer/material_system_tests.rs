@@ -9,6 +9,7 @@ use super::*;
 mod tests {
     use super::*;
     use crate::renderer::formats;
+    use crate::renderer::material_pipeline::Bucket;
     use crate::renderer::types::Vertex3D;
 
     /// Headless wgpu device. See sibling helpers in `transient.rs` /
@@ -151,15 +152,11 @@ fn fs_main(_in: VsOut) -> TranslucentOut {
         let handle = sys.compile(
             &device,
             TRANSLUCENT_WGSL,
-            FragmentProfile::Translucent,
-            Bucket::Transparent,
-            false,                                                          // reads_scene
-            false,                                                          // wants_instancing
-            wgpu::TextureFormat::Rgba16Float,                               // hdr_format
-            wgpu::TextureFormat::Rg8Unorm,                                  // material_format (unused in translucent)
-            wgpu::TextureFormat::Rg16Float,                                 // velocity_format (unused)
-            wgpu::TextureFormat::Rgba8Unorm,                                // albedo_format (unused)
-            formats::DEPTH_FORMAT,
+            MaterialCompileOptions {
+                profile: FragmentProfile::Translucent, bucket: Bucket::Transparent,
+                reads_scene: false, wants_instancing: false,
+            },
+            MaterialTargetFormats::standard(),
         ).expect("translucent material compiles");
         assert!(handle != 0, "compile returns a 1-based handle");
 
@@ -184,10 +181,11 @@ fn fs_main(_in: VsOut) -> TranslucentOut {
         let (vb, ib, icount) = make_fullscreen_tri(&device, &queue);
 
         sys.submit_draw(
-            &device, &queue, &joint_buf,
-            handle, /* mesh_handle */ 1, /* mesh_idx */ 0,
-            identity, identity, identity,
-            [1.0; 4], [0; 4],
+            MaterialGpuContext { device: &device, queue: &queue, joint_buffer: &joint_buf },
+            MaterialDrawParams {
+                material: handle, mesh_handle: 1, mesh_idx: 0,
+                mvp: identity, model: identity, tint: [1.0; 4], skin_info: [0; 4],
+            },
         );
         assert_eq!(sys.translucent_commands.len(), 1, "draw queued in translucent bucket");
 
@@ -418,15 +416,11 @@ fn fs_main(_in: VsOut) -> TranslucentOut {
         let handle = sys.compile(
             &device,
             ARRAY_SAMPLING_WGSL,
-            FragmentProfile::Translucent,
-            Bucket::Transparent,
-            false,
-            false,
-            wgpu::TextureFormat::Rgba16Float,
-            wgpu::TextureFormat::Rg8Unorm,
-            wgpu::TextureFormat::Rg16Float,
-            wgpu::TextureFormat::Rgba8Unorm,
-            formats::DEPTH_FORMAT,
+            MaterialCompileOptions {
+                profile: FragmentProfile::Translucent, bucket: Bucket::Transparent,
+                reads_scene: false, wants_instancing: false,
+            },
+            MaterialTargetFormats::standard(),
         ).expect("array-sampling material compiles");
 
         // One 2×2 layer of pure green (linear Rgba8 → format code 1).
@@ -458,8 +452,11 @@ fn fs_main(_in: VsOut) -> TranslucentOut {
         let identity = crate::renderer::IDENTITY_MAT4;
         let (vb, ib, icount) = make_fullscreen_tri(&device, &queue);
         sys.submit_draw(
-            &device, &queue, &joint_buf,
-            handle, 1, 0, identity, identity, identity, [1.0; 4], [0; 4],
+            MaterialGpuContext { device: &device, queue: &queue, joint_buffer: &joint_buf },
+            MaterialDrawParams {
+                material: handle, mesh_handle: 1, mesh_idx: 0,
+                mvp: identity, model: identity, tint: [1.0; 4], skin_info: [0; 4],
+            },
         );
 
         let (rt_w, rt_h) = (64u32, 64u32);
