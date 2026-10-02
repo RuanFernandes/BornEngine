@@ -22,6 +22,10 @@ declare function bloom_colyseus_room_reconnection_token(room: number): string;
 
 export interface RoomRequestOptions { timeout?: number; }
 export interface ColyseusError extends Error { code?: number; reason?: unknown; }
+export interface RoomRequestCallbacks<T = any> {
+  onSuccess(value: T): void;
+  onError(error: ColyseusError): void;
+}
 
 /** Join callbacks delivered while the owning Game polls native network events. */
 export interface RoomJoinCallbacks<TState = any> {
@@ -43,7 +47,14 @@ interface PendingJoin {
   onError?: (error: ColyseusError) => void;
 }
 interface MessageListener { type: string; callback: (message: any) => void; }
-interface PendingRequest { id: number; deadline: number; resolve: (value: any) => void; reject: (error: Error) => void; }
+interface PendingRequest {
+  id: number;
+  deadline: number;
+  resolve?: (value: any) => void;
+  reject?: (error: Error) => void;
+  onSuccess?: (value: any) => void;
+  onError?: (error: ColyseusError) => void;
+}
 
 class NativeRoomHandle { constructor(readonly value: number) {} }
 const COLYSEUS_RUNTIME_SLOT = {};
@@ -312,7 +323,6 @@ export class Room<TState = any> {
   private disposed = false;
   private errorListeners: Array<(error: ColyseusError) => void> = [];
   private pendingRequests: PendingRequest[] = [];
-  private nextRequestId = 1;
 
   constructor(handle: NativeRoomHandle, client: ColyseusClient) {
     this.handle = handle;
@@ -418,26 +428,44 @@ export class Room<TState = any> {
 
   /** Send a message and resolve with the value returned by the server handler. */
   request<T = any>(type: string, message: unknown = null, options: RoomRequestOptions = {}): Promise<T> {
-    const payload: string = JSON.stringify(message) ?? 'null';
-    if (!this.isConnected) return Promise.reject(new Error('Colyseus room is not connected.'));
-    const timeout = options.timeout === undefined ? 10_000 : Math.max(0, options.timeout);
     return new Promise<T>((resolve, reject) => {
-      const requestId = bloom_colyseus_room_request(
-        this.handle.value,
-        type,
-        payload,
-      );
-      if (requestId === 0) {
-        reject(new Error('Unable to send Colyseus request'));
-        return;
-      }
-      this.pendingRequests.push({
-        id: requestId,
-        deadline: Date.now() + timeout,
-        resolve: (value) => resolve(value as T),
-        reject,
-      });
+      this.requestWithCallbacks<T>(type, message, {
+        onSuccess: resolve,
+        onError: reject,
+      }, options);
     });
+  }
+
+  /**
+   * Send a request and receive its reply from the owning Game's frame polling.
+   * Use this form from Perry's blocking native Game.run() loop.
+   */
+  requestWithCallbacks<T = any>(
+    type: string,
+    message: unknown,
+    callbacks: RoomRequestCallbacks<T>,
+    options: RoomRequestOptions = {},
+  ): boolean {
+    if (!this.isConnected) {
+      callbacks.onError(new Error('Colyseus room is not connected.') as ColyseusError);
+      return false;
+    }
+
+    const payload: string = JSON.stringify(message) ?? 'null';
+    const requestId = bloom_colyseus_room_request(this.handle.value, type, payload);
+    if (requestId === 0) {
+      callbacks.onError(new Error('Unable to send Colyseus request') as ColyseusError);
+      return false;
+    }
+
+    const timeout = options.timeout === undefined ? 10_000 : Math.max(0, options.timeout);
+    this.pendingRequests.push({
+      id: requestId,
+      deadline: Date.now() + timeout,
+      onSuccess: callbacks.onSuccess,
+      onError: callbacks.onError,
+    });
+    return true;
   }
 
   /** Leave this room. */
@@ -503,7 +531,9 @@ export class Room<TState = any> {
       if (request.deadline > now) continue;
       this.pendingRequests.splice(index, 1);
       bloom_colyseus_room_cancel_request(this.handle.value, request.id);
-      request.reject(new Error('Colyseus request timed out'));
+      const error = new Error('Colyseus request timed out') as ColyseusError;
+      if (request.onError !== undefined) request.onError(error);
+      else request.reject?.(error);
     }
   }
 
@@ -513,7 +543,10 @@ export class Room<TState = any> {
     this.connected = false;
     for (let index = 0; index < this.pendingRequests.length; index++) {
       bloom_colyseus_room_cancel_request(this.handle.value, this.pendingRequests[index].id);
-      this.pendingRequests[index].reject(new Error('Colyseus room was disposed'));
+      const error = new Error('Colyseus room was disposed') as ColyseusError;
+      const request = this.pendingRequests[index];
+      if (request.onError !== undefined) request.onError(error);
+      else request.reject?.(error);
     }
     this.pendingRequests = [];
     for (const listener of this.leaveListeners) listener(0, 'Room disposed.');
@@ -545,7 +578,8 @@ export class Room<TState = any> {
     const pending = this.pendingRequests[index];
     this.pendingRequests.splice(index, 1);
     if (event.outcome === 0) {
-      pending.resolve(event.data);
+      if (pending.onSuccess !== undefined) pending.onSuccess(event.data);
+      else pending.resolve?.(event.data);
       return;
     }
     const error = new Error(event.reason || 'Colyseus request failed') as ColyseusError;
@@ -553,6 +587,7 @@ export class Room<TState = any> {
       error.name = 'rejected';
       error.reason = event.data;
     }
-    pending.reject(error);
+    if (pending.onError !== undefined) pending.onError(error);
+    else pending.reject?.(error);
   }
 }

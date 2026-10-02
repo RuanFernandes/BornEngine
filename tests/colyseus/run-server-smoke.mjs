@@ -11,6 +11,7 @@ const tsxCli = join(serverDir, "node_modules", "tsx", "dist", "cli.mjs");
 const commandSeparator = process.argv.indexOf("--");
 const smokeCommand = commandSeparator >= 0 ? process.argv.slice(commandSeparator + 1) : null;
 const smokeScript = smokeCommand ? null : process.argv[2] ? resolve(process.cwd(), process.argv[2]) : join(serverDir, "src", "smoke-test.ts");
+const expectedSmokeOutput = process.env.COLYSEUS_SMOKE_EXPECT_OUTPUT;
 const port = Number(process.env.PORT ?? 2567);
 const host = "127.0.0.1";
 
@@ -66,13 +67,24 @@ try {
   const isTypeScript = smokeScript !== null && /\.(?:ts|tsx)$/.test(smokeScript);
   if (smokeCommand && smokeCommand.length === 0) throw new Error("Expected a command after --");
   const command = smokeCommand || (isTypeScript ? [process.execPath, tsxCli, smokeScript] : [process.execPath, smokeScript]);
+  const captureSmokeOutput = expectedSmokeOutput !== undefined;
   const result = spawnSync(command[0], command.slice(1), {
     cwd: isTypeScript ? serverDir : repoRoot,
     env: { ...process.env, COLYSEUS_URL: `ws://${host}:${port}` },
-    stdio: "inherit",
+    stdio: captureSmokeOutput ? "pipe" : "inherit",
+    encoding: captureSmokeOutput ? "utf8" : undefined,
+    maxBuffer: captureSmokeOutput ? 8 * 1024 * 1024 : undefined,
+    timeout: captureSmokeOutput ? 30_000 : undefined,
   });
   if (result.error) throw result.error;
+  if (captureSmokeOutput) {
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+  }
   if (result.status !== 0) process.exitCode = result.status ?? 1;
+  else if (captureSmokeOutput && !`${result.stdout}\n${result.stderr}`.includes(expectedSmokeOutput)) {
+    throw new Error(`Colyseus game smoke did not emit its success marker: ${expectedSmokeOutput}`);
+  }
 } catch (error) {
   console.error("Colyseus fixture smoke failed:", error);
   if (serverOutput.trim()) console.error(serverOutput.trim());

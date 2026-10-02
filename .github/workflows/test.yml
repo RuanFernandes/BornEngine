@@ -303,7 +303,9 @@ jobs:
           echo "PERRY_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
 
       - name: Install native TypeScript smoke dependencies
-        run: npm install --prefix examples/colyseus-smoke --no-package-lock
+        run: |
+          npm install --prefix examples/colyseus-smoke --no-package-lock
+          npm ci --prefix tests/colyseus/server
 
       - name: Run Game, scene, asset, and disposal integration smoke
         working-directory: examples/colyseus-smoke
@@ -347,6 +349,20 @@ jobs:
       - name: Run native Matrix4 smoke test
         working-directory: examples/colyseus-smoke
         run: npm run test:math
+
+      - name: Run native Perry Colyseus movement smoke
+        working-directory: examples/colyseus-smoke
+        run: |
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "Mesa lavapipe Vulkan ICD was not installed."
+            exit 1
+          fi
+          xvfb-run -a env \
+            BLOOM_HEADLESS=1 \
+            WGPU_BACKEND=vulkan \
+            VK_ICD_FILENAMES="$lvp_icd" \
+            npm run test:colyseus
 
       - name: Run native Game lifecycle smoke test
         working-directory: examples/colyseus-smoke

@@ -165,6 +165,19 @@ const population = await room.request<{ count: number }>('get_player_count', nul
 console.log('players in room', population.count);
 ```
 
+As with room joins, Perry's native `Game.run()` is blocking. Use `requestWithCallbacks()` there so the reply is handled from the frame loop:
+
+```ts
+room.requestWithCallbacks<{ count: number }>('get_player_count', null, {
+  onSuccess(population) {
+    console.log('players in room', population.count);
+  },
+  onError(error) {
+    console.error('could not read room population', error.message);
+  },
+}, { timeout: 3_000 });
+```
+
 The `get_player_count` handler in `ArenaRoom.messages` returns the value used by that request. A normal `send()` is fire-and-forget. `sendBytes()` sends raw bytes from the client; receive them on the server with `onMessageBytes()` when a binary payload is useful.
 
 The Colyseus client does not automatically create BornEngine `GameObject`s or scene nodes for Schema entries. Keep a local view map keyed by `sessionId`: create a view when a player appears in a snapshot, update it from the latest state, and remove it when the player leaves. See the [Game API](../../api/game/) and [Scene API](../../api/scene/) for object and node lifecycles.
