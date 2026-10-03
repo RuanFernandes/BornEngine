@@ -14,6 +14,8 @@ bornengine run main.ts
 
 Friendly selectors are `--os macos`, `--os windows`, and `--os linux`. Use `--target` when you need a specific Perry target. `run` requires the resulting native executable to match the current host, while `build` can cross-compile only when Perry and the platform toolchain support it.
 
+New CLI projects omit native SQLite and QuickJS unless requested with `bornengine new --native-features sqlite,scripting`. QuickJS scripting is validated on Linux; macOS and Windows currently retain the unsupported runtime stub, so check `game.scripting.isSupported` before exposing script-driven content. The Web/WASM package retains its current scripting backend independently of this native option.
+
 ## Linux
 
 The CLI documents these Debian/Ubuntu development packages:

@@ -7,6 +7,14 @@ order: 35
 
 `GameDatabase` is a small typed SQLite layer for game saves and settings. Define tables in TypeScript, evolve them with versioned migrations, and make changes through CRUD methods or a transaction. The engine builds SQL from the schema and filters; the public API does not accept SQL strings.
 
+Native projects compile the SQLite implementation only when the `sqlite` native feature is enabled. Add it when scaffolding, or add `native_features = ["sqlite"]` under `[bornengine]` in `perry.toml` and rebuild with the BornEngine CLI:
+
+```sh
+bornengine new MyGame --native-features sqlite
+```
+
+Without the feature, the database API remains present but native database operations return `unsupported`. Web/WASM retains its existing persistent SQLite implementation and does not need this native build feature.
+
 ## Define a schema and migration
 
 ```ts

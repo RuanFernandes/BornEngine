@@ -13,3 +13,5 @@ BornEngine shares a TypeScript API across target families, but the host toolchai
 - [Web/WASM](web-wasm/) — the browser build script, loop, assets, and browser support.
 
 The CLI accepts friendly `--os` names or exact `--target` values, but it never fabricates support that the installed Perry does not expose.
+
+Native 2D/2.5D/3D profiles leave SQLite and embedded scripting out unless the project opts in with `--native-features sqlite,scripting`. The Web/WASM build keeps its existing database and scripting behavior. QuickJS has been validated for Linux native and Web/WASM; other native targets use the unsupported scripting runtime stub, which the TypeScript API exposes through `game.scripting.isSupported`.

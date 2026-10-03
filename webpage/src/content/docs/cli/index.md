@@ -11,6 +11,7 @@ order: 20
 
 - [Project commands](project/) — `create`, `new`, and `init`.
 - [Build and run](build/) — `build`, `run`, `dev`, and `check`.
+- [Native build cache](cache/) — inspect or warm the shared Rust artifact cache.
 - [Asset audit](assets/) — validate references, media headers, budgets, JSON reports, and deterministic packs.
 - [Diagnostics](diagnostics/) — `clean`, `doctor`, `info`, and `version`.
 - [Engine versions](engine/) — the `engine` group plus `upgrade`.

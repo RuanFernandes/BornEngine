@@ -7,6 +7,8 @@ order: 36
 
 `Game.scripting` owns embedded JavaScript behaviors. Attach a `ScriptComponent` to a `GameObject` to run a self-contained ES module during that object's lifecycle. Each component gets a private runtime and heap; the guest receives only capabilities that the host explicitly grants.
 
+QuickJS is opt-in for native builds. To include it on Linux, scaffold with `bornengine new MyGame --native-features scripting`, or add `native_features = ["scripting"]` under `[bornengine]` in `perry.toml`, then build with the BornEngine CLI. The default native 2D profile keeps the FFI API but does not compile QuickJS; creation then reports an unsupported runtime. Web/WASM keeps its existing scripting behavior without this native feature. Other native targets may retain an unsupported runtime stub; check `game.scripting.isSupported` before enabling script-driven content.
+
 ## Attach a behavior
 
 `ScriptComponent` accepts JavaScript source text and an optional capability list. It must use the `ScriptRuntime` owned by the same `Game` as the target scene.

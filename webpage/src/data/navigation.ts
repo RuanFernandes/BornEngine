@@ -34,6 +34,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'CLI overview', href: '/docs/cli/' },
       { title: 'Project commands', href: '/docs/cli/project/' },
       { title: 'Build and run', href: '/docs/cli/build/' },
+      { title: 'Native build cache', href: '/docs/cli/cache/' },
       { title: 'Asset audit', href: '/docs/cli/assets/' },
       { title: 'Diagnostics', href: '/docs/cli/diagnostics/' },
       { title: 'Engine versions', href: '/docs/cli/engine/' },
