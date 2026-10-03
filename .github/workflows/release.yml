@@ -50,7 +50,7 @@ jobs:
   # ---------------------------------------------------------------------------
   await-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - name: Wait for Tests workflow to pass
         env:
@@ -65,10 +65,6 @@ jobs:
             exit 0
           fi
           echo "Gating release on commit $SHA"
-          # The Linux example suite can take over 75 minutes. Allow enough
-          # time for it and the remaining CI checks, with a 30-minute runner
-          # timeout buffer beyond the polling deadline.
-          deadline=$(( SECONDS + 150 * 60 ))
           retry_on_error=1
           while :; do
             set +e
@@ -105,10 +101,6 @@ jobs:
               fi
             else
               echo "  Tests: $status ($url) — waiting"
-            fi
-            if [ $SECONDS -ge $deadline ]; then
-              echo "  timed out waiting for Tests"
-              exit 1
             fi
             sleep 30
           done
