@@ -1,28 +1,28 @@
-# BornEngine — referência de contexto para modelos de linguagem
+# BornEngine — AI context reference for language models
 
-Este arquivo resume a API pública e as decisões de arquitetura do BornEngine para assistentes que escrevem, revisam ou documentam jogos com a engine. Ele corresponde ao código deste repositório; a versão do pacote preparada para este release é `0.14.0`. Confirme sempre `package.json`, exports, implementação e exemplos antes de assumir que o número ou um comportamento continua atual.
+This file summarizes BornEngine's public API and architectural decisions for assistants that write, review, or document games made with the engine. It reflects this repository's code; the package version prepared for this release is `0.14.0`. Always check `package.json`, exports, implementation, and examples before assuming that the version or behavior is still current.
 
-## Regras para responder ou gerar código
+## Rules for writing or reviewing code
 
-1. **Use a API class-first atual.** Não gere a antiga API do BloomEngine com `initWindow`, `runGame`, `beginDrawing`, `loadTexture()` global ou handles numéricos. Ela não tem aliases de compatibilidade.
-2. **Não passe `Game` para assets.** `Texture`, `Model`, `Font`, `Sound`, `Music` e recursos relacionados são criados por `game.assets` ou `scene.assets`. Por exemplo: `this.assets.loadTexture('assets/player.png')`. `Texture` não tem construtor público.
-3. **Passe `Game` somente aos sistemas que precisam do contexto.** Entre eles estão `new Scene(game)`, `new PhysicsWorld(game, options)`, `new PhysicsWorld2D(game, options)` e `new ColyseusClient(game, endpoint)`.
-4. **A atualização de cenas é explícita.** `Game.run()` avança o loop da aplicação e serviços da engine, mas não chama `game.scenes.update(dt)` nem agenda `updateFixed()`. A subclasse decide quando avançar cenas e sistemas de física.
-5. **O desenho automático da cena depende do método base.** `Game.render()` desenha a cena atual. Se uma subclasse sobrescrever `render()`, chame `super.render()` no ponto em que os componentes da cena devem ser desenhados.
-6. **Diferencie configuração de runtime e configuração de build.** `GameOptions.renderMode` escolhe o caminho de renderização em runtime. O perfil `[bornengine].native_profile` em `perry.toml` escolhe features Rust usadas pelo BornEngine CLI em builds nativos.
-7. **Cheque falhas explicitamente.** A engine usa valores como `isReady`, `isLoaded`, `error`, `null` e resultados com `ok/status`. Leia o tipo da API e trate esses resultados; não presuma que toda factory lança exceções.
-8. **Não prometa recursos só porque há uma spec antiga.** Para considerar algo público, confirme export em `package.json`/`src/index.ts`, implementação em `src/` e um caminho de uso atual. `docs/design/` e `docs/superpowers/` incluem propostas e planos históricos.
-9. **Não invente capacidades de Perry nem de plataforma.** Use `bornengine check main.ts` ou os checks apropriados ao target antes de recomendar sintaxe, dependência ou API. A compatibilidade de Web, Apple e scripting tem diferenças descritas neste arquivo e nas páginas de plataforma.
+1. **Use the current class-first API.** Do not generate the old BloomEngine API with global `initWindow`, `runGame`, `beginDrawing`, `loadTexture()`, or numeric handles. There are no compatibility aliases for it.
+2. **Do not pass `Game` to assets.** Create `Texture`, `Model`, `Font`, `Sound`, `Music`, and related resources through `game.assets` or `scene.assets`. For example: `this.assets.loadTexture('assets/player.png')`. `Texture` has no public constructor.
+3. **Pass `Game` only to systems that need its context.** These include `new Scene(game)`, `new PhysicsWorld(game, options)`, `new PhysicsWorld2D(game, options)`, and `new ColyseusClient(game, endpoint)`.
+4. **Scene updates are explicit.** `Game.run()` advances the application loop and engine services, but does not call `game.scenes.update(dt)` or schedule `updateFixed()`. The subclass decides when to advance scenes and physics systems.
+5. **Automatic scene rendering depends on the base method.** `Game.render()` draws the current scene. If a subclass overrides `render()`, call `super.render()` where scene components should be drawn.
+6. **Distinguish runtime settings from build settings.** `GameOptions.renderMode` selects the runtime rendering path. The `[bornengine].native_profile` profile in `perry.toml` selects Rust features used by the BornEngine CLI in native builds.
+7. **Check failures explicitly.** The engine uses values such as `isReady`, `isLoaded`, `error`, `null`, and results with `ok/status`. Read the API types and handle these results; do not assume every factory throws exceptions.
+8. **Do not promise features just because an old spec mentions them.** To consider a feature public, confirm it is exported by `package.json`/`src/index.ts`, implemented under `src/`, and has a current usage path. `docs/design/` and `docs/superpowers/` contain historical proposals and plans.
+9. **Do not invent Perry or platform capabilities.** Use `bornengine check main.ts` or the appropriate target checks before recommending syntax, dependencies, or APIs. Web, Apple, and scripting compatibility differences are described in this file and the platform pages.
 
-## Arquitetura em uma frase
+## Architecture in one sentence
 
-O código de jogo usa classes TypeScript; Perry compila esse código ahead-of-time e comunica-se com as camadas Rust por um FFI privado. Rust compartilhado fica em `native/shared/`; os crates `native/<platform>/` conectam o runtime ao host. Classes, services, factories e ownership são a API do jogo. Handles numéricos e funções FFI são detalhes internos e não devem aparecer em exemplos públicos.
+Game code uses TypeScript classes; Perry compiles it ahead of time and communicates with Rust layers through a private FFI. Shared Rust code lives in `native/shared/`; the `native/<platform>/` crates connect the runtime to the host. Classes, services, factories, and ownership are the game-facing API. Numeric handles and FFI functions are internal details and must not appear in public examples.
 
-O pacote preparado para este release contém a versão `0.14.0`. Os exports públicos atuais estão em `package.json` e no barrel `src/index.ts`. O mapa estável de módulos aparece abaixo; confirme os exports nesses arquivos antes de adicionar uma importação.
+The package prepared for this release is version `0.14.0`. Current public exports are listed in `package.json` and the `src/index.ts` barrel. The stable module map appears below; confirm exports in those files before adding an import.
 
-## Criar um jogo
+## Creating a game
 
-Uma aplicação standalone tem uma instância `Game` e pode concentrar o comportamento principal numa subclasse:
+A standalone application has one `Game` instance and can keep its main behavior in a subclass:
 
 ```ts
 import { Colors, Game } from '@bornengine/engine';
@@ -37,11 +37,11 @@ class MyGame extends Game {
   }
 
   protected override onStart(): void {
-    // Criar/carregar recursos e ativar a cena inicial.
+    // Create or load resources and activate the initial scene.
   }
 
   protected override loop(deltaTime: number): void {
-    // deltaTime é medido em segundos.
+    // deltaTime is measured in seconds.
     this.scenes.update(deltaTime);
   }
 
@@ -51,7 +51,7 @@ class MyGame extends Game {
   }
 
   protected override onStop(): void {
-    // Limpeza adicional da aplicação, antes do encerramento do Game.
+    // Perform additional application cleanup before the Game shuts down.
   }
 }
 
@@ -60,11 +60,11 @@ if (!game.isReady) console.error(game.error);
 else game.run();
 ```
 
-`Game` oferece `window`, `renderer`, `input`, `audio`, `scenes`, `sceneGraph`, `mobile`, `ui`, `debugUi`, `assets` e `scripting`. `run()` administra o frame e o encerramento standalone; `stop()` pede o encerramento ordenado; `dispose()` libera o runtime fora do ciclo normal. Um host que já possui a janela e o scheduler usa `runFrame(deltaTime, callbacks)`. Só pode haver um runtime nativo ativo por processo.
+`Game` provides `window`, `renderer`, `input`, `audio`, `scenes`, `sceneGraph`, `mobile`, `ui`, `debugUi`, `assets`, and `scripting`. `run()` manages standalone frames and shutdown; `stop()` requests an orderly shutdown; `dispose()` releases the runtime outside the normal loop. A host that already owns the window and scheduler uses `runFrame(deltaTime, callbacks)`. Only one native runtime may be active per process.
 
-## Cenas, objetos e componentes
+## Scenes, objects, and components
 
-`Scene` é uma cena orientada a gameplay e requer o Game proprietário. `GameObject` representa entidade, hierarquia e transform; `GameComponent` fornece comportamento acoplável. Os principais hooks de objetos/componentes são `onAwake`, `onStart`, `update`, `fixedUpdate`, `render` e `onDestroy`.
+`Scene` is a gameplay-oriented scene and requires its owning `Game`. `GameObject` represents an entity, hierarchy, and transform; `GameComponent` provides attachable behavior. The main object/component hooks are `onAwake`, `onStart`, `update`, `fixedUpdate`, `render`, and `onDestroy`.
 
 ```ts
 import { Game, GameObject, Scene } from '@bornengine/engine';
@@ -77,26 +77,26 @@ class Level extends Scene {
   }
 }
 
-// Dentro de uma subclasse de Game:
+// Inside a Game subclass:
 // this.scenes.changeTo(new Level(this));
 ```
 
-`game.scenes.changeTo(scene)` ativa a cena. Trocar ou descarregar a cena anterior chama o lifecycle de saída/descarte e libera `scene.assets`, `scene.vfx` e recursos registrados com `scene.own(resource)`. O objeto precisa pertencer a uma única cena; componentes são anexados a um único objeto.
+`game.scenes.changeTo(scene)` activates a scene. Replacing or unloading the previous scene runs its exit/disposal lifecycle and releases `scene.assets`, `scene.vfx`, and resources registered with `scene.own(resource)`. An object must belong to exactly one scene; a component is attached to exactly one object.
 
-`game.scenes.update(dt)` avança a cena ativa. `game.scenes.render(renderer)` é chamado pelo `Game.render()` base e desenha a cena ativa ou pausada. `scene.camera2D`, `scene.viewport2D` e `scene.bindCameraRig2D(rig)` configuram câmera e viewport para renderização e conversão de coordenadas.
+`game.scenes.update(dt)` advances the active scene. `game.scenes.render(renderer)` is called by the base `Game.render()` and draws the active or paused scene. `scene.camera2D`, `scene.viewport2D`, and `scene.bindCameraRig2D(rig)` configure the camera and viewport for rendering and coordinate conversion.
 
-Componentes visuais, como `SpriteRenderer`, `Tilemap` e `ParticleEmitter2D`, são desenhados automaticamente pela cena. A cena coleta componentes enabled de objetos ativos, ordena por `renderOrder` e preserva a ordem de inserção em empates. Ao sobrescrever `Game.render()`, limpe a tela e chame `super.render()` para manter esse desenho.
+Visual components such as `SpriteRenderer`, `Tilemap`, and `ParticleEmitter2D` are drawn automatically by the scene. The scene collects enabled components on active objects, sorts them by `renderOrder`, and preserves insertion order for ties. When overriding `Game.render()`, clear the screen and call `super.render()` to keep this drawing behavior.
 
-## Recursos e ownership
+## Resources and ownership
 
 ### Assets
 
-- `game.assets`: cache e lifetime compartilhados pela aplicação; são liberados ao descartar o Game.
-- `scene.assets`: recursos temporários de uma fase; são liberados no unload da cena.
-- `AssetGroup`: preloads agrupados com progresso, resultados por asset e cancelamento.
-- Factories comuns: `loadTexture(path)`, `loadModel(path)`, `loadFont(path, size)`, `loadSound(path)`, `loadMusic(path)`, `createMesh`, `createMaterial`, `createRenderTexture`.
+- `game.assets`: cache and lifetime shared by the application; released when the `Game` is disposed.
+- `scene.assets`: resources scoped to a level; released when the scene unloads.
+- `AssetGroup`: grouped preloads with progress, per-asset results, and cancellation.
+- Common factories: `loadTexture(path)`, `loadModel(path)`, `loadFont(path, size)`, `loadSound(path)`, `loadMusic(path)`, `createMesh`, `createMaterial`, and `createRenderTexture`.
 
-Factories podem retornar `null`; recursos carregáveis também expõem `isLoaded` e `error`. O manager guarda identidade/cache, remove recursos descartados do seu inventário e libera o que ainda possui ao terminar o scope. Use o mesmo Game proprietário para componentes e recursos nativos relacionados.
+Factories may return `null`; loadable resources also expose `isLoaded` and `error`. The manager tracks identity and cache state, removes disposed resources from its inventory, and releases any resources it still owns when the scope ends. Use the same owning `Game` for related components and native resources.
 
 ```ts
 const texture = this.assets.loadTexture('assets/player.png');
@@ -105,81 +105,81 @@ if (texture === null || !texture.isLoaded) {
 }
 ```
 
-`SpriteSheet` referencia uma `Texture`, mas não a descarta. Não use `new Texture(game, path)`; o construtor da textura é interno. Alguns sistemas semânticos, e não assets, recebem Game explicitamente, como os mundos de física e o cliente Colyseus.
+`SpriteSheet` references a `Texture` but does not dispose it. Do not use `new Texture(game, path)`; the texture constructor is internal. Some semantic systems, rather than assets, do take `Game` explicitly, such as physics worlds and the Colyseus client.
 
-### Efeitos
+### Effects
 
-`scene.vfx.createParticleSystem(capacity, config)` e `createDecalSystem(capacity)` fornecem VFX 3D ligados ao lifetime da cena. Para partículas 2D, anexe `ParticleEmitter2D` a um `GameObject`; a cena atualiza, desenha e descarta o pool junto do componente. A capacidade default é 256 (máximo 100.000); o emitter recebe de 1 a 1.024 frames de uma única `SpriteSheet`. `emissionRate` habilita emissão contínua com `play()`; `emitBurst(count, { position, direction })` dispara um burst e `stop()` interrompe novas partículas sem apagar as vivas. A forma é point/circle/box/cone; configure faixas `lifetime`, `speed`, `startSize`, `endSize` e `spin`, além de `acceleration`, `drag`, cores RGBA no intervalo 0–255, `direction`, `frameRate` e espaço `local`/`world`. Defaults: vida de 1 s, velocidade zero, tamanho 8, direção para cima (`{ x: 0, y: -1 }`, pois a física 2D usa +Y para baixo) e espaço local. Com `frameRate: 0`, cada partícula mantém o frame aleatório escolhido no nascimento.
+`scene.vfx.createParticleSystem(capacity, config)` and `createDecalSystem(capacity)` provide 3D VFX scoped to the scene lifetime. For 2D particles, attach `ParticleEmitter2D` to a `GameObject`; the scene updates, draws, and disposes its pool with the component. The default capacity is 256 (maximum 100,000); an emitter accepts 1 to 1,024 frames from a single `SpriteSheet`. `emissionRate` enables continuous emission with `play()`; `emitBurst(count, { position, direction })` emits a burst, and `stop()` stops new particles without removing live ones. Shapes are point/circle/box/cone; configure `lifetime`, `speed`, `startSize`, `endSize`, and `spin` ranges, along with `acceleration`, `drag`, RGBA colors in the 0–255 range, `direction`, `frameRate`, and `local`/`world` space. Defaults: 1 s lifetime, zero speed, size 8, upward direction (`{ x: 0, y: -1 }`, because 2D physics uses +Y downward), and local space. With `frameRate: 0`, each particle keeps the random frame selected at birth.
 
-## API 2D
+## 2D API
 
-O foco atual de desenvolvimento da BornEngine é 2D. Use `Vector2D` para math e vetores 2D. A API também aceita objetos estruturais `{ x, y }` em vários parâmetros e dados serializados; prefira `Vector2D` para valores e operações do gameplay.
+BornEngine's current development focus is 2D. Use `Vector2D` for 2D math and vectors. Many parameters and serialized data also accept structural `{ x, y }` objects; prefer `Vector2D` for gameplay values and operations.
 
-`Vector2D` é um valor mutável e oferece factories, getters e operações estáticas/de instância. Instância: `clone`, `set`, `copy`; getters `magnitude`, `sqrMagnitude`, aliases `length`/`lengthSquared` e `normalized`; operações `add`, `subtract`, `multiply`, `divide`, `scale`, `dotWith`, `crossWith`, `distanceTo`, `interpolatedTo`, `rotatedBy`, `clamped`, `clampedMagnitude`, `equals` e `equalsApprox`. Helpers estáticos: `zero`, `one`, `up`, `down`, `left`, `right`, `from`, `sum`, `difference`, `componentProduct`, `componentQuotient`, `scaled`, `normalize`, `magnitude`, `sqrMagnitude`, `dot`, `cross`, `distance`, `distanceSquared`, `min`, `max`, `clamp`, `clampMagnitude`, `lerp`, `lerpUnclamped`, `moveTowards`, `reflect`, `project`, `angle`, `signedAngle`, `rotate` e `perpendicular`. Operações que produzem um vetor retornam uma nova instância; `set`/`copy` mutam a instância e retornam `this`. `angle` e `signedAngle` retornam graus; `rotate` recebe radianos. `Vector2D.up()` significa +Y cartesiano, enquanto a física 2D da engine usa Y positivo para baixo; converta direções quando cruzar essas convenções.
+`Vector2D` is a mutable value type with factories, getters, and static/instance operations. Instance methods: `clone`, `set`, `copy`; getters `magnitude`, `sqrMagnitude`, aliases `length`/`lengthSquared`, and `normalized`; operations `add`, `subtract`, `multiply`, `divide`, `scale`, `dotWith`, `crossWith`, `distanceTo`, `interpolatedTo`, `rotatedBy`, `clamped`, `clampedMagnitude`, `equals`, and `equalsApprox`. Static helpers: `zero`, `one`, `up`, `down`, `left`, `right`, `from`, `sum`, `difference`, `componentProduct`, `componentQuotient`, `scaled`, `normalize`, `magnitude`, `sqrMagnitude`, `dot`, `cross`, `distance`, `distanceSquared`, `min`, `max`, `clamp`, `clampMagnitude`, `lerp`, `lerpUnclamped`, `moveTowards`, `reflect`, `project`, `angle`, `signedAngle`, `rotate`, and `perpendicular`. Operations that produce a vector return a new instance; `set`/`copy` mutate the instance and return `this`. `angle` and `signedAngle` return degrees; `rotate` takes radians. `Vector2D.up()` means Cartesian +Y, while the engine's 2D physics uses positive Y downward; convert directions when crossing these conventions.
 
-### Sprites e animação
+### Sprites and animation
 
-- `SpriteSheet(texture, options)` cria frames nomeados ou frames de grade com margem/espaçamento, pivot e dados de trim. O sheet não é dono da textura.
-- `SpriteRenderer extends GameComponent` desenha frame, tamanho, pivot, tint, flips e visibilidade; mundo, escala e rotação Z do objeto são aplicados ao desenhar.
-- `SpriteAnimation` contém keyframes, duração/FPS, markers e modo `loop`, `once` ou `ping-pong`.
-- `SpriteAnimator` controla clips e estados por objeto, com parâmetros bool/number/trigger, condições AND, transições em ordem declarada e crossfade opcional.
-- `onMarker`, `onComplete` e `onStateChanged` são hooks para gameplay e VFX. `seek()` não dispara markers por padrão. Um `dt` que atravessa vários frames preserva a ordem dos markers.
-- Repetir `play()` no clip atual não reinicia sem `restart: true`; fade padrão tem duração zero.
+- `SpriteSheet(texture, options)` creates named or grid frames with margins/spacing, pivots, and trim data. The sheet does not own the texture.
+- `SpriteRenderer extends GameComponent` draws a frame with size, pivot, tint, flips, and visibility; the object's world position, scale, and Z rotation are applied during drawing.
+- `SpriteAnimation` contains keyframes, duration/FPS, markers, and a `loop`, `once`, or `ping-pong` mode.
+- `SpriteAnimator` controls per-object clips and states with bool/number/trigger parameters, AND conditions, transitions in declared order, and optional crossfades.
+- `onMarker`, `onComplete`, and `onStateChanged` are hooks for gameplay and VFX. `seek()` does not fire markers by default. A `dt` that crosses multiple frames preserves marker order.
+- Calling `play()` again on the current clip does not restart it without `restart: true`; the default fade duration is zero.
 
-Anexe renderer e animator ao mesmo `GameObject`. A cena cuida do update e draw quando o objeto está ativo. A `Animation` de modelos 3D permanece uma API separada.
+Attach the renderer and animator to the same `GameObject`. The scene handles update and drawing while the object is active. The 3D model `Animation` API remains separate.
 
-### Física 2D, Tilemap e mapas
+### 2D physics, tilemaps, and maps
 
-`PhysicsWorld2D` implementa um solver arcade determinístico em coordenadas pixel/secundo, com eixo Y positivo para baixo. Chame `step(deltaTime)` uma vez por update; ele acumula tempo e executa os substeps de corpos `PhysicsBody2D`. Corpos dinâmicos suportam caixas alinhadas aos eixos e círculos; segmentos e polígonos convexos são superfícies estáticas. Rotação/escalamento de colisor, joints 2D e pares dinâmicos poligonais não fazem parte desse solver.
+`PhysicsWorld2D` implements a deterministic arcade solver in pixels/second, with positive Y downward. Call `step(deltaTime)` once per update; it accumulates time and runs substeps for `PhysicsBody2D` bodies. Dynamic bodies support axis-aligned boxes and circles; segments and convex polygons are static surfaces. Collider rotation/scaling, 2D joints, and dynamic polygon pairs are not part of this solver.
 
-`CharacterBody2D.moveAndSlide()` é controlado pelo jogo. Para disparar `GameObject.fixedUpdate()`/`GameComponent.fixedUpdate()`, implemente um accumulator e chame `this.scenes.updateFixed(fixedDt)` em cada tick fixo. `Game.run()` não cria esse scheduler.
+`CharacterBody2D.moveAndSlide()` is driven by the game. To dispatch `GameObject.fixedUpdate()`/`GameComponent.fixedUpdate()`, implement an accumulator and call `this.scenes.updateFixed(fixedDt)` on each fixed tick. `Game.run()` does not create this scheduler.
 
-`Tilemap` é um componente de cena com dados de tile e colisão. `World2DDocument` v1 é JSON versionado independente de `WorldData` 3D. Use `validateWorld2D`, `serializeWorld2D`, `World2DComponentRegistry` e `World2DLoader`; o loader recebe `resolveSpriteFrame` e, se houver corpos no documento, uma instância `PhysicsWorld2D` pronta. O importador CLI `bornengine import tiled <map.tmx> --output <world.world2d.json>` aceita mapas Tiled ortogonais finitos dentro do subconjunto documentado.
+`Tilemap` is a scene component with tile and collision data. `World2DDocument` v1 is versioned JSON independent of 3D `WorldData`. Use `validateWorld2D`, `serializeWorld2D`, `World2DComponentRegistry`, and `World2DLoader`; the loader takes `resolveSpriteFrame` and, when the document contains bodies, a ready `PhysicsWorld2D` instance. The CLI importer `bornengine import tiled <map.tmx> --output <world.world2d.json>` accepts orthogonal Tiled maps within the documented finite-map subset.
 
-Não afirme que há uma classe pública `Navigation2D` nesta versão. Não há export/implementação dela no pacote verificado.
+Do not claim there is a public `Navigation2D` class in this version. It is not exported or implemented in the verified package.
 
-### Câmeras e viewport
+### Cameras and viewport
 
-`CameraRig2D` é componente para follow, dead zones, limites, zoom e shake. `Viewport2D` define resolução lógica e modo `fit`, `integer` ou `stretch`; `ParallaxLayer2D` aplica offsets de parallax. Uma `Camera2D` também pode ser configurada diretamente em `scene.camera2D`.
+`CameraRig2D` is a component for follow, dead zones, bounds, zoom, and shake. `Viewport2D` defines a logical resolution and `fit`, `integer`, or `stretch` mode; `ParallaxLayer2D` applies parallax offsets. A `Camera2D` can also be configured directly on `scene.camera2D`.
 
-## API 3D e 2.5D
+## 3D and 2.5D API
 
-3D segue presente, mas não é a área principal de evolução da engine no momento. `Model`, `Mesh`, `Material` e `models.Animation` trabalham com assets de modelo. `game.sceneGraph` gerencia `SceneNode` retidos, hierarquia, geometria, material, luzes e picking. `WorldData`, `WorldInstance` e `PrefabLibrary` são os dados/runtime de mundo 3D; não são o formato de mapa World2D.
+3D remains available, but it is not the engine's main development focus at this time. `Model`, `Mesh`, `Material`, and `models.Animation` work with model assets. `game.sceneGraph` manages retained `SceneNode`s, hierarchy, geometry, materials, lights, and picking. `WorldData`, `WorldInstance`, and `PrefabLibrary` are 3D world data/runtime; they are not the World2D map format.
 
-`PhysicsWorld(game, options)` usa o backend Jolt; para sincronizar GameObjects, conecte os adapters necessários e chame `world.step(dt)` pela gameplay. Registre um mundo de fase com `scene.own(world)` para liberar no unload. VFX 3D usam `scene.vfx`; não confundir `ParticleSystem` 3D com o `ParticleEmitter2D` de componente.
+`PhysicsWorld(game, options)` uses the Jolt backend; connect the required adapters and call `world.step(dt)` from gameplay to synchronize `GameObject`s. Register a level's world with `scene.own(world)` to release it on unload. 3D VFX use `scene.vfx`; do not confuse the 3D `ParticleSystem` with the `ParticleEmitter2D` component.
 
-O `GameOptions.renderMode` aceita `2d`, `2.5d` e `3d` e escolhe o caminho de renderização em runtime. Para compilar menos código Rust em alvos nativos, use também o perfil CLI no `perry.toml`; `renderMode` sozinho não remove features do executável.
+`GameOptions.renderMode` accepts `2d`, `2.5d`, and `3d` and selects the runtime rendering path. To compile less Rust code for native targets, also use the CLI profile in `perry.toml`; `renderMode` alone does not remove executable features.
 
-## Áudio, input, UI e debug
+## Audio, input, UI, and debugging
 
-- Áudio: `game.audio` cria/carrega `Sound` e `Music`; `AudioEmitter2D` é um componente posicional 2D. Serviços de áudio avançam pelo loop do Game.
-- Input: `game.input` lê teclado/mouse/gamepad e suporta `InputActionMap`. `game.mobile` fornece joystick e botões virtuais; `movementInput()` soma teclado, mas gamepad/joystick tem precedência acima do deadzone.
-- UI: `game.ui` é a API de UI de jogo e deve ser separada da UI de diagnóstico.
-- Debug: `game.debugUi` oferece inspector e janelas Dear ImGui. É opt-in e requer feature `debug-ui` nos builds nativos Linux/macOS/Windows. Não está disponível em Web, Apple mobile ou watchOS.
+- Audio: `game.audio` creates/loads `Sound` and `Music`; `AudioEmitter2D` is a positional 2D component. Audio services advance through the `Game` loop.
+- Input: `game.input` reads keyboard/mouse/gamepad and supports `InputActionMap`. `game.mobile` provides virtual joysticks and buttons; `movementInput()` combines keyboard input, while gamepad/joystick input takes precedence above the deadzone.
+- UI: `game.ui` is the game UI API and should be kept separate from diagnostic UI.
+- Debug: `game.debugUi` provides an inspector and Dear ImGui windows. It is opt-in and requires the `debug-ui` feature in native Linux/macOS/Windows builds. It is unavailable on Web, Apple mobile, and watchOS.
 
-## Persistência SQLite
+## SQLite persistence
 
-`GameDatabase` é uma camada SQLite tipada, com schemas explícitos (`defineSchema`, `defineTable`, `columns`), migrações (`defineMigration`), CRUD, filtros e transações. O schema TypeScript não cria tabelas sozinho; forneça migrações ordenadas. A API não aceita SQL arbitrário. Operações retornam `DatabaseResult`; cheque `ok` e `status`.
+`GameDatabase` is a typed SQLite layer with explicit schemas (`defineSchema`, `defineTable`, `columns`), migrations (`defineMigration`), CRUD, filters, and transactions. A TypeScript schema does not create tables by itself; provide ordered migrations. The API does not accept arbitrary SQL. Operations return `DatabaseResult`; check `ok` and `status`.
 
-Persistent mode é o padrão nos targets suportados. No Web, cada database aberta tem seu Worker; usa OPFS quando a capacidade necessária existe e IndexedDB para snapshot quando OPFS não é suportado. Quota e eviction do browser continuam possíveis. `inMemory: true` escolhe armazenamento volátil. O arquivo SQLite não é criptografado; não guarde credenciais nele. Feche cada database para liberar worker/locks.
+Persistent mode is the default on supported targets. On Web, each opened database has its own Worker; it uses OPFS when the required capability exists and IndexedDB snapshots when OPFS is unsupported. Browser quota and eviction remain possible. `inMemory: true` selects volatile storage. The SQLite file is not encrypted; do not store credentials in it. Close every database to release workers/locks.
 
-## Multiplayer com Colyseus
+## Colyseus multiplayer
 
-`ColyseusClient(game, endpoint)` gerencia conexões associados ao Game. Faça servidores autoritativos e envie intenção do jogador, não uma posição final que o servidor confia. A engine sincroniza dados da room, mas não cria `GameObject` automaticamente para cada entidade remota; mantenha uma camada de views e sincronize-a com os snapshots.
+`ColyseusClient(game, endpoint)` manages connections associated with the `Game`. Use authoritative servers and send player intent rather than a final position the server trusts. The engine synchronizes room data, but does not automatically create a `GameObject` for each remote entity; keep a view layer and synchronize it with snapshots.
 
-`Game.run()` bombeia o serviço Colyseus nos frames. Em jogos Perry nativos, o loop standalone bloqueia; use as APIs `joinOrCreateWithCallbacks()`/`requestWithCallbacks()` quando promises precisarem de um event loop que não está sendo cedido. Um host embedded deve continuar chamando `runFrame()`. Para limpar explicitamente, saia das rooms e descarte o cliente.
+`Game.run()` pumps the Colyseus service each frame. In native Perry games, the standalone loop blocks; use `joinOrCreateWithCallbacks()`/`requestWithCallbacks()` when promises need an event loop that is not being yielded to. An embedded host must keep calling `runFrame()`. To clean up explicitly, leave rooms and dispose of the client.
 
 ## Scripting sandbox
 
-`game.scripting` cria `ScriptRuntime`; `ScriptComponent` recebe uma string com fonte JS autocontida e é anexado a um `GameObject`. Cada componente usa um runtime/heap QuickJS isolado. Permissões são negadas por padrão e concedidas explicitamente: `log`, `self.read`, `self.transform.write` e `self.particles.emit`.
+`game.scripting` creates a `ScriptRuntime`; `ScriptComponent` receives a self-contained JS source string and is attached to a `GameObject`. Each component uses an isolated QuickJS runtime/heap. Permissions are denied by default and granted explicitly: `log`, `self.read`, `self.transform.write`, and `self.particles.emit`.
 
-O módulo guest é uma string JS autocontida com `export default { onStart(ctx), update(ctx, deltaTime), onDestroy(ctx) }`; todos os hooks são opcionais e síncronos. `ctx.log` exige `log`; `ctx.self.id/position` exige `self.read`; `ctx.self.setPosition/moveBy` exige `self.transform.write`; `ctx.particles.emitBurst(count, directionX?, directionY?)` exige `self.particles.emit` e um `ParticleEmitter2D` anexado ao mesmo objeto. Comandos são aplicados após o hook síncrono concluir; erro ou retorno de Promise falha o hook e descarta os comandos enfileirados nele. O script guest não recebe `Game`, renderer, handles nativos, módulos, filesystem, rede, workers, Node APIs nem `std`/`os` do QuickJS. Erros ficam em `status/error`. O limite de fonte é 1 MiB; limites padrão por componente são 16 MiB de heap, 256 KiB de stack e 10.000 interrupt checks por hook. Os intervalos aceitos são 64 KiB–64 MiB para heap, 16–256 KiB para stack e 1–1.000.000 checks. O código/manifesto não é carregado automaticamente pelo runtime. O host deve carregar ou embutir a fonte; atualmente a CLI não fornece `bornengine script check` ou `bornengine script pack`.
+The guest module is a self-contained JS string with `export default { onStart(ctx), update(ctx, deltaTime), onDestroy(ctx) }`; all hooks are optional and synchronous. `ctx.log` requires `log`; `ctx.self.id/position` requires `self.read`; `ctx.self.setPosition/moveBy` requires `self.transform.write`; `ctx.particles.emitBurst(count, directionX?, directionY?)` requires `self.particles.emit` and a `ParticleEmitter2D` attached to the same object. Commands are applied after a synchronous hook finishes; an error or a returned Promise fails the hook and discards commands queued by that hook. Guest scripts do not receive `Game`, renderer, native handles, modules, filesystem, network, workers, Node APIs, or QuickJS `std`/`os`. Errors are exposed through `status/error`. The source limit is 1 MiB; default per-component limits are 16 MiB heap, 256 KiB stack, and 10,000 interrupt checks per hook. Accepted ranges are 64 KiB–64 MiB heap, 16–256 KiB stack, and 1–1,000,000 checks. The runtime does not load script files or manifests automatically. The host must load or embed the source; the CLI currently has no `bornengine script check` or `bornengine script pack` command.
 
-Alvos v1 validados: Linux nativo e Web/WASM. Outros alvos nativos e watchOS devem ser checados com `game.scripting.isSupported`; não os prometa como suportados. Esse isolamento é uma camada de containment para conteúdo de jogo, não uma fronteira formal de segurança contra vulnerabilidades da VM ou cliente multiplayer modificado.
+Validated v1 targets: native Linux and Web/WASM. Other native targets and watchOS must be checked with `game.scripting.isSupported`; do not claim support for them. This isolation is a containment layer for game content, not a formal security boundary against VM vulnerabilities or modified multiplayer clients.
 
-## Perfis nativos e CLI
+## Native profiles and CLI
 
-`bornengine create` é interativo e pede nome, tipo de jogo, package manager e versão estável da engine. `new` é a variante com nome e flags; `init` inicializa a pasta atual.
+`bornengine create` is interactive and asks for a name, game type, package manager, and stable engine version. `new` is the named/flagged variant; `init` initializes the current directory.
 
 ```sh
 bornengine new MyGame --game-type 2d --package-manager pnpm --engine-version 0.14.0
@@ -187,80 +187,83 @@ bornengine check main.ts
 bornengine run main.ts
 bornengine dev main.ts --watch
 bornengine build main.ts --os linux
+bornengine --add-ai-docs assistant-guide
 ```
 
-`--game-type` aceita `2d`, `2.5d` e `3d` (alias `--kind`) e grava `[bornengine].native_profile` em `perry.toml`. O CLI aplica isso ao crate Rust do engine em builds nativos:
+`--game-type` accepts `2d`, `2.5d`, and `3d` (alias `--kind`) and writes `[bornengine].native_profile` in `perry.toml`. The CLI applies it to the engine's Rust crate in native builds:
 
-| Perfil | Features principais | Uso |
+| Profile | Main features | Use |
 | --- | --- | --- |
-| `2d` | `mp3` | Renderer 2D, sem Jolt e sem loader de modelos 3D |
-| `2.5d` | `mp3`, `models3d`, `image-extras` | Modelos 3D sem Jolt |
-| `3d` | `mp3`, `jolt`, `models3d`, `image-extras` | Modelo 3D e física Jolt |
+| `2d` | `mp3` | 2D renderer without Jolt or the 3D model loader |
+| `2.5d` | `mp3`, `models3d`, `image-extras` | 3D models without Jolt |
+| `3d` | `mp3`, `jolt`, `models3d`, `image-extras` | 3D models and Jolt physics |
 
-Features extras podem ser adicionadas em `[bornengine].native_features`, por exemplo `debug-ui` em builds Linux/macOS/Windows. Direct Perry commands não leem o perfil; o target Web usa artefato WASM pré-compilado e não é reduzido por esses perfis. `bornengine dev` só observa/relança arquivos com `--watch`.
+Extra features can be added to `[bornengine].native_features`, for example `debug-ui` in Linux/macOS/Windows builds. Direct Perry commands do not read the profile; Web uses a precompiled WASM artifact and is not pruned by these profiles. `bornengine dev` only watches and restarts files when `--watch` is used.
 
-Não confunda comandos da engine com atualização da CLI:
+`bornengine create` and `bornengine new` include this guide in the generated project's root as `AGENTS.md`. To copy it into the current directory under another name, run `bornengine --add-ai-docs <filename>`; the CLI appends `.md` when needed and does not overwrite an existing file.
 
-- `bornengine engine install [version]`, `engine update`, `engine use` e `upgrade [version]` mudam a dependência BornEngine do projeto e seu lockfile.
-- `bornengine engine list` lista releases disponíveis do registry; não é uma lista de engines instaladas num store local.
-- `bornengine update` apenas consulta release da CLI e imprime a instrução de instalação; não atualiza o executável.
-- `BORNENGINE_PATH` e `--engine-path` são entradas para `new`/`init`; `engine use <path>` recebe o path posicionalmente.
-- Não há comando `bornengine script check` nem `bornengine script pack` na CLI publicada consultada nesta revisão.
+Do not confuse engine commands with CLI updates:
 
-## Targets e diferenças importantes
+- `bornengine engine install [version]`, `engine update`, `engine use`, and `upgrade [version]` change the project's BornEngine dependency and lockfile.
+- `bornengine engine list` lists releases available from the registry; it is not a list of engines installed in a local store.
+- `bornengine update` only checks for a CLI release and prints install instructions; it does not update the executable.
+- `BORNENGINE_PATH` and `--engine-path` are inputs to `new`/`init`; `engine use <path>` takes its path positionally.
+- The CLI has no `bornengine script check` or `bornengine script pack` command.
 
-| Target | Notas de uso |
+## Targets and important differences
+
+| Target | Notes |
 | --- | --- |
-| Linux / Windows / macOS | Games nativos; a configuração de profile controla Cargo features da engine. `debug-ui` existe apenas nesses três crates. |
-| Android / iOS / tvOS / visionOS / watchOS | Requer toolchains e configuração específicas. Consulte as páginas de plataforma antes de declarar compatibilidade; features opcionais variam. |
-| Web/WASM | Perry + WASM do engine + glue JS. Exige WebGPU e adapter utilizável; o bootstrap atual não faz fallback WebGL. WASM publicado não é profile-pruned pelo CLI. |
+| Linux / Windows / macOS | Native games; the profile controls Cargo features for the engine. `debug-ui` exists only in these three crates. |
+| Android / iOS / tvOS / visionOS / watchOS | Requires platform-specific toolchains and configuration. Consult platform pages before claiming compatibility; optional features vary. |
+| Web/WASM | Perry + engine WASM + JS glue. Requires WebGPU and a usable adapter; the current bootstrap does not fall back to WebGL. Published WASM is not profile-pruned by the CLI. |
 
-Não há uma matriz geral de browsers mantida por esta referência. WebGPU depende do browser, sistema, GPU e aceleração de hardware; valide um adapter real no alvo.
+This reference does not maintain a general browser support matrix. WebGPU depends on the browser, operating system, GPU, and hardware acceleration; validate a real adapter on the target.
 
-## Mapa de imports do pacote
+## Package import map
 
-O import do root `@bornengine/engine` é apropriado para o código do jogo. Subpaths públicos para separar módulos:
+The root import `@bornengine/engine` is appropriate for game code. Public subpaths for separating modules:
 
-| Subpath | Área |
+| Subpath | Area |
 | --- | --- |
-| `@bornengine/engine/core` | `Game`, `Window`, `Renderer`, tipos de plataforma |
+| `@bornengine/engine/core` | `Game`, `Window`, `Renderer`, platform types |
 | `@bornengine/engine/game` | `GameObject`, `GameComponent`, `Scene`, `GameScene`, adapters |
 | `@bornengine/engine/scene` | `SceneGraph`, `SceneNode` |
 | `@bornengine/engine/assets` | `AssetManager`, `SceneAssetManager`, `AssetGroup` |
 | `@bornengine/engine/textures` | `Texture`, `ImageData`, `RenderTexture` |
 | `@bornengine/engine/sprites` | `SpriteSheet`, `SpriteRenderer`, `SpriteAnimation`, `SpriteAnimator`, `ParticleEmitter2D` |
 | `@bornengine/engine/math` | `Vector2D`, `Vec3`, `Vec4`, `Quat`, `Matrix4`, `Mathf`, `Collision` |
-| `@bornengine/engine/shapes` | Primitivas de desenho e colisão |
+| `@bornengine/engine/shapes` | Drawing and collision primitives |
 | `@bornengine/engine/camera2d` | `CameraRig2D`, `Viewport2D`, parallax |
 | `@bornengine/engine/physics2d` | `PhysicsWorld2D`, `PhysicsBody2D`, `CharacterBody2D` |
 | `@bornengine/engine/tilemap` | `Tilemap` |
 | `@bornengine/engine/world2d` | `World2DDocument`, validation, serialization, loader |
-| `@bornengine/engine/models` | `Model`, `Mesh`, `Material`, `Animation` 3D |
-| `@bornengine/engine/physics` | `PhysicsWorld`, colliders, rigid bodies, Joints, vehicle |
+| `@bornengine/engine/models` | `Model`, `Mesh`, `Material`, 3D `Animation` |
+| `@bornengine/engine/physics` | `PhysicsWorld`, colliders, rigid bodies, joints, vehicle |
 | `@bornengine/engine/world` | `WorldData`, `WorldInstance`, prefab library |
-| `@bornengine/engine/vfx` | `ParticleSystem` e `DecalSystem` 3D |
+| `@bornengine/engine/vfx` | 3D `ParticleSystem` and `DecalSystem` |
 | `@bornengine/engine/text` | `Font` |
 | `@bornengine/engine/audio` | `AudioSystem`, sounds, music, 2D emitters |
 | `@bornengine/engine/input` | `InputSystem`, `InputActionMap` |
-| `@bornengine/engine/mobile` | Joysticks e botões touch |
-| `@bornengine/engine/ui` | UI de jogo |
-| `@bornengine/engine/debug-ui` | Inspector Dear ImGui |
-| `@bornengine/engine/storage` | `GameDatabase`, SQLite tipado |
+| `@bornengine/engine/mobile` | Virtual joysticks and touch buttons |
+| `@bornengine/engine/ui` | Game UI |
+| `@bornengine/engine/debug-ui` | Dear ImGui inspector |
+| `@bornengine/engine/storage` | Typed SQLite `GameDatabase` |
 | `@bornengine/engine/scripting` | `ScriptRuntime`, `ScriptComponent` |
 | `@bornengine/engine/colyseus` | `ColyseusClient`, `Room` |
 
-Este mapa é uma orientação; confirme cada nome com os exports atuais do pacote.
+This map is a guide; confirm each name against the package's current exports.
 
-## Exemplos e documentação detalhada
+## Examples and detailed documentation
 
-Use os exemplos do próprio repositório como receitas que devem compilar com o código atual. Índice geral: [`examples/README.md`](examples/README.md).
+Use examples from the repository as recipes that should compile with the current code. General index: [`examples/README.md`](examples/README.md).
 
-- Começo rápido: [`quickstart`](webpage/src/content/docs/getting-started/quickstart.md)
-- GameObjects e cenas: [`api/game`](webpage/src/content/docs/api/game.md)
-- Ownership e preload: [`api/assets`](webpage/src/content/docs/api/assets.md)
-- 2D completo: [`guides/2d-game`](webpage/src/content/docs/guides/2d-game.md)
-- Sprites/animação/partículas: [`api/sprites`](webpage/src/content/docs/api/sprites.md)
-- Física 2D: [`api/physics2d`](webpage/src/content/docs/api/physics2d.md)
+- Quick start: [`quickstart`](webpage/src/content/docs/getting-started/quickstart.md)
+- GameObjects and scenes: [`api/game`](webpage/src/content/docs/api/game.md)
+- Ownership and preload: [`api/assets`](webpage/src/content/docs/api/assets.md)
+- Complete 2D guide: [`guides/2d-game`](webpage/src/content/docs/guides/2d-game.md)
+- Sprites/animation/particles: [`api/sprites`](webpage/src/content/docs/api/sprites.md)
+- 2D physics: [`api/physics2d`](webpage/src/content/docs/api/physics2d.md)
 - World2D/Tiled: [`api/world2d`](webpage/src/content/docs/api/world2d.md), [`cli/import`](webpage/src/content/docs/cli/import.md)
 - 3D: [`api/models`](webpage/src/content/docs/api/models.md), [`api/physics`](webpage/src/content/docs/api/physics.md)
 - SQLite: [`api/storage`](webpage/src/content/docs/api/storage.md)
@@ -268,4 +271,4 @@ Use os exemplos do próprio repositório como receitas que devem compilar com o 
 - Sandbox: [`api/scripting`](webpage/src/content/docs/api/scripting.md), [`examples/scripting-sandbox`](examples/scripting-sandbox/README.md)
 - Targets: [`platforms`](webpage/src/content/docs/platforms/index.md)
 
-Para ver o estado real da API no checkout, comece por `package.json`, `src/index.ts`, a implementação específica em `src/<module>/`, `webpage/src/content/docs/` e um exemplo em `examples/`. Se a documentação e o runtime divergirem, trate código, exports e checks de compilação atuais como fonte de verdade e corrija a documentação.
+To verify the API in the actual checkout, start with `package.json`, `src/index.ts`, the specific implementation under `src/<module>/`, `webpage/src/content/docs/`, and an example under `examples/`. If documentation and runtime disagree, treat current code, exports, and compile checks as the source of truth and fix the documentation.
