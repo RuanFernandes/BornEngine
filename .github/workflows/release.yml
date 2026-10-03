@@ -50,7 +50,7 @@ jobs:
   # ---------------------------------------------------------------------------
   await-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     steps:
       - name: Wait for Tests workflow to pass
         env:
@@ -65,7 +65,6 @@ jobs:
             exit 0
           fi
           echo "Gating release on commit $SHA"
-          deadline=$(( SECONDS + 45 * 60 ))
           retry_on_error=1
           while :; do
             set +e
@@ -102,10 +101,6 @@ jobs:
               fi
             else
               echo "  Tests: $status ($url) — waiting"
-            fi
-            if [ $SECONDS -ge $deadline ]; then
-              echo "  timed out waiting for Tests"
-              exit 1
             fi
             sleep 30
           done
