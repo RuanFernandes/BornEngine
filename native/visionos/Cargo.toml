@@ -15,6 +15,8 @@ jolt = ["bloom-shared/jolt"]
 # BornEngine CLI profiles disable unused features for native game builds.
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras", "image/hdr"]
+sqlite = ["bloom-shared/sqlite"]
+scripting = ["bloom-shared/scripting"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
 

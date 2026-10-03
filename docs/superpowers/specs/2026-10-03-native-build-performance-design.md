@@ -1,7 +1,7 @@
 # Native Build Performance Design
 
 **Date:** 2026-10-03
-**Status:** Proposed for review
+**Status:** Approved
 **Repositories:** `BornEngine` and `bornengine-cli`
 
 ## Goal

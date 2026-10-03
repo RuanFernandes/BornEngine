@@ -139,10 +139,31 @@ mod macro_expansion_compile_check {
 
     #[test]
     fn script_support_matches_validated_native_host() {
-        #[cfg(target_os = "linux")]
-        assert_eq!(bloom_script_supported(), 1.0);
-        #[cfg(not(target_os = "linux"))]
-        assert_eq!(bloom_script_supported(), 0.0);
+        assert_eq!(
+            bloom_script_supported(),
+            f64::from(cfg!(all(target_os = "linux", feature = "scripting")) as u8)
+        );
+    }
+
+    #[cfg(not(feature = "sqlite"))]
+    #[test]
+    fn database_ffi_surface_returns_unsupported_when_sqlite_is_disabled() {
+        bloom_database_scratch_reset();
+        let ticket = bloom_database_submit(1.0, 0.0, 0.0);
+
+        assert!(ticket > 0.0);
+        assert_eq!(bloom_database_status(ticket), 9.0);
+    }
+
+    #[cfg(all(target_os = "linux", not(feature = "scripting")))]
+    #[test]
+    fn disabled_scripting_ffi_returns_a_feature_hint_for_handle_zero() {
+        let message = unsafe { crate::string_header::str_from_header(bloom_script_error(0.0)) };
+
+        assert!(
+            message.contains("enable the `scripting` native feature"),
+            "{message}"
+        );
     }
 
     #[test]

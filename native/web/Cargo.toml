@@ -16,6 +16,7 @@ mp3 = []
 jolt = ["bloom-shared/jolt"]
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]
+scripting = ["bloom-shared/scripting"]
 
 [package.metadata.wasm-pack.profile.dev]
 wasm-opt = false

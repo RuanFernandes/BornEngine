@@ -9,7 +9,11 @@
 
 #![allow(non_upper_case_globals)]
 
+#[cfg(feature = "sqlite")]
 #[path = "../../shared/src/database.rs"]
+mod database;
+#[cfg(not(feature = "sqlite"))]
+#[path = "../../shared/src/database_stub.rs"]
 mod database;
 mod ffi_stubs;
 mod ffi_stubs_manual;
