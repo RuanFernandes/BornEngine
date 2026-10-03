@@ -52,7 +52,12 @@ const operations = {
   scriptCommandText(_handle, index) { return commands[index].text ?? ''; },
   clearScriptCommands() { calls.push(['clearCommands']); commands = []; },
   scriptVmStatus() { return currentStatus; },
-  scriptVmError() { return currentError; },
+  scriptVmError(handle) {
+    calls.push(['error', handle]);
+    return handle === 0
+      ? 'Embedded JavaScript is disabled for this build; enable the `scripting` native feature.'
+      : currentError;
+  },
   scriptVmMemoryUsed() { return 8192; },
   destroyScriptVm(handle) { calls.push(['destroy', handle]); },
 };
@@ -107,6 +112,16 @@ assert.deepEqual(JSON.parse(JSON.stringify(create[2])), {
   maxStackBytes: 65536,
   maxInterruptChecks: 500,
 });
+const unsupportedRuntime = { ...runtime, isSupported: false };
+const unsupported = new ScriptComponent(unsupportedRuntime, 'export default {}');
+assert.equal(unsupported.status, 'unsupported');
+assert.equal(
+  unsupported.error,
+  'Embedded JavaScript is disabled for this build; enable the `scripting` native feature.',
+  'the feature-disabled native runtime explains how to enable scripting',
+);
+assert.ok(calls.some((entry) => entry[0] === 'error' && entry[1] === 0),
+  'an unavailable runtime retrieves the native feature diagnostic');
 component.onStart();
 
 commands = [

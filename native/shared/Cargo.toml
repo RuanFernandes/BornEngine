@@ -7,12 +7,16 @@ edition = "2021"
 default = ["mp3", "jolt", "hot-reload", "models3d", "image-extras"]
 mp3 = ["dep:minimp3"]
 jolt = []
+sqlite = ["dep:rusqlite"]
+scripting = ["dep:rquickjs"]
 # EN-008 — gate the `notify` filesystem watcher behind a compile-time
 # feature. Default-on for the dev workflow; ship game binaries with
 # --no-default-features (or --features mp3,jolt) to drop notify from
 # the dep tree entirely.
 hot-reload = ["dep:notify"]
-web = ["dep:web-time"]
+# Web retains its existing embedded scripting behavior; native projects opt
+# into QuickJS separately through the `scripting` feature.
+web = ["dep:web-time", "scripting"]
 # EN-014 — 3D model loading (glTF + DDS) and the ModelManager. BornEngine
 # CLI native profiles disable this for 2D games, dropping gltf/gltf_json and
 # image_dds from the native dependency graph. Default-on for direct Cargo builds.
@@ -54,7 +58,7 @@ web-time = { version = "0.2", optional = true }
 # `hot-reload` cargo feature so shipped game builds can drop notify.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 notify = { version = "6", optional = true }
-rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"] }
+rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"], optional = true }
 
 # EN-063 — the engine's error channel on web. `log_error`'s eprintln! is a
 # black hole in a browser (no stderr), so every engine warning and error —
@@ -67,7 +71,7 @@ web-sys = { version = "0.3", features = ["console"] }
 # QuickJS is only shipped on Linux and Web. Other native targets retain the
 # scripting FFI surface through scripting_stub.rs without compiling rquickjs-sys.
 [target.'cfg(any(target_os = "linux", target_arch = "wasm32"))'.dependencies]
-rquickjs = { version = "0.14.0", default-features = false, features = ["std"] }
+rquickjs = { version = "0.14.0", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
 pollster = "0.4"

@@ -16,13 +16,15 @@ mp3 = []
 jolt = []
 models3d = []
 image-extras = []
+sqlite = ["dep:rusqlite"]
+scripting = []
 hot-reload = []
 dev = ["hot-reload"]
 
 [dependencies]
 libc = "0.2"
 serde_json = "1"
-rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"] }
+rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"], optional = true }
 
 # Match perry-runtime's panic strategy so -Zbuild-std=std,panic_abort produces
 # bit-identical std rlibs that dedupe at link time. Without abort, the crate

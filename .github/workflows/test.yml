@@ -108,6 +108,11 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: cargo test --release -- --test-threads=1
 
+      - name: Test optional SQLite and scripting features
+        working-directory: native/shared
+        if: matrix.os == 'ubuntu-22.04'
+        run: cargo test --no-default-features --features sqlite,scripting --test native_optional_features
+
   # ---------------------------------------------------------------------------
   # FFI parity: every function in package.json's perry.nativeLibrary manifest
   # must be exported with matching arity by every platform crate (hand-written
@@ -143,8 +148,10 @@ jobs:
         with:
           components: rust-src
           targets: aarch64-apple-watchos
-      - name: Check watchOS engine
-        run: cargo +nightly check -Z build-std=std,panic_abort --manifest-path native/watchos/Cargo.toml --target aarch64-apple-watchos --no-default-features --features mp3,jolt,models3d,image-extras,dev
+      - name: Check watchOS engine without optional SQLite
+        run: cargo +nightly check -Z build-std=std,panic_abort --manifest-path native/watchos/Cargo.toml --target aarch64-apple-watchos --no-default-features --features mp3,jolt,models3d,image-extras,dev,scripting
+      - name: Check watchOS engine with optional SQLite
+        run: cargo +nightly check -Z build-std=std,panic_abort --manifest-path native/watchos/Cargo.toml --target aarch64-apple-watchos --no-default-features --features mp3,jolt,models3d,image-extras,dev,sqlite,scripting
 
   # ---------------------------------------------------------------------------
   # Lint: Clippy is blocking. rustfmt remains advisory because the shared
@@ -272,6 +279,14 @@ jobs:
       - name: Check a feature-minimal 2D native build
         working-directory: native/linux
         run: cargo check --no-default-features --features mp3
+
+      - name: Check optional SQLite native feature
+        working-directory: native/linux
+        run: cargo check --no-default-features --features mp3,sqlite
+
+      - name: Check optional QuickJS native feature
+        working-directory: native/linux
+        run: cargo check --no-default-features --features mp3,scripting
 
       - name: Check the 2.5D native build profile
         working-directory: native/linux

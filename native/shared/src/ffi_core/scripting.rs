@@ -6,7 +6,7 @@ macro_rules! __bloom_ffi_scripting {
     () => {
         #[no_mangle]
         pub extern "C" fn bloom_script_supported() -> f64 {
-            f64::from(cfg!(target_os = "linux") as u8)
+            f64::from(cfg!(all(target_os = "linux", feature = "scripting")) as u8)
         }
 
         #[no_mangle]
@@ -240,7 +240,8 @@ macro_rules! __bloom_ffi_scripting {
         pub extern "C" fn bloom_script_error(handle: f64) -> *const u8 {
             $crate::ffi::guard("bloom_script_error", move || {
                 let Some(handle) = $crate::__bloom_script_parse_handle!(handle) else {
-                    return $crate::string_header::alloc_perry_string("");
+                    let text = $crate::scripting::runtime_unavailable_error();
+                    return $crate::string_header::alloc_perry_string(&text);
                 };
                 let text = $crate::scripting::script_error(handle).unwrap_or_default();
                 $crate::string_header::alloc_perry_string(&text)

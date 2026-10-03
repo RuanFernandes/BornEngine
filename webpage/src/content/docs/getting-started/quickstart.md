@@ -23,11 +23,13 @@ bornengine run main.ts
 For repeatable scripts or CI, use `new`:
 
 ```sh
-bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.13.0
+bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.14.0
 bornengine build main.ts --name my-game --os linux
 ```
 
 `new` is the non-interactive path. `--game-type` accepts `2d`, `2.5d`, or `3d` and defaults to `2d`; it writes `[bornengine].native_profile` in `perry.toml`. The BornEngine CLI applies that profile when it builds the engine's native Rust crate. The Web target currently uses a prebuilt WASM package, so its artifact is not reduced by this setting. Scaffolding refuses to overwrite a populated or conflicting directory.
+
+The first native build for an engine version, target, Rust toolchain, or feature set still compiles its dependencies. The CLI streams compiler output and keeps compatible Cargo artifacts in a shared per-user cache for later projects. `run` and `dev` use a faster incremental profile by default; `build` is optimized. See [build and run](../../cli/build/) for `--release`, job limits, and `bornengine cache warm`.
 
 ## The first source file
 

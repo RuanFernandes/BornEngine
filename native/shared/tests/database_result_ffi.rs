@@ -1,3 +1,5 @@
+#![cfg(feature = "sqlite")]
+
 use bloom_shared::database::{self, DatabaseValue};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::path::PathBuf;

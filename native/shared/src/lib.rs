@@ -26,7 +26,10 @@ pub mod staging;
 pub mod profiler;
 pub mod particles;
 pub mod particles2d;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "sqlite"))]
+pub mod database;
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "sqlite")))]
+#[path = "database_stub.rs"]
 pub mod database;
 pub mod decals;
 #[cfg(all(feature = "models3d", feature = "jolt"))]
@@ -44,9 +47,15 @@ pub mod drs;
 pub mod ui;
 pub mod colyseus;
 pub mod colyseus_targets;
-#[cfg(any(target_os = "linux", target_arch = "wasm32"))]
+#[cfg(all(
+    feature = "scripting",
+    any(target_os = "linux", target_arch = "wasm32")
+))]
 pub mod scripting;
-#[cfg(not(any(target_os = "linux", target_arch = "wasm32")))]
+#[cfg(not(all(
+    feature = "scripting",
+    any(target_os = "linux", target_arch = "wasm32")
+)))]
 #[path = "scripting_stub.rs"]
 pub mod scripting;
 // Host-surface attach path (PerryTS/perry#5519). Pulls in wgpu's

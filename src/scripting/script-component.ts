@@ -108,7 +108,7 @@ export class ScriptComponent extends GameComponent {
     this.source = typeof source === 'string' ? source : '';
 
     if (runtime === null || runtime === undefined || !runtime.isSupported) {
-      this.fail('Embedded JavaScript is not supported by this target.');
+      this.fail(scriptOperations.scriptVmError(0) || 'Embedded JavaScript is not supported by this target.');
       this.statusValue = 'unsupported';
       return;
     }

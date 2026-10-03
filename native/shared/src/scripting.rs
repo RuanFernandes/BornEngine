@@ -98,6 +98,10 @@ thread_local! {
     static SCRIPT_VMS: RefCell<Vec<ScriptVmSlot>> = const { RefCell::new(Vec::new()) };
 }
 
+pub fn runtime_unavailable_error() -> String {
+    "No embedded JavaScript runtime is available for this handle.".into()
+}
+
 /// Create a script VM in the calling thread's handle table.
 /// Perry drives BornEngine callbacks on one game thread; all operations for a
 /// handle must remain on the thread which created it.

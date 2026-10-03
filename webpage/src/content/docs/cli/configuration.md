@@ -10,7 +10,7 @@ Use the configuration group to make project creation predictable across shells:
 ```sh
 bornengine config set package-manager pnpm
 bornengine config get package-manager
-bornengine config set engine-version 0.13.0
+bornengine config set engine-version 0.14.0
 bornengine config list
 ```
 

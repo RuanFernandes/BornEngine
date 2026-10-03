@@ -42,6 +42,10 @@ impl ScriptContextData {
 
 pub struct ScriptVm;
 
+pub fn runtime_unavailable_error() -> String {
+    unsupported_error()
+}
+
 impl ScriptVm {
     pub fn load(&mut self, _source: &str) -> Result<(), String> {
         Err(unsupported_error())
@@ -106,5 +110,10 @@ pub fn script_destroy(_handle: u32) -> bool {
 }
 
 fn unsupported_error() -> String {
-    "Embedded JavaScript is not supported by this target.".into()
+    if cfg!(not(any(target_os = "linux", target_arch = "wasm32"))) {
+        "Embedded JavaScript is not supported by this target.".into()
+    } else {
+        "Embedded JavaScript is disabled for this build; enable the `scripting` native feature."
+            .into()
+    }
 }
