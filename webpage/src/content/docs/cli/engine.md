@@ -15,19 +15,18 @@ bornengine engine use 0.13.0
 bornengine engine use ../BornEngine
 ```
 
-`engine current` reports the active source. `engine list` lists stable releases available from npm. `engine install [version]` installs/selects a stable release for the project; `engine update` refreshes the engine dependency; and `engine remove [version]` removes a project engine dependency. Check the active selection before removing a version.
+`engine current` reports the active source. `engine list` lists stable releases available from npm. `engine install [version]` installs/selects a stable release for the project; `engine update` selects the latest stable engine release; and `engine remove [version]` removes a project engine dependency. Check the active selection before removing a version. The top-level `bornengine upgrade [version]` is a shortcut for changing the project's engine dependency, not the CLI binary.
 
 ## Local checkout versus release
 
-Use a path with `engine use` while editing the engine. Switch back to a published release by passing its version. `BORNENGINE_PATH` can provide a default local checkout, but an explicit `--engine-path` wins.
+Use a path with `engine use` while editing the engine. Switch back to a published release by passing its version. This command accepts the checkout path as a positional source; `BORNENGINE_PATH` and `--engine-path` are for `new` and `init` scaffolding, as described in [Project commands](../project/).
 
-## CLI upgrade
+## Check for a CLI update
 
-The top-level `upgrade` command manages the CLI itself:
+The top-level `update` command checks GitHub releases and prints the command for installing a newer CLI version. It does not modify the installed binary:
 
 ```sh
-bornengine upgrade
-bornengine upgrade --latest
+bornengine update
 ```
 
-The separate `update` command only checks for a CLI release and prints an installation instruction. It never silently updates the binary.
+Use `bornengine upgrade [version]` for the engine dependency in your current game project.

@@ -20,17 +20,17 @@ bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.13
 bornengine new MyGame --game-type 2d --native-features sqlite,scripting
 ```
 
-`--game-type` accepts `2d`, `2.5d`, or `3d` and defaults to `2d`; `--kind` is an alias. The CLI records the selected profile in `[bornengine].native_profile` in `perry.toml`. `bornengine build`, `run`, and `dev` apply that profile only to BornEngine's native Cargo crate: 2D omits Jolt and 3D model loading, 2.5D enables models without Jolt, and 3D enables both. The `dev` command also enables native hot reload.
+`--game-type` accepts `2d`, `2.5d`, or `3d` and defaults to `2d`; `--kind` is an alias. The CLI records the selected profile in `[bornengine].native_profile` in `perry.toml`. `bornengine build`, `run`, and `dev` apply that profile only to BornEngine's native Cargo crate: 2D omits Jolt and 3D model loading, 2.5D enables models without Jolt, and 3D enables both. `bornengine dev main.ts --watch` enables native watch-and-restart development; without `--watch`, `dev` runs once.
 
-SQLite and embedded scripting are opt-in for native builds. Use `--native-features sqlite,scripting` when creating a project, or set `native_features = ["sqlite", "scripting"]` in the existing `[bornengine]` table. SQLite enables the native database backend. QuickJS scripting is enabled on supported targets; other targets keep the existing unsupported runtime stub, so check `game.scripting.isSupported` before offering script-driven content. The default profile does not compile the optional native SQLite or QuickJS dependencies. Web/WASM keeps its existing database and scripting behavior and is not pruned by the native profile.
+SQLite and embedded scripting are opt-in for native builds. Use `--native-features sqlite,scripting` when creating a project, or set `native_features = ["sqlite", "scripting"]` in the existing `[bornengine]` table. SQLite enables the native database backend. QuickJS scripting is enabled on supported targets; other targets keep the existing unsupported runtime stub, so check `game.scripting.isSupported` before offering script-driven content. The default profile does not compile the optional native SQLite or QuickJS dependencies. Web/WASM keeps its existing database and scripting behavior and is not pruned by the native profile. Add other project-specific engine features with `[bornengine].native_features`, for example `native_features = ["debug-ui"]` on supported desktop targets (Linux, macOS, and Windows).
 
-Other Cargo features can be configured directly in `native_features` when using a custom engine build. Direct Perry commands do not read BornEngine's profile. Use `--pm` as the shorter package-manager flag, `-e` for `--engine-version`, and `--engine` for `--engine-path`. A local engine checkout is useful while developing BornEngine itself:
+Direct Perry commands do not read BornEngine's profile. The current Web target uses a prebuilt WASM package that is not profile-pruned. Use `--pm` as the shorter package-manager flag, `-e` for `--engine-version`, and `--engine` as an alias for `--engine-path`. A local engine checkout is useful while developing BornEngine itself:
 
 ```sh
 bornengine new EngineTest --engine-path ../BornEngine
 ```
 
-The generated package uses the selected manager's dependency syntax: pnpm uses `link:`, while npm and Yarn use `file:` for a local checkout.
+The generated package uses the selected manager's dependency syntax: pnpm uses `link:`, while npm and Yarn use `file:` for a local checkout. Set `BORNENGINE_PATH` to use a local checkout as the default when running `new` or `init`; an explicit `--engine-path` overrides it. To switch an existing game dependency, use `bornengine engine use <path>`.
 
 ## Initialize a directory
 

@@ -30,7 +30,7 @@ native_profile = "2d"
 native_features = ["debug-ui"]
 ```
 
-Build with `bornengine build`, `run`, or `dev` so the CLI forwards both the profile and extra feature to the Rust crate. This setting does not affect direct Perry commands or the prebuilt Web/WASM package.
+Build with `bornengine build`, `bornengine run`, or `bornengine dev` so the CLI forwards both the profile and extra feature to the Rust crate. `debug-ui` is available only in the Linux, macOS, and Windows native crates. This setting does not affect direct Perry commands or the prebuilt Web/WASM package.
 
 Check `game.debugUi.isAvailable()` before drawing custom panels. On other targets, or when the desktop feature is off, it returns `false`; gameplay can keep using the same `Game` options without platform checks.
 

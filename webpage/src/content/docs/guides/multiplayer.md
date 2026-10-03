@@ -11,7 +11,7 @@ BornEngine exposes a focused Colyseus client API across native and Web/WASM buil
 
 ## Setup
 
-You need Node.js 20.9 or newer for the Colyseus server and a BornEngine CLI installation. Keep the server and game in separate folders. The server runs independently from each game client.
+The multiplayer server examples in this repository require Node.js 22 or newer; the scripting sandbox server and workbench specify `>=22.12.0`. If you generate another Colyseus server from a template, use the Node version listed by that project's `engines` field. You also need a BornEngine CLI installation. Keep the server and game in separate folders. The server runs independently from each game client.
 
 Create a minimal TypeScript Colyseus server in one terminal. When prompted, choose TypeScript and the minimal server preset:
 

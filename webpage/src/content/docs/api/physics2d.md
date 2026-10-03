@@ -74,7 +74,7 @@ With positive Y downward, `{ x: 0, y: -1 }` permits a character above a horizont
 
 ## Character movement
 
-`CharacterBody2D` is an axis-separated kinematic controller for a box. Call `moveAndSlide()` once from a fixed update; it sweeps horizontal motion then vertical motion, applies world layer/mask filters, ignores sensors, and records contact normals.
+`CharacterBody2D` is an axis-separated kinematic controller for a box. Call `moveAndSlide()` once from a fixed update; it sweeps horizontal motion then vertical motion, applies world layer/mask filters, ignores sensors, and records contact normals. BornEngine does not schedule a fixed-update loop automatically. To run `GameObject.fixedUpdate()` and `GameComponent.fixedUpdate()`, implement an accumulator in your `Game.loop()` and call `this.scenes.updateFixed(fixedDeltaTime)` for every fixed tick. Call `moveAndSlide()` from that fixed-update phase. `PhysicsWorld2D.step(deltaTime)` has its own accumulator for `PhysicsBody2D` simulation; it does not schedule scene fixed-update callbacks.
 
 ```ts
 const character = new CharacterBody2D(physics, { width: 24, height: 32 });

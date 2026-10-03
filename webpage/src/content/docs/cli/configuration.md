@@ -10,15 +10,16 @@ Use the configuration group to make project creation predictable across shells:
 ```sh
 bornengine config set package-manager pnpm
 bornengine config get package-manager
+bornengine config set engine-version 0.13.0
 bornengine config list
 ```
 
-`config set <key> <value>` writes a value, `config get <key>` reads one key, and `config list` prints the known configuration. These defaults are used by interactive scaffolding; explicit command flags take precedence.
+`config set <key> <value>` writes a value, `config get <key>` reads one key, and `config list` prints the known configuration. The supported keys are `package-manager` and `engine-version`; the latter defaults to `latest` and sets the default release selected by `create`, `new`, and `init`. Explicit command flags take precedence.
 
-The top-level `update` command is related to releases, not project configuration:
+The top-level `update` command checks whether a newer BornEngine CLI release is available and prints an installation command. It does not modify the engine dependency in your project:
 
 ```sh
 bornengine update
 ```
 
-It checks for a newer CLI release and prints the command needed to install it. It does not self-update. Use `bornengine upgrade [version]` when you want the CLI upgrade flow.
+To change the engine version used by the current project, use `bornengine upgrade [version]` or the `bornengine engine` commands. For example, `bornengine upgrade --latest` selects the newest stable engine release; it does not upgrade the CLI binary.
