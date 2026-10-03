@@ -1,4 +1,4 @@
-import { defineRoom, defineServer } from "colyseus";
+import { defineRoom, defineServer } from "@colyseus/core";
 import { TestRoom } from "./rooms/TestRoom.js";
 
 const server = defineServer({

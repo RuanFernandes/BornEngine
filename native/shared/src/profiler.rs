@@ -104,6 +104,12 @@ impl RollingStats {
     }
 }
 
+impl Default for Profiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Profiler {
     pub fn new() -> Self {
         Self {
@@ -355,7 +361,6 @@ impl Profiler {
         let fc = self.frame_count;
         let mut entries: Vec<(&&str, &RollingStats)> = self.rolling.iter()
             .filter(|(_, s)| fc.saturating_sub(s.last_frame) <= ROLLING_FRAMES as u64)
-            .map(|(k, v)| (k, v))
             .collect();
         entries.sort_by(|a, b| b.1.avg_cpu().partial_cmp(&a.1.avg_cpu()).unwrap_or(std::cmp::Ordering::Equal));
 

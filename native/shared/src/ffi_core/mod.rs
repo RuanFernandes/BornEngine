@@ -144,4 +144,35 @@ mod macro_expansion_compile_check {
         #[cfg(not(target_os = "linux"))]
         assert_eq!(bloom_script_supported(), 0.0);
     }
+
+    #[test]
+    fn malformed_persisted_string_does_not_replace_file() {
+        use crate::string_header::{alloc_perry_string, StringHeader};
+
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "bornengine-ffi-string-{}-{unique}.txt",
+            std::process::id()
+        ));
+        std::fs::write(&path, b"original").unwrap();
+        let path_string = alloc_perry_string(path.to_str().unwrap());
+        let malformed = alloc_perry_string("new data");
+        unsafe {
+            (*(malformed as *mut StringHeader)).capacity = 7;
+        }
+
+        // SAFETY: Both pointers refer to readable Perry allocations. The bad
+        // header fails validation before its payload length is used.
+        assert_eq!(unsafe { bloom_write_file(path_string, malformed) }, 0.0);
+        assert_eq!(std::fs::read(&path).unwrap(), b"original");
+
+        let valid = alloc_perry_string("new data");
+        // SAFETY: Both pointers refer to valid Perry allocations.
+        assert_eq!(unsafe { bloom_write_file(path_string, valid) }, 1.0);
+        assert_eq!(std::fs::read(&path).unwrap(), b"new data");
+        std::fs::remove_file(path).unwrap();
+    }
 }

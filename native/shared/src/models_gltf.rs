@@ -8,6 +8,12 @@
 
 use super::*;
 
+type NodeChannelSamples = (
+    Vec<f32>, Vec<[f32; 3]>,
+    Vec<f32>, Vec<[f32; 4]>,
+    Vec<f32>, Vec<[f32; 3]>,
+);
+
 /// Walk the scene graph and collect EVERY world-space transform that
 /// references each mesh. Unlike `walk_scene_for_mesh_transforms` which
 /// records only the first occurrence, this version captures every
@@ -141,7 +147,7 @@ pub(super) fn load_gltf_animation(data: &[u8]) -> Option<ModelAnimation> {
             gltf::buffer::Source::Uri(uri) => {
                 if let Some(encoded) = uri.strip_prefix("data:application/octet-stream;base64,") {
                     let mut decoded = Vec::new();
-                    let _ = base64_decode(encoded, &mut decoded);
+                    base64_decode(encoded, &mut decoded);
                     buffer_data.push(decoded);
                 } else {
                     buffer_data.push(Vec::new());
@@ -221,8 +227,8 @@ pub(super) fn load_gltf_animation(data: &[u8]) -> Option<ModelAnimation> {
                 if child < joint_count { is_child[child] = true; }
             }
         }
-        for i in 0..joint_count {
-            if !is_child[i] { root_joints.push(i); }
+        for (i, &child) in is_child.iter().enumerate() {
+            if !child { root_joints.push(i); }
         }
 
         #[cfg(debug_assertions)]
@@ -256,7 +262,7 @@ pub(super) fn load_gltf_animation(data: &[u8]) -> Option<ModelAnimation> {
         };
 
         // Group channels by target node: (trans_ts, translations, rot_ts, rotations, scale_ts, scales)
-        let mut node_channels: std::collections::HashMap<usize, (Vec<f32>, Vec<[f32; 3]>, Vec<f32>, Vec<[f32; 4]>, Vec<f32>, Vec<[f32; 3]>)> = std::collections::HashMap::new();
+        let mut node_channels: std::collections::HashMap<usize, NodeChannelSamples> = std::collections::HashMap::new();
 
         #[cfg(debug_assertions)]
         let mut skipped_channels = 0usize;
@@ -361,7 +367,7 @@ pub(super) fn load_gltf_animation(data: &[u8]) -> Option<ModelAnimation> {
             let anim0 = &animations[0];
             for ch in &anim0.channels {
                 if ch.joint_index < joint_count_s && !ch.rotations.is_empty() {
-                    rest_rots[ch.joint_index] = if ch.rotations.len() > 0 { ch.rotations[0] } else { [0.0, 0.0, 0.0, 1.0] };
+                    rest_rots[ch.joint_index] = if !ch.rotations.is_empty() { ch.rotations[0] } else { [0.0, 0.0, 0.0, 1.0] };
                 }
             }
             #[cfg(debug_assertions)]
@@ -399,7 +405,7 @@ pub(super) fn load_gltf_with_textures(
             gltf::buffer::Source::Uri(uri) => {
                 if let Some(encoded) = uri.strip_prefix("data:application/octet-stream;base64,") {
                     let mut decoded = Vec::new();
-                    let _ = base64_decode(encoded, &mut decoded);
+                    base64_decode(encoded, &mut decoded);
                     buffer_data.push(decoded);
                 } else if let Some(dir) = base_dir {
                     // External .bin file alongside the .gltf.
@@ -461,7 +467,7 @@ pub(super) fn load_gltf_with_textures(
                         let decoded = encoded.find(";base64,").map(|pos| {
                             let b64 = &encoded[pos + 8..];
                             let mut out = Vec::new();
-                            let _ = base64_decode(b64, &mut out);
+                            base64_decode(b64, &mut out);
                             out
                         });
                         (decoded, uri.to_string())
@@ -784,7 +790,7 @@ pub fn load_gltf_staged(data: &[u8]) -> Option<crate::staging::StagedModel> {
             gltf::buffer::Source::Uri(uri) => {
                 if let Some(encoded) = uri.strip_prefix("data:application/octet-stream;base64,") {
                     let mut decoded = Vec::new();
-                    let _ = base64_decode(encoded, &mut decoded);
+                    base64_decode(encoded, &mut decoded);
                     buffer_data.push(decoded);
                 } else {
                     buffer_data.push(Vec::new());
@@ -1044,7 +1050,7 @@ pub(super) fn load_gltf(data: &[u8]) -> Option<ModelData> {
                 if let Some(encoded) = uri.strip_prefix("data:application/octet-stream;base64,") {
                     // Try to decode base64 inline data
                     let mut decoded = Vec::new();
-                    let _ = base64_decode(encoded, &mut decoded);
+                    base64_decode(encoded, &mut decoded);
                     buffer_data.push(decoded);
                 } else {
                     buffer_data.push(Vec::new());
@@ -1122,9 +1128,9 @@ pub(super) fn load_gltf(data: &[u8]) -> Option<ModelData> {
 
 /// Convert a KHR_materials_pbrSpecularGlossiness (diffuse + specular
 /// + glossiness) material to the metallic-roughness model. Uses the
-/// reference Khronos two-path formula so materials authored in
-/// Substance/3ds Max/FBX pipelines (Lumberyard Bistro, many ORCA
-/// assets) render correctly on a metal-rough pipeline.
+///   reference Khronos two-path formula so materials authored in
+///   Substance/3ds Max/FBX pipelines (Lumberyard Bistro, many ORCA
+///   assets) render correctly on a metal-rough pipeline.
 ///
 /// High-level idea: assume a 0.04 dielectric reflectance baseline,
 /// solve for the metallic factor that best reconciles the authored
@@ -1277,4 +1283,3 @@ fn base64_decode(input: &str, output: &mut Vec<u8>) {
         }
     }
 }
-

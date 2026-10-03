@@ -45,7 +45,7 @@ pub struct ParticleConfig {
     /// Spawn positions are jittered inside a sphere of this radius.
     pub pos_jitter: f32,
     /// > 0 stretches the billboard along its velocity by this many seconds of
-    /// travel — the difference between a round spark and a tracer streak.
+    /// > travel — the difference between a round spark and a tracer streak.
     pub stretch: f32,
     /// Fraction of the emitter's own velocity the particle inherits.
     pub inherit: f32,

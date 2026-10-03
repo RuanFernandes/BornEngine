@@ -19,6 +19,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { splitParams, extractRustFns } = require('./ffi-parser');
 
 const ROOT = path.join(__dirname, '..');
 const PLATFORMS = ['macos', 'linux', 'windows', 'android', 'ios', 'tvos', 'watchos'];
@@ -50,41 +51,6 @@ const STUB_PLATFORMS = new Set(['watchos']);
 
 // ---------------------------------------------------------------------------
 // parsing helpers
-
-/** Split a Rust/JSON-ish param list on top-level commas (fn-pointer params
- *  contain nested parens). */
-function splitParams(s) {
-  const out = [];
-  let depth = 0, cur = '';
-  for (const c of s) {
-    if (c === '(' || c === '<' || c === '[') depth++;
-    else if (c === ')' || c === '>' || c === ']') depth--;
-    if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; }
-    else cur += c;
-  }
-  if (cur.trim()) out.push(cur.trim());
-  return out;
-}
-
-/** Extract `pub extern "C" fn bloom_*` names + arities from Rust source. */
-function extractRustFns(src) {
-  const fns = new Map(); // name -> arity
-  const re = /pub extern "C" fn (bloom_[a-z0-9_]+)\s*\(/g;
-  let m;
-  while ((m = re.exec(src)) !== null) {
-    // capture to matching close paren
-    let depth = 1, i = re.lastIndex, start = i;
-    while (i < src.length && depth > 0) {
-      if (src[i] === '(') depth++;
-      else if (src[i] === ')') depth--;
-      i++;
-    }
-    const params = splitParams(src.slice(start, i - 1)).filter(Boolean);
-    // gate-paired definitions (cfg + cfg(not)) share name and arity; keep first
-    if (!fns.has(m[1])) fns.set(m[1], params.length);
-  }
-  return fns;
-}
 
 function readDirRust(dir) {
   let all = '';

@@ -64,6 +64,12 @@ pub struct Ragdoll {
     pub age: f32,
 }
 
+impl Default for Ragdoll {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ragdoll {
     pub fn new() -> Self {
         Self {
@@ -205,6 +211,7 @@ pub fn plan(
 impl Ragdoll {
     /// Called by the FFI once the bodies exist. `bodies[i]` pairs with
     /// `builds[i]`.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn attach(&mut self, builds: &[RagdollBuild], bodies: &[f64],
                   constraints: Vec<f64>,
                   anim: &ModelAnimation,
@@ -269,8 +276,8 @@ impl Ragdoll {
             }
         }
 
-        for i in 0..n {
-            anim.joint_matrices[i] = mat4_mul(&world[i], &skel.joints[i].inverse_bind);
+        for (i, matrix) in world.iter().enumerate() {
+            anim.joint_matrices[i] = mat4_mul(matrix, &skel.joints[i].inverse_bind);
         }
         anim.joint_world.copy_from_slice(&world);
     }

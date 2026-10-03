@@ -23,7 +23,7 @@ pub fn parse_wav(data: &[u8]) -> Option<SoundData> {
         if chunk_id == b"data" {
             let pcm_data = &data[offset + 8..std::cmp::min(offset + 8 + chunk_size, data.len())];
             let samples = match bits_per_sample {
-                16 => pcm_data.chunks_exact(2)
+                16 => pcm_data.as_chunks::<2>().0.iter()
                     .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as f32 / 32768.0)
                     .collect(),
                 8 => pcm_data.iter()

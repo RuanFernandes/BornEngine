@@ -3,16 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20.9.0" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "check": "tsc --noEmit",
     "start": "tsx src/index.ts",
     "test": "npm run check && tsx test/contract-test.ts"
   },
   "dependencies": {
-    "@colyseus/schema": "^5.0.8",
-    "@colyseus/tools": "^0.18.4",
-    "colyseus": "^0.18.8"
+    "@colyseus/core": "^0.18.18",
+    "@colyseus/schema": "^5.0.35",
+    "@colyseus/tools": "^0.18.7",
+    "@colyseus/ws-transport": "^0.18.4"
   },
   "devDependencies": {
     "@colyseus/sdk": "0.18.4",

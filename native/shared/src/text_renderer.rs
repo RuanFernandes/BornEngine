@@ -86,6 +86,12 @@ pub struct TextRenderer {
     sdf_atlas_dirty: bool,
 }
 
+impl Default for TextRenderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextRenderer {
     /// Cheap placeholder that allocates nothing. Used as a temporary swap target
     /// when we need to split borrows on EngineState (text + renderer).
@@ -249,6 +255,7 @@ impl TextRenderer {
         width as f64
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_text(
         &mut self,
         renderer: &mut Renderer,
@@ -261,6 +268,7 @@ impl TextRenderer {
         self.draw_text_ex(renderer, 0, text, x, y, size, 0.0, r, g, b, a);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_text_ex(
         &mut self,
         renderer: &mut Renderer,
@@ -438,6 +446,7 @@ impl TextRenderer {
     }
 
     /// Draw text using SDF atlas. The text scales smoothly to any size.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_text_sdf(
         &mut self,
         renderer: &mut Renderer,

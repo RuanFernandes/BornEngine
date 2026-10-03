@@ -292,8 +292,8 @@ pub enum Bucket {
     /// Alpha-cutout draws (foliage cards, chain-link fences, leaf
     /// silhouettes). Runs in the opaque pass with full G-buffer write
     /// + sun shadow + SSAO, but the fragment shader is expected to
-    /// `discard` against `MaterialFactors.alpha_cutoff`. Rendered
-    /// double-sided so foliage is visible from both faces.
+    ///   `discard` against `MaterialFactors.alpha_cutoff`. Rendered
+    ///   double-sided so foliage is visible from both faces.
     Cutout,
     /// Translucent draws. Back-to-front sort for correct blending.
     /// Single HDR attachment, alpha-blended, depth-test without

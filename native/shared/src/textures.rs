@@ -29,6 +29,12 @@ pub struct TextureManager {
     pub render_textures: HandleRegistry<RenderTextureData>,
 }
 
+impl Default for TextureManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextureManager {
     pub fn new() -> Self {
         Self {

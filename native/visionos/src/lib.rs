@@ -1482,8 +1482,12 @@ fn setup_game_controllers() {
 // ============================================================
 
 #[no_mangle]
-pub extern "C" fn bloom_init_window(_width: f64, _height: f64, title_ptr: *const u8, _fullscreen: f64) {
-    let _title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_init_window(_width: f64, _height: f64, title_ptr: *const u8, _fullscreen: f64) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let _title = unsafe { str_from_header(title_ptr) };
 
     // Register ObjC classes for the scene delegate (window/view creation)
     register_metal_view_class();

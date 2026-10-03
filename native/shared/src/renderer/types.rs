@@ -118,8 +118,8 @@ pub(super) struct LightingUniforms {
     /// Camera world-space position (xyz) + env intensity multiplier
     /// (w). Scene shader uses xyz to compute V = normalize(camera_pos
     /// - world_pos) for GGX specular, and multiplies w into every env
-    /// sample so IBL stays in sync with the sky pass when the user
-    /// scales their HDR. Written once per frame before the main pass.
+    ///   sample so IBL stays in sync with the sky pass when the user
+    ///   scales their HDR. Written once per frame before the main pass.
     pub(super) camera_pos: [f32; 4],
     /// Cascaded shadow map: 3 light view-projection matrices (one per
     /// cascade). Scene shader selects the tightest cascade based on
@@ -743,8 +743,8 @@ pub(super) struct SdfClipmapBakeJob {
 
 /// Ticket 014 V6 — uniform for `WSRC_BAKE_WGSL`. Analytic sun × shadow
 /// + analytic sky computed per probe-octel. Shadow VPs + splits +
-/// flags mirror CARD_LIGHT_WGSL so the shader can re-use the same
-/// cascade-sampling helper.
+///   flags mirror CARD_LIGHT_WGSL so the shader can re-use the same
+///   cascade-sampling helper.
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct WsrcBakeParams {

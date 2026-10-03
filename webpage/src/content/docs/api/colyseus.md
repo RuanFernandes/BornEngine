@@ -53,6 +53,23 @@ client.joinOrCreateWithCallbacks('arena', { name: 'Player' }, {
 
 The method returns `false` if matchmaking could not be started. Once started, success or failure is reported through one of the callbacks.
 
+## Request and reply
+
+`room.request()` returns a Promise for hosts that process Promise continuations. Perry's native `Game.run()` is a blocking loop, so use `requestWithCallbacks()` to receive the reply from the frame loop's network polling:
+
+```ts
+room.requestWithCallbacks<number>('get_score', null, {
+  onSuccess(score) {
+    console.log('score', score);
+  },
+  onError(error) {
+    console.error('request failed', error.message);
+  },
+}, { timeout: 3_000 });
+```
+
+The callback method returns `false` if the room is disconnected or the request could not be sent; `onError` receives the reason. A timeout also calls `onError` and cancels the native request.
+
 ## State and messages
 
 Subscribe on the Room instance. Subscription methods return a function that removes that listener.

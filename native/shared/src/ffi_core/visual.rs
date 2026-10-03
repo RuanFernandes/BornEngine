@@ -13,9 +13,13 @@ macro_rules! __bloom_ffi_visual {
         // bloom_set_env_clear_from_hdr  [source: curated; gated: image-extras]
         #[cfg(feature = "image-extras")]
         #[no_mangle]
-        pub extern "C" fn bloom_set_env_clear_from_hdr(path_ptr: *const u8) {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_set_env_clear_from_hdr(path_ptr: *const u8) {
             $crate::ffi::guard("bloom_set_env_clear_from_hdr", move || {
-                let path = $crate::string_header::str_from_header(path_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 engine().renderer.set_env_clear_from_hdr_file(path);
         })
@@ -138,9 +142,13 @@ macro_rules! __bloom_ffi_visual {
 
         // bloom_set_post_pass  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_set_post_pass(source_ptr: *const u8) -> f64 {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_set_post_pass(source_ptr: *const u8) -> f64 {
             $crate::ffi::guard("bloom_set_post_pass", move || {
-                let source = $crate::string_header::str_from_header(source_ptr);
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let source = unsafe { $crate::string_header::str_from_header(source_ptr) };
                 match engine().renderer.set_post_pass(&source) {
                     Ok(()) => 1.0,
                     Err(e) => { eprintln!("[post_pass] compile failed: {:?}", e); 0.0 }
@@ -648,9 +656,13 @@ macro_rules! __bloom_ffi_visual {
 
         // bloom_dump_shadow_map  [source: macos]
         #[no_mangle]
-        pub extern "C" fn bloom_dump_shadow_map(path_ptr: *const u8) {
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_dump_shadow_map(path_ptr: *const u8) {
             $crate::ffi::guard("bloom_dump_shadow_map", move || {
-                let path = $crate::string_header::str_from_header(path_ptr).to_string();
+                // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+                let path = unsafe { $crate::string_header::str_from_header(path_ptr) }.to_string();
                 engine().renderer.dump_shadow_map(&path);
         })
         }

@@ -55,8 +55,12 @@ fn resolve_path(path: &str) -> String {
 /// Called by the Android Activity to set the base path for asset resolution.
 /// Should be set to the app's files directory where assets are extracted.
 #[no_mangle]
-pub extern "C" fn bloom_android_set_asset_path(path_ptr: *const u8) {
-    let path = str_from_header(path_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_android_set_asset_path(path_ptr: *const u8) {
+    // SAFETY: The Android caller supplies a Perry string for this FFI call.
+    let path = unsafe { str_from_header(path_ptr) };
     let data_path = std::path::PathBuf::from(&path);
     if data_path.is_absolute() { let _ = DATABASE_DATA_PATH.set(data_path); }
     unsafe {
@@ -109,8 +113,12 @@ fn pollster_block_on<F: std::future::Future>(future: F) -> F::Output {
 // ============================================================
 
 #[no_mangle]
-pub extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u8, _fullscreen: f64) {
-    let _title = str_from_header(title_ptr);
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_init_window(width: f64, height: f64, title_ptr: *const u8, _fullscreen: f64) {
+    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+    let _title = unsafe { str_from_header(title_ptr) };
 
     unsafe {
         __android_log_print(3, b"BloomEngine\0".as_ptr(), b"bloom_init_window: starting\0".as_ptr());
@@ -552,9 +560,15 @@ fn android_audio_thread(renderer: Option<bloom_shared::audio::AudioRenderer>) {
 #[no_mangle]
 pub extern "C" fn bloom_toggle_fullscreen() {}
 #[no_mangle]
-pub extern "C" fn bloom_set_window_title(title_ptr: *const u8) { let _ = str_from_header(title_ptr); }
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_window_title(title_ptr: *const u8) { let _ = unsafe { str_from_header(title_ptr) }; }
 #[no_mangle]
-pub extern "C" fn bloom_set_window_icon(path_ptr: *const u8) { let _ = str_from_header(path_ptr); }
+/// # Safety
+/// String pointer arguments must be valid Perry FFI values for this call.
+/// Heap strings must have a readable header and claimed payload.
+pub unsafe extern "C" fn bloom_set_window_icon(path_ptr: *const u8) { let _ = unsafe { str_from_header(path_ptr) }; }
 
 #[no_mangle]
 pub extern "C" fn bloom_disable_cursor() {

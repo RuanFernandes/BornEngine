@@ -199,6 +199,7 @@ impl AudioMixer {
     /// [`Self::stop_voice`]. `ref_dist` is the range that plays at full
     /// volume, `rolloff` how hard the level falls past it, `max_dist` where
     /// the mixer culls entirely. Returns the voice id (0.0 = unknown sound).
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn play_sound_3d_ex(
         &mut self, handle: f64, x: f32, y: f32, z: f32,
         looping: bool, ref_dist: f32, max_dist: f32, rolloff: f32,

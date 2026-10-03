@@ -400,6 +400,7 @@ impl Renderer {
     /// drive their orientation. CPU-side baking mirrors the unrotated
     /// path so callers can mix rotated and unrotated draws freely
     /// without extra GPU state.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_model_mesh_tinted_rotated(&mut self, vertices: &[Vertex3D], indices: &[u32], position: [f32; 3], scale: f32, tint: [f32; 4], texture_idx: u32, rot_y: f32) {
         // Mirror the joint-pose plumbing in the non-rotated path so a
         // skinned mesh drawn here still consumes its pending pose.
@@ -416,6 +417,7 @@ impl Renderer {
     /// that draw multiple primitives of ONE skinned model pop the staged
     /// pose once (`take_staged_skin_offset`) and pass the same offset to
     /// every primitive.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_model_mesh_tinted_rotated_with_joints(&mut self, vertices: &[Vertex3D], indices: &[u32], position: [f32; 3], scale: f32, tint: [f32; 4], texture_idx: u32, rot_y: f32, joint_offset: Option<f32>) {
         // Own bounded segment (even if the texture matches) so the shadow
         // pass can cull + cache this draw independently of neighbours.
@@ -511,6 +513,7 @@ impl Renderer {
     /// offset. Callers that draw multiple primitives of ONE skinned model
     /// pop the staged pose once (`take_staged_skin_offset`) and pass the
     /// same offset to every primitive.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_model_mesh_tinted_with_joints(&mut self, vertices: &[Vertex3D], indices: &[u32], position: [f32; 3], scale: f32, tint: [f32; 4], texture_idx: u32, joint_offset: Option<f32>) {
         // Own bounded segment — see the rotated variant.
         self.push_draw_call_3d(texture_idx, true);
@@ -626,14 +629,14 @@ impl SegBounds {
     fn note(&mut self, is_skinned: bool, pos: [f32; 3]) {
         if is_skinned {
             self.any_skinned = true;
-            for a in 0..3 {
-                if pos[a] < self.rest_min[a] { self.rest_min[a] = pos[a]; }
-                if pos[a] > self.rest_max[a] { self.rest_max[a] = pos[a]; }
+            for (a, &coord) in pos.iter().enumerate() {
+                if coord < self.rest_min[a] { self.rest_min[a] = coord; }
+                if coord > self.rest_max[a] { self.rest_max[a] = coord; }
             }
         } else {
-            for a in 0..3 {
-                if pos[a] < self.world_min[a] { self.world_min[a] = pos[a]; }
-                if pos[a] > self.world_max[a] { self.world_max[a] = pos[a]; }
+            for (a, &coord) in pos.iter().enumerate() {
+                if coord < self.world_min[a] { self.world_min[a] = coord; }
+                if coord > self.world_max[a] { self.world_max[a] = coord; }
             }
             self.hash = super::types::fnv1a_bytes(self.hash, bytemuck::bytes_of(&pos));
         }

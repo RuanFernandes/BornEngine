@@ -9,11 +9,11 @@ npm ci --prefix tests/colyseus/server
 node tests/colyseus/run-server-smoke.mjs
 ```
 
-The runner starts the server and cleans it up when the contract finishes. To run the BornEngine native client separately, start the server with `npm start --prefix tests/colyseus/server`, then compile and run the native TypeScript client from this directory:
+The runner starts the server and cleans it up when the contract finishes. To run the BornEngine native client from this directory, install the example's local engine dependency and run:
 
 ```sh
-npm install
+npm install --no-package-lock
 npm test
 ```
 
-The example joins `test_room`, observes synchronized state, sends and receives a room message, then leaves. It currently requires Linux x86_64 and the Perry compiler.
+The example joins `test_room`, observes synchronized state, sends and receives messages, sends a movement packet, and waits for the server to publish the new position under that client's session. It currently requires Linux x86_64, the Perry compiler, and a display server.

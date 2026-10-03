@@ -46,7 +46,7 @@ impl Renderer {
             });
             pass.set_pipeline(&self.hiz_linearize_pipeline);
             pass.set_bind_group(0, bg, &[]);
-            pass.dispatch_workgroups((half_w + 7) / 8, (half_h + 7) / 8, 1);
+            pass.dispatch_workgroups(half_w.div_ceil(8), half_h.div_ceil(8), 1);
         }
 
         // --- Hi-Z build: downsample mip i -> mip i+1 ----------------
@@ -82,7 +82,7 @@ impl Renderer {
             });
             pass.set_pipeline(&self.hiz_downsample_pipeline);
             pass.set_bind_group(0, bg, &[]);
-            pass.dispatch_workgroups((dst_w + 7) / 8, (dst_h + 7) / 8, 1);
+            pass.dispatch_workgroups(dst_w.div_ceil(8), dst_h.div_ceil(8), 1);
         }
 
     }
@@ -260,7 +260,7 @@ impl Renderer {
         });
         pass.set_pipeline(&self.ssao_pipeline);
         pass.set_bind_group(0, bg, &[]);
-        pass.dispatch_workgroups((half_w + 7) / 8, (half_h + 7) / 8, 1);
+        pass.dispatch_workgroups(half_w.div_ceil(8), half_h.div_ceil(8), 1);
 
         // Flip ping-pong indices for the next frame.
         self.ssao_history_idx = read_idx;

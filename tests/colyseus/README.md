@@ -4,6 +4,8 @@ This repository-owned server and client contract exercise BornEngine's Colyseus 
 
 ## Run the contract
 
+Node.js 22 or newer is required for the server tests and server runtime.
+
 ```sh
 npm ci --prefix tests/colyseus/server
 node tests/colyseus/run-server-smoke.mjs

@@ -12,9 +12,10 @@ use wgpu::util::DeviceExt;
 
 use super::material_pipeline::{
     MaterialAbiLayouts, MaterialPipeline, MaterialCompileDesc, FragmentProfile,
-    Bucket, compile_material, MaterialCompileError,
+    compile_material, MaterialCompileError,
 };
 use super::types::Vertex3D;
+use super::material_args::{FoliageParams, MaterialCompileOptions, MaterialDrawParams, MaterialGpuContext, MaterialTargetFormats};
 
 // =====================================================================
 // Uniform structs — repr(C), bytemuck-Pod, mirror the WGSL in
@@ -708,19 +709,12 @@ impl MaterialSystem {
 
     /// Compile a material and return its handle. Handles are 1-based;
     /// 0 is reserved for "invalid material".
-    pub fn compile(
+    pub(crate) fn compile(
         &mut self,
         device: &wgpu::Device,
         wgsl_source: &str,
-        profile: FragmentProfile,
-        bucket: Bucket,
-        reads_scene: bool,
-        wants_instancing: bool,
-        hdr_format: wgpu::TextureFormat,
-        material_format: wgpu::TextureFormat,
-        velocity_format: wgpu::TextureFormat,
-        albedo_format: wgpu::TextureFormat,
-        depth_format: wgpu::TextureFormat,
+        options: MaterialCompileOptions,
+        formats: MaterialTargetFormats,
     ) -> Result<MaterialHandle, MaterialCompileError> {
         // Inject the user's WGSL under a synthetic path so the
         // preprocessor can resolve `#include "material_abi.wgsl"` etc.
@@ -729,16 +723,16 @@ impl MaterialSystem {
             label: "user_material",
             entry_path,
             extra_sources: &[(entry_path, wgsl_source)],
-            profile,
-            bucket,
-            reads_scene,
-            hdr_format,
-            material_format,
-            velocity_format,
-            albedo_format,
-            depth_format,
+            profile: options.profile,
+            bucket: options.bucket,
+            reads_scene: options.reads_scene,
+            hdr_format: formats.hdr,
+            material_format: formats.material,
+            velocity_format: formats.velocity,
+            albedo_format: formats.albedo,
+            depth_format: formats.depth,
             vertex_buffers: &[Vertex3D::desc()],
-            wants_instancing,
+            wants_instancing: options.wants_instancing,
         };
         let pipeline = compile_material(device, &self.layouts, &desc)?;
         self.pipelines.push(Some(pipeline));
@@ -1207,14 +1201,12 @@ impl MaterialSystem {
     /// `MaterialFactors.shading_model.yzw` (transmission_color) and
     /// `foliage_params.xy` (transmission_amount, wrap_factor). Lazily
     /// allocates a per-material UBO on first call.
-    pub fn set_material_foliage(
+    pub(crate) fn set_material_foliage(
         &mut self,
         device: &wgpu::Device,
         queue:  &wgpu::Queue,
         material:    MaterialHandle,
-        trans_color: [f32; 3],
-        trans_amount: f32,
-        wrap_factor:  f32,
+        params: FoliageParams,
         probe_view:  &wgpu::TextureView,
     ) -> Result<(), &'static str> {
         if material == 0 { return Err("invalid material handle"); }
@@ -1224,11 +1216,11 @@ impl MaterialSystem {
         }
         {
             let factors = self.ensure_material_factors(device, idx);
-            factors.shading_model[1] = trans_color[0];
-            factors.shading_model[2] = trans_color[1];
-            factors.shading_model[3] = trans_color[2];
-            factors.foliage_params[0] = trans_amount;
-            factors.foliage_params[1] = wrap_factor;
+            factors.shading_model[1] = params.color[0];
+            factors.shading_model[2] = params.color[1];
+            factors.shading_model[3] = params.color[2];
+            factors.foliage_params[0] = params.amount;
+            factors.foliage_params[1] = params.wrap;
         }
         self.flush_material_factors(queue, idx);
         self.rebuild_per_material_bg(device, idx, probe_view);
@@ -1524,23 +1516,13 @@ impl MaterialSystem {
     /// Submit a draw against a compiled material. Allocates (or reuses)
     /// a per-draw UBO slot, writes the MVP / model / tint / skin info,
     /// and queues the command for dispatch.
-    pub fn submit_draw(
+    pub(crate) fn submit_draw(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        joint_buffer: &wgpu::Buffer,
-        material: MaterialHandle,
-        mesh_handle: u64,
-        mesh_idx: usize,
-        mvp: [[f32; 4]; 4],
-        model: [[f32; 4]; 4],
-        // EN-022: ignored — callers historically passed the CURRENT mvp
-        // here, zeroing every motion vector. The real previous-frame
-        // transform is reconstructed from the per-slot model history.
-        _legacy_prev_mvp: [[f32; 4]; 4],
-        tint: [f32; 4],
-        skin_info: [u32; 4],
+        gpu: MaterialGpuContext<'_>,
+        draw: MaterialDrawParams,
     ) {
+        let MaterialGpuContext { device, queue, joint_buffer } = gpu;
+        let MaterialDrawParams { material, mesh_handle, mesh_idx, mvp, model, tint, skin_info } = draw;
         let idx = material as usize;
         if material == 0 || idx > self.pipelines.len() { return; }
         let bucket = match self.pipelines[idx - 1].as_ref() {
@@ -1590,23 +1572,14 @@ impl MaterialSystem {
     /// `scale` typically dominate, so callers usually pass identity
     /// for `model` and the camera VP for `mvp`. `tint` is multiplied
     /// per-draw (in addition to the per-instance tint).
-    pub fn submit_draw_instanced(
+    pub(crate) fn submit_draw_instanced(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        joint_buffer: &wgpu::Buffer,
-        material: MaterialHandle,
-        mesh_handle: u64,
-        mesh_idx: usize,
-        instance_buffer: u32,
-        instance_count: u32,
-        mvp: [[f32; 4]; 4],
-        model: [[f32; 4]; 4],
-        // EN-022: ignored — see submit_draw.
-        _legacy_prev_mvp: [[f32; 4]; 4],
-        tint: [f32; 4],
-        skin_info: [u32; 4],
+        gpu: MaterialGpuContext<'_>,
+        draw: MaterialDrawParams,
+        instance: InstanceDrawInfo,
     ) {
+        let MaterialGpuContext { device, queue, joint_buffer } = gpu;
+        let MaterialDrawParams { material, mesh_handle, mesh_idx, mvp, model, tint, skin_info } = draw;
         let idx = material as usize;
         if material == 0 || idx > self.pipelines.len() { return; }
         let bucket = match self.pipelines[idx - 1].as_ref() {
@@ -1639,10 +1612,7 @@ impl MaterialSystem {
             // pivot — per-instance ordering inside one buffer is the
             // standard engine limitation.
             view_depth: mvp[3][3],
-            instance: Some(InstanceDrawInfo {
-                buffer_handle: instance_buffer,
-                count:         instance_count,
-            }),
+            instance: Some(instance),
             model,
         };
         if bucket.is_translucent() {

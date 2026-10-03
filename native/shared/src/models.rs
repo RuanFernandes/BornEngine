@@ -107,6 +107,12 @@ pub struct ModelManager {
     pub scratch_u32: Vec<u32>,
 }
 
+impl Default for ModelManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelManager {
     pub fn new() -> Self {
         Self {
@@ -814,8 +820,8 @@ impl ModelAnimation {
         for &root in &skeleton.root_joints {
             compute_joint_transforms(skeleton, root, &mat4_identity(), &pose.0, &pose.1, &pose.2, &mut world);
         }
-        for i in 0..joint_count {
-            self.joint_matrices[i] = mat4_mul(&world[i], &skeleton.joints[i].inverse_bind);
+        for (i, matrix) in world.iter().enumerate() {
+            self.joint_matrices[i] = mat4_mul(matrix, &skeleton.joints[i].inverse_bind);
         }
         self.joint_world.copy_from_slice(&world);
     }

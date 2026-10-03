@@ -55,14 +55,9 @@ impl Renderer {
             self.current_proj_matrix_unjittered,
             self.current_view_matrix,
         );
-        let mut moved = false;
-        for r in 0..4 {
-            for c in 0..4 {
-                if (vp_unjittered[r][c] - self.pt_prev_vp[r][c]).abs() > 1e-5 {
-                    moved = true;
-                }
-            }
-        }
+        let moved = vp_unjittered.iter().zip(&self.pt_prev_vp).any(|(row, previous)| {
+            row.iter().zip(previous).any(|(value, previous)| (value - previous).abs() > 1e-5)
+        });
         if moved && self.pt_mode == 1 {
             self.pt_accum_count = 0;
         }
@@ -365,7 +360,7 @@ impl Renderer {
             if self.pt_texture_arrays_enabled {
                 pass.set_bind_group(1, self.pt_tex_bg.as_ref().unwrap(), &[]);
             }
-            pass.dispatch_workgroups((trace_w + 7) / 8, (trace_h + 7) / 8, 1);
+            pass.dispatch_workgroups(trace_w.div_ceil(8), trace_h.div_ceil(8), 1);
         }
         // This frame wrote into buffers[1 - idx]; it becomes next
         // frame's read side.
@@ -382,90 +377,90 @@ impl Renderer {
         // carries every spike forward, once-filtered history does not.
         // Progressive mode converges on its own and writes hdr
         // directly from the kernel.
-        if self.pt_mode >= 2
-            && self.pt_debug == 0.0
-            && self.pt_atrous_mid_pipeline.is_some()
-            && self.pt_atrous_scratch.is_some()
-        {
-            // p.y = 1.0 flags the FIRST iteration: it may substitute a
-            // spatial variance estimate where the history is young.
-            for (i, step) in [1.0f32, 2.0, 4.0, 8.0, 16.0, 1.0].iter().enumerate() {
-                let first = if i == 0 { 1.0f32 } else { 0.0 };
-                let p = [
-                    [*step, first, trace_w as f32, trace_h as f32],
-                    [surf_w as f32, surf_h as f32, 0.0, 0.0],
-                ];
-                self.queue.write_buffer(&self.pt_atrous_params_bufs[i], 0, bytemuck::bytes_of(&p));
-            }
-
-            if self.pt_atrous_bgs[written_idx][0].is_none() {
-                let scratch = self.pt_atrous_scratch.as_ref().unwrap();
-                let scratch2 = self.pt_atrous_scratch2.as_ref().unwrap();
-                let accum_w = self.pt_accum_buffers[written_idx].as_ref().unwrap();
-                let moments_w = self.pt_moments_buffers[written_idx].as_ref().unwrap();
-                // Stage src → dst chain: accum→s1, then the scratches
-                // ping-pong; the final upsample reads the last-written
-                // scratch. cs_final never writes dst; it gets whichever
-                // scratch is not its src (RO+RW of one buffer in a
-                // single group fails validation).
-                let chain: [(&wgpu::Buffer, &wgpu::Buffer); 6] = [
-                    (accum_w, scratch),
-                    (scratch, scratch2),
-                    (scratch2, scratch),
-                    (scratch, scratch2),
-                    (scratch2, scratch),
-                    (scratch, scratch2),
-                ];
-                for (i, (src, dst)) in chain.iter().enumerate() {
-                    self.pt_atrous_bgs[written_idx][i] = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("pt_atrous_bg"),
-                        layout: self.pt_atrous_layout.as_ref().unwrap(),
-                        entries: &[
-                            wgpu::BindGroupEntry { binding: 0, resource: self.pt_atrous_params_bufs[i].as_entire_binding() },
-                            wgpu::BindGroupEntry { binding: 1, resource: src.as_entire_binding() },
-                            wgpu::BindGroupEntry { binding: 2, resource: dst.as_entire_binding() },
-                            wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(&self.hdr_rt_view) },
-                            wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.depth_view) },
-                            wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::TextureView(&self.albedo_rt_view) },
-                            wgpu::BindGroupEntry { binding: 6, resource: moments_w.as_entire_binding() },
-                        ],
-                    }));
+        if self.pt_mode >= 2 && self.pt_debug == 0.0 {
+            if let (Some(mid_pipeline), Some(scratch)) = (
+                self.pt_atrous_mid_pipeline.as_ref(),
+                self.pt_atrous_scratch.as_ref(),
+            ) {
+                // p.y = 1.0 flags the FIRST iteration: it may substitute a
+                // spatial variance estimate where the history is young.
+                for (i, step) in [1.0f32, 2.0, 4.0, 8.0, 16.0, 1.0].iter().enumerate() {
+                    let first = if i == 0 { 1.0f32 } else { 0.0 };
+                    let p = [
+                        [*step, first, trace_w as f32, trace_h as f32],
+                        [surf_w as f32, surf_h as f32, 0.0, 0.0],
+                    ];
+                    self.queue.write_buffer(&self.pt_atrous_params_bufs[i], 0, bytemuck::bytes_of(&p));
                 }
-            }
 
-            {
-                let ts = profiler.compute_pass_timestamp_writes("pt_atrous");
-                let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("pt_atrous"),
-                    timestamp_writes: ts,
-                });
-                pass.set_pipeline(self.pt_atrous_mid_pipeline.as_ref().unwrap());
-                pass.set_bind_group(0, self.pt_atrous_bgs[written_idx][0].as_ref().unwrap(), &[]);
-                pass.dispatch_workgroups((trace_w + 7) / 8, (trace_h + 7) / 8, 1);
-            }
-            // History feedback: the pass split makes the copy legal
-            // (buffer copies cannot live inside a compute pass).
-            encoder.copy_buffer_to_buffer(
-                self.pt_atrous_scratch.as_ref().unwrap(),
-                0,
-                self.pt_accum_buffers[written_idx].as_ref().unwrap(),
-                0,
-                needed,
-            );
-            {
-                let ts = profiler.compute_pass_timestamp_writes("pt_atrous2");
-                let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("pt_atrous2"),
-                    timestamp_writes: ts,
-                });
-                pass.set_pipeline(self.pt_atrous_mid_pipeline.as_ref().unwrap());
-                for i in 1..5 {
-                    pass.set_bind_group(0, self.pt_atrous_bgs[written_idx][i].as_ref().unwrap(), &[]);
-                    pass.dispatch_workgroups((trace_w + 7) / 8, (trace_h + 7) / 8, 1);
+                if self.pt_atrous_bgs[written_idx][0].is_none() {
+                    let scratch2 = self.pt_atrous_scratch2.as_ref().unwrap();
+                    let accum_w = self.pt_accum_buffers[written_idx].as_ref().unwrap();
+                    let moments_w = self.pt_moments_buffers[written_idx].as_ref().unwrap();
+                    // Stage src → dst chain: accum→s1, then the scratches
+                    // ping-pong; the final upsample reads the last-written
+                    // scratch. cs_final never writes dst; it gets whichever
+                    // scratch is not its src (RO+RW of one buffer in a
+                    // single group fails validation).
+                    let chain: [(&wgpu::Buffer, &wgpu::Buffer); 6] = [
+                        (accum_w, scratch),
+                        (scratch, scratch2),
+                        (scratch2, scratch),
+                        (scratch, scratch2),
+                        (scratch2, scratch),
+                        (scratch, scratch2),
+                    ];
+                    for (i, (src, dst)) in chain.iter().enumerate() {
+                        self.pt_atrous_bgs[written_idx][i] = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: Some("pt_atrous_bg"),
+                            layout: self.pt_atrous_layout.as_ref().unwrap(),
+                            entries: &[
+                                wgpu::BindGroupEntry { binding: 0, resource: self.pt_atrous_params_bufs[i].as_entire_binding() },
+                                wgpu::BindGroupEntry { binding: 1, resource: src.as_entire_binding() },
+                                wgpu::BindGroupEntry { binding: 2, resource: dst.as_entire_binding() },
+                                wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(&self.hdr_rt_view) },
+                                wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.depth_view) },
+                                wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::TextureView(&self.albedo_rt_view) },
+                                wgpu::BindGroupEntry { binding: 6, resource: moments_w.as_entire_binding() },
+                            ],
+                        }));
+                    }
                 }
-                pass.set_pipeline(self.pt_atrous_final_pipeline.as_ref().unwrap());
-                pass.set_bind_group(0, self.pt_atrous_bgs[written_idx][5].as_ref().unwrap(), &[]);
-                pass.dispatch_workgroups((surf_w + 7) / 8, (surf_h + 7) / 8, 1);
+
+                {
+                    let ts = profiler.compute_pass_timestamp_writes("pt_atrous");
+                    let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                        label: Some("pt_atrous"),
+                        timestamp_writes: ts,
+                    });
+                    pass.set_pipeline(mid_pipeline);
+                    pass.set_bind_group(0, self.pt_atrous_bgs[written_idx][0].as_ref().unwrap(), &[]);
+                    pass.dispatch_workgroups(trace_w.div_ceil(8), trace_h.div_ceil(8), 1);
+                }
+                // History feedback: the pass split makes the copy legal
+                // (buffer copies cannot live inside a compute pass).
+                encoder.copy_buffer_to_buffer(
+                    scratch,
+                    0,
+                    self.pt_accum_buffers[written_idx].as_ref().unwrap(),
+                    0,
+                    needed,
+                );
+                {
+                    let ts = profiler.compute_pass_timestamp_writes("pt_atrous2");
+                    let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                        label: Some("pt_atrous2"),
+                        timestamp_writes: ts,
+                    });
+                    pass.set_pipeline(mid_pipeline);
+                    for i in 1..5 {
+                        pass.set_bind_group(0, self.pt_atrous_bgs[written_idx][i].as_ref().unwrap(), &[]);
+                        pass.dispatch_workgroups(trace_w.div_ceil(8), trace_h.div_ceil(8), 1);
+                    }
+                    pass.set_pipeline(self.pt_atrous_final_pipeline.as_ref().unwrap());
+                    pass.set_bind_group(0, self.pt_atrous_bgs[written_idx][5].as_ref().unwrap(), &[]);
+                    pass.dispatch_workgroups(surf_w.div_ceil(8), surf_h.div_ceil(8), 1);
+                }
             }
         }
         // Mirrors the kernel's write threshold: mode 1 leaves the raster
@@ -511,7 +506,7 @@ impl Renderer {
                 );
             } else {
                 // Previous frame's copy has been submitted; map it now.
-                let buf = self.pt_readback_buffer.as_ref().unwrap();
+                let Some(buf) = self.pt_readback_buffer.as_ref() else { unreachable!("readback buffer initialized in the other branch") };
                 let slice = buf.slice(..);
                 slice.map_async(wgpu::MapMode::Read, |_| {});
                 let _ = self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });

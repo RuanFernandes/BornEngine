@@ -1,14 +1,7 @@
 import { ColyseusClient, Colors, Game, Matrix4 } from '@bornengine/engine';
 import type { Room } from '@bornengine/engine';
 
-declare const process: { argv: string[]; exit(code: number): never };
-
-let endpoint = 'ws://127.0.0.1:2567';
-for (let index = 2; index < process.argv.length; index += 1) {
-  if (process.argv[index] === '--endpoint' && index + 1 < process.argv.length) {
-    endpoint = process.argv[index + 1];
-  }
-}
+const endpoint = 'ws://127.0.0.1:2567';
 
 class ColyseusSmokeGame extends Game {
   private client: ColyseusClient | null = null;
@@ -19,8 +12,14 @@ class ColyseusSmokeGame extends Game {
   private receivedEcho = false;
   private receivedState = false;
   private receivedBytes = false;
+  private receivedMovement = false;
   private requestStarted = false;
   private requestPassed = false;
+  private requestTimeoutStarted = false;
+  private requestTimeoutPassed = false;
+  private nestedTimeoutStarted = false;
+  private nestedTimeoutPassed = false;
+  private disposalClient: ColyseusClient | null = null;
   private leaveStarted = false;
   private finished = false;
   private failed = false;
@@ -42,47 +41,105 @@ class ColyseusSmokeGame extends Game {
       return;
     }
 
-    this.client.joinOrCreate('test_room', { name: 'BornEngine' }).then(
-      (room) => this.onJoined(room),
-      (error) => this.fail(String(error)),
-    );
+    const started = this.client.joinOrCreateWithCallbacks('test_room', { name: 'BornEngine' }, {
+      onJoin: (room) => this.onJoined(room),
+      onError: (error) => this.fail(String(error)),
+    });
+    if (!started) this.fail(this.client.error || 'Could not start Colyseus matchmaking.');
   }
 
   protected override loop(deltaTime: number): void {
     this.elapsed += deltaTime;
     if (!this.finished && this.elapsed > 20) {
-      this.fail('Timed out waiting for the Colyseus smoke contract');
+      const activeRoom = this.room;
+      this.fail('Timed out at ' + this.state +
+        '; joined=' + (activeRoom !== null) +
+        ', connected=' + (activeRoom !== null && activeRoom.isConnected) +
+        ', echo=' + this.receivedEcho +
+        ', state=' + this.receivedState +
+        ', bytes=' + this.receivedBytes +
+        ', movement=' + this.receivedMovement +
+        ', request=' + this.requestPassed +
+        ', requestTimeout=' + this.requestTimeoutPassed +
+        ', leave=' + this.leaveStarted);
       return;
     }
 
     const room = this.room;
     if (room === null || this.failed || this.finished) return;
-    if (!this.requestStarted && this.receivedEcho && this.receivedState && this.receivedBytes) {
+    if (!this.requestStarted && this.receivedEcho && this.receivedState &&
+        this.receivedBytes && this.receivedMovement) {
       this.requestStarted = true;
       this.state = 'checking request/reply';
-      room.request<number>('request_sum', { a: 9, b: 33 }).then(
-        (value) => {
+      room.requestWithCallbacks<number>('request_sum', { a: 9, b: 33 }, {
+        onSuccess: (value) => {
           if (value !== 42) {
             this.fail('Colyseus request/reply smoke test failed');
             return;
           }
           this.requestPassed = true;
         },
-        (error) => this.fail(String(error)),
-      );
+        onError: (error) => this.fail(String(error)),
+      });
     }
 
-    if (this.requestPassed && !this.leaveStarted) {
+    if (this.requestPassed && !this.requestTimeoutStarted) {
+      this.requestTimeoutStarted = true;
+      this.state = 'checking request timeout';
+      room.requestWithCallbacks<{ completed: boolean }>('request_delay', { delayMs: 500 }, {
+        onSuccess: () => this.fail('Colyseus request timeout smoke test unexpectedly succeeded'),
+        onError: (error) => {
+          if (error.message !== 'Colyseus request timed out') {
+            this.fail('Colyseus request timeout smoke test failed: ' + error.message);
+            return;
+          }
+          this.requestTimeoutPassed = true;
+        },
+      }, { timeout: 100 });
+    }
+
+    if (this.requestTimeoutPassed && !this.leaveStarted) {
+      if (!this.nestedTimeoutStarted) {
+        this.nestedTimeoutStarted = true;
+        this.state = 'checking nested request timeout polling';
+        let olderErrors = 0;
+        let newerErrors = 0;
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Older nested-poll request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus request timed out') {
+              this.fail('Older nested-poll request failed: ' + error.message);
+              return;
+            }
+            olderErrors++;
+          },
+        }, { timeout: 0 });
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Newer nested-poll request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus request timed out') {
+              this.fail('Newer nested-poll request failed: ' + error.message);
+              return;
+            }
+            newerErrors++;
+            room.poll();
+            if (olderErrors !== 1 || newerErrors !== 1) {
+              this.fail('Nested polling did not settle each timed-out request once');
+              return;
+            }
+            this.nestedTimeoutPassed = true;
+          },
+        }, { timeout: 0 });
+      }
+    }
+
+    if (this.nestedTimeoutPassed && !this.leaveStarted) {
       this.leaveStarted = true;
       this.state = 'leaving room';
-      room.leave().then(
-        () => {
-          this.finished = true;
-          this.state = 'passed';
-          this.stop();
-        },
-        (error) => this.fail(String(error)),
-      );
+      room.onLeave(() => {
+        this.startDisposalTimeoutCheck();
+      });
+      room.leave();
     }
   }
 
@@ -98,7 +155,54 @@ class ColyseusSmokeGame extends Game {
 
   protected override onStop(): void {
     if (this.client !== null) this.client.dispose();
-    if (this.finished) console.log('Colyseus TypeScript smoke test passed');
+    if (this.disposalClient !== null) this.disposalClient.dispose();
+    if (this.finished && this.error === null) console.log('COLYSEUS_NATIVE_SMOKE_PASSED: transport, state, and movement');
+  }
+
+  private startDisposalTimeoutCheck(): void {
+    this.state = 'checking disposal during request timeout';
+    const client = new ColyseusClient(this, endpoint);
+    this.disposalClient = client;
+    if (client.error !== null) {
+      this.fail(client.error);
+      return;
+    }
+    const started = client.joinOrCreateWithCallbacks('test_room', {}, {
+      onJoin: (room) => {
+        let olderErrors = 0;
+        let newerErrors = 0;
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Older disposal request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus room was disposed') {
+              this.fail('Older disposal request failed: ' + error.message);
+              return;
+            }
+            olderErrors++;
+          },
+        }, { timeout: 0 });
+        room.requestWithCallbacks('request_delay', { delayMs: 500 }, {
+          onSuccess: () => this.fail('Newer disposal request unexpectedly succeeded'),
+          onError: (error) => {
+            if (error.message !== 'Colyseus request timed out') {
+              this.fail('Newer disposal request failed: ' + error.message);
+              return;
+            }
+            newerErrors++;
+            client.dispose();
+            if (olderErrors !== 1 || newerErrors !== 1) {
+              this.fail('Disposal did not settle each pending request once');
+              return;
+            }
+            this.finished = true;
+            this.state = 'passed';
+            this.stop();
+          },
+        }, { timeout: 0 });
+      },
+      onError: (error) => this.fail(String(error)),
+    });
+    if (!started) this.fail(client.error || 'Could not start disposal test matchmaking.');
   }
 
   private onJoined(room: Room<any>): void {
@@ -108,13 +212,20 @@ class ColyseusSmokeGame extends Game {
     room.onMessage('echo', (message: { value?: string }) => {
       if (message.value === 'native-sdk') this.receivedEcho = true;
     });
-    room.onStateChange((state: { counter?: number; lastBytes?: string }) => {
+    room.onStateChange((state: {
+      counter?: number;
+      lastBytes?: string;
+      players?: Record<string, { x?: number; y?: number }>;
+    }) => {
       if (state.counter === 3) this.receivedState = true;
       if (state.lastBytes === '1,2,3,255') this.receivedBytes = true;
+      const localPlayer = state.players === undefined ? undefined : state.players[room.sessionId];
+      if (localPlayer?.x === 123 && localPlayer.y === 45) this.receivedMovement = true;
     });
     room.send('echo', { value: 'native-sdk' });
     room.send('increment', { amount: 3 });
     room.sendBytes('bytes', new Uint8Array([1, 2, 3, 255]));
+    room.send('move', { x: 123, y: 45 });
   }
 
   private fail(message: string): void {
@@ -122,7 +233,7 @@ class ColyseusSmokeGame extends Game {
     this.failed = true;
     this.errorMessage = message;
     this.state = 'failed';
-    console.error('Colyseus TypeScript smoke test failed: ' + message);
+    console.error('COLYSEUS_NATIVE_SMOKE_FAILED: ' + message);
     this.stop();
   }
 }
@@ -130,7 +241,9 @@ class ColyseusSmokeGame extends Game {
 const game = new ColyseusSmokeGame({
   window: { width: 480, height: 180, title: 'BornEngine Colyseus Smoke Test' },
   targetFps: 60,
+  renderMode: '2d',
 });
 game.run().then(() => {
-  if (game.exitCode !== 0) process.exit(game.exitCode);
+  if (game.error !== null) console.error('COLYSEUS_NATIVE_SMOKE_FAILED: ' + game.error);
+  if (game.exitCode !== 0) console.error('COLYSEUS_NATIVE_SMOKE_FAILED: game exited with code ' + game.exitCode);
 });

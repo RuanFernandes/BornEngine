@@ -16,7 +16,7 @@ bornengine create
 ## Scriptable projects
 
 ```sh
-bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.12.0
+bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.13.0
 ```
 
 `--game-type` accepts `2d`, `2.5d`, or `3d` and defaults to `2d`; `--kind` is an alias. The CLI records the selected profile in `[bornengine].native_profile` in `perry.toml`. `bornengine build`, `run`, and `dev` apply that profile only to BornEngine's native Cargo crate: 2D omits Jolt and 3D model loading, 2.5D enables models without Jolt, and 3D enables both. The `dev` command also enables native hot reload. Add project-specific engine features with `[bornengine].native_features`, for example `native_features = ["debug-ui"]`. Direct Perry commands do not read BornEngine's profile, and the current Web target uses a prebuilt WASM package that is not profile-pruned. Use `--pm` as the shorter package-manager flag, `-e` for `--engine-version`, and `--engine` for `--engine-path`. A local engine checkout is useful while developing BornEngine itself:

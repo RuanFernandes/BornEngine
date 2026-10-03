@@ -4,16 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22"
   },
   "scripts": {
     "start": "tsx src/index.ts",
     "test": "tsx src/smoke-test.ts"
   },
   "dependencies": {
-    "@colyseus/schema": "^5.0.8",
-    "@colyseus/tools": "next",
-    "colyseus": "^0.18.1"
+    "@colyseus/core": "^0.18.18",
+    "@colyseus/schema": "^5.0.35",
+    "@colyseus/tools": "^0.18.7",
+    "@colyseus/ws-transport": "^0.18.4"
   },
   "devDependencies": {
     "@colyseus/sdk": "0.18.4",

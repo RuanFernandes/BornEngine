@@ -15,8 +15,12 @@ macro_rules! __bloom_ffi_database {
         }
 
         #[no_mangle]
-        pub extern "C" fn bloom_database_scratch_push_string(value: *const u8) {
-            let value = $crate::string_header::try_str_from_header(value);
+        /// # Safety
+        /// String pointer arguments must be valid Perry FFI values for this call.
+        /// Heap strings must have a readable header and claimed payload.
+        pub unsafe extern "C" fn bloom_database_scratch_push_string(value: *const u8) {
+            // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+            let value = unsafe { $crate::string_header::try_str_from_header(value) };
             $crate::database::scratch_push_string(value.as_deref());
         }
 

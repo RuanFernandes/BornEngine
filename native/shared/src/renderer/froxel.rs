@@ -235,7 +235,7 @@ impl FroxelPass {
         }
         let l = device.limits();
         l.max_storage_buffers_per_shader_stage >= 2
-            && l.max_storage_buffer_binding_size as u64
+            && l.max_storage_buffer_binding_size
                 >= (CLUSTER_COUNT * MAX_LIGHTS_PER_CLUSTER * 4) as u64
     }
 

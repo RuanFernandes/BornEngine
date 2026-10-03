@@ -8,6 +8,7 @@ use super::Renderer;
 
 impl Renderer {
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_rect(&mut self, x: f64, y: f64, w: f64, h: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state(0);
         let color = Self::color_to_f32_srgb(r, g, b, a);
@@ -22,6 +23,7 @@ impl Renderer {
         self.indices_2d.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_rect_lines(&mut self, x: f64, y: f64, w: f64, h: f64, thickness: f64, r: f64, g: f64, b: f64, a: f64) {
         let t = thickness;
         self.draw_rect(x, y, w, t, r, g, b, a);
@@ -30,6 +32,7 @@ impl Renderer {
         self.draw_rect(x + w - t, y + t, t, h - 2.0 * t, r, g, b, a);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_line(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, thickness: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state(0);
         let color = Self::color_to_f32_srgb(r, g, b, a);
@@ -51,6 +54,7 @@ impl Renderer {
         self.indices_2d.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_circle(&mut self, cx: f64, cy: f64, radius: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state(0);
         let color = Self::color_to_f32_srgb(r, g, b, a);
@@ -73,6 +77,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_circle_lines(&mut self, cx: f64, cy: f64, radius: f64, r: f64, g: f64, b: f64, a: f64) {
         let segments = 36;
         for i in 0..segments {
@@ -111,7 +116,7 @@ impl Renderer {
                     static ACQ_FAILS: std::sync::atomic::AtomicU32 =
                         std::sync::atomic::AtomicU32::new(0);
                     let n = ACQ_FAILS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                    if n == 1 || n % 300 == 0 {
+                    if n == 1 || n.is_multiple_of(300) {
                         crate::ffi::log_error(&format!(
                             "bloom: surface acquire failed (count={n}) — reconfiguring and skipping frame"
                         ));

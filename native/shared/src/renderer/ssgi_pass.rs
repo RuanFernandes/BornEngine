@@ -67,7 +67,7 @@ impl Renderer {
             });
             pass.set_pipeline(&self.probe_place_pipeline);
             pass.set_bind_group(0, self.probe_place_bg_cache.as_ref().unwrap(), &[]);
-            pass.dispatch_workgroups((gw + 7) / 8, (gh + 7) / 8, 1);
+            pass.dispatch_workgroups(gw.div_ceil(8), gh.div_ceil(8), 1);
         }
 
         // ---- trace ----

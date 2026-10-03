@@ -180,9 +180,9 @@ fn schedule<'a, Ctx>(nodes: &[PassNode<'a, Ctx>]) -> Result<Vec<usize>, GraphErr
     //    PassInput::SceneColor via the `matches_write` helper below.
     for b in 0..n {
         for read in &nodes[b].reads {
-            for a in 0..n {
+            for (a, candidate) in nodes.iter().enumerate() {
                 if a == b { continue; }
-                for write in &nodes[a].writes {
+                for write in &candidate.writes {
                     if input_matches_write(read, write) {
                         preds[b].insert(a);
                     }

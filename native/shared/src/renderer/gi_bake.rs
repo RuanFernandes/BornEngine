@@ -326,14 +326,13 @@ impl Renderer {
             (a - b).abs() / a.max(b).max(1e-4)
         }
 
-        for c in 0..WSRC_CASCADE_COUNT as usize {
+        for (c, &extent) in WSRC_CASCADE_EXTENTS.iter().take(WSRC_CASCADE_COUNT as usize).enumerate() {
             if !self.wsrc_built[c] {
                 continue;
             }
             // Camera travel — per-cascade threshold scales with the
             // cascade's extent, so each cascade has its own
             // "moved enough" metric.
-            let extent = WSRC_CASCADE_EXTENTS[c];
             let origin = self.wsrc_origin[c];
             let dx = cam[0] - origin[0];
             let dy = cam[1] - origin[1];
@@ -473,11 +472,10 @@ impl Renderer {
         // two cascades in one frame made both dispatches read the last
         // cascade's params (wrong extent + wrong atlas slice flag).
         let mut baked_one = false;
-        for c in 0..WSRC_CASCADE_COUNT as usize {
+        for (c, &extent) in WSRC_CASCADE_EXTENTS.iter().take(WSRC_CASCADE_COUNT as usize).enumerate() {
             if self.wsrc_built[c] || baked_one {
                 continue;
             }
-            let extent = WSRC_CASCADE_EXTENTS[c];
             let cell = extent / WSRC_GRID_RES as f32;
             let origin = [
                 (cam[0] / cell).round() * cell,

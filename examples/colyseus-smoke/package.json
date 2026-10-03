@@ -5,7 +5,8 @@
   "main": "main.ts",
   "scripts": {
     "build": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile main.ts --no-cache -o colyseus-smoke",
-    "test": "npm run build && ./colyseus-smoke",
+    "test": "npm run build && npm run test:colyseus",
+    "test:colyseus": "COLYSEUS_SMOKE_EXPECT_OUTPUT=COLYSEUS_NATIVE_SMOKE_PASSED node ../../tests/colyseus/run-server-smoke.mjs -- ./examples/colyseus-smoke/colyseus-smoke",
     "test:math": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile math-smoke.ts --no-cache -o math-smoke && ./math-smoke",
     "test:lifecycle": "PERRY_ALLOW_PERRY_FEATURES=1 perry compile lifecycle-smoke.ts --target linux --no-cache -o lifecycle-smoke && ./lifecycle-smoke"
   },

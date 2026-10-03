@@ -15,7 +15,7 @@ use wgpu;
 pub(super) const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 /// Linear HDR format for the offscreen render target. The scene + sky
 /// + immediate-mode 3D passes write here in linear space; a final
-/// composite pass tonemaps to the sRGB surface format.
+///   composite pass tonemaps to the sRGB surface format.
 pub(super) const HDR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 /// Number of bloom mip levels. 5 mips gives a long-tail glow that
@@ -292,8 +292,8 @@ pub(super) const PROBE_OCT_TEXELS: u32 = PROBE_OCT_SIZE * PROBE_OCT_SIZE;
 pub(super) fn probe_grid_dims(width: u32, height: u32) -> (u32, u32) {
     let half_w = (width / 2).max(1);
     let half_h = (height / 2).max(1);
-    let gw = (half_w + PROBE_TILE_SIZE - 1) / PROBE_TILE_SIZE;
-    let gh = (half_h + PROBE_TILE_SIZE - 1) / PROBE_TILE_SIZE;
+    let gw = half_w.div_ceil(PROBE_TILE_SIZE);
+    let gh = half_h.div_ceil(PROBE_TILE_SIZE);
     (gw.max(1), gh.max(1))
 }
 
@@ -498,6 +498,7 @@ pub(super) fn create_mesh_sdf_texture(
 ///   - `mesh_card_albedo_atlas`   — baked once per mesh at load.
 ///   - `mesh_card_radiance_atlas` — written every frame by the card-
 ///     lighting compute pass (albedo × sun × NdotL + sky × NdotUp).
+///
 /// The HW trace samples radiance directly at hit, amortising shading
 /// cost across all rays that land in the same card texel.
 pub(super) const CARD_ATLAS_SIZE: u32 = 4096;

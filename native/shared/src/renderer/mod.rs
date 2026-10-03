@@ -50,6 +50,7 @@ use shaders::*;
 pub mod shader_include;
 pub mod shader_library;
 pub mod material_pipeline;
+pub(crate) mod material_args;
 pub mod material_system;
 // wasm32-only material bind-group helpers, split out to keep material_system.rs
 // under the 2000-line policy (EN-063).
@@ -381,8 +382,8 @@ pub struct Renderer {
     pub albedo_rt_view: wgpu::TextureView,
     /// Composed HDR target — scene + SSR + SSGI*albedo + bloom + fog
     /// + shafts all merged by the `scene_compose` pass. Feeds both
-    /// TAA (as the current-frame input) and composite (as the
-    /// TAA-off source) so atmospherics stay consistent across paths.
+    ///   TAA (as the current-frame input) and composite (as the
+    ///   TAA-off source) so atmospherics stay consistent across paths.
     pub composed_rt_texture: wgpu::Texture,
     pub composed_rt_view: wgpu::TextureView,
     pub scene_compose_pipeline: wgpu::RenderPipeline,
@@ -647,7 +648,7 @@ pub struct Renderer {
     /// as ssr_rt). One GGX-importance-sampled ray per pixel per frame
     /// converges over 4–8 frames of accumulation via velocity reprojection
     /// + neighborhood clamp. Compose reads ssr_history[cur] instead of
-    /// ssr_rt when ssr_enabled.
+    ///   ssr_rt when ssr_enabled.
     pub ssr_history_textures: [wgpu::Texture; 2],
     pub ssr_history_views: [wgpu::TextureView; 2],
     pub ssr_history_idx: usize,
@@ -950,7 +951,7 @@ pub struct Renderer {
     /// `hw_rt_enabled`. Same `WsrcBakeParams` uniform as the SW
     /// bake; extra bindings carry the TLAS + per-instance GI data
     /// + card atlas so probe-octel rays can sample pre-lit Mesh
-    /// Cards radiance at hit points.
+    ///   Cards radiance at hit points.
     pub wsrc_bake_hw_pipeline: Option<wgpu::ComputePipeline>,
     pub wsrc_bake_hw_layout: Option<wgpu::BindGroupLayout>,
     wsrc_bake_hw_bg_cache: Option<wgpu::BindGroup>,
@@ -6917,9 +6918,7 @@ impl Renderer {
         self.rt_height = height;
     }
 
-    /// Q1: Create a render texture and register it for sampling via drawTexture.
-
-    /// Q1: Clear the render target override.
+    /// Clear the active render target override.
     pub fn end_texture_mode(&mut self) {
         self.rt_color_view = None;
         self.rt_depth_view = None;
@@ -7796,7 +7795,7 @@ impl Renderer {
         let wg_per_slot = CARD_SLOT_SIZE / 8;
         let total_wg_x = wg_per_slot * CARD_SLOTS_PER_ROW;
         let total_wg_y =
-            wg_per_slot * ((scene.next_card_slot + CARD_SLOTS_PER_ROW - 1) / CARD_SLOTS_PER_ROW);
+            wg_per_slot * scene.next_card_slot.div_ceil(CARD_SLOTS_PER_ROW);
         pass.dispatch_workgroups(total_wg_x, total_wg_y.max(1), 1);
     }
 
@@ -7979,8 +7978,8 @@ impl Renderer {
         {
             let v_bytes = (geo_vertices.len() * 4).max(16) as u64;
             let i_bytes = (geo_indices.len() * 4).max(16) as u64;
-            let v_recreate = self.pt_geo_vertex_buffer.as_ref().map_or(true, |b| b.size() < v_bytes);
-            let i_recreate = self.pt_geo_index_buffer.as_ref().map_or(true, |b| b.size() < i_bytes);
+            let v_recreate = self.pt_geo_vertex_buffer.as_ref().is_none_or(|b| b.size() < v_bytes);
+            let i_recreate = self.pt_geo_index_buffer.as_ref().is_none_or(|b| b.size() < i_bytes);
             // PT-6 — on RT adapters the megabuffers double as BLAS
             // geometry inputs for the dynamic skinned instances (the
             // BLAS reads a window via first_vertex/first_index).
@@ -8175,14 +8174,12 @@ impl Renderer {
         // The BLAS size descriptors and geometry entries need to outlive
         // the build call, so we stash them in a pair of Vecs indexed in
         // parallel.
-        let pending_handles: Vec<f64> = scene.pending_blas_builds.drain(..).collect();
+        let pending_handles: Vec<f64> = std::mem::take(&mut scene.pending_blas_builds);
         let size_descs: Vec<wgpu::BlasTriangleGeometrySizeDescriptor> = pending_handles
             .iter()
             .filter_map(|h| {
                 let n = scene.nodes.get(*h)?;
-                if n.blas.is_none() {
-                    return None;
-                }
+                n.blas.as_ref()?;
                 Some(wgpu::BlasTriangleGeometrySizeDescriptor {
                     vertex_format: wgpu::VertexFormat::Float32x3,
                     vertex_count: n.gpu_vertex_count,
@@ -8734,7 +8731,7 @@ impl Renderer {
             return;
         }
         let rgb_f32: Vec<f32> = buf
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
             .collect();
         self.load_env_from_hdr(w, h, &rgb_f32);
@@ -8758,7 +8755,7 @@ impl Renderer {
             return;
         }
         let rgb_f32: Vec<f32> = buf
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
             .collect();
         self.load_env_from_hdr(w, h, &rgb_f32);
@@ -9151,8 +9148,8 @@ impl Renderer {
             pass.set_pipeline(&self.sky_view_compute_pipeline);
             pass.set_bind_group(0, &self.sky_view_compute_bind_group, &[]);
             // 8×8 workgroups; round up to cover the full LUT.
-            let gx = (SKY_VIEW_W + 7) / 8;
-            let gy = (SKY_VIEW_H + 7) / 8;
+            let gx = SKY_VIEW_W.div_ceil(8);
+            let gy = SKY_VIEW_H.div_ceil(8);
             pass.dispatch_workgroups(gx, gy, 1);
         }
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -9424,8 +9421,8 @@ impl Renderer {
             });
             pass.set_pipeline(&self.aerial_perspective_pipeline);
             pass.set_bind_group(0, &self.aerial_perspective_bind_group, &[]);
-            let gx = (AERIAL_W + 7) / 8;
-            let gy = (AERIAL_H + 7) / 8;
+            let gx = AERIAL_W.div_ceil(8);
+            let gy = AERIAL_H.div_ceil(8);
             pass.dispatch_workgroups(gx, gy, AERIAL_D);
         }
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -10504,7 +10501,7 @@ impl Renderer {
                 // screen rather than blue-and-red flipped.
                 if let Some(path) = self.pending_screenshot_path.take() {
                     let mut rgb = Vec::with_capacity((width * height * 3) as usize);
-                    for chunk in rgba.chunks_exact(4) {
+                    for chunk in rgba.as_chunks::<4>().0 {
                         // BGRA → RGB. (Surface format is bgra8unorm
                         // on the platforms we care about today.)
                         rgb.push(chunk[2]);
@@ -10648,6 +10645,7 @@ impl Renderer {
     }
 
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_triangle(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state(0);
         let color = Self::color_to_f32_srgb(r, g, b, a);
@@ -10660,6 +10658,7 @@ impl Renderer {
         self.indices_2d.extend_from_slice(&[base, base + 1, base + 2]);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_poly(&mut self, cx: f64, cy: f64, sides: f64, radius: f64, rotation: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state(0);
         let color = Self::color_to_f32_srgb(r, g, b, a);
@@ -10688,6 +10687,7 @@ impl Renderer {
     // Textured 2D drawing (for text atlas, sprites, etc.)
     // ============================================================
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_textured_quad(
         &mut self,
         x: f32, y: f32, w: f32, h: f32,
@@ -10704,6 +10704,7 @@ impl Renderer {
         self.indices_2d.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_texture(&mut self, bind_group_idx: u32, x: f64, y: f64, tint_r: f64, tint_g: f64, tint_b: f64, tint_a: f64) {
         let (tw, th) = self.texture_sizes.get(bind_group_idx as usize).copied().unwrap_or((0, 0));
         if tw == 0 { return; }
@@ -10711,6 +10712,7 @@ impl Renderer {
         self.draw_textured_quad(x as f32, y as f32, tw as f32, th as f32, 0.0, 0.0, 1.0, 1.0, color, bind_group_idx);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_texture_rec(
         &mut self, bind_group_idx: u32,
         src_x: f64, src_y: f64, src_w: f64, src_h: f64,
@@ -10727,6 +10729,7 @@ impl Renderer {
         self.draw_textured_quad(dst_x as f32, dst_y as f32, src_w as f32, src_h as f32, u0, v0, u1, v1, color, bind_group_idx);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_texture_pro(
         &mut self, bind_group_idx: u32,
         src_x: f64, src_y: f64, src_w: f64, src_h: f64,
@@ -10762,11 +10765,12 @@ impl Renderer {
 
     pub fn begin_mode_2d(&mut self, offset_x: f32, offset_y: f32, target_x: f32, target_y: f32, rotation: f32, zoom: f32) {
         self.begin_mode_2d_with_viewport(
-            offset_x, offset_y, target_x, target_y, rotation, zoom,
-            1.0, 1.0, 0.0, 0.0, None,
+            [offset_x, offset_y, target_x, target_y, rotation, zoom],
+            [1.0, 1.0, 0.0, 0.0], None,
         );
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn begin_mode_2d_viewport(
         &mut self,
         offset_x: f32, offset_y: f32, target_x: f32, target_y: f32,
@@ -10782,18 +10786,18 @@ impl Renderer {
             return;
         }
         self.begin_mode_2d_with_viewport(
-            offset_x, offset_y, target_x, target_y, rotation, zoom,
-            scale_x, scale_y, origin_x, origin_y,
+            [offset_x, offset_y, target_x, target_y, rotation, zoom],
+            [scale_x, scale_y, origin_x, origin_y],
             Some([clip_x, clip_y, clip_width, clip_height]),
         );
     }
 
     fn begin_mode_2d_with_viewport(
         &mut self,
-        offset_x: f32, offset_y: f32, target_x: f32, target_y: f32,
-        rotation: f32, zoom: f32, scale_x: f32, scale_y: f32,
-        origin_x: f32, origin_y: f32, clip: Option<[f32; 4]>,
+        camera: [f32; 6], viewport: [f32; 4], clip: Option<[f32; 4]>,
     ) {
+        let [offset_x, offset_y, target_x, target_y, rotation, zoom] = camera;
+        let [scale_x, scale_y, origin_x, origin_y] = viewport;
         self.uniform_slot_count += 1;
         if self.uniform_slot_count >= MAX_UNIFORM_SLOTS { return; }
         self.current_uniform_idx = self.uniform_slot_count as u32;
@@ -10850,6 +10854,7 @@ impl Renderer {
     // Camera 3D
     // ============================================================
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn begin_mode_3d(
         &mut self,
         pos_x: f32, pos_y: f32, pos_z: f32,
@@ -11004,17 +11009,17 @@ impl Renderer {
         for m in matrices {
             let mut sm = *m;
             // Scale
-            for col in 0..4 {
-                sm[col][0] *= scale;
-                sm[col][1] *= scale;
-                sm[col][2] *= scale;
+            for column in &mut sm {
+                column[0] *= scale;
+                column[1] *= scale;
+                column[2] *= scale;
             }
             // Rotate around Y axis
-            for col in 0..4 {
-                let x = sm[col][0];
-                let z = sm[col][2];
-                sm[col][0] = cos_r * x + sin_r * z;
-                sm[col][2] = -sin_r * x + cos_r * z;
+            for column in &mut sm {
+                let x = column[0];
+                let z = column[2];
+                column[0] = cos_r * x + sin_r * z;
+                column[2] = -sin_r * x + cos_r * z;
             }
             // Translate
             sm[3][0] += position[0];
@@ -11210,7 +11215,7 @@ impl Renderer {
                 // a few thousand verts each).
                 cpu_vertices: if is_skinned { Some(mesh.vertices.clone()) } else { None },
                 cpu_indices: if is_skinned { Some(mesh.indices.clone()) } else { None },
-                base_color_idx: base_color_idx as u32,
+                base_color_idx,
                 metallic_factor: mesh.metallic_factor,
                 roughness_factor: mesh.roughness_factor,
             }
@@ -11229,14 +11234,12 @@ impl Renderer {
         let count = self.frame_joint_data.len().min(MAX_JOINT_SLOTS);
         if count > 0 {
             let mut all_data = vec![[[0.0f32; 4]; 4]; MAX_JOINT_SLOTS];
-            for i in 0..count {
-                all_data[i] = self.frame_joint_data[i];
-            }
+            all_data[..count].copy_from_slice(&self.frame_joint_data[..count]);
             self.queue.write_buffer(&self.joint_buffer, 0, bytemuck::cast_slice(&all_data));
             // PT-7 — previous frame's palette, same offsets.
             let prev_count = self.frame_joint_data_prev.len().min(count);
-            for i in 0..count {
-                all_data[i] = if i < prev_count {
+            for (i, matrix) in all_data.iter_mut().take(count).enumerate() {
+                *matrix = if i < prev_count {
                     self.frame_joint_data_prev[i]
                 } else {
                     self.frame_joint_data[i]
@@ -11340,6 +11343,7 @@ impl Renderer {
         self.queue.write_buffer(&self.lighting_buffer, 0, bytemuck::bytes_of(&self.lighting_uniforms));
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn set_directional_light(&mut self, dx: f64, dy: f64, dz: f64, r: f64, g: f64, b: f64, intensity: f64) {
         // Note: the shadow cache reads `lighting_uniforms.light_dir`
         // directly at gate time, so no explicit invalidate is needed
@@ -11352,6 +11356,7 @@ impl Renderer {
 
     /// Add an additional directional light (up to MAX_DIR_LIGHTS).
     /// Color is 0-1 range (not 0-255).
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn add_directional_light(&mut self, dx: f32, dy: f32, dz: f32, r: f32, g: f32, b: f32, intensity: f32) {
         let idx = self.lighting_uniforms.dir_light_count[0] as usize;
         if idx >= MAX_DIR_LIGHTS { return; }
@@ -11365,6 +11370,7 @@ impl Renderer {
 
     /// Add a point light (up to MAX_POINT_LIGHTS).
     /// Color is 0-1 range.
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn add_point_light(&mut self, x: f32, y: f32, z: f32, range: f32, r: f32, g: f32, b: f32, intensity: f32) {
         let idx = self.lighting_uniforms.point_light_count[0] as usize;
         if idx >= MAX_POINT_LIGHTS { return; }
@@ -11426,6 +11432,7 @@ impl Renderer {
         self.indices_3d.extend_from_slice(&[base, base+1, base+2, base, base+2, base+3]);
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_cube(&mut self, x: f64, y: f64, z: f64, w: f64, h: f64, d: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state_3d(self.current_texture_3d);
         let color = Self::color_to_f32(r, g, b, a);
@@ -11454,6 +11461,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_cube_wires(&mut self, x: f64, y: f64, z: f64, w: f64, h: f64, d: f64, r: f64, g: f64, b: f64, a: f64) {
         let color = Self::color_to_f32(r, g, b, a);
         let (x, y, z) = (x as f32, y as f32, z as f32);
@@ -11474,6 +11482,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_sphere(&mut self, cx: f64, cy: f64, cz: f64, radius: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state_3d(self.current_texture_3d);
         let color = Self::color_to_f32(r, g, b, a);
@@ -11510,6 +11519,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_sphere_wires(&mut self, cx: f64, cy: f64, cz: f64, radius: f64, r: f64, g: f64, b: f64, a: f64) {
         let color = Self::color_to_f32(r, g, b, a);
         let (cx, cy, cz, radius) = (cx as f32, cy as f32, cz as f32, radius as f32);
@@ -11539,6 +11549,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_cylinder(&mut self, x: f64, y: f64, z: f64, radius_top: f64, radius_bottom: f64, height: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state_3d(self.current_texture_3d);
         let color = Self::color_to_f32(r, g, b, a);
@@ -11576,6 +11587,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_plane(&mut self, cx: f64, cy: f64, cz: f64, w: f64, d: f64, r: f64, g: f64, b: f64, a: f64) {
         self.ensure_draw_state_3d(self.current_texture_3d);
         let color = Self::color_to_f32(r, g, b, a);
@@ -11606,6 +11618,7 @@ impl Renderer {
         }
     }
 
+    #[expect(clippy::too_many_arguments, reason = "The native call surface mirrors the flat FFI dispatch parameters.")]
     pub fn draw_ray(&mut self, origin_x: f64, origin_y: f64, origin_z: f64, dir_x: f64, dir_y: f64, dir_z: f64, r: f64, g: f64, b: f64, a: f64) {
         let color = Self::color_to_f32(r, g, b, a);
         let start = [origin_x as f32, origin_y as f32, origin_z as f32];
@@ -11669,10 +11682,7 @@ impl Renderer {
         let buffer_size = (padded_bytes_per_row * height) as u64;
 
         // Render one frame to a texture we can copy from
-        let output = match self.acquire_frame() {
-            Some(t) => t,
-            None => return None,
-        };
+        let output = self.acquire_frame()?;
         let texture = self.frame_texture(&output);
 
         let staging_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -11956,15 +11966,8 @@ impl Renderer {
         self.material_system.compile(
             &self.device,
             wgsl_source,
-            profile,
-            bucket,
-            reads_scene,
-            wants_instancing,
-            formats::HDR_FORMAT,
-            formats::MATERIAL_FORMAT,
-            formats::VELOCITY_FORMAT,
-            wgpu::TextureFormat::Rgba8Unorm,
-            formats::DEPTH_FORMAT,
+            material_args::MaterialCompileOptions { profile, bucket, reads_scene, wants_instancing },
+            material_args::MaterialTargetFormats::standard(),
         )
     }
 
@@ -12004,15 +12007,8 @@ impl Renderer {
         self.material_system.compile(
             &self.device,
             wgsl_source,
-            profile,
-            bucket,
-            reads_scene,
-            true, // wants_instancing
-            formats::HDR_FORMAT,
-            formats::MATERIAL_FORMAT,
-            formats::VELOCITY_FORMAT,
-            wgpu::TextureFormat::Rgba8Unorm,
-            formats::DEPTH_FORMAT,
+            material_args::MaterialCompileOptions { profile, bucket, reads_scene, wants_instancing: true },
+            material_args::MaterialTargetFormats::standard(),
         )
     }
 
@@ -12039,7 +12035,7 @@ impl Renderer {
     ///
     /// The fragment shader sees `scene_color_tex` (LDR, post-tonemap)
     /// + `scene_depth_tex` at `@group(0)` — see
-    /// `post_pass::POST_PASS_PRELUDE` for the exact ABI.
+    ///   `post_pass::POST_PASS_PRELUDE` for the exact ABI.
     ///
     /// Stack order matters: the first added pass runs first, the
     /// next sees the first's output, and so on. The last pass writes
@@ -12155,13 +12151,11 @@ impl Renderer {
             // log and keep the old pipeline running.
             match self.material_system.compile(
                 &self.device, &source,
-                desc.profile, desc.bucket, desc.reads_scene,
-                desc.wants_instancing,
-                formats::HDR_FORMAT,
-                formats::MATERIAL_FORMAT,
-                formats::VELOCITY_FORMAT,
-                wgpu::TextureFormat::Rgba8Unorm,
-                formats::DEPTH_FORMAT,
+                material_args::MaterialCompileOptions {
+                    profile: desc.profile, bucket: desc.bucket,
+                    reads_scene: desc.reads_scene, wants_instancing: desc.wants_instancing,
+                },
+                material_args::MaterialTargetFormats::standard(),
             ) {
                 Ok(new_handle) => {
                     // material_system.compile pushes a NEW slot.
@@ -12202,9 +12196,8 @@ impl Renderer {
         );
         let mvp = mat4_multiply(self.current_vp_matrix, model);
         self.material_system.submit_draw(
-            &self.device, &self.queue, &self.joint_buffer,
-            material, mesh_handle, mesh_idx,
-            mvp, model, mvp, tint, [0, 0, 0, 0],
+            material_args::MaterialGpuContext { device: &self.device, queue: &self.queue, joint_buffer: &self.joint_buffer },
+            material_args::MaterialDrawParams { material, mesh_handle, mesh_idx, mvp, model, tint, skin_info: [0; 4] },
         );
     }
 
@@ -12225,10 +12218,11 @@ impl Renderer {
         let model = IDENTITY_MAT4;
         let mvp = self.current_vp_matrix;
         self.material_system.submit_draw_instanced(
-            &self.device, &self.queue, &self.joint_buffer,
-            material, mesh_handle, mesh_idx,
-            instance_buffer, instance_count,
-            mvp, model, mvp, [1.0, 1.0, 1.0, 1.0], [0, 0, 0, 0],
+            material_args::MaterialGpuContext { device: &self.device, queue: &self.queue, joint_buffer: &self.joint_buffer },
+            material_args::MaterialDrawParams {
+                material, mesh_handle, mesh_idx, mvp, model, tint: [1.0; 4], skin_info: [0; 4],
+            },
+            material_system::InstanceDrawInfo { buffer_handle: instance_buffer, count: instance_count },
         );
     }
 
@@ -12348,6 +12342,7 @@ impl Renderer {
     ///   - 0 = albedo  (binding 14)
     ///   - 1 = normal  (binding 15)
     ///   - 2 = MR      (binding 16)
+    ///
     /// Pass `array = 0` to revert the slot to the engine's 1×1×1
     /// stub. No-op for unknown handles or out-of-range slots.
     ///
@@ -12412,7 +12407,8 @@ impl Renderer {
         let probe_view = self.resolve_probe_view_for_material(material);
         if let Err(e) = self.material_system.set_material_foliage(
             &self.device, &self.queue, material,
-            trans_color, trans_amount, wrap_factor, &probe_view,
+            material_args::FoliageParams { color: trans_color, amount: trans_amount, wrap: wrap_factor },
+            &probe_view,
         ) {
             eprintln!("[foliage] set_material_foliage failed: {e}");
         }
@@ -12460,7 +12456,7 @@ impl Renderer {
         let per_frame = material_system::PerFrameUniforms {
             time: time_seconds,
             delta_time,
-            frame_index: self.taa_frame_index as u32,
+            frame_index: self.taa_frame_index,
             _pad0: 0,
             screen_resolution: [screen_w, screen_h],
             render_resolution: [rw as f32, rh as f32],

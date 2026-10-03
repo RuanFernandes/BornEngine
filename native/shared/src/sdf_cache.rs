@@ -172,7 +172,7 @@ pub fn store(hash: MeshHash, voxel_bytes: &[u8]) -> std::io::Result<()> {
         ));
     }
     let path = cache_path(hash).ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::Other, "cache directory unavailable")
+        std::io::Error::other("cache directory unavailable")
     })?;
 
     // Write to a temp file and rename so a crash mid-write can never

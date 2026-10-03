@@ -520,7 +520,7 @@ impl ShadowMap {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_shadow"),
-                buffers: &[vertex_layout.clone()],
+                buffers: std::slice::from_ref(&vertex_layout),
                 compilation_options: Default::default(),
             },
             fragment: None, // depth only
@@ -591,7 +591,7 @@ impl ShadowMap {
             vertex: wgpu::VertexState {
                 module: &cutout_shader,
                 entry_point: Some("vs_shadow_cutout"),
-                buffers: &[vertex_layout.clone()],
+                buffers: std::slice::from_ref(&vertex_layout),
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -711,7 +711,6 @@ impl ShadowMap {
     pub fn compute_cascade_vps(
         &mut self,
         light_dir: [f32; 3],
-        _camera_pos: [f32; 3],
         camera_view: [[f32; 4]; 4],
         camera_proj: [[f32; 4]; 4],
         near: f32,
@@ -735,19 +734,17 @@ impl ShadowMap {
         let ratio = far / near;
         let mut splits = [0.0f32; NUM_CASCADES + 1];
         splits[0] = near;
-        for i in 1..NUM_CASCADES {
+        for (i, split) in splits.iter_mut().enumerate().take(NUM_CASCADES).skip(1) {
             let p = i as f32 / NUM_CASCADES as f32;
             let log_split = near * ratio.powf(p);
             let uniform_split = near + (far - near) * p;
-            splits[i] = lambda * log_split + (1.0 - lambda) * uniform_split;
+            *split = lambda * log_split + (1.0 - lambda) * uniform_split;
         }
         splits[NUM_CASCADES] = far;
 
         // Store view-space Z split distances for shader cascade selection.
         // cascade_splits[i] = far edge of cascade i.
-        for i in 0..NUM_CASCADES {
-            self.cascade_splits[i] = splits[i + 1];
-        }
+        self.cascade_splits.copy_from_slice(&splits[1..]);
 
         // A light-direction change invalidates every accepted fit (the
         // light-plane basis itself moves).
@@ -814,19 +811,19 @@ impl ShadowMap {
             // (not AABB) gives rotation-invariant extent so the ortho
             // volume doesn't resize as the camera rotates.
             let mut center = [0.0f32; 3];
-            for i in 0..8 {
-                center[0] += world_corners[i][0];
-                center[1] += world_corners[i][1];
-                center[2] += world_corners[i][2];
+            for corner in &world_corners {
+                center[0] += corner[0];
+                center[1] += corner[1];
+                center[2] += corner[2];
             }
             center[0] /= 8.0;
             center[1] /= 8.0;
             center[2] /= 8.0;
             let mut radius: f32 = 0.0;
-            for i in 0..8 {
-                let dx = world_corners[i][0] - center[0];
-                let dy = world_corners[i][1] - center[1];
-                let dz = world_corners[i][2] - center[2];
+            for corner in &world_corners {
+                let dx = corner[0] - center[0];
+                let dy = corner[1] - center[1];
+                let dz = corner[2] - center[2];
                 let r2 = dx*dx + dy*dy + dz*dz;
                 if r2 > radius { radius = r2; }
             }

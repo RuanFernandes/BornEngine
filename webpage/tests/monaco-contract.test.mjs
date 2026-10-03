@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerJsonLanguage } from '../src/scripts/json-language.mjs';
 import {
   createMonacoEditorOptions,
   monacoLanguage,
@@ -39,4 +40,27 @@ test('creates a restrained read-only editor configuration', () => {
   assert.equal(options.minimap.enabled, false);
   assert.equal(options.automaticLayout, true);
   assert.equal(options.scrollBeyondLastLine, false);
+});
+
+test('JSON snippets keep syntax colors without loading a language service', () => {
+  let registered;
+  let provider;
+  registerJsonLanguage({
+    languages: {
+      register(language) { registered = language; },
+      setMonarchTokensProvider(id, tokens) {
+        assert.equal(id, 'json');
+        provider = tokens;
+      },
+    },
+  });
+
+  assert.equal(registered.id, 'json');
+  const rules = provider.tokenizer.root;
+  const tokenFor = (source) => rules.find(([pattern]) => pattern.test(source))?.[1];
+  assert.equal(tokenFor('"name":'), 'string.key.json');
+  assert.equal(tokenFor('"hello"'), 'string.value.json');
+  assert.equal(tokenFor('-12.5e+2'), 'number.json');
+  assert.equal(tokenFor('true'), 'keyword.json');
+  assert.equal(tokenFor('{'), 'delimiter.bracket.json');
 });

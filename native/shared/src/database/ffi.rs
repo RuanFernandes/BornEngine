@@ -30,9 +30,7 @@ pub fn scratch_push_number(value: f64) {
 pub fn scratch_push_byte(value: f64) {
     SCRATCH.with(|scratch| {
         let mut scratch = scratch.borrow_mut();
-        if !value.is_finite() || value.fract() != 0.0 || !(0.0..=255.0).contains(&value) {
-            scratch.1 = true;
-        } else if scratch.2 >= MAX_IMPORT_BYTES {
+        if !value.is_finite() || value.fract() != 0.0 || !(0.0..=255.0).contains(&value) || scratch.2 >= MAX_IMPORT_BYTES {
             scratch.1 = true;
         } else if let Some(ScratchAtom::ByteRun(bytes)) = scratch.0.last_mut() {
             bytes.push(value as u8);
@@ -350,7 +348,7 @@ fn with_native_value<R>(
 }
 
 fn valid_ticket(ticket: f64) -> bool {
-    ticket.is_finite() && ticket >= 1.0 && ticket <= MAX_SAFE_INTEGER && ticket.fract() == 0.0
+    ticket.is_finite() && (1.0..=MAX_SAFE_INTEGER).contains(&ticket) && ticket.fract() == 0.0
 }
 
 fn value_kind(value: &DatabaseValue) -> u8 {
