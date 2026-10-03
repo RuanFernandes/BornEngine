@@ -1,6 +1,6 @@
 # BornEngine — referência de contexto para modelos de linguagem
 
-Este arquivo resume a API pública e as decisões de arquitetura do BornEngine para assistentes que escrevem, revisam ou documentam jogos com a engine. Ele corresponde ao código deste repositório; a versão do pacote verificada nesta revisão é `0.13.0`. Confirme sempre `package.json`, exports, implementação e exemplos antes de assumir que o número ou um comportamento continua atual.
+Este arquivo resume a API pública e as decisões de arquitetura do BornEngine para assistentes que escrevem, revisam ou documentam jogos com a engine. Ele corresponde ao código deste repositório; a versão do pacote preparada para este release é `0.14.0`. Confirme sempre `package.json`, exports, implementação e exemplos antes de assumir que o número ou um comportamento continua atual.
 
 ## Regras para responder ou gerar código
 
@@ -18,7 +18,7 @@ Este arquivo resume a API pública e as decisões de arquitetura do BornEngine p
 
 O código de jogo usa classes TypeScript; Perry compila esse código ahead-of-time e comunica-se com as camadas Rust por um FFI privado. Rust compartilhado fica em `native/shared/`; os crates `native/<platform>/` conectam o runtime ao host. Classes, services, factories e ownership são a API do jogo. Handles numéricos e funções FFI são detalhes internos e não devem aparecer em exemplos públicos.
 
-O pacote verificado contém a versão `0.13.0`. Os exports públicos atuais estão em `package.json` e no barrel `src/index.ts`. O mapa estável de módulos aparece abaixo; confirme os exports nesses arquivos antes de adicionar uma importação.
+O pacote preparado para este release contém a versão `0.14.0`. Os exports públicos atuais estão em `package.json` e no barrel `src/index.ts`. O mapa estável de módulos aparece abaixo; confirme os exports nesses arquivos antes de adicionar uma importação.
 
 ## Criar um jogo
 
@@ -182,7 +182,7 @@ Alvos v1 validados: Linux nativo e Web/WASM. Outros alvos nativos e watchOS deve
 `bornengine create` é interativo e pede nome, tipo de jogo, package manager e versão estável da engine. `new` é a variante com nome e flags; `init` inicializa a pasta atual.
 
 ```sh
-bornengine new MyGame --game-type 2d --package-manager pnpm --engine-version 0.13.0
+bornengine new MyGame --game-type 2d --package-manager pnpm --engine-version 0.14.0
 bornengine check main.ts
 bornengine run main.ts
 bornengine dev main.ts --watch

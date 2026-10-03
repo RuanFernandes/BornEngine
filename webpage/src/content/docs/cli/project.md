@@ -16,7 +16,7 @@ bornengine create
 ## Scriptable projects
 
 ```sh
-bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.13.0
+bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.14.0
 bornengine new MyGame --game-type 2d --native-features sqlite,scripting
 ```
 

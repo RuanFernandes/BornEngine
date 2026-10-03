@@ -16,7 +16,7 @@
     "title": "Create a project non-interactively",
     "summary": "Scaffold a project from a script or CI job.",
     "synopsis": "bornengine new <project-name> [--game-type <2d|2.5d|3d>] [--native-features <sqlite,scripting>] [--package-manager <pnpm|npm|yarn>] [--engine-version <version>] [--engine-path <path>]",
-    "examples": ["bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.13.0", "bornengine new MyScriptedGame --native-features sqlite,scripting"],
+    "examples": ["bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.14.0", "bornengine new MyScriptedGame --native-features sqlite,scripting"],
     "options": ["--game-type <2d|2.5d|3d>, --kind <2d|2.5d|3d> (defaults to 2d)", "--native-features <sqlite,scripting> (optional native capabilities)", "--package-manager <pnpm|npm|yarn>, --pm <pnpm|npm|yarn>", "--engine-version <version>, -e <version>", "--engine-path <path>, --engine <path>", "-v, --verbose (repeatable)"],
     "behavior": "Uses explicit arguments, writes the selected native profile and optional features, installs dependencies, and refuses to overwrite populated or conflicting files.",
     "related": ["/docs/cli/project/", "/docs/getting-started/quickstart/"]
@@ -170,7 +170,7 @@
     "title": "Select an engine release",
     "summary": "Set this project's BornEngine dependency to a stable release.",
     "synopsis": "bornengine engine install [version]",
-    "examples": ["bornengine engine install 0.13.0", "bornengine engine install"],
+    "examples": ["bornengine engine install 0.14.0", "bornengine engine install"],
     "options": ["[version] selects a stable release; omit it to use the configured or latest release", "-v, --verbose (repeatable)"],
     "behavior": "Updates the project's BornEngine dependency and package-manager lockfile to the selected stable release.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]
@@ -214,7 +214,7 @@
     "title": "Select an engine source",
     "summary": "Choose an installed version or a local engine path for the project.",
     "synopsis": "bornengine engine use <version-or-path>",
-    "examples": ["bornengine engine use 0.13.0", "bornengine engine use ../BornEngine"],
+    "examples": ["bornengine engine use 0.14.0", "bornengine engine use ../BornEngine"],
     "options": ["<version-or-path> can identify an installed release or local path", "-v, --verbose (repeatable)"],
     "behavior": "Changes the project's BornEngine dependency to the selected release or local checkout and updates its lockfile.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]
@@ -225,7 +225,7 @@
     "title": "Upgrade the project engine dependency",
     "summary": "Select a specific or latest BornEngine release for this game project.",
     "synopsis": "bornengine upgrade [version] [--latest]",
-    "examples": ["bornengine upgrade", "bornengine upgrade 0.13.0", "bornengine upgrade --latest"],
+    "examples": ["bornengine upgrade", "bornengine upgrade 0.14.0", "bornengine upgrade --latest"],
     "options": ["[version] selects a release", "--latest selects the latest release", "-v, --verbose (repeatable)"],
     "behavior": "Changes the current project's BornEngine dependency and lockfile. Use bornengine update to check for a newer CLI release.",
     "related": ["/docs/cli/engine/", "/docs/cli/diagnostics/"]
