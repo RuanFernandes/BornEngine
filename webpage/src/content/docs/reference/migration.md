@@ -5,7 +5,7 @@ section: Reference
 order: 81
 ---
 
-BornEngine 0.6 changes the public TypeScript surface to classes owned by a `Game`. The old free-function API has no compatibility aliases. Migrate the runtime owner first, then move each subsystem operation onto its service or resource instance.
+BornEngine 0.6 introduced the class-first public TypeScript surface; the current API continues that model and has no compatibility aliases for the old free-function API. Migrate the runtime owner first, then move each subsystem operation onto its service or resource instance. Use the current API reference for additions made after 0.6.
 
 ## Application lifecycle
 
@@ -36,7 +36,7 @@ BornEngine 0.6 changes the public TypeScript surface to classes owned by a `Game
 
 ## Resource ownership changes
 
-Construct runtime resources with their owning `Game`. Check `isLoaded` and `error` after fallible resource creation. Dispose resources when their lifetime ends; `Game.dispose()` also releases resources still registered with that game. A resource from a different game is rejected, and its native handle is no longer part of the public API.
+Create assets through their owner scope: use `game.assets` for resources shared across scenes and `scene.assets` for resources released when a scene unloads. For example, use `game.assets.loadTexture(path)` rather than constructing a `Texture` with a Game; `Texture` has no public constructor. Some context-bound systems, including `PhysicsWorld` and `ColyseusClient`, still receive their owning `Game`. Check `isLoaded` and `error` after fallible resource creation. Dispose manually created resources when their lifetime ends; the owning Game and Scene managers release resources they still own. A resource from a different Game is rejected, and its native handle is not part of the public API.
 
 The engine currently permits one active native runtime at a time. Dispose one `Game` before constructing the next. For host-owned native windows, use embedded mode and call `runFrame()` from the host scheduler.
 

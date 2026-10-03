@@ -66,7 +66,7 @@ export const apiCoverage = [
     slug: 'scripting',
     file: 'api/scripting.md',
     href: '/docs/api/scripting/',
-    sections: ['Attach a behavior', 'Guest module hooks', 'Capabilities', 'Execution limits and failures', 'Script packages', 'Platform support and security'],
+    sections: ['Attach a behavior', 'Guest module hooks', 'Capabilities', 'Execution limits and failures', 'Loading script source', 'Platform support and security'],
   },
   {
     slug: 'text',

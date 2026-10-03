@@ -1,6 +1,6 @@
 ---
 title: Web / WASM
-description: Compile BornEngine to browser WebAssembly with WebGPU, WebGL fallback, Web Audio, and Game lifecycle hooks.
+description: Compile BornEngine to browser WebAssembly with WebGPU, Web Audio, and Game lifecycle hooks.
 section: Platforms / Web
 order: 54
 ---
@@ -37,11 +37,11 @@ const game = new ExampleGame({ window: { title: 'Browser game', width: 800, heig
 game.run();
 ```
 
-The same hooks run on native. Rendering uses WebGPU with WebGL fallback; audio uses Web Audio. A small JavaScript glue layer handles DOM events, asset fetching, and audio output.
+The same hooks run on native. Rendering requires WebGPU and a usable GPU adapter; the current Web bootstrap does not fall back to WebGL. If the browser has no adapter, BornEngine stops before starting the game and reports an actionable error. Audio uses Web Audio. A small JavaScript glue layer handles DOM events, asset fetching, and audio output.
 
 ## Assets and support
 
-The served output contains project assets. Images support PNG, JPEG, BMP, and TGA; audio supports WAV and OGG; models use glTF/GLB; fonts use TTF/OTF. File helpers on `game.input` use browser storage. Current supported-browser details can vary with browser releases; consult the platform matrix before shipping.
+The served output contains project assets. Images support PNG, JPEG, BMP, and TGA; audio supports WAV and OGG; models use glTF/GLB; fonts use TTF/OTF. File helpers on `game.input` use browser storage. WebGPU availability depends on the browser, operating system, GPU, and hardware-acceleration settings; verify that the target browser can create a WebGPU adapter before shipping.
 
 The [2D game recipe](../../guides/2d-game/) uses the class-first frame loop and portable asset paths.
 

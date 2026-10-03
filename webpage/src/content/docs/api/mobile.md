@@ -29,7 +29,7 @@ const stick = game.mobile.createJoystick({ zone: 'left', radius: 64, deadzone: 0
 game.run();
 ```
 
-The joystick injects its axis values into the Game-owned input layer. `movementInput()` combines keyboard and primary gamepad movement with touch controls.
+The joystick injects its axis values into the Game-owned input layer. `movementInput()` combines WASD and arrow keys; primary gamepad axes (including axes supplied by virtual joysticks) take precedence when either axis exceeds the 0.1 deadzone. The returned direction is normalized when its magnitude exceeds one.
 
 ## Buttons
 

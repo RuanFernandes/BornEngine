@@ -29,7 +29,7 @@ Asset paths are normalized paths relative to the document root and listed in the
 
 ## Runtime loading
 
-`World2DLoader` receives the destination `GameScene`, an optional document root, and callbacks for resolving sprite frames and physics. The loader validates and resolves every built-in descriptor before constructing runtime objects. It groups each tile layer by tileset, maps local tile IDs to the Tilemap empty-cell convention, and adds the complete set of objects before calling their `onAwake` methods. If validation, resolution, construction, or attachment fails, it returns diagnostics without adding any of the new objects.
+`World2DLoader` receives the destination `GameScene`, an optional document root, a `resolveSpriteFrame` callback, and an optional `PhysicsWorld2D` instance. The loader validates and resolves every built-in descriptor before constructing runtime objects. It groups each tile layer by tileset, maps local tile IDs to the Tilemap empty-cell convention, and adds the complete set of objects before calling their `onAwake` methods. If validation, resolution, construction, or attachment fails, it returns diagnostics without adding any of the new objects.
 
 ```ts
 import { World2DComponentRegistry, World2DLoader } from '@bornengine/engine/world2d';
