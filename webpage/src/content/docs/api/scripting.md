@@ -102,32 +102,12 @@ const game = new Game({
 
 The Scripts panel lists each known component's owner, status, guest memory use, most recent callback cost, and current error. It is part of the desktop debug UI and is not available on every target.
 
-## Script packages
+## Loading script source
 
-The BornEngine CLI validates self-contained script packages without executing guest code. Put `bornengine.script.json` at the package root:
-
-```json
-{
-  "format": "bornengine-script-v1",
-  "apiVersion": 1,
-  "entry": "scripts/player.js",
-  "permissions": ["log", "self.read", "self.transform.write"]
-}
-```
-
-The entry must be a regular `.js` or `.mjs` file inside the package. Permissions must be unique, sorted, and use the names in the table above. From the package directory, run:
-
-```sh
-bornengine script check
-bornengine script pack --output dist/scripts/player
-```
-
-`check` validates the manifest, entry path, permissions, and JavaScript syntax without executing it. It rejects imports because v1 has no module loader. `pack` stages the declared entry, manifest, and ownership marker deterministically in a dedicated output directory; it refuses to overwrite files it cannot verify as its own. See the [CLI script package reference](../../cli/scripts/) for details.
-
-In scripting v1 the game host supplies the JavaScript source string to `ScriptComponent`. The CLI package is not loaded by the runtime automatically: the host must read or embed the entry text and pass it to the component. The [scripted actor example](https://github.com/RuanFernandes/BornEngine/tree/main/examples/scripted-actor) demonstrates a build step that embeds the canonical `.js` source for Perry.
+Scripting v1 accepts JavaScript source text in `ScriptComponent`; the engine does not resolve package directories or load a script manifest. The BornEngine CLI currently has no `script check` or `script pack` commands. Your project is responsible for validating, loading, or embedding the source and passing the resulting string to the component. The [scripted actor example](https://github.com/RuanFernandes/BornEngine/tree/main/examples/scripted-actor) keeps a guest `.js` file and uses a small build step to embed its source for Perry.
 
 ## Platform support and security
 
-Linux native and Web/WASM are the validated v1 targets. Other native targets and watchOS report scripting as unsupported through `ScriptRuntime.isSupported` until their runtime links are verified. Check this property before offering script-driven content.
+Linux native and Web/WASM are the validated v1 targets. Other native targets and watchOS report scripting as unsupported through `game.scripting.isSupported` until their runtime links are verified. Check this property before offering script-driven content.
 
 This is an in-process containment layer for game content, not a formally secure boundary against a JavaScript VM vulnerability or a modified multiplayer client. Do not treat a guest callback as an authority boundary: multiplayer servers still need to validate gameplay actions.

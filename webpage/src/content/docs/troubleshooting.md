@@ -23,6 +23,6 @@ Fix the first failing check and run it again. Game projects need Perry, a packag
 - **Web game never starts:** check the Game `isReady` and `error` values, build with the Web/WASM flow, and serve the output over HTTP rather than opening the HTML file directly.
 - **Apple build is a black screen:** confirm the appropriate iOS game-loop or watchOS shell feature and inspect the platform guide.
 - **Assets disappear on device:** use project-relative asset paths; Apple reads from the app bundle rather than the process working directory.
-- **Resource is unavailable:** inspect its `isLoaded` and `error` properties, then confirm it was constructed with the active Game and not disposed early.
+- **Resource is unavailable:** inspect its `isLoaded` and `error` properties, confirm assets were created by the active `game.assets` or `scene.assets` scope, and check that the owning scope was not disposed or unloaded. Context-bound systems such as `PhysicsWorld` still require the active Game.
 
 When asking for help, include `bornengine info`, the first failing `doctor` check, the target, and the exact command. Earlier toolchain output usually names the missing dependency.

@@ -38,7 +38,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Diagnostics', href: '/docs/cli/diagnostics/' },
       { title: 'Engine versions', href: '/docs/cli/engine/' },
       { title: 'Configuration', href: '/docs/cli/configuration/' },
-      { title: 'Script packages', href: '/docs/cli/scripts/' },
+      { title: 'Import maps', href: '/docs/cli/import/' },
     ],
   },
   {

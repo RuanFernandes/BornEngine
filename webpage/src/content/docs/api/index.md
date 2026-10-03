@@ -5,7 +5,7 @@ section: API
 order: 30
 ---
 
-BornEngine applications start with one **Game** instance. The Game owns the native runtime and exposes services for rendering, input, audio, scenes, UI, mobile controls, and networking. Stateful resources receive that Game in their constructor and keep native identity private.
+BornEngine applications start with one **Game** instance. The Game owns the native runtime and exposes services for rendering, input, audio, scenes, UI, mobile controls, assets, and networking. Create textures, models, fonts, sounds, and other managed assets through `game.assets` or `scene.assets`; the owning scope controls their cache and lifetime. Some context-bound systems, such as `PhysicsWorld` and `ColyseusClient`, still receive a `Game` explicitly.
 
 ```ts
 import { Colors, Game } from '@bornengine/engine';

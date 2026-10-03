@@ -32,7 +32,7 @@ async function run() {
 
   const generatedSource = fs.readFileSync(path.join(example, 'src/actor-script.ts'), 'utf8');
   assert.equal(generatedSource, `export const actorScriptSource = ${JSON.stringify(source)};\n`,
-    'the Perry host embeds the same guest module that CLI check/pack uses');
+    'the Perry host embeds the guest module declared by the example manifest');
 
   console.log('Scripted actor package fixture passed');
 }
