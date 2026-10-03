@@ -12,7 +12,7 @@ bornengine cache path
 CARGO_TARGET_DIR=/mnt/fast-cache bornengine cache path
 ```
 
-An existing `CARGO_TARGET_DIR` is preserved verbatim. The CLI does not delete or relocate package-local target directories. The first build for a missing version, target, toolchain, or feature combination still compiles its dependencies; later compatible builds reuse cached artifacts.
+Absolute `CARGO_TARGET_DIR` values are preserved. Relative values are anchored to the project root for native builds and `cache warm`, so they resolve to the same directory even when Perry runs from its build-output directory; `cache path` resolves a relative value from the current directory. The CLI does not delete or relocate package-local target directories. The first build for a missing version, target, toolchain, or feature combination still compiles its dependencies; later compatible builds reuse cached artifacts.
 
 ## Warm a project build
 
