@@ -75,7 +75,7 @@ expect(cornerCut !== null && cornerCut.length === 2,
 diagonal.setWalkable(1, 0, true);
 const oneOpenSidePath = diagonal.findPath({ x: 0, y: 0 }, { x: 1, y: 1 }, { allowDiagonal: true });
 expect(oneOpenSidePath !== null && oneOpenSidePath.length === 3,
-  'requires at least one open side cell before taking a diagonal');
+  'keeps an orthogonal route available when only one side cell is open');
 
 let invalidDimensionsRejected = false;
 try { new AStarGrid2D(0, 1); } catch (_error) { invalidDimensionsRejected = true; }
