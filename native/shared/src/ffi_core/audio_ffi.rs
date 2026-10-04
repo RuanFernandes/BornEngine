@@ -38,7 +38,9 @@ macro_rules! __bloom_ffi_audio_ffi {
         #[no_mangle]
         pub extern "C" fn bloom_unload_sound(handle: f64) {
             $crate::ffi::guard("bloom_unload_sound", move || {
-                engine().audio.unload_sound(handle);
+                let mut eng = engine();
+                eng.asset_hot_reload.unregister($crate::asset_hot_reload::FileAssetKind::Sound, handle);
+                eng.audio.unload_sound(handle);
         })
         }
 
@@ -70,7 +72,9 @@ macro_rules! __bloom_ffi_audio_ffi {
         #[no_mangle]
         pub extern "C" fn bloom_unload_music(handle: f64) {
             $crate::ffi::guard("bloom_unload_music", move || {
-                engine().audio.unload_music(handle);
+                let mut eng = engine();
+                eng.asset_hot_reload.unregister($crate::asset_hot_reload::FileAssetKind::Music, handle);
+                eng.audio.unload_music(handle);
         })
         }
 

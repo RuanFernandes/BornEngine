@@ -73,6 +73,49 @@ struct MusicEntry {
     looping: bool,
 }
 
+fn music_source_from_bytes(path: &str, data: Vec<u8>) -> Option<MusicSource> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let lower = path.to_ascii_lowercase();
+        let kind = if lower.ends_with(".ogg") {
+            Some(stream::StreamKind::Ogg)
+        } else {
+            #[cfg(feature = "mp3")]
+            if lower.ends_with(".mp3") {
+                Some(stream::StreamKind::Mp3)
+            } else {
+                None
+            }
+            #[cfg(not(feature = "mp3"))]
+            None
+        };
+        if let Some(kind) = kind {
+            if let Some((_rate, channels)) = stream::probe(kind, &data) {
+                return Some(MusicSource::Streamed {
+                    kind,
+                    bytes: Arc::new(data),
+                    channels,
+                });
+            }
+            // Mislabelled/invalid compressed data falls through to decode.
+        }
+    }
+    decode_audio(path, &data).map(|decoded| MusicSource::Full(Arc::new(decoded)))
+}
+
+fn music_payload(source: &MusicSource, looping: bool) -> render::MusicPayload {
+    #[cfg(target_arch = "wasm32")]
+    let _ = looping;
+    match source {
+        MusicSource::Full(data) => render::MusicPayload::Full(data.clone()),
+        #[cfg(not(target_arch = "wasm32"))]
+        MusicSource::Streamed { kind, bytes, channels } => render::MusicPayload::Stream {
+            consumer: stream::start(*kind, bytes.clone(), looping),
+            channels: *channels,
+        },
+    }
+}
+
 /// Control half of the audio system. All methods are main-thread.
 pub struct AudioMixer {
     pub sounds: HandleRegistry<Arc<SoundData>>,
@@ -144,6 +187,15 @@ impl AudioMixer {
 
     pub fn load_sound(&mut self, data: SoundData) -> f64 {
         self.sounds.alloc(Arc::new(data))
+    }
+
+    /// Replace decoded samples while keeping this sound's generational
+    /// handle stable. One-shots already in progress keep their Arc and finish
+    /// naturally; later plays use the replacement samples.
+    pub fn reload_sound(&mut self, handle: f64, data: SoundData) -> bool {
+        let Some(current) = self.sounds.get_mut(handle) else { return false };
+        *current = Arc::new(data);
+        true
     }
 
     /// Shared play path. Returns the new voice's id (0.0 = unknown sound).
@@ -330,36 +382,44 @@ impl AudioMixer {
     /// WAV — and everything on wasm32, which has no threads — falls back
     /// to full decode. Returns 0 on undecodable data.
     pub fn load_music_bytes(&mut self, path: &str, data: Vec<u8>) -> f64 {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let lower = path.to_ascii_lowercase();
-            let kind = if lower.ends_with(".ogg") {
-                Some(stream::StreamKind::Ogg)
-            } else {
-                #[cfg(feature = "mp3")]
-                if lower.ends_with(".mp3") {
-                    Some(stream::StreamKind::Mp3)
-                } else {
-                    None
-                }
-                #[cfg(not(feature = "mp3"))]
-                None
-            };
-            if let Some(kind) = kind {
-                if let Some((_rate, channels)) = stream::probe(kind, &data) {
-                    return self.alloc_music(MusicSource::Streamed {
-                        kind,
-                        bytes: Arc::new(data),
-                        channels,
-                    });
-                }
-                // Mislabelled file — fall through to sniffing decode.
-            }
-        }
-        match decode_audio(path, &data) {
-            Some(s) => self.load_music(s),
+        match music_source_from_bytes(path, data) {
+            Some(source) => self.alloc_music(source),
             None => 0.0,
         }
+    }
+
+    /// Reload a music source while preserving its public handle. A playing
+    /// track restarts from zero using the same volume and looping settings.
+    pub fn reload_music_bytes(&mut self, handle: f64, path: &str, data: Vec<u8>) -> bool {
+        let Some(source) = music_source_from_bytes(path, data) else { return false };
+        self.replace_music_source(handle, source)
+    }
+
+    /// Replace music with already decoded PCM, preserving the existing handle.
+    pub fn reload_music(&mut self, handle: f64, data: SoundData) -> bool {
+        self.replace_music_source(handle, MusicSource::Full(Arc::new(data)))
+    }
+
+    fn replace_music_source(&mut self, handle: f64, source: MusicSource) -> bool {
+        let playback = {
+            let Some(entry) = self.music.get_mut(handle) else { return false };
+            entry.source = source;
+            if entry.shared.playing.load(Ordering::Relaxed) {
+                Some((
+                    handle.to_bits(),
+                    music_payload(&entry.source, entry.looping),
+                    entry.shared.clone(),
+                    entry.volume,
+                    entry.looping,
+                ))
+            } else {
+                None
+            }
+        };
+        if let Some((music_id, payload, shared, volume, looping)) = playback {
+            self.send(Cmd::PlayMusic { music_id, payload, shared, volume, looping });
+        }
+        true
     }
 
     fn alloc_music(&mut self, source: MusicSource) -> f64 {
@@ -380,14 +440,7 @@ impl AudioMixer {
         // moment play_music returns (the render thread confirms on its
         // next callback).
         m.shared.playing.store(true, Ordering::Relaxed);
-        let payload = match &m.source {
-            MusicSource::Full(data) => render::MusicPayload::Full(data.clone()),
-            #[cfg(not(target_arch = "wasm32"))]
-            MusicSource::Streamed { kind, bytes, channels } => render::MusicPayload::Stream {
-                consumer: stream::start(*kind, bytes.clone(), m.looping),
-                channels: *channels,
-            },
-        };
+        let payload = music_payload(&m.source, m.looping);
         let cmd = Cmd::PlayMusic {
             music_id: handle.to_bits(),
             payload,
@@ -492,6 +545,32 @@ mod tests {
         assert_ne!(old, new);
         audio.play_music(old);
         assert!(!audio.is_music_playing(old));
+    }
+
+    #[test]
+    fn reloading_sound_keeps_handle_and_existing_playback_data_alive() {
+        let mut audio = AudioMixer::new();
+        let handle = audio.load_sound(tone(64));
+        let playing_data = audio.sounds.get(handle).unwrap().clone();
+
+        assert!(audio.reload_sound(handle, tone(128)));
+        let current_data = audio.sounds.get(handle).unwrap();
+        assert_eq!(current_data.samples.len(), 128);
+        assert!(!Arc::ptr_eq(&playing_data, current_data));
+        assert_eq!(audio.sounds.get(handle).unwrap().samples.len(), 128);
+    }
+
+    #[test]
+    fn reloading_playing_music_preserves_the_resource_handle_and_play_state() {
+        let mut audio = AudioMixer::new();
+        let handle = audio.load_music(tone(64));
+        audio.play_music(handle);
+        let shared = audio.music.get(handle).unwrap().shared.clone();
+
+        assert!(audio.reload_music(handle, tone(128)));
+        assert_eq!(audio.music.get(handle).unwrap().shared.playing.load(Ordering::Relaxed), true);
+        assert!(Arc::ptr_eq(&shared, &audio.music.get(handle).unwrap().shared));
+        assert!(audio.is_music_playing(handle));
     }
 
     #[test]

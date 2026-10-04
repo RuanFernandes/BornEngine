@@ -25,6 +25,9 @@ pub struct EngineState {
     pub ui: crate::ui::UiSystem,
     pub audio: AudioMixer,
     pub textures: TextureManager,
+    /// Native file-backed textures and audio handles that can be refreshed
+    /// in place when their source files change during development.
+    pub asset_hot_reload: crate::asset_hot_reload::FileAssetHotReload,
     #[cfg(feature = "models3d")]
     pub models: ModelManager,
     pub scene: SceneGraph,
@@ -103,6 +106,7 @@ impl EngineState {
             ui,
             audio: AudioMixer::new(),
             textures: TextureManager::new(),
+            asset_hot_reload: crate::asset_hot_reload::FileAssetHotReload::new(),
             #[cfg(feature = "models3d")]
             models: ModelManager::new(),
             scene,
@@ -179,8 +183,39 @@ impl EngineState {
         self.input.begin_frame();
         self.ui.begin_frame();
         self.ui.set_input_snapshot(self.input.ui_snapshot());
+        self.poll_file_asset_hot_reload();
         self.renderer.begin_frame();
         self.frame_count += 1;
+    }
+
+    fn poll_file_asset_hot_reload(&mut self) {
+        let changed = self.asset_hot_reload.drain_pending();
+        for asset in changed {
+            let data = match std::fs::read(&asset.path) {
+                Ok(data) => data,
+                Err(error) => {
+                    eprintln!("[asset_hot_reload] read {:?} failed: {error}", asset.path);
+                    continue;
+                }
+            };
+            let reloaded = match asset.kind {
+                crate::asset_hot_reload::FileAssetKind::Texture => self.textures
+                    .reload_texture_from_file(&mut self.renderer, asset.handle, &data),
+                crate::asset_hot_reload::FileAssetKind::Sound => {
+                    match crate::audio::decode_audio(&asset.path.to_string_lossy(), &data) {
+                        Some(decoded) => self.audio.reload_sound(asset.handle, decoded),
+                        None => false,
+                    }
+                }
+                crate::asset_hot_reload::FileAssetKind::Music => self.audio
+                    .reload_music_bytes(asset.handle, &asset.path.to_string_lossy(), data),
+            };
+            if reloaded {
+                eprintln!("[asset_hot_reload] reloaded {:?} (handle {})", asset.path, asset.handle);
+            } else {
+                eprintln!("[asset_hot_reload] reload failed for {:?} (handle {}) — keeping the previous resource", asset.path, asset.handle);
+            }
+        }
     }
 
     /// Start profiling and snapshot the callbacks for the current frame. The

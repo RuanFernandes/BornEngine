@@ -29,6 +29,29 @@ pub struct TextureManager {
     pub render_textures: HandleRegistry<RenderTextureData>,
 }
 
+#[cfg(test)]
+mod hot_reload_tests {
+    use super::*;
+
+    fn png(width: u32, height: u32) -> Vec<u8> {
+        let image = image::RgbaImage::from_pixel(width, height, image::Rgba([40, 80, 120, 255]));
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image).write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+        bytes.into_inner()
+    }
+
+    #[test]
+    fn texture_hot_reload_decodes_matching_dimensions_and_rejects_resizing() {
+        let same_size = png(2, 3);
+        let (pixels, width, height) = decode_texture_reload(&same_size, 2, 3).unwrap();
+        assert_eq!((width, height), (2, 3));
+        assert_eq!(pixels.len(), 2 * 3 * 4);
+
+        assert!(decode_texture_reload(&png(4, 3), 2, 3).is_none());
+        assert!(decode_texture_reload(b"not an image", 2, 3).is_none());
+    }
+}
+
 impl Default for TextureManager {
     fn default() -> Self {
         Self::new()
@@ -104,6 +127,27 @@ impl TextureManager {
 
         let bind_group_idx = renderer.register_texture(width, height, &data);
         self.textures.alloc(TextureData { bind_group_idx, width, height })
+    }
+
+    /// Replace the pixels behind a file-backed texture without changing its
+    /// public handle or GPU texture index. Reloads that resize the image are
+    /// rejected because Texture wrappers cache their original dimensions.
+    pub fn reload_texture_from_file(&mut self, renderer: &mut Renderer, handle: f64, file_data: &[u8]) -> bool {
+        let Some(current) = self.textures.get(handle) else { return false };
+        let (bind_group_idx, width, height) = (current.bind_group_idx, current.width, current.height);
+        let Some((pixels, new_width, new_height)) = decode_texture_reload(file_data, width, height) else {
+            return false;
+        };
+        if !renderer.replace_texture(bind_group_idx, new_width, new_height, &pixels) {
+            return false;
+        }
+        if let Some(current) = self.textures.get_mut(handle) {
+            current.width = new_width;
+            current.height = new_height;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn unload_texture(&mut self, handle: f64, renderer: &mut Renderer) {
@@ -202,4 +246,11 @@ impl TextureManager {
             0.0
         }
     }
+}
+
+fn decode_texture_reload(file_data: &[u8], expected_width: u32, expected_height: u32) -> Option<(Vec<u8>, u32, u32)> {
+    let image = image::load_from_memory(file_data).ok()?.to_rgba8();
+    let (width, height) = (image.width(), image.height());
+    if width != expected_width || height != expected_height { return None; }
+    Some((image.into_raw(), width, height))
 }
