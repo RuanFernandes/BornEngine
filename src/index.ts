@@ -124,6 +124,8 @@ export { TouchControls, VirtualJoystick, VirtualButton } from './mobile';
 export type { VirtualJoystickOptions, VirtualButtonOptions } from './mobile';
 export { ParticleSystem, DecalSystem, SceneVfx } from './vfx';
 export type { ParticleConfig, ParticleEmitOptions, DecalStyle } from './vfx';
+export { SeededRandom, Noise2D } from './procedural';
+export type { FractalNoiseOptions } from './procedural';
 export { Ui, UiBackend, UiOpcode } from './ui';
 export { DebugUi } from './debug-ui';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui';
