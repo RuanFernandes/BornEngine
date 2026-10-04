@@ -17,6 +17,66 @@ impl Renderer {
         self.register_texture_kind(width, height, data, false)
     }
 
+    /// Replace the GPU resource behind a stable bind-group index. Scene
+    /// materials and immediate draws can keep their existing texture refs.
+    pub fn replace_texture(&mut self, index: u32, width: u32, height: u32, data: &[u8]) -> bool {
+        let slot = index as usize;
+        if !self.can_replace_texture_slot(slot) {
+            return false;
+        }
+        let replacement = self.register_texture(width, height, data);
+        self.replace_texture_slot(index, replacement)
+    }
+
+    /// Replace a cooked DDS resource in its stable slot when the active
+    /// adapter supports its compressed format.
+    #[cfg(feature = "image-extras")]
+    pub fn replace_texture_dds(&mut self, index: u32, dds: &image_dds::ddsfile::Dds) -> bool {
+        if !self.can_replace_texture_slot(index as usize) {
+            return false;
+        }
+        let Some(replacement) = self.register_texture_dds(dds) else {
+            return false;
+        };
+        self.replace_texture_slot(index, replacement)
+    }
+
+    fn can_replace_texture_slot(&self, slot: usize) -> bool {
+        slot != 0 && slot < self.texture_bind_groups.len() && slot < self.textures.len()
+    }
+
+    fn replace_texture_slot(&mut self, index: u32, replacement: u32) -> bool {
+        let slot = index as usize;
+        if !self.can_replace_texture_slot(slot) {
+            return false;
+        }
+        let Some(nearest) = texture_filter_for_replacement(&self.texture_filter_nearest, slot) else {
+            return false;
+        };
+        let replacement = replacement as usize;
+        if replacement == slot || replacement >= self.texture_bind_groups.len() || replacement >= self.textures.len() {
+            return false;
+        }
+        self.textures.swap(slot, replacement);
+        self.texture_bind_groups.swap(slot, replacement);
+        self.texture_sizes.swap(slot, replacement);
+        // register_texture created the temporary slot with the linear
+        // sampler, so restore the original slot's sampler after swapping.
+        self.set_texture_filter(index, nearest);
+        self.refresh_egui_texture_index(index);
+        #[cfg(feature = "debug-ui")]
+        self.refresh_dear_imgui_texture_index(index);
+
+        // The old texture now lives in the temporary tail slot. Drop that
+        // temporary slot instead of growing the renderer's texture table on
+        // every save; no handle or scene material could have referenced it.
+        self.textures.pop();
+        self.texture_bind_groups.pop();
+        self.texture_sizes.pop();
+        self.texture_filter_nearest.pop();
+        true
+    }
+
     /// Single-mip texture for dynamically updated atlases.
     pub fn register_texture_no_mips(&mut self, width: u32, height: u32, data: &[u8]) -> u32 {
         let texture = self.device.create_texture_with_data(
@@ -44,6 +104,7 @@ impl Renderer {
         self.texture_bind_groups.push(bind_group);
         self.textures.push(texture);
         self.texture_sizes.push((width, height));
+        self.texture_filter_nearest.push(false);
         idx
     }
 
@@ -265,6 +326,7 @@ impl Renderer {
         self.texture_bind_groups.push(bind_group);
         self.textures.push(texture);
         self.texture_sizes.push((width, height));
+        self.texture_filter_nearest.push(false);
         idx
     }
 
@@ -331,6 +393,7 @@ impl Renderer {
         self.textures[i] = white;
         self.texture_bind_groups[i] = bind_group;
         self.texture_sizes[i] = (0, 0);
+        self.texture_filter_nearest[i] = false;
         #[cfg(feature = "debug-ui")]
         self.refresh_dear_imgui_texture_index(idx);
     }
@@ -347,6 +410,7 @@ impl Renderer {
     pub fn set_texture_filter(&mut self, idx: u32, nearest: bool) {
         let i = idx as usize;
         if i >= self.textures.len() { return; }
+        self.texture_filter_nearest[i] = nearest;
         let view = self.textures[i].create_view(&wgpu::TextureViewDescriptor::default());
         let chosen_sampler = if nearest { &self.nearest_sampler } else { &self.sampler };
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -387,12 +451,30 @@ impl Renderer {
         self.texture_bind_groups.push(bind_group);
         self.textures.push(texture);
         self.texture_sizes.push((width, height));
+        self.texture_filter_nearest.push(false);
         (idx, tex_idx)
     }
 
     /// Q1: Get a reference to an internal texture by index.
     pub fn get_texture_ref(&self, index: usize) -> Option<&wgpu::Texture> {
         self.textures.get(index)
+    }
+}
+
+fn texture_filter_for_replacement(filters: &[bool], slot: usize) -> Option<bool> {
+    filters.get(slot).copied()
+}
+
+#[cfg(test)]
+mod texture_filter_reload_tests {
+    use super::texture_filter_for_replacement;
+
+    #[test]
+    fn replacing_a_nearest_filtered_texture_keeps_nearest_on_its_stable_slot() {
+        let filters = [false, true];
+
+        assert_eq!(texture_filter_for_replacement(&filters, 1), Some(true));
+        assert_eq!(texture_filter_for_replacement(&filters, 2), None);
     }
 }
 
@@ -473,6 +555,7 @@ impl Renderer {
         self.texture_bind_groups.push(bind_group);
         self.textures.push(texture);
         self.texture_sizes.push((width, height));
+        self.texture_filter_nearest.push(false);
         Some(idx)
     }
 }

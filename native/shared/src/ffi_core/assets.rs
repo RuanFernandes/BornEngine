@@ -63,7 +63,16 @@ macro_rules! __bloom_ffi_assets {
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
                     Ok(data) => match $crate::audio::decode_audio(path, &data) {
-                        Some(s) => engine().audio.load_sound(s),
+                        Some(s) => {
+                            let mut eng = engine();
+                            let handle = eng.audio.load_sound(s);
+                            eng.asset_hot_reload.register(
+                                $crate::asset_hot_reload::FileAssetKind::Sound,
+                                handle,
+                                std::path::PathBuf::from(path),
+                            );
+                            handle
+                        },
                         None => 0.0,
                     },
                     Err(_) => 0.0,
@@ -84,8 +93,14 @@ macro_rules! __bloom_ffi_assets {
                 match std::fs::read(path) {
                     Ok(data) => {
                         let mut eng = engine();
-                        let $crate::engine::EngineState { ref mut textures, ref mut renderer, .. } = *eng;
-                        textures.load_texture(renderer, &data)
+                        let $crate::engine::EngineState { ref mut textures, ref mut renderer, ref mut asset_hot_reload, .. } = *eng;
+                        let handle = textures.load_texture(renderer, &data);
+                        asset_hot_reload.register(
+                            $crate::asset_hot_reload::FileAssetKind::Texture,
+                            handle,
+                            std::path::PathBuf::from(path),
+                        );
+                        handle
                     }
                     Err(_) => 0.0,
                 }
@@ -97,7 +112,8 @@ macro_rules! __bloom_ffi_assets {
         pub extern "C" fn bloom_unload_texture(handle: f64) {
             $crate::ffi::guard("bloom_unload_texture", move || {
                 let mut eng = engine();
-                let $crate::engine::EngineState { ref mut textures, ref mut renderer, .. } = *eng;
+                let $crate::engine::EngineState { ref mut textures, ref mut renderer, ref mut asset_hot_reload, .. } = *eng;
+                asset_hot_reload.unregister($crate::asset_hot_reload::FileAssetKind::Texture, handle);
                 textures.unload_texture(handle, renderer);
         })
         }
@@ -214,7 +230,16 @@ macro_rules! __bloom_ffi_assets {
                 match std::fs::read(path) {
                     // Streams OGG/MP3 from the compressed bytes (background
                     // decode worker); WAV and wasm32 fully decode.
-                    Ok(data) => engine().audio.load_music_bytes(path, data),
+                    Ok(data) => {
+                        let mut eng = engine();
+                        let handle = eng.audio.load_music_bytes(path, data);
+                        eng.asset_hot_reload.register(
+                            $crate::asset_hot_reload::FileAssetKind::Music,
+                            handle,
+                            std::path::PathBuf::from(path),
+                        );
+                        handle
+                    },
                     Err(_) => 0.0,
                 }
         })
@@ -377,7 +402,7 @@ macro_rules! __bloom_ffi_assets {
                 let path = unsafe { $crate::string_header::str_from_header(path_ptr) };
                 let path: &str = &bloom_resolve_asset_path(&path);
                 match std::fs::read(path) {
-                    Ok(data) => $crate::staging::decode_and_stage_texture(&data),
+                    Ok(data) => $crate::staging::decode_and_stage_texture_from_path(&data, path),
                     Err(_) => 0.0,
                 }
         })
@@ -395,7 +420,7 @@ macro_rules! __bloom_ffi_assets {
                 let path: &str = &bloom_resolve_asset_path(&path);
                 let data = match std::fs::read(path) { Ok(d) => d, Err(_) => return 0.0 };
                 match $crate::audio::decode_audio(path, &data) {
-                    Some(s) => $crate::staging::stage_sound(s),
+                    Some(s) => $crate::staging::stage_sound_from_path(s, path),
                     None => 0.0,
                 }
         })
@@ -409,11 +434,20 @@ macro_rules! __bloom_ffi_assets {
                     Some(s) => s,
                     None => return 0.0,
                 };
+                let source_path = staged.source_path.clone();
                 let mut eng = engine();
                 let bind_group_idx = eng.renderer.register_texture(staged.width, staged.height, &staged.data);
-                eng.textures.textures.alloc($crate::textures::TextureData {
+                let handle = eng.textures.textures.alloc($crate::textures::TextureData {
                     bind_group_idx, width: staged.width, height: staged.height,
-                })
+                });
+                if let Some(path) = source_path {
+                    eng.asset_hot_reload.register(
+                        $crate::asset_hot_reload::FileAssetKind::Texture,
+                        handle,
+                        path,
+                    );
+                }
+                handle
         })
         }
 
@@ -421,10 +455,17 @@ macro_rules! __bloom_ffi_assets {
         #[no_mangle]
         pub extern "C" fn bloom_commit_sound(staging_handle: f64) -> f64 {
             $crate::ffi::guard("bloom_commit_sound", move || {
-                match $crate::staging::take_sound(staging_handle) {
-                    Some(sd) => engine().audio.load_sound(sd),
-                    None => 0.0,
+                let Some(staged) = $crate::staging::take_sound(staging_handle) else { return 0.0 };
+                let mut eng = engine();
+                let handle = eng.audio.load_sound(staged.data);
+                if let Some(path) = staged.source_path {
+                    eng.asset_hot_reload.register(
+                        $crate::asset_hot_reload::FileAssetKind::Sound,
+                        handle,
+                        path,
+                    );
                 }
+                handle
         })
         }
 
@@ -432,10 +473,17 @@ macro_rules! __bloom_ffi_assets {
         #[no_mangle]
         pub extern "C" fn bloom_commit_music(staging_handle: f64) -> f64 {
             $crate::ffi::guard("bloom_commit_music", move || {
-                match $crate::staging::take_sound(staging_handle) {
-                    Some(sd) => engine().audio.load_music(sd),
-                    None => 0.0,
+                let Some(staged) = $crate::staging::take_sound(staging_handle) else { return 0.0 };
+                let mut eng = engine();
+                let handle = eng.audio.load_music(staged.data);
+                if let Some(path) = staged.source_path {
+                    eng.asset_hot_reload.register(
+                        $crate::asset_hot_reload::FileAssetKind::Music,
+                        handle,
+                        path,
+                    );
                 }
+                handle
         })
         }
 

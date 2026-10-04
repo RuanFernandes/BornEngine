@@ -1599,7 +1599,7 @@ pub fn bloom_commit_model(staging_handle: f64) -> f64 {
 #[wasm_bindgen]
 pub fn bloom_commit_sound(staging_handle: f64) -> f64 {
     match bloom_shared::staging::take_sound(staging_handle) {
-        Some(sd) => engine().audio.load_sound(sd),
+        Some(staged) => engine().audio.load_sound(staged.data),
         None => 0.0,
     }
 }
@@ -1607,7 +1607,7 @@ pub fn bloom_commit_sound(staging_handle: f64) -> f64 {
 #[wasm_bindgen]
 pub fn bloom_commit_music(staging_handle: f64) -> f64 {
     match bloom_shared::staging::take_sound(staging_handle) {
-        Some(sd) => engine().audio.load_music(sd),
+        Some(staged) => engine().audio.load_music(staged.data),
         None => 0.0,
     }
 }

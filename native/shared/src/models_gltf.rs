@@ -831,6 +831,7 @@ pub fn load_gltf_staged(data: &[u8]) -> Option<crate::staging::StagedModel> {
                                 width: w,
                                 height: h,
                                 is_normal: normal_image_set.contains(&image_idx),
+                                source_path: None,
                             });
                             // 1-based index into staged_textures
                             texture_indices.push(staged_textures.len() as u32);

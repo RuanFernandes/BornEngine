@@ -10,6 +10,7 @@ pub mod renderer;
 pub mod text_renderer;
 pub mod audio;
 pub mod textures;
+pub mod asset_hot_reload;
 // Not gated on models3d: the mixer is pure per-instance state embedded in
 // ModelAnimation (always compiled); only the gltf/image_dds LOADERS are
 // behind the feature, in models_gltf.rs (EN-063).

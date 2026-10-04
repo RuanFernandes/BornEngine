@@ -12,6 +12,16 @@ pub struct StagedTexture {
     /// flattens the shading. Set by `load_gltf_staged` from the material's
     /// `normal_texture` references, mirroring `load_gltf_with_textures`.
     pub is_normal: bool,
+    /// Present only for textures loaded from an external file; model
+    /// textures decoded out of GLB memory are intentionally not watched.
+    pub source_path: Option<std::path::PathBuf>,
+}
+
+pub struct StagedSound {
+    pub data: SoundData,
+    /// Original path lets the commit step register the live handle with the
+    /// native file watcher after background decoding finishes.
+    pub source_path: Option<std::path::PathBuf>,
 }
 
 #[cfg(feature = "models3d")]
@@ -34,8 +44,8 @@ fn model_store() -> &'static Mutex<Vec<Option<StagedModel>>> {
     INSTANCE.get_or_init(|| Mutex::new(Vec::new()))
 }
 
-fn sound_store() -> &'static Mutex<Vec<Option<SoundData>>> {
-    static INSTANCE: OnceLock<Mutex<Vec<Option<SoundData>>>> = OnceLock::new();
+fn sound_store() -> &'static Mutex<Vec<Option<StagedSound>>> {
+    static INSTANCE: OnceLock<Mutex<Vec<Option<StagedSound>>>> = OnceLock::new();
     INSTANCE.get_or_init(|| Mutex::new(Vec::new()))
 }
 
@@ -72,7 +82,24 @@ pub fn decode_and_stage_texture(file_data: &[u8]) -> f64 {
     let height = img.height();
     // Standalone staged textures are albedo-class; nothing routes a normal
     // map through this path (models carry theirs inside StagedModel).
-    stage_texture(StagedTexture { data: img.into_raw(), width, height, is_normal: false })
+    stage_texture(StagedTexture {
+        data: img.into_raw(), width, height, is_normal: false, source_path: None,
+    })
+}
+
+/// Decode and stage an external texture while retaining the file path for
+/// the later native commit operation.
+pub fn decode_and_stage_texture_from_path(file_data: &[u8], path: &str) -> f64 {
+    let img = match image::load_from_memory(file_data) {
+        Ok(img) => img.to_rgba8(),
+        Err(_) => return 0.0,
+    };
+    let width = img.width();
+    let height = img.height();
+    stage_texture(StagedTexture {
+        data: img.into_raw(), width, height, is_normal: false,
+        source_path: Some(std::path::PathBuf::from(path)),
+    })
 }
 
 pub fn stage_texture(tex: StagedTexture) -> f64 {
@@ -94,9 +121,15 @@ pub fn take_model(handle: f64) -> Option<StagedModel> {
 }
 
 pub fn stage_sound(sound: SoundData) -> f64 {
-    stage_into(sound_store(), sound)
+    stage_into(sound_store(), StagedSound { data: sound, source_path: None })
 }
 
-pub fn take_sound(handle: f64) -> Option<SoundData> {
+pub fn stage_sound_from_path(sound: SoundData, path: &str) -> f64 {
+    stage_into(sound_store(), StagedSound {
+        data: sound, source_path: Some(std::path::PathBuf::from(path)),
+    })
+}
+
+pub fn take_sound(handle: f64) -> Option<StagedSound> {
     take_from(sound_store(), handle)
 }

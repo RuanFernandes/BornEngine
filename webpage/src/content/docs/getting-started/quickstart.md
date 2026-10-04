@@ -23,7 +23,7 @@ bornengine run main.ts
 For repeatable scripts or CI, use `new`:
 
 ```sh
-bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.14.0
+bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.15.0
 bornengine build main.ts --name my-game --os linux
 ```
 

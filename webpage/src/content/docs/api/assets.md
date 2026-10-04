@@ -52,6 +52,14 @@ Use `getTexture(path)` or `getModel(path)` to inspect a cache without loading. `
 
 If a path is empty, a manager is disposed, or its Game has shut down, path-based factories return `null`. When an embedded Game is not ready, texture loading returns an uncached readiness-error Texture so the host can retry after attaching its surface.
 
+## File-backed hot reload
+
+Native builds with the `hot-reload` feature watch successfully loaded file-backed textures, sounds, and music. The watcher waits for about 120 ms of quiet after a filesystem change, then reloads the resource on the engine thread while keeping its handle stable. The default native Cargo feature set enables this; set `BLOOM_NO_HOT_RELOAD=1` to disable the watcher for a process.
+
+Texture reload updates the existing texture, so objects holding it do not need to be recreated. The replacement image must keep the original width and height; a decode error or size change leaves the previous texture available. Its sampling filter is retained.
+
+Sound data is replaced for subsequent playback; voices that are already playing finish with the samples they started with. Reloading music that is playing starts it again from the beginning and preserves its volume and loop setting. These file watchers are native-only: Web/WASM builds and builds without `hot-reload` do not reload file-backed assets.
+
 ## Ownership and shutdown
 
 Every resource created by a manager belongs to that manager even when it is not path-cached, including generated meshes, materials, animation controllers, image data, textures made from image data, and render targets. `scene.assets.dispose()` runs automatically when its Scene unloads. `game.assets.dispose()` runs during `Game.dispose()`. A manually disposed resource is removed from the live resource count and can be loaded again through the manager.

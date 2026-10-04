@@ -82,6 +82,8 @@ export type {
   Camera2DSnapshot, CameraRig2DOptions, CameraShake2DOptions, ParallaxLayer2DOptions,
   Viewport2DOptions, ViewportScalingMode2D, ViewportTransform2D,
 } from './camera2d';
+export { AStarGrid2D, ASTAR_GRID_2D_MAX_CELLS } from './pathfinding2d';
+export type { AStarGrid2DOptions, GridPoint2D } from './pathfinding2d';
 export {
   PhysicsWorld, Collider, BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
   ConvexHullCollider, MeshCollider, HeightfieldCollider, CompoundCollider, ScaledCollider,
@@ -122,6 +124,8 @@ export { TouchControls, VirtualJoystick, VirtualButton } from './mobile';
 export type { VirtualJoystickOptions, VirtualButtonOptions } from './mobile';
 export { ParticleSystem, DecalSystem, SceneVfx } from './vfx';
 export type { ParticleConfig, ParticleEmitOptions, DecalStyle } from './vfx';
+export { SeededRandom, Noise2D } from './procedural';
+export type { FractalNoiseOptions } from './procedural';
 export { Ui, UiBackend, UiOpcode } from './ui';
 export { DebugUi } from './debug-ui';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui';

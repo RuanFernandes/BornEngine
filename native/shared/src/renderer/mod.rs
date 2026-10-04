@@ -357,6 +357,7 @@ pub struct Renderer {
     texture_bind_groups: Vec<wgpu::BindGroup>,
     textures: Vec<wgpu::Texture>,
     texture_sizes: Vec<(u32, u32)>,
+    texture_filter_nearest: Vec<bool>,
     pub sampler: wgpu::Sampler,
     pub nearest_sampler: wgpu::Sampler,
 
@@ -1960,9 +1961,11 @@ impl Renderer {
         let mut texture_bind_groups = Vec::new();
         let mut textures = Vec::new();
         let mut texture_sizes = Vec::new();
+        let mut texture_filter_nearest = Vec::new();
         texture_bind_groups.push(white_bind_group);
         textures.push(white_texture);
         texture_sizes.push((1, 1));
+        texture_filter_nearest.push(false);
 
         // --- Depth texture ---
         let (depth_texture, depth_view) = create_depth_texture(&device, surface_config.width, surface_config.height);
@@ -6413,6 +6416,7 @@ impl Renderer {
             texture_bind_groups,
             textures,
             texture_sizes,
+            texture_filter_nearest,
             sampler,
             nearest_sampler,
             depth_texture,
