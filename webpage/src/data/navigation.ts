@@ -64,6 +64,8 @@ export const navigation: NavigationGroup[] = [
       { title: 'Colyseus', href: '/docs/api/colyseus/' },
       { title: 'Models', href: '/docs/api/models/' },
       { title: 'Math', href: '/docs/api/math/' },
+      { title: '2D pathfinding', href: '/docs/api/pathfinding2d/' },
+      { title: 'Procedural generation', href: '/docs/api/procedural/' },
       { title: 'Scene', href: '/docs/api/scene/' },
       { title: 'Physics', href: '/docs/api/physics/' },
       { title: 'VFX', href: '/docs/api/vfx/' },

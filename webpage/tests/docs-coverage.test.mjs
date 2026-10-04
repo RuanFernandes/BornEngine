@@ -4,9 +4,9 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 23);
+  assert.equal(apiCoverage.length, 25);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
-    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'storage', 'sprites', 'scripting', 'text', 'audio', 'colyseus', 'models', 'math',
+    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'storage', 'sprites', 'scripting', 'text', 'audio', 'colyseus', 'models', 'math', 'pathfinding2d', 'procedural',
     'scene', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
@@ -67,6 +67,25 @@ test('gameplay systems API pages contain their required sections and examples', 
     for (const section of item.sections) {
       assert.match(source, new RegExp(`^##\\s+${section.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\s*$`, 'm'));
     }
+  }
+});
+
+test('pathfinding and procedural API pages contain their required sections and examples', async () => {
+  for (const item of apiCoverage.filter((entry) => ['pathfinding2d', 'procedural'].includes(entry.slug))) {
+    const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
+    const fences = source.match(/^\x60{3}(?:ts|typescript)(?:\s|$)/gm) ?? [];
+    assert.ok(fences.length >= 2, `${item.file} needs at least two TypeScript examples`);
+    for (const section of item.sections) {
+      assert.match(source, new RegExp(`^##\\s+${section.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\s*$`, 'm'));
+    }
+  }
+});
+
+test('asset hot reload docs explain scope and native runtime behavior', async () => {
+  const item = apiCoverage.find((entry) => entry.slug === 'assets');
+  const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
+  for (const detail of ['hot-reload', 'BLOOM_NO_HOT_RELOAD=1', '120 ms', 'Web/WASM', 'preserves its volume and loop setting']) {
+    assert.ok(source.includes(detail), `api/assets.md needs ${detail}`);
   }
 });
 

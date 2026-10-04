@@ -27,3 +27,15 @@ bornengine clean
 `clean` removes only files recorded in the CLI manifest, including generated build output. It does not delete source files, dependencies, or unrelated untracked files. If a dependency install failed, the generated source remains so you can retry with the selected package manager.
 
 Use the repeatable `-v` / `--verbose` flag when the first diagnostic is not enough context.
+
+## Check package compatibility
+
+`bornengine check` delegates compatibility analysis to the installed Perry compiler. Add `--check-deps` to scan installed packages used by the entry file, or add `--deep-deps` to scan the full installed dependency tree. Deep scanning requires `--check-deps`.
+
+```sh
+bornengine check main.ts --check-deps
+bornengine check main.ts --check-deps --deep-deps --all
+bornengine check main.ts --check-deps --strict
+```
+
+`--all` includes every Perry finding, including hints. `--strict` treats Perry warnings as errors. The CLI streams Perry's diagnostics and returns its exit status. A successful scan only describes what Perry can analyze statically; it does not guarantee runtime behavior on every platform or code path.

@@ -48,7 +48,7 @@ export const apiCoverage = [
     slug: 'assets',
     file: 'api/assets.md',
     href: '/docs/api/assets/',
-    sections: ['Game-owned cache', 'Texture cache operations', 'Ownership and shutdown'],
+    sections: ['Game-owned cache', 'Texture cache operations', 'File-backed hot reload', 'Ownership and shutdown'],
   },
   {
     slug: 'storage',
@@ -97,6 +97,18 @@ export const apiCoverage = [
     file: 'api/math.md',
     href: '/docs/api/math/',
     sections: ['Vectors', 'Transforms', 'Intersections'],
+  },
+  {
+    slug: 'pathfinding2d',
+    file: 'api/pathfinding2d.md',
+    href: '/docs/api/pathfinding2d/',
+    sections: ['Create a grid', 'Find a route', 'Diagonal movement and limits'],
+  },
+  {
+    slug: 'procedural',
+    file: 'api/procedural.md',
+    href: '/docs/api/procedural/',
+    sections: ['Seeded random values', 'Smooth noise'],
   },
   {
     slug: 'scene',

@@ -58,6 +58,8 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | Audio | `@bornengine/engine/audio` | `AudioSystem`, `Sound`, `Music`, `SoundManager`, `AudioListener2D`, `AudioEmitter2D` |
 | Data | `@bornengine/engine/storage` | `GameDatabase`, typed SQLite schema, queries, transactions, and migrations |
 | Models | `@bornengine/engine/models` | `Model`, `Mesh`, `Material`, `Animation` |
+| 2D pathfinding | `@bornengine/engine/pathfinding2d` | `AStarGrid2D` and grid point types |
+| Procedural generation | `@bornengine/engine/procedural` | `SeededRandom`, `Noise2D`, and fractal noise options |
 | Scene | `@bornengine/engine/scene` | `SceneGraph`, `SceneNode` |
 | Game | `@bornengine/engine/game` | `GameObject`, components, scenes, adapters |
 | Physics | `@bornengine/engine/physics` | `PhysicsWorld`, colliders, bodies, joints |
