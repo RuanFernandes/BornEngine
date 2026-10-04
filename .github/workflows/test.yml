@@ -303,11 +303,11 @@ jobs:
       - name: Test embedded scripting component contract
         run: npm run test:scripting
 
-      - name: Test Game, asset scopes, and scene disposal contracts
-        run: npm run test:runtime
-
       - name: Install Perry
         run: npm install --global @perryts/perry@0.5.1520
+
+      - name: Test Game, asset scopes, and scene disposal contracts
+        run: npm run test:runtime
 
       - name: Prepare Perry runtime libraries
         run: |
