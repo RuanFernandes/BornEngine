@@ -40,6 +40,28 @@ mod hot_reload_tests {
         bytes.into_inner()
     }
 
+    #[cfg(feature = "image-extras")]
+    fn dds(width: u32, height: u32) -> Vec<u8> {
+        use image_dds::ddsfile::{AlphaMode, D3D10ResourceDimension, Dds, DxgiFormat, NewDxgiParams};
+
+        let mut dds = Dds::new_dxgi(NewDxgiParams {
+            height,
+            width,
+            depth: None,
+            format: DxgiFormat::R8G8B8A8_UNorm,
+            mipmap_levels: None,
+            array_layers: None,
+            caps2: None,
+            is_cubemap: false,
+            resource_dimension: D3D10ResourceDimension::Texture2D,
+            alpha_mode: AlphaMode::Straight,
+        }).unwrap();
+        dds.data.fill(127);
+        let mut bytes = Vec::new();
+        dds.write(&mut bytes).unwrap();
+        bytes
+    }
+
     #[test]
     fn texture_hot_reload_decodes_matching_dimensions_and_rejects_resizing() {
         let same_size = png(2, 3);
@@ -49,6 +71,17 @@ mod hot_reload_tests {
 
         assert!(decode_texture_reload(&png(4, 3), 2, 3).is_none());
         assert!(decode_texture_reload(b"not an image", 2, 3).is_none());
+    }
+
+    #[cfg(feature = "image-extras")]
+    #[test]
+    fn texture_hot_reload_decodes_dds_top_mip_and_rejects_resizing() {
+        let (pixels, width, height) = decode_texture_reload(&dds(2, 3), 2, 3).unwrap();
+
+        assert_eq!((width, height), (2, 3));
+        assert_eq!(pixels.len(), 2 * 3 * 4);
+        assert!(decode_texture_reload(&dds(4, 3), 2, 3).is_none());
+        assert!(decode_texture_reload(b"DDS invalid", 2, 3).is_none());
     }
 }
 
@@ -135,6 +168,20 @@ impl TextureManager {
     pub fn reload_texture_from_file(&mut self, renderer: &mut Renderer, handle: f64, file_data: &[u8]) -> bool {
         let Some(current) = self.textures.get(handle) else { return false };
         let (bind_group_idx, width, height) = (current.bind_group_idx, current.width, current.height);
+
+        #[cfg(feature = "image-extras")]
+        if file_data.starts_with(b"DDS ") {
+            let Ok(dds) = image_dds::ddsfile::Dds::read(std::io::Cursor::new(file_data)) else {
+                return false;
+            };
+            if dds.get_width() != width || dds.get_height() != height {
+                return false;
+            }
+            if renderer.replace_texture_dds(bind_group_idx, &dds) {
+                return true;
+            }
+        }
+
         let Some((pixels, new_width, new_height)) = decode_texture_reload(file_data, width, height) else {
             return false;
         };
@@ -229,13 +276,9 @@ impl TextureManager {
         }
         // No BC support on this adapter (mobile GL): CPU-decode the top
         // mip and feed the regular RGBA path (which regenerates mips).
-        match image_dds::image_from_dds(&dds, 0) {
-            Ok(rgba) => {
-                let bind_group_idx = renderer.register_texture(width, height, rgba.as_raw());
-                self.textures.alloc(TextureData { bind_group_idx, width, height })
-            }
-            Err(_) => 0.0,
-        }
+        let Some((pixels, width, height)) = decode_dds_top_mip(&dds) else { return 0.0 };
+        let bind_group_idx = renderer.register_texture(width, height, &pixels);
+        self.textures.alloc(TextureData { bind_group_idx, width, height })
     }
 
     pub fn load_texture_from_image(&mut self, handle: f64, renderer: &mut Renderer) -> f64 {
@@ -249,8 +292,28 @@ impl TextureManager {
 }
 
 fn decode_texture_reload(file_data: &[u8], expected_width: u32, expected_height: u32) -> Option<(Vec<u8>, u32, u32)> {
+    #[cfg(feature = "image-extras")]
+    if file_data.starts_with(b"DDS ") {
+        let dds = image_dds::ddsfile::Dds::read(std::io::Cursor::new(file_data)).ok()?;
+        let (pixels, width, height) = decode_dds_top_mip(&dds)?;
+        if width != expected_width || height != expected_height {
+            return None;
+        }
+        return Some((pixels, width, height));
+    }
+
     let image = image::load_from_memory(file_data).ok()?.to_rgba8();
     let (width, height) = (image.width(), image.height());
     if width != expected_width || height != expected_height { return None; }
+    Some((image.into_raw(), width, height))
+}
+
+#[cfg(feature = "image-extras")]
+fn decode_dds_top_mip(dds: &image_dds::ddsfile::Dds) -> Option<(Vec<u8>, u32, u32)> {
+    let image = image_dds::image_from_dds(dds, 0).ok()?;
+    let (width, height) = (dds.get_width(), dds.get_height());
+    if image.dimensions() != (width, height) {
+        return None;
+    }
     Some((image.into_raw(), width, height))
 }

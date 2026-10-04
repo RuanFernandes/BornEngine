@@ -21,14 +21,39 @@ impl Renderer {
     /// materials and immediate draws can keep their existing texture refs.
     pub fn replace_texture(&mut self, index: u32, width: u32, height: u32, data: &[u8]) -> bool {
         let slot = index as usize;
-        if slot == 0 || slot >= self.texture_bind_groups.len() || slot >= self.textures.len() {
+        if !self.can_replace_texture_slot(slot) {
+            return false;
+        }
+        let replacement = self.register_texture(width, height, data);
+        self.replace_texture_slot(index, replacement)
+    }
+
+    /// Replace a cooked DDS resource in its stable slot when the active
+    /// adapter supports its compressed format.
+    #[cfg(feature = "image-extras")]
+    pub fn replace_texture_dds(&mut self, index: u32, dds: &image_dds::ddsfile::Dds) -> bool {
+        if !self.can_replace_texture_slot(index as usize) {
+            return false;
+        }
+        let Some(replacement) = self.register_texture_dds(dds) else {
+            return false;
+        };
+        self.replace_texture_slot(index, replacement)
+    }
+
+    fn can_replace_texture_slot(&self, slot: usize) -> bool {
+        slot != 0 && slot < self.texture_bind_groups.len() && slot < self.textures.len()
+    }
+
+    fn replace_texture_slot(&mut self, index: u32, replacement: u32) -> bool {
+        let slot = index as usize;
+        if !self.can_replace_texture_slot(slot) {
             return false;
         }
         let Some(nearest) = texture_filter_for_replacement(&self.texture_filter_nearest, slot) else {
             return false;
         };
-
-        let replacement = self.register_texture(width, height, data) as usize;
+        let replacement = replacement as usize;
         if replacement == slot || replacement >= self.texture_bind_groups.len() || replacement >= self.textures.len() {
             return false;
         }
