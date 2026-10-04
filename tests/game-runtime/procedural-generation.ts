@@ -40,6 +40,11 @@ for (let index = 0; index < 64; index++) {
     'integer uses inclusive integer bounds');
 }
 expect(new SeededRandom(9).range(4, 4) === 4, 'range supports equal bounds');
+const sparseMin = 9007199254740992;
+const sparseMax = 9007199254740994;
+const sparseValue = new SeededRandom(100000).range(sparseMin, sparseMax);
+expect(sparseValue >= sparseMin && sparseValue < sparseMax,
+  'range never returns the excluded max when few floats are representable');
 expectThrows(() => new SeededRandom(1).range(2, 1), 'range rejects reversed bounds');
 expectThrows(() => new SeededRandom(1).integer(0.5, 2), 'integer rejects fractional bounds');
 

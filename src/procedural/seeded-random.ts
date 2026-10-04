@@ -28,14 +28,19 @@ export class SeededRandom {
     return (this.state - 1) / (PARK_MILLER_MODULUS - 1);
   }
 
-  /** Returns a deterministic float in [min, max). */
+  /**
+   * Returns a deterministic float in [min, max). In very narrow intervals,
+   * rounding to max falls back to min; if min and max are adjacent floats,
+   * every result is min because no representable value lies between them.
+   */
   range(min: number, max: number): number {
     if (!isFiniteNumber(min) || !isFiniteNumber(max) || max < min ||
       !isFiniteNumber(max - min)) {
       throw new Error('SeededRandom range requires finite, ordered bounds');
     }
     if (min === max) return min;
-    return min + this.next() * (max - min);
+    const value = min + this.next() * (max - min);
+    return value < min || value >= max ? min : value;
   }
 
   /** Returns a deterministic integer in the inclusive range [min, max]. */
