@@ -129,5 +129,26 @@ export type { FractalNoiseOptions } from './procedural';
 export { Ui, UiBackend, UiOpcode } from './ui';
 export { DebugUi } from './debug-ui';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui';
+export {
+  GUI, GUIManager, GUIEvent, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind,
+  GuiNativeBridge, GuiOpcode, GuiEventField,
+  GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
+  GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton, GuiSlider,
+  GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider,
+  GuiArray, GuiPopUpMenu, GuiPopUpEdit, GuiTreeView, GuiTextList, GuiTab, GuiMenu, GuiContextMenu,
+  GuiBitmap, GuiShowImg, GuiProgress, GuiDrawingPanel,
+  GUI_TREE_MAX_PATH_LENGTH, GUI_TREE_MAX_PATH_SEGMENTS,
+} from './gui';
+export type {
+  GUIEventOptions, GUIEventTypeCode, GUIControlOptions, GuiCursor, GuiPoint, GuiRect, GuiSize,
+  GuiNativeApi, GuiNativeResponse, GuiNativeEvent, GuiOpcodeCode, GuiEventFieldCode,
+  GuiControlItemCommand, GuiDrawingPayload,
+  GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile,
+  GuiShadowProfile, GuiButtonSounds, GuiTextAlignment, GuiClipCommand, GuiControlCommand, GuiControlKindCode,
+  GuiScrollBarMode, GuiBitmapButtonTextures,
+  GuiItemId, GuiArrayItem, GuiTreeNode,
+  GuiDrawingCommand, GuiDrawingLine, GuiDrawingRect, GuiDrawingCircle, GuiDrawingText,
+  GuiDrawingImage, GuiDrawingPolyline,
+} from './gui';
 export { ColyseusClient, Room } from './colyseus';
 export type { RoomRequestOptions, RoomRequestCallbacks, ColyseusError, RoomJoinCallbacks } from './colyseus';

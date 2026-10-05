@@ -40,6 +40,8 @@ On iOS, iPadOS, and visionOS, connections to a server on the local network requi
 
 watchOS uses a draw-command bridge to SwiftUI Canvas and SceneKit rather than the desktop wgpu/Jolt stack. Compile with `--features watchos-swift-app` and use the Perry [watchOS platform guide](https://docs.perryts.com/) for the nightly/build-std setup. The watch target is constrained by screen size, RAM, and the absence of wgpu/Jolt.
 
+The retained `game.gui` controls do not work on watchOS in the current release: controls do not render and GUI input/events are unavailable. This limitation is temporary. A future SwiftUI adapter is planned, with no delivery date promised. `game.gui.isAvailable()` returns `false` on watchOS; see the [GUI API](../../api/gui/) for platform behavior.
+
 The [mobile guide](../mobile/) covers touch and device input differences shared across Apple targets.
 
 ## GameDatabase files

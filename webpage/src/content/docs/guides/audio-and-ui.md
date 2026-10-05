@@ -71,4 +71,4 @@ game.run();
 
 ## Next steps
 
-Use SoundManager for named effects, cooldowns, music switching, and scene-owned cleanup. See the [Audio API](../../api/audio/) and [UI API](../../api/ui/).
+Use SoundManager for named effects, cooldowns, music switching, and scene-owned cleanup. See the [Audio API](../../api/audio/), [immediate UI API](../../api/ui/), and [retained GUI controls](../../api/gui/) when you need persistent widgets.

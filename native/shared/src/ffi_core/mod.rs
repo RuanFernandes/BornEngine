@@ -71,6 +71,7 @@ mod visual;
 mod vfx;
 mod ragdoll_ffi;
 mod ui;
+mod gui;
 mod colyseus;
 mod scripting;
 
@@ -94,6 +95,7 @@ macro_rules! define_core_ffi {
         $crate::__bloom_ffi_vfx!();
         $crate::__bloom_ffi_ragdoll!();
         $crate::__bloom_ffi_ui!();
+        $crate::__bloom_ffi_gui!();
         $crate::__bloom_ffi_colyseus!();
         $crate::__bloom_ffi_scripting!();
     };

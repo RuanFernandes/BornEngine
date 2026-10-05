@@ -39,6 +39,34 @@
 #[no_mangle] pub extern "C" fn bloom_ui_take_keyboard_request(_p0: f64) -> f64 {
     0.0
 }
+#[no_mangle] pub extern "C" fn bloom_gui_command(_p0: f64, _p1: f64, _p2: f64, _p3: f64, _p4: f64, _p5: f64, _p6: i64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_scratch_reset() {
+}
+#[no_mangle] pub extern "C" fn bloom_gui_scratch_push_f64(_p0: f64) {
+}
+#[no_mangle] pub extern "C" fn bloom_gui_scratch_command(_p0: f64, _p1: f64, _p2: f64, _p3: i64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_response(_p0: f64, _p1: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_response_text(_p0: f64) -> i64 {
+    0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_event_count() -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_event_field(_p0: f64, _p1: f64) -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_is_available() -> f64 {
+    0.0
+}
+#[no_mangle] pub extern "C" fn bloom_gui_wants_input(_p0: f64) -> f64 {
+    0.0
+}
 #[no_mangle] pub extern "C" fn bloom_take_screenshot(_p0: i64) {
 }
 #[no_mangle] pub extern "C" fn bloom_set_env_clear_from_hdr(_p0: i64) {

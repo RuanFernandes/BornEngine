@@ -70,6 +70,7 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | VFX | `@bornengine/engine/vfx` | `ParticleSystem`, `DecalSystem` |
 | Mobile | `@bornengine/engine/mobile` | `TouchControls`, joystick and button objects |
 | UI | `@bornengine/engine/ui` | `Ui` |
+| Retained GUI | `@bornengine/engine/gui` | `GUI`, `GUIManager`, profiles, events, and built-in 2D controls ([reference](./gui/)) |
 | Debug UI | `@bornengine/engine/debug-ui` | `DebugUi`, `Game` inspector options |
 | Scripting | `@bornengine/engine/scripting` | `ScriptRuntime`, `ScriptComponent`, capabilities and execution limits |
 | Colyseus | `@bornengine/engine/colyseus` | `ColyseusClient`, `Room` |
