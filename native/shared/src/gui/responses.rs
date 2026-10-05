@@ -7,6 +7,22 @@ pub struct GuiResponse {
     pub dragged: bool,
     pub value: f64,
     pub text: String,
+    pub rect: [f64; 4],
+}
+
+impl GuiResponse {
+    pub fn field(&self, field: u32) -> f64 {
+        match field {
+            0 => self.clicked as u8 as f64,
+            1 => self.changed as u8 as f64,
+            2 => self.hovered as u8 as f64,
+            3 => self.focused as u8 as f64,
+            4 => self.dragged as u8 as f64,
+            5 => self.value,
+            7..=10 => self.rect[(field - 7) as usize],
+            _ => 0.0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -98,6 +114,29 @@ mod tests {
     use super::{GuiEventRecord, GuiEventType, GuiResponse};
     use crate::gui::GuiSystem;
     use crate::ui::{UiBackend, UiResponse, UiSystem};
+
+    #[test]
+    fn gui_response_fields_expose_native_bounds_to_all_backends() {
+        let response = GuiResponse {
+            clicked: true,
+            changed: true,
+            hovered: true,
+            focused: true,
+            dragged: true,
+            value: 0.75,
+            rect: [12.0, 24.0, 320.0, 180.0],
+            ..Default::default()
+        };
+
+        assert_eq!(response.field(0), 1.0);
+        assert_eq!(response.field(5), 0.75);
+        assert_eq!(
+            (7..=10).map(|field| response.field(field)).collect::<Vec<_>>(),
+            [12.0, 24.0, 320.0, 180.0]
+        );
+        assert_eq!(response.field(6), 0.0);
+        assert_eq!(response.field(11), 0.0);
+    }
 
     #[test]
     fn gui_response_map_isolated_from_immediate_ui_ids() {

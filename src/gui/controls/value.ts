@@ -56,8 +56,9 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
   _applyNativeValue(value: TValue, commandRevision: number): void {
     if (commandRevision !== this.revision) return;
     const previous = this.value;
+    if (previous === value) return;
     this.setValue(value);
-    if (previous !== this.value) this._dispatchValueChange();
+    this._dispatchValueChange();
   }
 
   private syncCommand(): void {

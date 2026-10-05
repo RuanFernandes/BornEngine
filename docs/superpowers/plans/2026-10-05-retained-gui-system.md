@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a retained, extensible GUI tree for BornEngine with broad Graal-inspired 2D control coverage, egui rendering, and complete website/repository documentation.
+**Goal:** Add a retained, extensible GUI tree for BornEngine with broad 2D control coverage, egui rendering, and complete website/repository documentation.
 
 **Architecture:** TypeScript owns `GUI` instances, parent-child relationships, geometry, profiles, subclass hooks, and frame-to-frame event delivery through `game.gui`. A typed native bridge sends retained control commands to the existing Rust egui evaluator; it shares the same egui context and surface as `game.ui`, while Rust owns hit testing, native input, paint, and response capture. The existing immediate API stays intact, and watchOS exposes link-compatible unavailable stubs.
 

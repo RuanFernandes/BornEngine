@@ -16,6 +16,8 @@ export class GUI {
   private _width = 0;
   private _height = 0;
   private _minimumSize: GuiSize = { width: 0, height: 0 };
+  private geometryRevision = 0;
+  private nativeGeometryManaged = false;
   private _centerHorizontal = false;
   private _centerVertical = false;
   private _visible = true;
@@ -141,19 +143,62 @@ export class GUI {
   localToGlobal(point: GuiPoint): GuiPoint {
     validateGuiCoordinate(point.x, 'point.x');
     validateGuiCoordinate(point.y, 'point.y');
-    let origin: GuiPoint = { x: this._x, y: this._y };
+    let mapped: GuiPoint = { x: this._x + point.x, y: this._y + point.y };
     let ancestor = this._parent;
     while (ancestor !== null) {
-      origin = addGuiPoints(origin, { x: ancestor._x, y: ancestor._y });
+      const insets = ancestor._getContentInsets();
+      mapped = ancestor._transformChildPoint({ x: mapped.x + insets.left, y: mapped.y + insets.top });
+      mapped = addGuiPoints(mapped, { x: ancestor._x, y: ancestor._y });
       ancestor = ancestor._parent;
     }
-    return addGuiPoints(origin, point);
+    return mapped;
   }
 
   globalToLocal(point: GuiPoint): GuiPoint {
     validateGuiCoordinate(point.x, 'point.x');
     validateGuiCoordinate(point.y, 'point.y');
-    return subtractGuiPoints(point, this.localToGlobal({ x: 0, y: 0 }));
+    const ancestors: GUI[] = [];
+    for (let ancestor = this._parent; ancestor !== null; ancestor = ancestor._parent) ancestors.push(ancestor);
+    let mapped = { ...point };
+    for (const ancestor of ancestors.reverse()) {
+      mapped = subtractGuiPoints(mapped, { x: ancestor._x, y: ancestor._y });
+      mapped = ancestor._inverseTransformChildPoint(mapped);
+      const insets = ancestor._getContentInsets();
+      mapped = subtractGuiPoints(mapped, { x: insets.left, y: insets.top });
+    }
+    return subtractGuiPoints(mapped, { x: this._x, y: this._y });
+  }
+
+  /** @internal Maps a child point through this control's layout transform. */
+  _transformChildPoint(point: GuiPoint): GuiPoint { return { ...point }; }
+
+  /** @internal Reverses this control's child layout transform. */
+  _inverseTransformChildPoint(point: GuiPoint): GuiPoint { return { ...point }; }
+
+  /** @internal Maps a child size through this control's layout transform. */
+  _transformChildSize(size: GuiSize): GuiSize { return { ...size }; }
+
+  /** @internal Reverses a child size through this control's layout transform. */
+  _inverseTransformChildSize(size: GuiSize): GuiSize { return { ...size }; }
+
+  /** @internal Virtual dimensions available to centered child controls. */
+  _getChildLayoutSize(): GuiSize { return this.getSize(); }
+
+  private localToGlobalSize(size: GuiSize): GuiSize {
+    let mapped = { ...size };
+    for (let ancestor = this._parent; ancestor !== null; ancestor = ancestor._parent) {
+      mapped = ancestor._transformChildSize(mapped);
+    }
+    return mapped;
+  }
+
+  /** @internal Converts a submitted physical size back into this content's virtual space. */
+  _globalToLocalSize(size: GuiSize): GuiSize {
+    let mapped = { ...size };
+    for (let ancestor: GUI | null = this; ancestor !== null; ancestor = ancestor._parent) {
+      mapped = ancestor._inverseTransformChildSize(mapped);
+    }
+    return mapped;
   }
 
   addControl(control: GUI): GUI {
@@ -260,7 +305,8 @@ export class GUI {
     if (!this._visible || !this._active || this._destroyed) return;
     const profile = this._profile ?? inheritedProfile ?? GUIProfiles.get('default');
     const origin = this.localToGlobal({ x: 0, y: 0 });
-    const rect: GuiRect = { x: origin.x, y: origin.y, width: this._width, height: this._height };
+    const size = this.localToGlobalSize({ width: this._width, height: this._height });
+    const rect: GuiRect = { x: origin.x, y: origin.y, width: size.width, height: size.height };
     const ownClip = this._clipToBounds
       ? (clip === null ? rect : intersectGuiRects(clip, rect))
       : clip;
@@ -383,6 +429,12 @@ export class GUI {
   /** @internal Current manager owner, if attached to a game. */
   _getManager(): GUIManager | null { return this._manager; }
 
+  /** @internal Native control kind used by GUIManager routing. */
+  _getGuiCommandKind(): number { return this._guiCommandKind; }
+
+  /** @internal Optional right-click hook implemented by context-menu controls. */
+  _openContextMenuAt(_x: number, _y: number, _button: number): boolean { return false; }
+
   /** @internal True when this control and its full ancestor chain can receive input. */
   _isInputEligible(): boolean {
     let control: GUI | null = this;
@@ -426,6 +478,39 @@ export class GUI {
   /** @internal Re-resolves center anchors after root ownership or viewport changes. */
   _reflowFromManager(): void { this.reflowOwnCenter(); }
 
+  /** @internal Captures geometry revision for controls with native geometry. */
+  _captureGeometryRevision(): number { return this.geometryRevision; }
+
+  /** @internal Discards a pending native layout response after parent layout changes. */
+  _invalidateNativeGeometry(): void { this.geometryRevision++; }
+
+  /** @internal Content insets used by child coordinates and centering. */
+  _getContentInsets(): { left: number; top: number; right: number; bottom: number } {
+    const padding = this.getProfile().spacing.padding;
+    return { left: padding, top: padding, right: padding, bottom: padding };
+  }
+
+  /** @internal Enables native layout readback for window and frame-set children. */
+  _setNativeGeometryManaged(enabled: boolean): void { this.nativeGeometryManaged = enabled; }
+
+  /** @internal Applies a native layout rectangle if TypeScript geometry is unchanged. */
+  _applyNativeGeometry(rect: GuiRect, commandRevision: number): void {
+    if (!this.nativeGeometryManaged || commandRevision !== this.geometryRevision) return;
+    if (![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)) return;
+    const parent = this._parent;
+    const position = parent?.globalToLocal({ x: rect.x, y: rect.y }) ?? { x: rect.x, y: rect.y };
+    const size = parent?._globalToLocalSize({ width: rect.width, height: rect.height }) ?? { width: rect.width, height: rect.height };
+    const insets = parent?._getContentInsets() ?? { left: 0, top: 0, right: 0, bottom: 0 };
+    const x = position.x - insets.left;
+    const y = position.y - insets.top;
+    const horizontalChanged = x !== this._x || size.width !== this._width;
+    const verticalChanged = y !== this._y || size.height !== this._height;
+    if (!horizontalChanged && !verticalChanged) return;
+    if (horizontalChanged) this._centerHorizontal = false;
+    if (verticalChanged) this._centerVertical = false;
+    this.applyGeometry(x, y, size.width, size.height);
+  }
+
   /** @internal Executes a handler corresponding to the event type. */
   _isDestroyed(): boolean { return this._destroyed; }
 
@@ -442,20 +527,32 @@ export class GUI {
     this._y = y;
     this._width = size.width;
     this._height = size.height;
+    this.geometryRevision++;
     if (moved) this.onMove();
     if (resized) {
       this.onResize();
-      for (const child of this._controls) child.reflowOwnCenter();
+      for (const child of this._controls) {
+        child._invalidateNativeGeometry();
+        child.reflowOwnCenter();
+      }
     }
   }
 
   private reflowOwnCenter(): void {
     if (!this._centerHorizontal && !this._centerVertical) return;
-    const parentSize = this._parent?.getSize() ?? this._managerViewport();
-    const x = this._centerHorizontal ? centeredCoordinate(parentSize.width, this._width) : this._x;
-    const y = this._centerVertical ? centeredCoordinate(parentSize.height, this._height) : this._y;
+    const parentSize = this._parent?._getChildLayoutSize() ?? this._managerViewport();
+    const insets = this._parent?._getContentInsets() ?? { left: 0, top: 0, right: 0, bottom: 0 };
+    const x = this._centerHorizontal
+      ? insets.left + centeredCoordinate(parentSize.width - insets.left - insets.right, this._width)
+      : this._x;
+    const y = this._centerVertical
+      ? insets.top + centeredCoordinate(parentSize.height - insets.top - insets.bottom, this._height)
+      : this._y;
     this.applyGeometry(x, y, this._width, this._height);
   }
+
+  /** @internal Reflows this control after a virtual parent layout changes. */
+  _reflowFromParent(): void { this.reflowOwnCenter(); }
 
   private assignManagerRecursively(manager: GUIManager | null): void {
     this._manager = manager;

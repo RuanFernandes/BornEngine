@@ -51,11 +51,13 @@ game.gui.addControl(panel);
 
 ## Geometry and parent helpers
 
-`x` and `y` are logical-pixel offsets from the parent content origin. A root
-control uses the game viewport as its parent bounds. `center()` centers on both
-axes of the current parent; `centerHorizontal()` and `centerVertical()` anchor
-one axis. Anchors update after parent or viewport resize. Geometry setters
-return the control for chaining.
+`x` and `y` are logical-pixel offsets from the parent content origin, after the
+parent profile's padding. A `GuiWindow` also reserves its title bar above the
+child content. A root control uses the game viewport as its parent bounds.
+`center()` centers on both axes of the current parent content area;
+`centerHorizontal()` and `centerVertical()` anchor one axis. Anchors update
+after parent or viewport resize. Geometry setters return the control for
+chaining.
 
 ```ts
 const scroll = new GuiScroll({ width: 420, height: 300 });
@@ -124,11 +126,11 @@ or to the root with `game.gui.addControl()`. Controls accept optional
 | --- | --- |
 | `GUI` | Extensible base/container. Geometry, tree, visibility, focus, cursor, hints, minimum size, z-order, and lifecycle helpers are available on every control. |
 | `GuiPanel` | Basic rectangular container. Add children and choose whether they clip to its bounds. |
-| `GuiWindow` | Titled panel. `getTitle()` / `setTitle(title)`, `setMovable(enabled)`, `setResizable(enabled)`, and `setClosable(enabled)` store window behavior options. |
+| `GuiWindow` | Titled, movable, resizable panel. `getTitle()` / `setTitle(title)` manage its title; `setMovable(enabled)` and `setResizable(enabled)` enable native dragging and resizing. `setClosable(enabled)` adds a close button that hides the window; call `show()` to reopen it. |
 | `GuiScroll` | Scrollable container with child clipping. Set horizontal/vertical scrollbar modes to `'alwaysOn'`, `'alwaysOff'`, or `'dynamic'`; configure `setScrollBarThickness(pixels)`. |
-| `GuiBitmapBorder` | Panel with `setTiled(enabled)` for border texture tiling configuration. |
-| `GuiStretch` | Panel with `setClientSize(width, height)` for the desired client area. |
-| `GuiFrameSet` | Panel with `setColumnCount(n)`, `setRowCount(n)`, and `setSplitterWidth(pixels)` for frame-grid configuration. |
+| `GuiBitmapBorder` | Draws the profile background bitmap on its four edges and keeps the interior on `normalColor`. `profile.border.width` sets edge thickness; `setTiled(true)` repeats the bitmap along each edge at its native length, while the edge thickness is fitted to the control. With tiling off, each edge stretches the bitmap. |
+| `GuiStretch` | Stretches its children from the virtual area set by `setClientSize(width, height)` to the control's physical size. Child geometry and pointer-local coordinates use the same scale. |
+| `GuiFrameSet` | Lays out direct children in row-major cells. `setColumnCount(n)`, `setRowCount(n)`, and `setSplitterWidth(pixels)` configure the grid; drag a splitter to resize adjacent cells. |
 
 ### Buttons and values
 
@@ -157,12 +159,12 @@ or to the root with `game.gui.addControl()`. Controls accept optional
 | --- | --- |
 | `GuiArray` | Abstract base for controls backed by a typed item list. `getItems()` and `getItemCount()` inspect the list. |
 | `GuiPopUpMenu` | `add(label, id)`, `clear()`, `setSelected(id)`, `getSelected()`, and `getSelectedText()` manage choices. |
-| `GuiPopUpEdit` | Editable popup; adds `getText()` / `setText(text)`. |
+| `GuiPopUpEdit` | Editable text field with an item popup; adds `getText()` / `setText(text)`. Native text edits return to TypeScript before the next `Game.loop`. |
 | `GuiTreeView` | `addNode(label, value?)`, `addNodeByPath(path, value?)`, `clearNodes()`, `getSelected()`, and `getSelectedPath()` build and inspect a bounded tree. |
 | `GuiTextList` | `addRow(id, text)`, `removeRow(id)`, `clearRows()`, and `getSelected()` manage rows. |
-| `GuiTab` | `addTab(label, id)`, `setSelected(id)`, and `getSelected()` choose a tab page. |
-| `GuiMenu` | Menu control with the popup item methods. |
-| `GuiContextMenu` | Context menu that opens from a secondary pointer click; action events bubble through its parents. |
+| `GuiTab` | Horizontal tab bar with pages below it. `addTab(label, id)`, `setSelected(id)`, and `getSelected()` choose a page. |
+| `GuiMenu` | Horizontal menu bar that invokes the selected item's callback and bubbles an action event. |
+| `GuiContextMenu` | Context menu that opens at the pointer on a secondary click inside its parent, invokes the selected item's callback, bubbles an action event, and closes after activation. `openAt(x, y, button)` is also available for explicit positioning. |
 
 ### Images, progress, and custom drawing
 

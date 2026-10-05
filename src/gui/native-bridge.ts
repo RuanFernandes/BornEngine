@@ -34,6 +34,7 @@ export interface GuiNativeResponse {
   dragged: boolean;
   value: number;
   text: string;
+  rect: { x: number; y: number; width: number; height: number };
 }
 
 export interface GuiNativeEvent {
@@ -149,6 +150,9 @@ export class GuiNativeBridge {
       dragged: present && field(4) > 0.5,
       value: present ? field(5) : 0,
       text: present ? this.api.responseText(id) : '',
+      rect: present
+        ? { x: field(7), y: field(8), width: field(9), height: field(10) }
+        : { x: 0, y: 0, width: 0, height: 0 },
     };
   }
 

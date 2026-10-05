@@ -35,6 +35,7 @@ export class GuiTextEdit extends GuiText {
   private numbersOnly = false;
   private selectionStart = 0;
   private selectionEnd = 0;
+  private textRevision = 0;
 
   constructor(options: GUIControlOptions = {}) {
     super(options);
@@ -47,6 +48,7 @@ export class GuiTextEdit extends GuiText {
     if (this.numbersOnly) value = value.replace(/[^0-9.+-]/g, '');
     if (value.length > this.maxLength) value = value.slice(0, this.maxLength);
     super.setText(value);
+    this.textRevision++;
     this.selectionStart = Math.min(this.selectionStart, value.length);
     this.selectionEnd = Math.min(this.selectionEnd, value.length);
     this.syncOptions();
@@ -88,6 +90,22 @@ export class GuiTextEdit extends GuiText {
   }
   isNumbersOnly(): boolean { return this.numbersOnly; }
   getSelection(): { start: number; end: number } { return { start: this.selectionStart, end: this.selectionEnd }; }
+
+  /** @internal Captures the text revision associated with an emitted command. */
+  _captureTextRevision(): number { return this.textRevision; }
+
+  /** @internal Applies native edits only when no newer TypeScript text was set. */
+  _applyNativeText(text: string, commandRevision: number, dispatchChange = true): boolean {
+    if (commandRevision !== this.textRevision) return false;
+    const previous = this.getText();
+    this.setText(text);
+    if (previous === this.getText()) return false;
+    if (dispatchChange) {
+      const manager = this._getManager();
+      if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
+    }
+    return true;
+  }
 
   private syncOptions(): void {
     this._guiCommandValues = [
@@ -172,11 +190,15 @@ export class GuiTextEditSlider extends GuiTextEdit {
   _applyNativeValue(value: number, commandRevision: number): void {
     if (commandRevision !== this.revision) return;
     const previous = this.value;
+    if (previous === value) return;
     this.setValue(value);
-    if (previous !== this.value) {
-      const manager = this._getManager();
-      if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
-    }
+    const manager = this._getManager();
+    if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
+  }
+
+  /** @internal Keeps editable numeric text while waiting for a complete value. */
+  override _applyNativeText(text: string, commandRevision: number): boolean {
+    return super._applyNativeText(text, commandRevision, false);
   }
 
   private syncValueCommand(): void {

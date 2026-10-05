@@ -167,13 +167,33 @@ test('GUI.geometry_helpers_convert_coordinates_and_reject_invalid_values', () =>
   root.addControl(child);
   child.addControl(nested);
 
-  assert.deepEqual(nested.localToGlobal({ x: 2, y: 5 }), { x: 22, y: 38 });
-  assert.deepEqual(nested.globalToLocal({ x: 22, y: 38 }), { x: 2, y: 5 });
+  assert.deepEqual(nested.localToGlobal({ x: 2, y: 5 }), { x: 34, y: 50 });
+  assert.deepEqual(nested.globalToLocal({ x: 34, y: 50 }), { x: 2, y: 5 });
   assert.equal(nested.getRoot(), root);
   assert.throws(() => child.setX(Number.NaN), RangeError);
   assert.throws(() => child.setY(Number.POSITIVE_INFINITY), RangeError);
   assert.throws(() => child.setWidth(-1), RangeError);
   assert.throws(() => child.setHeight(Number.NaN), RangeError);
+});
+
+test('GuiStretch scales child geometry and keeps local/global coordinates reversible', () => {
+  const stretch = new GuiStretch({ x: 10, y: 20, width: 200, height: 100 });
+  stretch.setClientSize(100, 50);
+  const child = new GUI({ x: 10, y: 5, width: 20, height: 10 });
+  const centered = new GUI({ width: 20, height: 10 });
+  stretch.addControl(child);
+  stretch.addControl(centered);
+  centered.center();
+
+  const commands = [];
+  stretch._emitCommands(commands);
+  const childCommand = commands.find((command) => command.id === child.id);
+  const centeredCommand = commands.find((command) => command.id === centered.id);
+  assert.deepEqual(childCommand.rect, { x: 30, y: 30, width: 40, height: 20 });
+  assert.deepEqual(child.localToGlobal({ x: 1, y: 1 }), { x: 32, y: 32 });
+  assert.deepEqual(child.globalToLocal({ x: 32, y: 32 }), { x: 1, y: 1 });
+  assert.deepEqual(centered.getPosition(), { x: 40, y: 20 });
+  assert.deepEqual(centeredCommand.rect, { x: 90, y: 60, width: 40, height: 20 });
 });
 
 test('GUI.lifecycle_visibility_clipping_and_order_helpers_are_stateful', () => {
@@ -288,8 +308,8 @@ test('GUI._emitCommands_keeps_stable_id_bounds_clip_and_profile', () => {
   assert.equal(commands.length, 1);
   assert.equal(commands[0].kind, GuiControlKind.Control);
   assert.equal(commands[0].id, child.id);
-  assert.deepEqual(commands[0].rect, { x: 14, y: 25, width: 50, height: 30 });
-  assert.deepEqual(commands[0].clip, { x: 14, y: 25, width: 16, height: 5 });
+  assert.deepEqual(commands[0].rect, { x: 20, y: 31, width: 50, height: 30 });
+  assert.deepEqual(commands[0].clip, { x: 20, y: 31, width: 10, height: 0 });
   assert.deepEqual(commands[0].profile.normalColor, { r: 0.8, g: 0.2, b: 0.1, a: 1 });
   assert.notEqual(commands[0].profile, profile);
 });
@@ -594,7 +614,7 @@ test('GuiTreeView.rejects_invalid_values_and_bounded_path_overflow', () => {
 });
 
 test('GuiTab.selects_one_child_page', () => {
-  const tabs = new GuiTab();
+  const tabs = new GuiTab({ width: 300, height: 200 });
   const first = tabs.addTab('World', 'world');
   const second = tabs.addTab('Settings', 'settings');
 
@@ -606,6 +626,15 @@ test('GuiTab.selects_one_child_page', () => {
   assert.equal(first.isVisible(), false);
   assert.equal(second.isVisible(), true);
   assert.equal(tabs.getTab('settings'), second);
+
+  const commands = [];
+  tabs._emitCommands(commands);
+  const pageCommand = commands.find((command) => command.id === second.id);
+  assert.deepEqual(pageCommand.rect, { x: 0, y: 28, width: 300, height: 172 });
+  tabs.setSize(400, 300);
+  const resized = [];
+  tabs._emitCommands(resized);
+  assert.deepEqual(resized.find((command) => command.id === second.id).rect, { x: 0, y: 28, width: 400, height: 272 });
 });
 
 test('GuiTextList.selects_rows_by_id', () => {
@@ -661,6 +690,49 @@ test('GuiContextMenu.opens_on_secondary_click_and_bubbles_action', () => {
   assert.equal(selected, 1);
   assert.deepEqual(calls, [[menu, host]]);
   assert.equal(menu.isOpen(), false);
+});
+
+test('GuiContextMenu opens automatically at the secondary-click location', () => {
+  let events = [];
+  const submitted = [];
+  const bridge = {
+    isAvailable: () => true,
+    submit: (commands) => submitted.push(...commands),
+    response: () => ({ present: false }),
+    events: () => events,
+    wantsPointerInput: () => false,
+    wantsKeyboardInput: () => false,
+  };
+  const manager = new GUIManager({}, bridge);
+  const host = new GUI({ x: 20, y: 30, width: 200, height: 120 });
+  const menu = new GuiContextMenu();
+  host.addControl(menu);
+  menu.add('Delete', 'delete');
+  manager.addControl(host);
+  manager.renderFrame();
+
+  events = [{
+    type: GUIEventType.PointerDown,
+    controlId: host.id,
+    globalX: 100,
+    globalY: 90,
+    localX: 80,
+    localY: 60,
+    key: 0,
+    button: 1,
+    wheelX: 0,
+    wheelY: 0,
+    modifiers: 0,
+  }];
+  manager.updateFrame(1 / 60);
+
+  assert.equal(menu.isOpen(), true);
+  assert.deepEqual(menu.localToGlobal({ x: 0, y: 0 }), { x: 100, y: 90 });
+  assert.equal(menu.getWidth(), 160);
+  assert.equal(menu.getHeight() > 0, true);
+  manager.renderFrame();
+  assert.equal(submitted.some((command) => command.id === menu.id && command.kind === GuiControlKind.ContextMenu), true);
+  manager.dispose();
 });
 
 test('GuiProgress.clamps_to_unit_interval', () => {
@@ -735,6 +807,392 @@ test('gui_manager_encodes_typed_commands_and_reads_GUI_domain_responses', () => 
   assert.equal(slider.getValue(), 0.75);
 });
 
+test('gui_manager_applies_native_window_geometry_when_the_submitted_version_is_current', () => {
+  const responseFields = { 6: 1, 7: 50, 8: 60, 9: 240, 10: 140 };
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => responseFields[field] ?? 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const window = new GuiWindow({ x: 10, y: 20, width: 100, height: 80 });
+  manager.addControl(window);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.deepEqual(window.getPosition(), { x: 50, y: 60 });
+  assert.deepEqual(window.getSize(), { width: 240, height: 140 });
+  manager.dispose();
+});
+
+test('gui_manager_synchronizes_native_focus_and_blur_with_public_focus_state', () => {
+  const events = [];
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: () => 0,
+    responseText: () => '',
+    eventCount: () => events.length,
+    eventField: (index, field) => {
+      const event = events[index];
+      return [event.type, event.controlId, event.globalX ?? 0, event.globalY ?? 0,
+        event.localX ?? 0, event.localY ?? 0, event.key ?? 0, event.button ?? 0,
+        event.wheelX ?? 0, event.wheelY ?? 0, event.modifiers ?? 0][field] ?? 0;
+    },
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const focusCalls = [];
+  class FocusControl extends GUI {
+    onFocus(event) { focusCalls.push(['focus', event.target, event.currentTarget]); }
+    onBlur(event) { focusCalls.push(['blur', event.target, event.currentTarget]); }
+  }
+  const control = new FocusControl();
+  manager.addControl(control);
+  manager.renderFrame();
+
+  events.push({ type: GUIEventType.Focus, controlId: control.id, globalX: 12, globalY: 18 });
+  manager.updateFrame(1 / 60);
+  assert.equal(manager.getFocusedControl(), control);
+  assert.equal(control.isFocused(), true);
+  assert.deepEqual(focusCalls.map(([type]) => type), ['focus']);
+
+  events.splice(0, events.length, { type: GUIEventType.Blur, controlId: control.id });
+  manager.updateFrame(1 / 60);
+  assert.equal(manager.getFocusedControl(), null);
+  assert.equal(control.isFocused(), false);
+  assert.deepEqual(focusCalls.map(([type]) => type), ['focus', 'blur']);
+  manager.dispose();
+});
+
+test('GUI.focus_and_blur_send_native_focus_requests', () => {
+  const scratchFrames = [];
+  let currentScratch = [];
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => { currentScratch = []; scratchFrames.push(currentScratch); },
+    scratchPushF64: (value) => currentScratch.push(value),
+    scratchCommand: () => 1,
+    response: () => 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const edit = new GuiTextEdit({ width: 180, height: 24 });
+  manager.addControl(edit);
+
+  edit.focus();
+  manager.renderFrame();
+  assert.deepEqual(scratchFrames.at(-1).slice(-2), [-1_247_107_654, 1]);
+  edit.blur();
+  manager.renderFrame();
+  assert.deepEqual(scratchFrames.at(-1).slice(-2), [-1_247_107_654, 2]);
+  manager.dispose();
+});
+
+test('unchanged_native_window_geometry_preserves_its_center_anchor', () => {
+  let window;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => ({
+      6: 1,
+      7: window.getX(),
+      8: window.getY(),
+      9: window.getWidth(),
+      10: window.getHeight(),
+    })[field] ?? 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  window = new GuiWindow({ width: 100, height: 80 });
+  manager.addControl(window);
+  manager._setViewportSize(320, 240);
+  window.center();
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  manager._setViewportSize(500, 300);
+  assert.deepEqual(window.getPosition(), { x: 200, y: 110 });
+  manager.dispose();
+});
+
+test('gui_manager_does_not_apply_stale_native_window_geometry', () => {
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => ({ 5: 1, 6: 1, 7: 50, 8: 60, 9: 240, 10: 140 })[field] ?? 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const window = new GuiWindow({ x: 10, y: 20, width: 100, height: 80 });
+  manager.addControl(window);
+
+  manager.renderFrame();
+  window.setPosition(80, 90);
+  manager.updateFrame(1 / 60);
+
+  assert.deepEqual(window.getPosition(), { x: 80, y: 90 });
+  manager.dispose();
+});
+
+test('gui_manager_hides_a_window_closed_in_the_native_editor', () => {
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => ({ 5: 0, 6: 1, 7: 10, 8: 20, 9: 100, 10: 80 })[field] ?? 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const window = new GuiWindow({ x: 10, y: 20, width: 100, height: 80 });
+  manager.addControl(window);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.equal(window.isVisible(), false);
+  manager.dispose();
+});
+
+test('gui_manager_applies_native_frame_set_child_bounds', () => {
+  let child;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (id, field) => {
+      if (id === child.id) return ({ 6: 1, 7: 16, 8: 26, 9: 80, 10: 100 })[field] ?? 0;
+      return field === 6 ? 1 : 0;
+    },
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const frameSet = new GuiFrameSet({ x: 10, y: 20, width: 240, height: 160 });
+  child = new GuiPanel({ width: 40, height: 40 });
+  frameSet.addControl(child);
+  manager.addControl(frameSet);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.deepEqual(child.getPosition(), { x: 0, y: 0 });
+  assert.deepEqual(child.getSize(), { width: 80, height: 100 });
+  manager.dispose();
+});
+
+test('gui_manager_applies_native_text_edits_and_dispatches_change_once', () => {
+  let textEdit;
+  let changes = 0;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => field === 6 ? 1 : 0,
+    responseText: () => 'typed text',
+    eventCount: () => 1,
+    eventField: (_index, field) => field === GuiEventField.EventType
+      ? GUIEventType.Change
+      : field === GuiEventField.ControlId ? textEdit.id : 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  class ObservedTextEdit extends GuiTextEdit {
+    onChange() { changes++; }
+  }
+  const manager = new GUIManager({}, bridge);
+  textEdit = new ObservedTextEdit({ width: 120, height: 24 });
+  textEdit.setText('initial text');
+  manager.addControl(textEdit);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.equal(textEdit.getText(), 'typed text');
+  assert.equal(changes, 1);
+  manager.dispose();
+});
+
+test('gui_manager_invokes_menu_callback_for_native_selection', () => {
+  let menu;
+  let activations = 0;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => field === 5 ? 1 : field === 6 ? 1 : 0,
+    responseText: () => '',
+    eventCount: () => 1,
+    eventField: (_index, field) => field === GuiEventField.EventType
+      ? GUIEventType.Action
+      : field === GuiEventField.ControlId ? menu.id : 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  menu = new GuiMenu({ width: 120, height: 24 });
+  menu.add('Open', 'open', () => { activations++; });
+  menu.add('Save', 'save', () => { activations++; });
+  menu.setSelected('open');
+  manager.addControl(menu);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.equal(menu.getSelected(), 'save');
+  assert.equal(activations, 1);
+  manager.dispose();
+});
+
+test('gui_manager_ignores_a_native_selection_older_than_a_manual_selection', () => {
+  let menu;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => field === 5 ? 1 : field === 6 ? 1 : 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  menu = new GuiPopUpMenu({ width: 120, height: 24 });
+  menu.add('Open', 'open').add('Save', 'save').add('Close', 'close');
+  menu.setSelected('open');
+  manager.addControl(menu);
+
+  manager.renderFrame();
+  menu.setSelected('close');
+  manager.updateFrame(1 / 60);
+
+  assert.equal(menu.getSelected(), 'close');
+  manager.dispose();
+});
+
+test('native_context_menu_activation_runs_its_callback_and_closes', () => {
+  let menu;
+  let activations = 0;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => field === 5 ? 0 : field === 6 ? 1 : 0,
+    responseText: () => '',
+    eventCount: () => 1,
+    eventField: (_index, field) => field === GuiEventField.EventType
+      ? GUIEventType.Action
+      : field === GuiEventField.ControlId ? menu.id : 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  menu = new GuiContextMenu({ width: 120, height: 24 });
+  menu.add('Delete', 'delete', () => { activations++; });
+  menu.openAt(20, 20, 1);
+  manager.addControl(menu);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.equal(activations, 1);
+  assert.equal(menu.isOpen(), false);
+  manager.dispose();
+});
+
+test('gui_manager_applies_native_text_to_editable_popups', () => {
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => field === 6 ? 1 : 0,
+    responseText: () => 'typed query',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  const popup = new GuiPopUpEdit({ width: 160, height: 24 });
+  popup.add('Orc', 'orc');
+  manager.addControl(popup);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.equal(popup.getText(), 'typed query');
+  manager.dispose();
+});
+
+test('gui_manager_does_not_apply_stale_native_text_over_a_newer_setText', () => {
+  let textEdit;
+  const bridge = new GuiNativeBridge({
+    command: () => 1,
+    scratchReset: () => {},
+    scratchPushF64: () => {},
+    scratchCommand: () => 1,
+    response: (_id, field) => field === 6 ? 1 : 0,
+    responseText: () => 'stale native text',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  textEdit = new GuiTextEdit({ width: 120, height: 24 });
+  textEdit.setText('submitted text');
+  manager.addControl(textEdit);
+
+  manager.renderFrame();
+  textEdit.setText('newer TypeScript text');
+  manager.updateFrame(1 / 60);
+
+  assert.equal(textEdit.getText(), 'newer TypeScript text');
+  manager.dispose();
+});
+
 test('gui_manager_registers_only_loaded_textures_owned_by_its_game', () => {
   const context = GameContext.create();
   context.markReady();
@@ -768,6 +1226,38 @@ test('gui_manager_registers_only_loaded_textures_owned_by_its_game', () => {
     assert.equal(submitted.find((command) => command.id === invalid.id).values[7], 0);
     assert.equal(submitted.find((command) => command.id === notLoaded.id).values[7], 0);
     assert.deepEqual(registrations, [owned]);
+  } finally {
+    manager.dispose();
+    context.dispose();
+  }
+});
+
+test('GuiBitmapBorder forwards the profile bitmap dimensions for tiled rendering', () => {
+  const context = GameContext.create();
+  context.markReady();
+  const registered = [];
+  const texture = { isLoaded: true, handleValue: 923, width: 8, height: 4, dispose() {} };
+  context.register(texture);
+  const game = { ui: { registerTexture: (item) => registered.push(item) } };
+  bindGameContext(game, context);
+  const submitted = [];
+  const manager = new GUIManager(game, {
+    isAvailable: () => true,
+    submit: (commands) => submitted.push(...commands),
+    response: () => ({ present: false }),
+    events: () => [],
+    wantsPointerInput: () => false,
+    wantsKeyboardInput: () => false,
+  });
+  try {
+    const border = new GuiBitmapBorder({ width: 80, height: 40 });
+    border.setProfile(new GuiProfile({ background: texture })).setTiled(true);
+    manager.addControl(border);
+    manager.renderFrame();
+    const command = submitted.find((item) => item.id === border.id);
+    assert.equal(command.backgroundTextureHandle, 923);
+    assert.deepEqual(command.values, [1, 8, 4]);
+    assert.deepEqual(registered, [texture]);
   } finally {
     manager.dispose();
     context.dispose();

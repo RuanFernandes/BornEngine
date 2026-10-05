@@ -7,10 +7,16 @@ import type { GUI } from './gui';
 import type { GuiSize } from './types';
 import { GuiNativeBridge } from './native-bridge';
 
+const GUI_FOCUS_SENTINEL = -1_247_107_654;
+
 type NativeValueControl = GUI & {
   _captureValueRevision?: () => number;
+  _captureTextRevision?: () => number;
+  _captureGeometryRevision?: () => number;
   _applyNativeValue?: (value: number | boolean, commandRevision: number) => void;
-  _applyNativeSelectionIndex?: (index: number) => void;
+  _applyNativeText?: (text: string, commandRevision: number) => boolean;
+  _applyNativeGeometry?: (rect: { x: number; y: number; width: number; height: number }, commandRevision: number) => void;
+  _applyNativeSelectionIndex?: (index: number, commandRevision?: number) => void;
   getValue?: () => number | boolean;
 };
 
@@ -22,7 +28,8 @@ export class GUIManager implements ContextFrameService {
   private disposed = false;
   private readonly bridge: GuiNativeBridge;
   private readonly context: GameContext | null;
-  private submittedControls = new Map<number, { control: GUI; revision: number }>();
+  private submittedControls = new Map<number, { control: GUI; revision: number; textRevision: number; geometryRevision: number }>();
+  private pendingNativeFocus: { controlId: number; focused: boolean } | null = null;
 
   constructor(game: Game, bridge: GuiNativeBridge = new GuiNativeBridge()) {
     this.game = game;
@@ -61,24 +68,32 @@ export class GUIManager implements ContextFrameService {
 
   updateFrame(_deltaTime: number): void {
     if (this.disposed || !this.bridge.isAvailable()) return;
+    const readbackManagedControls = new Set<number>();
     for (const [id, entry] of this.submittedControls) {
       const response = this.bridge.response(id);
       if (!response.present) continue;
       const control = entry.control as NativeValueControl;
       if (control._getManager() !== this || !control._isInputEligible()) continue;
+      if (control._applyNativeSelectionIndex !== undefined
+        || control._applyNativeValue !== undefined
+        || control._applyNativeText !== undefined) {
+        readbackManagedControls.add(id);
+      }
       if (control._applyNativeSelectionIndex !== undefined) {
-        control._applyNativeSelectionIndex(response.value);
+        control._applyNativeSelectionIndex(response.value, entry.revision);
       } else if (control._applyNativeValue !== undefined) {
         const currentValue = control.getValue?.();
         const value = typeof currentValue === 'boolean' ? response.value > 0.5 : response.value;
         control._applyNativeValue(value, entry.revision);
       }
+      control._applyNativeText?.(response.text, entry.textRevision);
+      control._applyNativeGeometry?.(response.rect, entry.geometryRevision);
     }
 
     for (const nativeEvent of this.bridge.events()) {
       const control = this.submittedControls.get(nativeEvent.controlId)?.control;
       if (control === undefined) continue;
-      this.dispatchEvent(control, nativeEvent.type, {
+      const eventOptions = {
         local: { x: nativeEvent.localX, y: nativeEvent.localY },
         global: { x: nativeEvent.globalX, y: nativeEvent.globalY },
         key: nativeEvent.key,
@@ -86,7 +101,18 @@ export class GUIManager implements ContextFrameService {
         wheelX: nativeEvent.wheelX,
         wheelY: nativeEvent.wheelY,
         modifiers: nativeEvent.modifiers,
-      });
+      };
+      if (nativeEvent.type === GUIEventType.Focus) {
+        this._focusControl(control, eventOptions);
+        continue;
+      }
+      if (nativeEvent.type === GUIEventType.Blur) {
+        this._blurControl(control, eventOptions);
+        continue;
+      }
+      if (nativeEvent.type === GUIEventType.Change && readbackManagedControls.has(nativeEvent.controlId)) continue;
+      if (nativeEvent.type === GUIEventType.PointerDown) this.openContextMenuForPointer(control, eventOptions);
+      this.dispatchEvent(control, nativeEvent.type, eventOptions);
     }
   }
 
@@ -107,6 +133,10 @@ export class GUIManager implements ContextFrameService {
     for (const command of commands) {
       const control = controlsById.get(command.id);
       command.backgroundTextureHandle = this.registerTexture(command.profile.background, registeredTextures);
+      if (command.kind === 4 && command.backgroundTextureHandle !== 0 && command.profile.background !== null) {
+        const textureSize = command.profile.background;
+        command.values = [command.values[0] ?? 0, textureSize.width, textureSize.height];
+      }
       if (control !== undefined && (command.kind === 24 || command.kind === 25)) {
         const texture = (control as any)._getTexture?.() as Texture | null | undefined;
         command.values[7] = this.registerTexture(texture ?? null, registeredTextures);
@@ -124,7 +154,16 @@ export class GUIManager implements ContextFrameService {
         return drawing.textureHandle !== 0;
       });
     }
+    let focusRequestSubmitted = false;
+    if (this.pendingNativeFocus !== null) {
+      const focusCommand = commands.find((command) => command.id === this.pendingNativeFocus?.controlId);
+      if (focusCommand !== undefined) {
+        focusCommand.values.push(GUI_FOCUS_SENTINEL, this.pendingNativeFocus.focused ? 1 : 2);
+        focusRequestSubmitted = true;
+      }
+    }
     this.bridge.submit(commands);
+    if (focusRequestSubmitted) this.pendingNativeFocus = null;
   }
 
   isAvailable(): boolean { return !this.disposed && this.bridge.isAvailable(); }
@@ -162,25 +201,28 @@ export class GUIManager implements ContextFrameService {
   }
 
   /** @internal Changes keyboard focus and dispatches the matching event. */
-  _focusControl(control: GUI): void {
+  _focusControl(control: GUI, eventOptions?: GUIEventOptions): void {
     if (this.disposed || control._getManager() !== this || !control._isInputEligible()) return;
     if (this.focusedControl === control) return;
+    if (eventOptions === undefined) this.pendingNativeFocus = { controlId: control.id, focused: true };
+    const nativeEventOptions = eventOptions ?? {};
     const previous = this.focusedControl;
     this.focusedControl = control;
     if (previous !== null) {
       previous._setFocused(false);
-      this.dispatchEvent(previous, GUIEventType.Blur);
+      this.dispatchEvent(previous, GUIEventType.Blur, nativeEventOptions);
     }
     control._setFocused(true);
-    this.dispatchEvent(control, GUIEventType.Focus);
+    this.dispatchEvent(control, GUIEventType.Focus, nativeEventOptions);
   }
 
   /** @internal Removes focus only when the requested control currently owns it. */
-  _blurControl(control: GUI): void {
+  _blurControl(control: GUI, eventOptions?: GUIEventOptions): void {
     if (this.focusedControl !== control) return;
+    if (eventOptions === undefined) this.pendingNativeFocus = { controlId: control.id, focused: false };
     this.focusedControl = null;
     control._setFocused(false);
-    if (control._getManager() === this && control._isInputEligible()) this.dispatchEvent(control, GUIEventType.Blur);
+    if (control._getManager() === this && control._isInputEligible()) this.dispatchEvent(control, GUIEventType.Blur, eventOptions ?? {});
   }
 
   /** @internal Clears focused descendants before a subtree is detached or hidden. */
@@ -188,6 +230,7 @@ export class GUIManager implements ContextFrameService {
     const focused = this.focusedControl;
     if (focused === null || !subtree._containsControl(focused)) return;
     this.focusedControl = null;
+    this.pendingNativeFocus = { controlId: focused.id, focused: false };
     focused._setFocused(false);
     if (focused._getManager() === this && focused._isInputEligible()) this.dispatchEvent(focused, GUIEventType.Blur);
   }
@@ -201,6 +244,8 @@ export class GUIManager implements ContextFrameService {
       this.submittedControls.set(control.id, {
         control,
         revision: valueControl._captureValueRevision?.() ?? 0,
+        textRevision: valueControl._captureTextRevision?.() ?? 0,
+        geometryRevision: valueControl._captureGeometryRevision?.() ?? 0,
       });
     }
     for (const child of control.getControls()) this.collectSubmittedControls(child, emittedIds);
@@ -220,6 +265,35 @@ export class GUIManager implements ContextFrameService {
       registered.add(handle);
     }
     return handle;
+  }
+
+  private openContextMenuForPointer(target: GUI, event: GUIEventOptions): void {
+    if (event.button !== 1) return;
+    const candidates: Array<{ menu: GUI; owner: GUI | null; depth: number }> = [];
+    const visit = (control: GUI): void => {
+      if (control._getGuiCommandKind() === 23) {
+        const owner = control.parent;
+        if (owner === null || owner._containsControl(target)) {
+          let depth = 0;
+          for (let ancestor = owner; ancestor !== null; ancestor = ancestor.parent) depth++;
+          candidates.push({ menu: control, owner, depth });
+        }
+      }
+      for (const child of control.getControls()) visit(child);
+    };
+    for (const root of this.controls) visit(root);
+    candidates.sort((left, right) => right.depth - left.depth);
+    const selected = candidates[0];
+    if (selected === undefined) return;
+    let x = event.global?.x ?? 0;
+    let y = event.global?.y ?? 0;
+    if (selected.owner !== null) {
+      const local = selected.owner.globalToLocal({ x, y });
+      const insets = selected.owner._getContentInsets();
+      x = local.x - insets.left;
+      y = local.y - insets.top;
+    }
+    selected.menu._openContextMenuAt(x, y, event.button);
   }
 
   /** @internal Updates centered root controls after a viewport resize. */

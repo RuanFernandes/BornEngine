@@ -18,6 +18,10 @@ pub struct EguiUi {
     native_pixels_per_point: Option<f32>,
     active_touches: HashSet<usize>,
     active_tabs: HashMap<u32, u32>,
+    gui_window_bounds: HashMap<u32, [f32; 4]>,
+    gui_window_requested_bounds: HashMap<u32, [f32; 4]>,
+    gui_frame_set_column_weights: HashMap<u32, Vec<f32>>,
+    gui_frame_set_row_weights: HashMap<u32, Vec<f32>>,
     gui_hovered: HashSet<u32>,
     gui_focused: HashSet<u32>,
     custom_fonts: BTreeMap<u32, (String, Arc<egui::FontData>)>,
@@ -70,6 +74,20 @@ impl EguiUi {
         dt: f64,
     ) -> EguiFrameOutput {
         self.set_native_pixels_per_point(pixels_per_point);
+        let live_window_ids: HashSet<u32> = gui_commands
+            .iter()
+            .filter(|command| command.opcode == GuiOpcode::Control && finite_usize(command.scratch.first().copied().unwrap_or(-1.0)) == Some(2))
+            .map(|command| command.id)
+            .collect();
+        let live_frame_set_ids: HashSet<u32> = gui_commands
+            .iter()
+            .filter(|command| command.opcode == GuiOpcode::Control && finite_usize(command.scratch.first().copied().unwrap_or(-1.0)) == Some(6))
+            .map(|command| command.id)
+            .collect();
+        self.gui_window_bounds.retain(|id, _| live_window_ids.contains(id));
+        self.gui_window_requested_bounds.retain(|id, _| live_window_ids.contains(id));
+        self.gui_frame_set_column_weights.retain(|id, _| live_frame_set_ids.contains(id));
+        self.gui_frame_set_row_weights.retain(|id, _| live_frame_set_ids.contains(id));
         self.elapsed_seconds += if dt.is_finite() {
             dt.clamp(0.0, 0.25)
         } else {
@@ -169,7 +187,6 @@ impl EguiUi {
                 UiInputEvent::Text(_) => {}
             }
         }
-
         let gui_input = input.clone();
         let mut next_active_touches = HashSet::new();
         for touch in input.touches {
@@ -245,6 +262,10 @@ impl EguiUi {
             responses: HashMap::new(),
             registered_textures: HashMap::new(),
             active_tabs: &mut self.active_tabs,
+            gui_window_bounds: &mut self.gui_window_bounds,
+            gui_window_requested_bounds: &mut self.gui_window_requested_bounds,
+            gui_frame_set_column_weights: &mut self.gui_frame_set_column_weights,
+            gui_frame_set_row_weights: &mut self.gui_frame_set_row_weights,
             custom_font_names: self
                 .custom_fonts
                 .iter()
@@ -363,6 +384,10 @@ struct EvalState<'a> {
     responses: HashMap<u32, UiResponse>,
     registered_textures: HashMap<u32, u64>,
     active_tabs: &'a mut HashMap<u32, u32>,
+    gui_window_bounds: &'a mut HashMap<u32, [f32; 4]>,
+    gui_window_requested_bounds: &'a mut HashMap<u32, [f32; 4]>,
+    gui_frame_set_column_weights: &'a mut HashMap<u32, Vec<f32>>,
+    gui_frame_set_row_weights: &'a mut HashMap<u32, Vec<f32>>,
     custom_font_names: HashMap<u32, String>,
     text_edit_focused: bool,
     gui_responses: HashMap<u32, GuiResponse>,
@@ -780,6 +805,18 @@ impl EvalState<'_> {
             .filter(|command| command.opcode == GuiOpcode::Control)
             .map(|command| (command.id, gui_parent_id(command)))
             .collect();
+        let mut children_by_parent: HashMap<u32, Vec<u32>> = HashMap::new();
+        for command in commands.iter().filter(|command| command.opcode == GuiOpcode::Control) {
+            let parent_id = gui_parent_id(command);
+            if parent_id != 0 {
+                children_by_parent.entry(parent_id).or_default().push(command.id);
+            }
+        }
+        let commands_by_id: HashMap<u32, &GuiCommand> = commands
+            .iter()
+            .filter(|command| command.opcode == GuiOpcode::Control)
+            .map(|command| (command.id, command))
+            .collect();
         let scroll_content_sizes = gui_scroll_content_sizes(&commands, &parent_ids);
         for command in &commands {
             match command.opcode {
@@ -819,18 +856,49 @@ impl EvalState<'_> {
             let Some(height) = finite_f32(command.args[3]) else {
                 continue;
             };
-            let bounds = Rect::from_min_size(
+            let mut bounds = Rect::from_min_size(
                 Pos2::new(x - parent_offset.x, y - parent_offset.y),
                 Vec2::new(width.max(0.0), height.max(0.0)),
             );
+            if kind == 2 {
+                let requested = [bounds.min.x, bounds.min.y, bounds.width(), bounds.height()];
+                if self.gui_window_requested_bounds.insert(command.id, requested).is_some_and(|previous| previous != requested) {
+                    self.gui_window_bounds.insert(command.id, requested);
+                }
+                let stored = *self.gui_window_bounds.entry(command.id).or_insert(requested);
+                bounds = Rect::from_min_size(Pos2::new(stored[0], stored[1]), Vec2::new(stored[2], stored[3]));
+            }
+            if kind != 2 {
+                let parent_id = gui_parent_id(command);
+                if let (Some(parent_command), Some(siblings)) = (
+                    commands_by_id.get(&parent_id).copied().filter(|parent| finite_usize(parent.scratch.first().copied().unwrap_or(-1.0)) == Some(6)),
+                    children_by_parent.get(&parent_id),
+                ) {
+                    let parent_bounds = self.gui_control_bounds.get(&parent_id).map(|rect| {
+                        Rect::from_min_size(Pos2::new(rect[0] as f32, rect[1] as f32), Vec2::new(rect[2] as f32, rect[3] as f32))
+                    });
+                    let child_index = siblings.iter().position(|id| *id == command.id);
+                    let columns = finite_usize(gui_values(parent_command).first().copied().unwrap_or(1.0)).unwrap_or(1).max(1);
+                    let rows = finite_usize(gui_values(parent_command).get(1).copied().unwrap_or(1.0)).unwrap_or(1).max(1);
+                    let splitter = finite_f32(gui_values(parent_command).get(2).copied().unwrap_or(4.0)).unwrap_or(4.0).max(0.0);
+                    let padding = finite_f32(parent_command.scratch.get(32).copied().unwrap_or(0.0)).unwrap_or(0.0).max(0.0);
+                    if let (Some(parent_bounds), Some(child_index)) = (parent_bounds, child_index) {
+                        let column_weights = self.gui_frame_set_column_weights.get(&parent_id).cloned().unwrap_or_else(|| vec![1.0 / columns as f32; columns]);
+                        let row_weights = self.gui_frame_set_row_weights.get(&parent_id).cloned().unwrap_or_else(|| vec![1.0 / rows as f32; rows]);
+                        if let Some(cell) = gui_frame_set_cell_bounds(parent_bounds, padding, splitter, columns, rows, child_index, &column_weights, &row_weights) {
+                            bounds = cell;
+                        }
+                    }
+                }
+            }
             let clip = gui_control_clip(command, viewport, &parent_ids, &self.gui_scroll_offsets);
             self.gui_control_bounds.insert(
                 command.id,
                 [
                     bounds.min.x as f64,
                     bounds.min.y as f64,
-                    width as f64,
-                    height as f64,
+                    bounds.width() as f64,
+                    bounds.height() as f64,
                 ],
             );
             self.gui_clip_bounds.insert(
@@ -863,20 +931,50 @@ impl EvalState<'_> {
             self.gui_background_colors
                 .insert(command.id, normal.to_array());
             let background_texture = finite_u64(command.scratch[51]).filter(|handle| *handle != 0);
+            let current = gui_values(command);
 
             let painter = ui.painter().with_clip_rect(clip);
             if width > 0.0 && height > 0.0 {
                 if let Some(handle) = background_texture {
-                    paint_gui_texture(&painter, handle, bounds, normal, 0.0, 1.0);
+                    if kind == 4 {
+                        painter.rect_filled(bounds, egui::CornerRadius::same(radius), normal);
+                        let tile_size = Vec2::new(
+                            finite_f32(current.get(1).copied().unwrap_or(0.0)).unwrap_or(0.0),
+                            finite_f32(current.get(2).copied().unwrap_or(0.0)).unwrap_or(0.0),
+                        );
+                        paint_gui_bitmap_border(
+                            &painter,
+                            handle,
+                            bounds,
+                            normal,
+                            border_width,
+                            tile_size,
+                            current.first().copied().unwrap_or(0.0) > 0.5,
+                        );
+                    } else {
+                        paint_gui_texture(&painter, handle, bounds, normal, 0.0, 1.0);
+                    }
                 } else {
                     painter.rect_filled(bounds, egui::CornerRadius::same(radius), normal);
                 }
-                if border_width > 0.0 {
+                if border_width > 0.0 && !(kind == 4 && background_texture.is_some()) {
                     painter.rect_stroke(
                         bounds,
                         egui::CornerRadius::same(radius),
                         Stroke::new(border_width, border_color),
                         egui::StrokeKind::Inside,
+                    );
+                }
+                if kind == 2 {
+                    let title_height = (text_size + 8.0).clamp(18.0, 32.0).min(bounds.height());
+                    let title_bar = Rect::from_min_size(bounds.min, Vec2::new(bounds.width(), title_height));
+                    painter.rect_filled(title_bar, egui::CornerRadius::same(radius), gui_profile_color(&command.scratch, 10).linear_multiply(gui_opacity(&command.scratch)));
+                    painter.text(
+                        title_bar.left_center() + Vec2::new(8.0, 0.0),
+                        Align2::LEFT_CENTER,
+                        command.text.as_str(),
+                        egui::FontId::proportional(text_size),
+                        text_color,
                     );
                 }
             }
@@ -895,7 +993,6 @@ impl EvalState<'_> {
                     .pointer_buttons
                     .iter()
                     .any(|button| button.pressed && button.button == 0);
-            let current = gui_values(command);
             let initial = current.first().copied().unwrap_or(0.0);
             let minimum = current.get(1).copied().unwrap_or(0.0);
             let maximum = current.get(2).copied().unwrap_or(1.0);
@@ -914,6 +1011,63 @@ impl EvalState<'_> {
                         rich
                     };
                     match kind {
+                        5 => {
+                            let response = control_ui.interact(
+                                Rect::from_min_size(bounds.min, Vec2::ZERO),
+                                widget_id,
+                                egui::Sense::hover(),
+                            );
+                            (response, initial, String::new(), None)
+                        }
+                        2 => {
+                            let movable = current.first().copied().unwrap_or(1.0) > 0.5;
+                            let resizable = current.get(1).copied().unwrap_or(1.0) > 0.5;
+                            let closable = current.get(2).copied().unwrap_or(1.0) > 0.5;
+                            let title_height = (text_size + 8.0).clamp(18.0, 32.0).min(size.y.max(0.0));
+                            let title_bar = Rect::from_min_size(bounds.min, Vec2::new(size.x.max(0.0), title_height));
+                            let title_response = control_ui.interact(
+                                title_bar,
+                                Id::new(("bornengine-retained-window-title", command.id)),
+                                if movable { egui::Sense::click_and_drag() } else { egui::Sense::hover() },
+                            );
+                            let mut response = title_response.clone();
+                            if movable && title_response.dragged() {
+                                if let Some(window) = self.gui_window_bounds.get_mut(&command.id) {
+                                    let delta = title_response.drag_delta();
+                                    window[0] += delta.x;
+                                    window[1] += delta.y;
+                                }
+                            }
+                            let mut open = true;
+                            if closable {
+                                let close_size = title_height.min(24.0).max(18.0);
+                                let close_rect = Rect::from_min_size(
+                                    Pos2::new(bounds.max.x - close_size - 4.0, bounds.min.y + (title_height - close_size) * 0.5),
+                                    Vec2::splat(close_size),
+                                );
+                                let close_response = control_ui.put(close_rect, egui::Button::new("×"));
+                                open = !close_response.clicked();
+                                response = response.union(close_response);
+                            }
+                            if resizable && size.x >= 16.0 && size.y >= 16.0 {
+                                let handle = 14.0_f32.min(size.x).min(size.y);
+                                let resize_rect = Rect::from_min_size(bounds.max - Vec2::splat(handle), Vec2::splat(handle));
+                                let resize_response = control_ui.interact(
+                                    resize_rect,
+                                    Id::new(("bornengine-retained-window-resize", command.id)),
+                                    egui::Sense::drag(),
+                                );
+                                if resize_response.dragged() {
+                                    if let Some(window) = self.gui_window_bounds.get_mut(&command.id) {
+                                        let delta = resize_response.drag_delta();
+                                        window[2] = (window[2] + delta.x).max(80.0);
+                                        window[3] = (window[3] + delta.y).max(60.0);
+                                    }
+                                }
+                                response = response.union(resize_response);
+                            }
+                            (response.clone(), if open { 1.0 } else { 0.0 }, String::new(), None)
+                        }
                         7 => {
                             let response = control_ui.push_id(widget_id, |inner| inner.add_sized(size, egui::Button::new(rich()).fill(normal).stroke(Stroke::new(border_width, border_color)))).inner;
                             (response.clone(), if response.clicked() { 1.0 } else { 0.0 }, String::new(), None)
@@ -946,9 +1100,16 @@ impl EvalState<'_> {
                             let response = control_ui.push_id(widget_id, |inner| {
                                 let mut edit = if kind == 14 { egui::TextEdit::multiline(&mut edited) } else { egui::TextEdit::singleline(&mut edited) };
                                 edit = edit.id_salt(("bornengine-retained-text", command.id));
-                                if current.get(0).copied().unwrap_or(0.0) > 0.5 && kind == 13 { edit = edit.password(true); }
-                                let max_length = finite_usize(current.get(2).copied().unwrap_or(0.0)).unwrap_or(0);
-                                if max_length > 0 { edit = edit.char_limit(max_length); }
+                                let password_index = if kind == 15 { 3 } else { 0 };
+                                let numbers_only_index = if kind == 15 { 4 } else { 1 };
+                                let max_length_index = if kind == 15 { 5 } else { 2 };
+                                if current.get(password_index).copied().unwrap_or(0.0) > 0.5 && matches!(kind, 13 | 15) { edit = edit.password(true); }
+                                let max_length = finite_usize(current.get(max_length_index).copied().unwrap_or(0.0)).unwrap_or(0);
+                                if max_length > 0
+                                    && current.get(numbers_only_index).copied().unwrap_or(0.0) <= 0.5
+                                {
+                                    edit = edit.char_limit(max_length);
+                                }
                                 inner.add_sized(size, edit)
                             }).inner;
                             (response, initial, edited, None)
@@ -957,6 +1118,62 @@ impl EvalState<'_> {
                             let mut slider_value = initial.clamp(minimum.min(maximum), maximum.max(minimum));
                             let response = control_ui.push_id(widget_id, |inner| inner.add_sized(size, egui::Slider::new(&mut slider_value, ordered_range(minimum, maximum)).text(command.text.as_str()))).inner;
                             (response, slider_value, String::new(), None)
+                        }
+                        17 => {
+                            let mut selected = finite_usize(current.get(1).copied().unwrap_or(-1.0))
+                                .filter(|index| *index < items.len());
+                            let selected_label = selected
+                                .and_then(|index| items.get(index))
+                                .map_or("Select…", |item| item.text.as_str());
+                            let response = control_ui.push_id(widget_id, |inner| {
+                                egui::ComboBox::from_id_salt(("bornengine-retained-popup", command.id))
+                                    .selected_text(selected_label)
+                                    .width(size.x.max(0.0))
+                                    .show_ui(inner, |popup| {
+                                        for item in items {
+                                            let index = finite_usize(item.args[0]).unwrap_or(0);
+                                            if popup.selectable_label(selected == Some(index), item.text.as_str()).clicked() {
+                                                selected = Some(index);
+                                            }
+                                        }
+                                    })
+                                    .response
+                            }).inner;
+                            (response, selected.map_or(-1.0, |index| index as f64), String::new(), None)
+                        }
+                        18 => {
+                            let mut edited = command.text.clone();
+                            let mut selected = finite_usize(current.get(1).copied().unwrap_or(-1.0))
+                                .filter(|index| *index < items.len());
+                            let selected_label = selected
+                                .and_then(|index| items.get(index))
+                                .map_or("Select…", |item| item.text.as_str())
+                                .to_owned();
+                            let (text_response, _popup_response) = control_ui.push_id(widget_id, |inner| {
+                                inner.horizontal(|row| {
+                                    let combo_width = size.y.min(size.x).max(0.0);
+                                    let input_width = (size.x - combo_width).max(0.0);
+                                    let edit_response = row.add_sized(
+                                        [input_width, size.y],
+                                        egui::TextEdit::singleline(&mut edited)
+                                            .id_salt(("bornengine-retained-popup-edit", command.id)),
+                                    );
+                                    let popup_response = egui::ComboBox::from_id_salt(("bornengine-retained-popup-edit-items", command.id))
+                                        .selected_text(selected_label)
+                                        .width(combo_width)
+                                        .show_ui(row, |popup| {
+                                            for item in items {
+                                                let index = finite_usize(item.args[0]).unwrap_or(0);
+                                                if popup.selectable_label(selected == Some(index), item.text.as_str()).clicked() {
+                                                    selected = Some(index);
+                                                }
+                                            }
+                                        })
+                                        .response;
+                                    (edit_response, popup_response)
+                                }).inner
+                            }).inner;
+                            (text_response, selected.map_or(-1.0, |index| index as f64), edited, None)
                         }
                         26 => {
                             let fraction = initial.clamp(0.0, 1.0) as f32;
@@ -991,23 +1208,135 @@ impl EvalState<'_> {
                             let response = control_ui.interact(bounds, widget_id, egui::Sense::hover());
                             (response, 0.0, String::new(), Some(output.state.offset))
                         }
-                        17 | 18 | 19 | 20 | 21 | 22 | 23 => {
+                        6 => {
+                            let columns = finite_usize(current.first().copied().unwrap_or(1.0)).unwrap_or(1).max(1);
+                            let rows = finite_usize(current.get(1).copied().unwrap_or(1.0)).unwrap_or(1).max(1);
+                            let splitter = finite_f32(current.get(2).copied().unwrap_or(4.0)).unwrap_or(4.0).max(0.0);
+                            let padding = finite_f32(command.scratch.get(32).copied().unwrap_or(0.0)).unwrap_or(0.0).max(0.0);
+                            let content = bounds.shrink(padding);
+                            let available_x = (content.width() - splitter * columns.saturating_sub(1) as f32).max(1.0);
+                            let available_y = (content.height() - splitter * rows.saturating_sub(1) as f32).max(1.0);
+                            let column_weights = self.gui_frame_set_column_weights.entry(command.id)
+                                .or_insert_with(|| vec![1.0 / columns as f32; columns]);
+                            if column_weights.len() != columns { *column_weights = vec![1.0 / columns as f32; columns]; }
+                            let row_weights = self.gui_frame_set_row_weights.entry(command.id)
+                                .or_insert_with(|| vec![1.0 / rows as f32; rows]);
+                            if row_weights.len() != rows { *row_weights = vec![1.0 / rows as f32; rows]; }
+                            let mut response = control_ui.interact(bounds, widget_id, egui::Sense::hover());
+                            for split_index in 0..columns.saturating_sub(1) {
+                                let fraction: f32 = column_weights.iter().take(split_index + 1).sum();
+                                let center_x = content.min.x + available_x * fraction + splitter * split_index as f32 + splitter * 0.5;
+                                let hit_width = (splitter + 10.0).max(12.0);
+                                let hit_rect = Rect::from_center_size(Pos2::new(center_x, content.center().y), Vec2::new(hit_width, content.height()));
+                                let split_response = control_ui.interact(hit_rect, Id::new(("bornengine-frame-column", command.id, split_index)), egui::Sense::drag());
+                                if split_response.dragged() {
+                                    let pair_total = column_weights[split_index] + column_weights[split_index + 1];
+                                    let minimum = 0.05_f32.min(pair_total * 0.5);
+                                    let next = (column_weights[split_index] + split_response.drag_delta().x / available_x)
+                                        .clamp(minimum, pair_total - minimum);
+                                    column_weights[split_index] = next;
+                                    column_weights[split_index + 1] = pair_total - next;
+                                }
+                                response = response.union(split_response);
+                            }
+                            for split_index in 0..rows.saturating_sub(1) {
+                                let fraction: f32 = row_weights.iter().take(split_index + 1).sum();
+                                let center_y = content.min.y + available_y * fraction + splitter * split_index as f32 + splitter * 0.5;
+                                let hit_height = (splitter + 10.0).max(12.0);
+                                let hit_rect = Rect::from_center_size(Pos2::new(content.center().x, center_y), Vec2::new(content.width(), hit_height));
+                                let split_response = control_ui.interact(hit_rect, Id::new(("bornengine-frame-row", command.id, split_index)), egui::Sense::drag());
+                                if split_response.dragged() {
+                                    let pair_total = row_weights[split_index] + row_weights[split_index + 1];
+                                    let minimum = 0.05_f32.min(pair_total * 0.5);
+                                    let next = (row_weights[split_index] + split_response.drag_delta().y / available_y)
+                                        .clamp(minimum, pair_total - minimum);
+                                    row_weights[split_index] = next;
+                                    row_weights[split_index + 1] = pair_total - next;
+                                }
+                                response = response.union(split_response);
+                            }
+                            let painter = control_ui.painter().with_clip_rect(clip);
+                            let mut fraction = 0.0;
+                            for (index, weight) in column_weights.iter().enumerate().take(columns.saturating_sub(1)) {
+                                fraction += *weight;
+                                let x = content.min.x + available_x * fraction + splitter * index as f32 + splitter * 0.5;
+                                painter.line_segment([Pos2::new(x, content.min.y), Pos2::new(x, content.max.y)], Stroke::new(splitter.max(1.0), border_color));
+                            }
+                            fraction = 0.0;
+                            for (index, weight) in row_weights.iter().enumerate().take(rows.saturating_sub(1)) {
+                                fraction += *weight;
+                                let y = content.min.y + available_y * fraction + splitter * index as f32 + splitter * 0.5;
+                                painter.line_segment([Pos2::new(content.min.x, y), Pos2::new(content.max.x, y)], Stroke::new(splitter.max(1.0), border_color));
+                            }
+                            (response, 0.0, String::new(), None)
+                        }
+                        19 | 20 | 23 => {
                             let mut selected = finite_usize(current.get(1).copied().unwrap_or(-1.0))
                                 .filter(|index| *index < items.len());
                             let response = control_ui.push_id(widget_id, |inner| {
-                                let mut last = inner.interact(bounds, widget_id, egui::Sense::hover());
+                                let mut result = inner.interact(bounds, widget_id, egui::Sense::hover());
                                 let _ = inner.vertical(|rows| {
                                     for item in items {
                                         let index = finite_usize(item.args[0]).unwrap_or(0);
                                         let depth = finite_f32(item.args[2]).unwrap_or(0.0).max(0.0);
                                         if kind == 19 { rows.add_space(depth * 12.0); }
                                         let row = rows.selectable_label(selected == Some(index), item.text.as_str());
-                                        let hit = pointer_position.is_some_and(|point| row.rect.contains(Pos2::new(point[0] as f32, point[1] as f32))) && pressed_inside;
-                                        if row.clicked() || hit { selected = Some(index); }
-                                        last = row;
+                                        if row.clicked() {
+                                            selected = Some(index);
+                                            result = row.clone();
+                                        } else if row.hovered() {
+                                            result = row.clone();
+                                        }
                                     }
                                 });
-                                last
+                                result
+                            }).inner;
+                            (response, selected.map_or(-1.0, |index| index as f64), String::new(), None)
+                        }
+                        21 | 22 => {
+                            let mut selected = finite_usize(current.get(1).copied().unwrap_or(-1.0))
+                                .filter(|index| *index < items.len());
+                            let response = control_ui.push_id(widget_id, |inner| {
+                                let mut result = None;
+                                if !items.is_empty() {
+                                    let item_width = size.x.max(0.0) / items.len() as f32;
+                                    let item_height = if kind == 21 { 28.0_f32.min(size.y.max(0.0)) } else { size.y.max(0.0) };
+                                    for (item_index, item) in items.iter().enumerate() {
+                                        let index = finite_usize(item.args[0]).unwrap_or(item_index);
+                                        let item_rect = Rect::from_min_size(
+                                            Pos2::new(bounds.min.x + item_width * item_index as f32, bounds.min.y),
+                                            Vec2::new(item_width, item_height),
+                                        );
+                                        let item_response = inner.interact(
+                                            item_rect,
+                                            Id::new(("bornengine-retained-tab-menu-item", command.id, item_index)),
+                                            egui::Sense::click(),
+                                        );
+                                        let item_painter = inner.painter().with_clip_rect(clip);
+                                        let fill = if selected == Some(index) {
+                                            gui_profile_color(&command.scratch, 22).linear_multiply(gui_opacity(&command.scratch))
+                                        } else if item_response.hovered() {
+                                            gui_profile_color(&command.scratch, 10).linear_multiply(gui_opacity(&command.scratch))
+                                        } else {
+                                            normal
+                                        };
+                                        item_painter.rect_filled(item_rect, egui::CornerRadius::same(radius), fill);
+                                        item_painter.text(
+                                            item_rect.center(),
+                                            Align2::CENTER_CENTER,
+                                            item.text.as_str(),
+                                            egui::FontId::proportional(text_size),
+                                            text_color,
+                                        );
+                                        if item_response.clicked() {
+                                            selected = Some(index);
+                                            result = Some(item_response);
+                                        } else if item_response.hovered() {
+                                            result = Some(item_response);
+                                        }
+                                    }
+                                }
+                                result.unwrap_or_else(|| inner.interact(bounds, widget_id, egui::Sense::hover()))
                             }).inner;
                             (response, selected.map_or(-1.0, |index| index as f64), String::new(), None)
                         }
@@ -1035,34 +1364,50 @@ impl EvalState<'_> {
                 },
             ).inner;
 
-            let request_text_focus = pressed_inside && matches!(kind, 13 | 14 | 15);
+            let popup_edit_inside = kind == 18
+                && pointer_position.is_some_and(|point| {
+                    point[0] < bounds.min.x as f64 + (width - height).max(0.0) as f64
+                });
+            let request_text_focus = pressed_inside && (matches!(kind, 13 | 14 | 15) || popup_edit_inside);
+            let native_focus_request = gui_focus_request(current);
+            if native_focus_request == Some(1.0) {
+                response.request_focus();
+            } else if native_focus_request == Some(2.0) {
+                response.surrender_focus();
+            }
             if request_text_focus {
                 response.request_focus();
             }
+            let requested_focus = request_text_focus || native_focus_request == Some(1.0);
+            self.text_edit_focused |= requested_focus || response.has_focus();
             let mut value = value;
-            let text = text;
-            let mut forced_change = false;
-            if pressed_inside {
-                match kind {
-                    7 | 10 | 22 | 23 => value = 1.0,
-                    8 => {
-                        value = if initial > 0.5 { 0.0 } else { 1.0 };
-                        forced_change = true;
-                    }
-                    9 => {
-                        value = 1.0;
-                        forced_change = initial <= 0.5;
-                    }
-                    16 => {
-                        if let Some([pointer_x, _]) = pointer_position {
-                            let amount = ((pointer_x - bounds.min.x as f64)
-                                / (width as f64).max(1.0))
-                            .clamp(0.0, 1.0);
-                            value = minimum + (maximum - minimum) * amount;
-                            forced_change = (value - initial).abs() > f64::EPSILON;
-                        }
-                    }
-                    _ => {}
+            let mut text = text;
+            let native_selection_changed = matches!(kind, 17 | 18 | 19 | 20 | 21 | 22 | 23)
+                && (value - current.get(1).copied().unwrap_or(-1.0)).abs() > f64::EPSILON;
+            let mut forced_change = native_selection_changed;
+            if matches!(kind, 13 | 14 | 15) {
+                let (numbers_only_index, max_length_index) = if kind == 15 { (4, 5) } else { (1, 2) };
+                let numbers_only = current.get(numbers_only_index).copied().unwrap_or(0.0) > 0.5;
+                let max_length = finite_usize(current.get(max_length_index).copied().unwrap_or(0.0)).unwrap_or(0);
+                if numbers_only {
+                    let filtered = text
+                        .chars()
+                        .filter(|character| character.is_ascii_digit() || matches!(character, '+' | '-' | '.'))
+                        .collect::<String>();
+                    text = if max_length > 0 {
+                        filtered.chars().take(max_length).collect()
+                    } else {
+                        filtered
+                    };
+                }
+                if kind == 15 {
+                    value = text
+                        .parse::<f64>()
+                        .ok()
+                        .filter(|number| number.is_finite())
+                        .map(|number| number.clamp(minimum.min(maximum), maximum.max(minimum)))
+                        .unwrap_or(initial);
+                    forced_change = (value - initial).abs() > f64::EPSILON;
                 }
             }
 
@@ -1081,16 +1426,28 @@ impl EvalState<'_> {
             } else {
                 value
             };
+            if kind == 2 {
+                if let Some(stored) = self.gui_window_bounds.get(&command.id).copied() {
+                    bounds = Rect::from_min_size(Pos2::new(stored[0], stored[1]), Vec2::new(stored[2], stored[3]));
+                    self.gui_control_bounds.insert(command.id, [stored[0] as f64, stored[1] as f64, stored[2] as f64, stored[3] as f64]);
+                }
+            }
             self.gui_responses.insert(
                 command.id,
                 GuiResponse {
-                    clicked: response.clicked() || pressed_inside,
+                    clicked: response.clicked() || native_selection_changed,
                     changed: response.changed() || forced_change,
-                    hovered: response.hovered() || pointer_inside,
+                    hovered: response.hovered(),
                     focused: response.has_focus() || request_text_focus,
                     dragged: response.dragged(),
                     value: response_value,
                     text,
+                    rect: [
+                        bounds.min.x as f64,
+                        bounds.min.y as f64,
+                        bounds.width() as f64,
+                        bounds.height() as f64,
+                    ],
                 },
             );
             if let Some(offset) = scroll_offset {
@@ -1115,9 +1472,8 @@ impl EvalState<'_> {
                 command.id,
                 &response,
                 bounds,
-                pointer_inside,
-                pressed_inside,
-                request_text_focus,
+                requested_focus,
+                response.clicked() || native_selection_changed,
             );
         }
     }
@@ -1127,14 +1483,16 @@ impl EvalState<'_> {
         id: u32,
         response: &egui::Response,
         bounds: Rect,
-        pointer_inside: bool,
-        pressed_inside: bool,
         requested_focus: bool,
+        action: bool,
     ) {
-        let hovered = response.hovered() || pointer_inside;
+        let hovered = response.hovered();
         let focused = response.has_focus() || requested_focus;
+        let local_scale = gui_ancestor_stretch_scale(id, self.gui_commands);
         if hovered {
             self.gui_hovered.insert(id);
+        }
+        if hovered || requested_focus {
             self.gui_wants_pointer_input = true;
         }
         if focused {
@@ -1150,89 +1508,97 @@ impl EvalState<'_> {
             | ((self.input_snapshot.modifiers.alt as u32) << 2)
             | ((self.input_snapshot.modifiers.super_key as u32) << 3);
         if hovered && !self.previous_gui_hovered.contains(&id) {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::PointerEnter,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if !hovered && self.previous_gui_hovered.contains(&id) {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::PointerLeave,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if focused && !self.previous_gui_focused.contains(&id) {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::Focus,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if !focused && self.previous_gui_focused.contains(&id) {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::Blur,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if hovered
             && (self.input_snapshot.pointer_delta[0] != 0.0
                 || self.input_snapshot.pointer_delta[1] != 0.0)
         {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::PointerMove,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if hovered && (self.input_snapshot.scroll_x != 0.0 || self.input_snapshot.scroll_y != 0.0) {
-            let mut event = make_gui_event(GuiEventType::Wheel, id, pointer, bounds, modifiers);
+            let mut event = make_gui_event_for_control(GuiEventType::Wheel, id, pointer, bounds, modifiers, local_scale);
             event.wheel_x = self.input_snapshot.scroll_x;
             event.wheel_y = self.input_snapshot.scroll_y;
             self.gui_events.push(event);
         }
         if response.dragged() {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::PointerDrag,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
-        if response.clicked() || pressed_inside {
-            self.gui_events.push(make_gui_event(
+        if action {
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::Action,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if response.changed() {
-            self.gui_events.push(make_gui_event(
+            self.gui_events.push(make_gui_event_for_control(
                 GuiEventType::Change,
                 id,
                 pointer,
                 bounds,
                 modifiers,
+                local_scale,
             ));
         }
         if hovered {
             for button in &self.input_snapshot.pointer_buttons {
-                let mut event = make_gui_event(
+                let mut event = make_gui_event_for_control(
                     if button.pressed {
                         GuiEventType::PointerDown
                     } else {
@@ -1242,6 +1608,7 @@ impl EvalState<'_> {
                     pointer,
                     bounds,
                     modifiers,
+                    local_scale,
                 );
                 event.button = button.button as f64;
                 self.gui_events.push(event);
@@ -1250,7 +1617,7 @@ impl EvalState<'_> {
         if focused {
             for input in self.input_snapshot.ordered_key_text_events() {
                 if let UiInputEvent::Key(key) = input {
-                    let mut event = make_gui_event(
+                    let mut event = make_gui_event_for_control(
                         if key.pressed {
                             GuiEventType::KeyDown
                         } else {
@@ -1260,6 +1627,7 @@ impl EvalState<'_> {
                         pointer,
                         bounds,
                         modifiers,
+                        local_scale,
                     );
                     event.key = key.key as f64;
                     self.gui_events.push(event);
@@ -1514,6 +1882,47 @@ fn gui_values(command: &GuiCommand) -> &[f64] {
     &command.scratch[values_start..values_start + count]
 }
 
+const GUI_FOCUS_SENTINEL: f64 = -1_247_107_654.0;
+
+fn gui_focus_request(values: &[f64]) -> Option<f64> {
+    if values.len() >= 2 && values[values.len() - 2] == GUI_FOCUS_SENTINEL {
+        Some(values[values.len() - 1])
+    } else {
+        None
+    }
+}
+
+fn gui_ancestor_stretch_scale(id: u32, commands: &[GuiCommand]) -> Vec2 {
+    let mut scale = Vec2::splat(1.0);
+    let mut has_x_scale = false;
+    let mut has_y_scale = false;
+    let mut current_id = id;
+    let mut visited = HashSet::new();
+    while current_id != 0 && visited.insert(current_id) {
+        let Some(command) = commands.iter().find(|command| command.id == current_id) else { break };
+        let parent_id = gui_parent_id(command);
+        if parent_id == 0 { break; }
+        let Some(parent) = commands.iter().find(|command| command.id == parent_id) else { break };
+        if finite_usize(parent.scratch.first().copied().unwrap_or(-1.0)) == Some(5) {
+            let values = gui_values(parent);
+            let virtual_width = finite_f32(values.first().copied().unwrap_or(0.0)).unwrap_or(0.0);
+            let virtual_height = finite_f32(values.get(1).copied().unwrap_or(0.0)).unwrap_or(0.0);
+            let width = finite_f32(parent.args[2]).unwrap_or(0.0);
+            let height = finite_f32(parent.args[3]).unwrap_or(0.0);
+            if !has_x_scale && virtual_width > 0.0 {
+                scale.x = width / virtual_width;
+                has_x_scale = true;
+            }
+            if !has_y_scale && virtual_height > 0.0 {
+                scale.y = height / virtual_height;
+                has_y_scale = true;
+            }
+        }
+        current_id = parent_id;
+    }
+    Vec2::new(scale.x.max(0.000_001), scale.y.max(0.000_001))
+}
+
 fn gui_values_range(command: &GuiCommand) -> Option<(usize, usize)> {
     if command.scratch.len() < 55 {
         return None;
@@ -1522,6 +1931,37 @@ fn gui_values_range(command: &GuiCommand) -> Option<(usize, usize)> {
     let count_index = 54 + clip_count * 5;
     let values_start = count_index + 1;
     (values_start <= command.scratch.len()).then_some((count_index, values_start))
+}
+
+fn gui_frame_set_cell_bounds(
+    frame: Rect,
+    padding: f32,
+    splitter: f32,
+    columns: usize,
+    rows: usize,
+    child_index: usize,
+    column_weights: &[f32],
+    row_weights: &[f32],
+) -> Option<Rect> {
+    if columns == 0 || rows == 0 || child_index >= columns.saturating_mul(rows)
+        || column_weights.len() != columns || row_weights.len() != rows
+    {
+        return None;
+    }
+    let column = child_index % columns;
+    let row = child_index / columns;
+    let content = frame.shrink(padding.max(0.0));
+    let available_width = (content.width() - splitter.max(0.0) * columns.saturating_sub(1) as f32).max(0.0);
+    let available_height = (content.height() - splitter.max(0.0) * rows.saturating_sub(1) as f32).max(0.0);
+    let x = content.min.x
+        + available_width * column_weights.iter().take(column).sum::<f32>()
+        + splitter.max(0.0) * column as f32;
+    let y = content.min.y
+        + available_height * row_weights.iter().take(row).sum::<f32>()
+        + splitter.max(0.0) * row as f32;
+    let width = available_width * column_weights[column].max(0.0);
+    let height = available_height * row_weights[row].max(0.0);
+    Some(Rect::from_min_size(Pos2::new(x, y), Vec2::new(width, height)))
 }
 
 fn gui_parent_id(command: &GuiCommand) -> u32 {
@@ -1737,6 +2177,106 @@ fn paint_gui_texture(
     painter.add(Shape::mesh(mesh));
 }
 
+fn paint_gui_texture_tiled(
+    painter: &egui::Painter,
+    handle: u64,
+    bounds: Rect,
+    tint: Color32,
+    tile_size: Vec2,
+) {
+    if bounds.width() <= 0.0 || bounds.height() <= 0.0 || tile_size.x <= 0.0 || tile_size.y <= 0.0 {
+        paint_gui_texture(painter, handle, bounds, tint, 0.0, 1.0);
+        return;
+    }
+    let mut mesh = egui::Mesh::with_texture(egui::TextureId::User(handle));
+    let mut y = bounds.min.y;
+    let mut tile_count = 0usize;
+    while y < bounds.max.y && tile_count < 16_384 {
+        let height = tile_size.y.min(bounds.max.y - y);
+        let v = height / tile_size.y;
+        let mut x = bounds.min.x;
+        while x < bounds.max.x && tile_count < 16_384 {
+            let width = tile_size.x.min(bounds.max.x - x);
+            let u = width / tile_size.x;
+            let base = mesh.vertices.len() as u32;
+            let positions = [
+                (Pos2::new(x, y), Pos2::new(0.0, 0.0)),
+                (Pos2::new(x + width, y), Pos2::new(u, 0.0)),
+                (Pos2::new(x + width, y + height), Pos2::new(u, v)),
+                (Pos2::new(x, y + height), Pos2::new(0.0, v)),
+            ];
+            mesh.vertices.extend(positions.into_iter().map(|(pos, uv)| egui::epaint::Vertex {
+                pos,
+                uv,
+                color: tint,
+            }));
+            mesh.indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
+            x += tile_size.x;
+            tile_count += 1;
+        }
+        y += tile_size.y;
+        tile_count += 1;
+    }
+    painter.add(Shape::mesh(mesh));
+}
+
+fn paint_gui_bitmap_border(
+    painter: &egui::Painter,
+    handle: u64,
+    bounds: Rect,
+    tint: Color32,
+    border_width: f32,
+    texture_size: Vec2,
+    tiled: bool,
+) {
+    let thickness = border_width.max(0.0).min(bounds.width() * 0.5).min(bounds.height() * 0.5);
+    if thickness <= 0.0 || bounds.width() <= 0.0 || bounds.height() <= 0.0 {
+        return;
+    }
+
+    let middle_height = (bounds.height() - thickness * 2.0).max(0.0);
+    let edges = [
+        (Rect::from_min_size(bounds.min, Vec2::new(bounds.width(), thickness)), true),
+        (
+            Rect::from_min_size(
+                Pos2::new(bounds.min.x, bounds.max.y - thickness),
+                Vec2::new(bounds.width(), thickness),
+            ),
+            true,
+        ),
+        (
+            Rect::from_min_size(
+                Pos2::new(bounds.min.x, bounds.min.y + thickness),
+                Vec2::new(thickness, middle_height),
+            ),
+            false,
+        ),
+        (
+            Rect::from_min_size(
+                Pos2::new(bounds.max.x - thickness, bounds.min.y + thickness),
+                Vec2::new(thickness, middle_height),
+            ),
+            false,
+        ),
+    ];
+
+    for (edge, horizontal) in edges {
+        if edge.width() <= 0.0 || edge.height() <= 0.0 {
+            continue;
+        }
+        if tiled && texture_size.x > 0.0 && texture_size.y > 0.0 {
+            let tile_size = if horizontal {
+                Vec2::new(texture_size.x, thickness)
+            } else {
+                Vec2::new(thickness, texture_size.y)
+            };
+            paint_gui_texture_tiled(painter, handle, edge, tint, tile_size);
+        } else {
+            paint_gui_texture(painter, handle, edge, tint, 0.0, 1.0);
+        }
+    }
+}
+
 fn paint_gui_drawing(
     ui: &Ui,
     viewport: Rect,
@@ -1883,6 +2423,20 @@ fn make_gui_event(
     event
 }
 
+fn make_gui_event_for_control(
+    event_type: GuiEventType,
+    id: u32,
+    pointer: Option<[f64; 2]>,
+    bounds: Rect,
+    modifiers: u32,
+    local_scale: Vec2,
+) -> GuiEventRecord {
+    let mut event = make_gui_event(event_type, id, pointer, bounds, modifiers);
+    event.local_x /= local_scale.x as f64;
+    event.local_y /= local_scale.y as f64;
+    event
+}
+
 fn key_from_bloom(code: u32) -> Option<Key> {
     Some(match code {
         32 => Key::Space,
@@ -2008,7 +2562,7 @@ fn color_from_f64(r: f64, g: f64, b: f64, a: f64) -> Color32 {
 #[cfg(test)]
 mod tests {
     use super::color_channel;
-    use crate::gui::{GuiCommand, GuiOpcode};
+    use crate::gui::{GuiCommand, GuiEventType, GuiOpcode};
     use crate::ui::{
         EguiUi, UiBackend, UiCommand, UiInputEvent, UiInputSnapshot, UiKeyEvent, UiOpcode,
         UiPointerButtonEvent,
@@ -2109,6 +2663,22 @@ mod tests {
                     pressed: false,
                 },
             ],
+            ..Default::default()
+        }
+    }
+
+    fn pointer_button_at(pos: [f64; 2], pressed: bool) -> UiInputSnapshot {
+        UiInputSnapshot {
+            pointer_position: Some(pos),
+            pointer_buttons: vec![UiPointerButtonEvent { button: 0, pressed }],
+            ..Default::default()
+        }
+    }
+
+    fn move_pointer_to(pos: [f64; 2], delta: [f64; 2]) -> UiInputSnapshot {
+        UiInputSnapshot {
+            pointer_position: Some(pos),
+            pointer_delta: delta,
             ..Default::default()
         }
     }
@@ -2527,6 +3097,190 @@ mod tests {
     }
 
     #[test]
+    fn retained_text_edit_requests_the_native_keyboard() {
+        let mut ui = EguiUi::default();
+        let edit = retained(13.0, 723, [10.0, 10.0, 140.0, 24.0], "", &[]);
+        let output = ui.run_frame(
+            &[],
+            &[edit],
+            click_at([20.0, 20.0]),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        assert!(output.text_edit_focused);
+    }
+
+    #[test]
+    fn retained_editable_popup_returns_typed_text() {
+        let mut ui = EguiUi::default();
+        let popup = retained(18.0, 727, [10.0, 10.0, 180.0, 28.0], "", &[0.0, -1.0]);
+        ui.run_frame(&[], &[popup.clone()], click_at([20.0, 20.0]), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let typed = ui.run_frame(
+            &[],
+            &[popup],
+            UiInputSnapshot { text: vec!["typed".into()], ..Default::default() },
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        assert_eq!(typed.gui_response(727).text, "typed");
+    }
+
+    #[test]
+    fn retained_text_edit_slider_applies_numeric_filter_and_max_length_payload() {
+        let mut ui = EguiUi::default();
+        let rect = [10.0, 10.0, 180.0, 28.0];
+        let slider = retained(15.0, 728, rect, "", &[0.0, 0.0, 100.0, 0.0, 1.0, 2.0, 0.0, 0.0]);
+        ui.run_frame(&[], &[slider.clone()], click_at([20.0, 20.0]), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let typed = ui.run_frame(
+            &[],
+            &[slider],
+            UiInputSnapshot { text: vec!["1x2".into()], ..Default::default() },
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        assert_eq!(typed.gui_response(728).text, "12");
+        assert_eq!(typed.gui_response(728).value, 12.0);
+    }
+
+    #[test]
+    fn retained_text_edit_slider_treats_zero_max_length_as_unlimited() {
+        let mut ui = EguiUi::default();
+        let rect = [10.0, 10.0, 180.0, 28.0];
+        let slider = retained(15.0, 729, rect, "", &[0.0, 0.0, 100_000.0, 0.0, 1.0, 0.0]);
+        ui.run_frame(&[], &[slider.clone()], click_at([20.0, 20.0]), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let typed = ui.run_frame(
+            &[],
+            &[slider],
+            UiInputSnapshot { text: vec!["12x345".into()], ..Default::default() },
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        assert_eq!(typed.gui_response(729).text, "12345");
+        assert_eq!(typed.gui_response(729).value, 12_345.0);
+    }
+
+    #[test]
+    fn retained_checkbox_changes_once_after_a_split_pointer_click() {
+        let mut ui = EguiUi::default();
+        let rect = [10.0, 10.0, 120.0, 28.0];
+        let initial = retained(8.0, 724, rect, "Enabled", &[0.0]);
+        ui.run_frame(&[], &[initial.clone()], UiInputSnapshot::default(), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+
+        let pressed = ui.run_frame(
+            &[],
+            &[initial.clone()],
+            pointer_button_at([20.0, 20.0], true),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        let released = ui.run_frame(
+            &[],
+            &[retained(8.0, 724, rect, "Enabled", &[pressed.gui_response(724).value])],
+            pointer_button_at([20.0, 20.0], false),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+
+        assert_eq!(released.gui_response(724).value, 1.0);
+        assert_eq!(
+            released.gui_events.iter().filter(|event| event.event_type == crate::gui::GuiEventType::Change).count(),
+            1
+        );
+    }
+
+    #[test]
+    fn retained_overlapping_buttons_emit_one_action_for_the_topmost_control() {
+        let mut ui = EguiUi::default();
+        let rect = [10.0, 10.0, 120.0, 28.0];
+        let commands = [
+            retained(7.0, 725, rect, "Back", &[]),
+            retained(7.0, 726, rect, "Front", &[]),
+        ];
+        ui.run_frame(&[], &commands, UiInputSnapshot::default(), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let pressed = ui.run_frame(&[], &commands, pointer_button_at([20.0, 20.0], true), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        assert!(!pressed.gui_events.iter().any(|event| event.event_type == crate::gui::GuiEventType::Action));
+        let released = ui.run_frame(&[], &commands, pointer_button_at([20.0, 20.0], false), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let actions: Vec<_> = released
+            .gui_events
+            .iter()
+            .filter(|event| event.event_type == crate::gui::GuiEventType::Action)
+            .map(|event| event.control_id)
+            .collect();
+        assert_eq!(actions, vec![726]);
+    }
+
+    #[test]
+    fn retained_child_action_is_not_emitted_directly_by_its_panel() {
+        let mut ui = EguiUi::default();
+        let rect = [10.0, 10.0, 150.0, 80.0];
+        let parent = retained(1.0, 729, rect, "", &[]);
+        let child = retained_with_parent(7.0, 730, 729, rect, "Run", &[]);
+        let commands = [parent, child];
+        ui.run_frame(&[], &commands, UiInputSnapshot::default(), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        ui.run_frame(&[], &commands, pointer_button_at([20.0, 20.0], true), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let released = ui.run_frame(&[], &commands, pointer_button_at([20.0, 20.0], false), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let actions: Vec<_> = released
+            .gui_events
+            .iter()
+            .filter(|event| event.event_type == crate::gui::GuiEventType::Action)
+            .map(|event| event.control_id)
+            .collect();
+        assert_eq!(actions, vec![730]);
+    }
+
+    #[test]
+    fn retained_window_moves_resizes_and_reports_close() {
+        let mut ui = EguiUi::default();
+        let screen = [0.0, 0.0, 320.0, 240.0];
+        let mut rect = [10.0, 10.0, 100.0, 80.0];
+        let mut command = retained(2.0, 731, rect, "Inventory", &[1.0, 1.0, 1.0]);
+        ui.run_frame(&[], &[command.clone()], UiInputSnapshot::default(), screen, 1.0, 1.0 / 60.0);
+        ui.run_frame(&[], &[command.clone()], pointer_button_at([20.0, 20.0], true), screen, 1.0, 1.0 / 60.0);
+        let moved = ui.run_frame(&[], &[command.clone()], move_pointer_to([50.0, 40.0], [30.0, 20.0]), screen, 1.0, 1.0 / 60.0);
+        assert!(moved.gui_response(731).rect[0] > 10.0);
+        let moved = ui.run_frame(&[], &[command.clone()], pointer_button_at([50.0, 40.0], false), screen, 1.0, 1.0 / 60.0);
+        rect = moved.gui_response(731).rect;
+        command = retained(2.0, 731, rect, "Inventory", &[1.0, 1.0, 1.0]);
+
+        let corner = [rect[0] as f64 + rect[2] as f64 - 5.0, rect[1] as f64 + rect[3] as f64 - 5.0];
+        ui.run_frame(&[], &[command.clone()], pointer_button_at(corner, true), screen, 1.0, 1.0 / 60.0);
+        let resized = ui.run_frame(&[], &[command.clone()], move_pointer_to([corner[0] + 20.0, corner[1] + 15.0], [20.0, 15.0]), screen, 1.0, 1.0 / 60.0);
+        assert!(resized.gui_response(731).rect[2] > rect[2]);
+        let resized = ui.run_frame(&[], &[command.clone()], pointer_button_at([corner[0] + 20.0, corner[1] + 15.0], false), screen, 1.0, 1.0 / 60.0);
+        rect = resized.gui_response(731).rect;
+        command = retained(2.0, 731, rect, "Inventory", &[1.0, 1.0, 1.0]);
+
+        let title_height = 22.0;
+        let close_point = [rect[0] + rect[2] - 15.0, rect[1] + title_height / 2.0];
+        let closed = ui.run_frame(&[], &[command], click_at(close_point), screen, 1.0, 1.0 / 60.0);
+        assert_eq!(closed.gui_response(731).value, 0.0);
+    }
+
+    #[test]
+    fn retained_frame_set_lays_out_children_and_resizes_splitters() {
+        let mut ui = EguiUi::default();
+        let screen = [0.0, 0.0, 320.0, 240.0];
+        let frame_set = retained(6.0, 732, [10.0, 10.0, 200.0, 100.0], "", &[2.0, 1.0, 4.0]);
+        let first = retained_with_parent(1.0, 733, 732, [10.0, 10.0, 50.0, 50.0], "", &[]);
+        let second = retained_with_parent(1.0, 734, 732, [10.0, 10.0, 50.0, 50.0], "", &[]);
+        let commands = [frame_set, first, second];
+        let initial = ui.run_frame(&[], &commands, UiInputSnapshot::default(), screen, 1.0, 1.0 / 60.0);
+        assert_eq!(initial.gui_response(733).rect, [10.0, 10.0, 98.0, 100.0]);
+        assert_eq!(initial.gui_response(734).rect, [112.0, 10.0, 98.0, 100.0]);
+
+        ui.run_frame(&[], &commands, pointer_button_at([110.0, 50.0], true), screen, 1.0, 1.0 / 60.0);
+        let resized = ui.run_frame(&[], &commands, move_pointer_to([130.0, 50.0], [20.0, 0.0]), screen, 1.0, 1.0 / 60.0);
+        assert!(resized.gui_response(733).rect[2] > 98.0);
+        assert!(resized.gui_response(734).rect[0] > 112.0);
+    }
+
+    #[test]
     fn native_value_is_returned_for_next_frame() {
         let mut ui = EguiUi::default();
         let command = retained(16.0, 709, [0.0, 0.0, 120.0, 24.0], "", &[0.25, 0.0, 1.0]);
@@ -2553,7 +3307,7 @@ mod tests {
             1.0,
             1.0 / 60.0,
         );
-        assert!(output.gui_wants_pointer_input);
+        assert!(output.gui_wants_pointer_input, "response: {:?}", output.gui_response(710));
         assert!(output.gui_wants_keyboard_input);
     }
 
@@ -2638,6 +3392,171 @@ mod tests {
             1.0 / 60.0,
         );
         assert_eq!(output.gui_response(722).value, -1.0);
+    }
+
+    #[test]
+    fn nested_frame_set_children_use_the_native_parent_cell_size_immediately() {
+        let mut ui = EguiUi::default();
+        let outer = retained(6.0, 730, [0.0, 0.0, 240.0, 160.0], "", &[2.0, 1.0, 4.0]);
+        let inner = retained_with_parent(6.0, 731, 730, [0.0, 0.0, 40.0, 40.0], "", &[1.0, 1.0, 4.0]);
+        let inner_child = retained_with_parent(1.0, 732, 731, [0.0, 0.0, 40.0, 40.0], "", &[]);
+        let outer_sibling = retained_with_parent(1.0, 733, 730, [0.0, 0.0, 40.0, 40.0], "", &[]);
+        let output = ui.run_frame(
+            &[],
+            &[outer, inner, inner_child, outer_sibling],
+            UiInputSnapshot::default(),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+
+        let inner_bounds = output.gui_response(731).rect;
+        let child_bounds = output.gui_response(732).rect;
+        assert!((inner_bounds[2] - 118.0).abs() < 0.1);
+        assert!((child_bounds[2] - inner_bounds[2]).abs() < 0.1);
+        assert!((child_bounds[3] - inner_bounds[3]).abs() < 0.1);
+    }
+
+    #[test]
+    fn retained_tab_bar_click_selects_tab_without_page_overlap() {
+        let mut ui = EguiUi::default();
+        let tabs = retained(21.0, 734, [10.0, 10.0, 300.0, 200.0], "One", &[2.0, 0.0]);
+        let first = GuiCommand::new(GuiOpcode::Item, 734, [0.0, 1.0, 0.0, 0.0], "One");
+        let second = GuiCommand::new(GuiOpcode::Item, 734, [1.0, 2.0, 0.0, 0.0], "Two");
+        let page = retained_with_parent(1.0, 735, 734, [10.0, 38.0, 300.0, 172.0], "", &[]);
+        let commands = [tabs, first, second, page];
+        ui.run_frame(
+            &[],
+            &commands,
+            UiInputSnapshot::default(),
+            [0.0, 0.0, 400.0, 300.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        ui.run_frame(&[], &commands, pointer_button_at([240.0, 20.0], true), [0.0, 0.0, 400.0, 300.0], 1.0, 1.0 / 60.0);
+        let output = ui.run_frame(&[], &commands, pointer_button_at([240.0, 20.0], false), [0.0, 0.0, 400.0, 300.0], 1.0, 1.0 / 60.0);
+
+        assert_eq!(output.gui_response(734).value, 1.0);
+        assert_eq!(output.gui_response(735).rect, [10.0, 38.0, 300.0, 172.0]);
+    }
+
+    #[test]
+    fn retained_text_edit_honors_programmatic_focus_and_blur_requests() {
+        let mut ui = EguiUi::default();
+        let focus_values = [0.0, 0.0, 0.0, -1_247_107_654.0, 1.0];
+        let edit = retained(13.0, 736, [10.0, 10.0, 160.0, 24.0], "", &focus_values);
+        let focused = ui.run_frame(
+            &[],
+            &[edit],
+            UiInputSnapshot::default(),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        assert!(focused.gui_response(736).focused);
+        assert!(focused.wants_keyboard_input);
+
+        let blur_values = [0.0, 0.0, 0.0, -1_247_107_654.0, 2.0];
+        let edit = retained(13.0, 736, [10.0, 10.0, 160.0, 24.0], "", &blur_values);
+        let blurred = ui.run_frame(
+            &[],
+            &[edit],
+            UiInputSnapshot::default(),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        assert!(!blurred.gui_response(736).focused);
+    }
+
+    #[test]
+    fn stretch_parent_scales_pointer_local_coordinates_to_virtual_space() {
+        let mut ui = EguiUi::default();
+        let stretch = retained(5.0, 737, [10.0, 20.0, 200.0, 100.0], "", &[100.0, 50.0]);
+        let child = retained_with_parent(0.0, 738, 737, [30.0, 30.0, 40.0, 20.0], "", &[]);
+        let commands = [stretch, child];
+        ui.run_frame(&[], &commands, UiInputSnapshot::default(), [0.0, 0.0, 320.0, 240.0], 1.0, 1.0 / 60.0);
+        let output = ui.run_frame(
+            &[],
+            &commands,
+            move_pointer_to([35.0, 35.0], [35.0, 35.0]),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        let event = output.gui_events.iter().find(|event| {
+            event.control_id == 738 && event.event_type == GuiEventType::PointerEnter
+        }).unwrap_or_else(|| panic!("response: {:?}; events: {:?}", output.gui_response(738), output.gui_events));
+        assert_eq!([event.local_x, event.local_y], [2.5, 2.5]);
+    }
+
+    #[test]
+    fn nested_stretch_parents_compose_pointer_local_coordinates() {
+        let mut ui = EguiUi::default();
+        let outer = retained(5.0, 741, [10.0, 20.0, 200.0, 100.0], "", &[100.0, 50.0]);
+        let inner = retained_with_parent(5.0, 742, 741, [30.0, 40.0, 160.0, 80.0], "", &[40.0, 20.0]);
+        let child = retained_with_parent(0.0, 743, 742, [50.0, 60.0, 60.0, 40.0], "", &[]);
+        let commands = [outer, inner, child];
+        ui.run_frame(&[], &commands, UiInputSnapshot::default(), [0.0, 0.0, 400.0, 300.0], 1.0, 1.0 / 60.0);
+        let output = ui.run_frame(
+            &[],
+            &commands,
+            move_pointer_to([70.0, 80.0], [70.0, 80.0]),
+            [0.0, 0.0, 400.0, 300.0],
+            1.0,
+            1.0 / 60.0,
+        );
+
+        let event = output.gui_events.iter().find(|event| {
+            event.control_id == 743 && event.event_type == GuiEventType::PointerEnter
+        }).unwrap_or_else(|| panic!("events: {:?}", output.gui_events));
+        assert_eq!([event.local_x, event.local_y], [5.0, 5.0]);
+    }
+
+    #[test]
+    fn bitmap_border_tiles_profile_texture_at_its_native_size() {
+        let mut ui = EguiUi::default();
+        let mut tiled = retained(4.0, 739, [0.0, 0.0, 24.0, 12.0], "", &[1.0, 8.0, 4.0]);
+        tiled.scratch[51] = 77.0;
+        let mut stretched = retained(4.0, 740, [30.0, 0.0, 24.0, 12.0], "", &[0.0, 8.0, 4.0]);
+        stretched.scratch[51] = 77.0;
+        let output = ui.run_frame(
+            &[],
+            &[tiled, stretched],
+            UiInputSnapshot::default(),
+            [0.0, 0.0, 320.0, 240.0],
+            1.0,
+            1.0 / 60.0,
+        );
+        let vertex_counts: Vec<_> = output.paint_jobs.iter().filter_map(|job| match &job.primitive {
+            egui::epaint::Primitive::Mesh(mesh) if mesh.texture_id == egui::TextureId::User(77) => Some(mesh.vertices.len()),
+            _ => None,
+        }).collect();
+        assert_eq!(vertex_counts.iter().sum::<usize>(), 64, "texture mesh vertices: {vertex_counts:?}");
+
+        let contains_point = |mesh: &egui::Mesh, point: egui::Pos2| {
+            mesh.indices.chunks_exact(3).any(|indices| {
+                let a = mesh.vertices[indices[0] as usize].pos;
+                let b = mesh.vertices[indices[1] as usize].pos;
+                let c = mesh.vertices[indices[2] as usize].pos;
+                let sign = |p1: egui::Pos2, p2: egui::Pos2, p3: egui::Pos2| {
+                    (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
+                };
+                let first = sign(point, a, b);
+                let second = sign(point, b, c);
+                let third = sign(point, c, a);
+                (first >= 0.0 && second >= 0.0 && third >= 0.0)
+                    || (first <= 0.0 && second <= 0.0 && third <= 0.0)
+            })
+        };
+        let texture_meshes: Vec<_> = output.paint_jobs.iter().filter_map(|job| match &job.primitive {
+            egui::epaint::Primitive::Mesh(mesh) if mesh.texture_id == egui::TextureId::User(77) => Some(mesh),
+            _ => None,
+        }).collect();
+        assert!(texture_meshes.iter().any(|mesh| contains_point(mesh, egui::Pos2::new(12.0, 0.5))));
+        assert!(texture_meshes.iter().any(|mesh| contains_point(mesh, egui::Pos2::new(42.0, 0.5))));
+        assert!(!texture_meshes.iter().any(|mesh| contains_point(mesh, egui::Pos2::new(12.0, 6.0))));
+        assert!(!texture_meshes.iter().any(|mesh| contains_point(mesh, egui::Pos2::new(42.0, 6.0))));
     }
 
     #[test]

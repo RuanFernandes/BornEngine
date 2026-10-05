@@ -11,11 +11,10 @@ records egui commands through the Perry FFI and reads widget responses on the
 following frame. It remains useful for small, code-driven interfaces and must
 continue to work.
 
-This change adds a retained, object-oriented GUI layer inspired by the control
-families and shared profiles in the supplied Graal GUI references. The public
-API is BornEngine TypeScript; GraalScript 2 syntax and runtime behavior are not
-part of the compatibility target. Rust and egui continue to own native widget
-evaluation, input handling, and rendering.
+This change adds a retained, object-oriented GUI layer with broad 2D control
+coverage and reusable profiles. The public API is idiomatic BornEngine
+TypeScript, while Rust and egui continue to own native widget evaluation, input
+handling, and rendering.
 
 ## Goals
 
@@ -23,9 +22,9 @@ evaluation, input handling, and rendering.
   the root controls for one `Game`.
 - Let consumers construct controls without passing a `Game`, attach them to the
   manager or to another control, and subclass them with ordinary TypeScript.
-- Cover the documented Graal control families as BornEngine controls with
-  idiomatic APIs and functional equivalents, including layout, text, input,
-  selection, menus, lists, tabs, drawing, and scrolling.
+- Cover the planned 2D control families as BornEngine controls with idiomatic
+  APIs, including layout, text, input, selection, menus, lists, tabs, drawing,
+  and scrolling.
 - Provide method-based geometry and state helpers, including parent-relative
   coordinates, read-only parent access, centering, coordinate conversion,
   visibility, focus, and z-order operations.
@@ -41,8 +40,8 @@ evaluation, input handling, and rendering.
 - Replacing or deprecating the immediate-mode `game.ui` API.
 - Passing TypeScript closures, control objects, or serialized JSON trees across
   FFI. TypeScript callbacks stay in TypeScript.
-- Matching GraalScript 2 syntax, object registration rules, or every legacy
-  rendering quirk exactly.
+- Matching external scripting syntax, object registration rules, or every
+  legacy rendering quirk exactly.
 - Implementing a watchOS renderer in this change. A dedicated SwiftUI adapter
   is future work with no promised delivery date.
 - Expanding the GUI task into the separate Tauri editor, map editor, or 3D
@@ -111,8 +110,8 @@ is introduced in this overhaul.
 
 ## Built-in control coverage
 
-The API provides a BornEngine-named functional counterpart for each family
-documented in the supplied control reference. Concrete public classes are:
+The API provides a BornEngine control for each family in the approved scope.
+Concrete public classes are:
 
 - **Base and layout:** `GUI`, `GuiWindow`, `GuiPanel`, `GuiScroll`,
   `GuiBitmapBorder`, `GuiStretch`, and `GuiFrameSet`.
@@ -128,9 +127,9 @@ documented in the supplied control reference. Concrete public classes are:
 
 Family bases such as button and list controls may be abstract or public where
 they help custom subclasses. Every concrete control is a `GUI` subtype and can
-be added to any compatible parent. The implementation maps legacy profile and
-control features to egui-supported behavior or custom egui painting; it does
-not expose Graal's `Ctrl` suffixes or GS2-specific string encodings.
+be added to any compatible parent. The implementation maps profile and
+control features to egui-supported behavior or custom egui painting, using
+BornEngine-specific names and typed values.
 
 The reference docs describe each class's purpose, parent/child behavior,
 control-specific getters and setters, profile defaults, input semantics, and
@@ -142,7 +141,7 @@ from the broad-coverage scope.
 ## Profiles and visual states
 
 `GuiProfile` is the typed style value used by controls. It covers the applicable
-profile concepts from the supplied reference: normal/hover/disabled colors,
+profile concepts in the approved scope: normal/hover/disabled colors,
 text and selection colors, fonts, alignment, spacing, borders, opacity,
 background images, text shadows, focus and modality behavior, cursor behavior,
 and optional button sounds.
@@ -158,8 +157,8 @@ inherit that scope unless they choose another profile.
 
 Legacy properties without a useful egui equivalent are documented as
 unsupported or represented by an explicit BornEngine behavior. The public
-surface uses typed values and methods rather than Graal's space-separated
-strings or mutable GS2 object fields.
+surface uses typed values and methods rather than encoded strings or mutable
+fields.
 
 ## Events, focus, and lifecycle
 
@@ -239,8 +238,7 @@ Repository docs receive a mirrored API/control reference and a guide, while
 the existing `docs/api/ui.md` remains the immediate-mode reference and links
 to the retained API. Update `docs/watchos-target.md` to mark the retained GUI
 limitation as temporary and point to the future SwiftUI adapter. Code examples
-must use BornEngine TypeScript, correctly show the next-frame response model,
-and avoid suggesting unsupported GraalScript syntax.
+must use BornEngine TypeScript and correctly show the next-frame response model.
 
 ## Verification and acceptance criteria
 
@@ -266,8 +264,6 @@ and avoid suggesting unsupported GraalScript syntax.
 
 ## References
 
-- Supplied Graal GUI controls: `/home/nullborne/Documentos/graal_ai_docs/docs/graalscript/reference/gui-controls.md`
-- Supplied Graal GUI profiles: `/home/nullborne/Documentos/graal_ai_docs/docs/graalscript/reference/gui-profiles.md`
 - Existing BornEngine immediate UI design:
   `docs/superpowers/specs/2026-09-25-bornengine-egui-imgui-design.md`
 - Existing immediate API: `src/ui/`, `native/shared/src/ui/`, and

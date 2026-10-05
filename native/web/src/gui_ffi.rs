@@ -62,12 +62,7 @@ pub fn bloom_gui_response(id: f64, field: f64) -> f64 {
     let gui = engine();
     let response = gui.gui.response(id);
     match field {
-        0 => response.clicked as u8 as f64,
-        1 => response.changed as u8 as f64,
-        2 => response.hovered as u8 as f64,
-        3 => response.focused as u8 as f64,
-        4 => response.dragged as u8 as f64,
-        5 => response.value,
+        0..=5 | 7..=10 => response.field(field),
         6 => gui.gui.has_response(id) as u8 as f64,
         _ => 0.0,
     }

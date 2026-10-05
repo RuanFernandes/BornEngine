@@ -16,6 +16,7 @@ export interface GuiArrayItem {
 
 export abstract class GuiArray extends GUI {
   protected items: GuiArrayItem[] = [];
+  private selectionRevision = 0;
 
   protected constructor(options: GUIControlOptions = {}, kind = GuiControlKind.Control, profile = 'default') {
     super(options);
@@ -25,6 +26,9 @@ export abstract class GuiArray extends GUI {
 
   getItems(): readonly GuiArrayItem[] { return this.items.map((item) => ({ ...item })); }
   getItemCount(): number { return this.items.length; }
+  _captureValueRevision(): number { return this.selectionRevision; }
+  protected _matchesNativeSelectionRevision(revision: number): boolean { return revision === this.selectionRevision; }
+  protected _markNativeSelectionRevision(): void { this.selectionRevision++; }
 
   protected insertItem(label: string, id: GuiItemId): void {
     this.validateId(id);
@@ -49,6 +53,7 @@ export abstract class GuiArray extends GUI {
     this._guiCommandValues = [this.items.length, selectedIndex];
     this._guiCommandText = '';
     this._guiCommandItems = this.items.map((item) => ({ ...item, depth: 0 }));
+    this._markNativeSelectionRevision();
   }
 }
 
@@ -94,7 +99,8 @@ export class GuiPopUpMenu extends GuiArray {
     if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
   }
 
-  _applyNativeSelectionIndex(index: number): void {
+  _applyNativeSelectionIndex(index: number, commandRevision = this._captureValueRevision()): void {
+    if (!this._matchesNativeSelectionRevision(commandRevision)) return;
     const item = Number.isInteger(index) ? this.items[index] : undefined;
     if (item !== undefined) this._applyNativeSelection(item.id);
   }
@@ -107,6 +113,7 @@ export class GuiPopUpMenu extends GuiArray {
 
 export class GuiPopUpEdit extends GuiPopUpMenu {
   private text = '';
+  private textRevision = 0;
 
   constructor(options: GUIControlOptions = {}) {
     super(options);
@@ -115,11 +122,25 @@ export class GuiPopUpEdit extends GuiPopUpMenu {
 
   setText(text: string): this {
     this.text = text;
+    this.textRevision++;
     this._guiCommandText = text;
     return this;
   }
 
   getText(): string { return this.text; }
+
+  /** @internal Captures the text revision associated with an emitted command. */
+  _captureTextRevision(): number { return this.textRevision; }
+
+  /** @internal Applies native edits without overwriting newer TypeScript text. */
+  _applyNativeText(text: string, commandRevision: number): boolean {
+    if (commandRevision !== this.textRevision) return false;
+    if (text === this.text) return false;
+    this.setText(text);
+    const manager = this._getManager();
+    if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
+    return true;
+  }
 
   protected override syncSelection(): void {
     super.syncSelection();
@@ -227,9 +248,11 @@ export class GuiTreeView extends GuiArray {
     this._guiCommandValues = [flattened.length, this.selectedNode === null ? -1 : flattened.findIndex((entry) => entry.node === this.selectedNode)];
     this._guiCommandText = this.selectedNode?.path ?? '';
     this._guiCommandItems = flattened.map(({ node, depth }) => ({ id: node.id, label: node.label, depth }));
+    this._markNativeSelectionRevision();
   }
 
-  _applyNativeSelectionIndex(index: number): void {
+  _applyNativeSelectionIndex(index: number, commandRevision = this._captureValueRevision()): void {
+    if (!this._matchesNativeSelectionRevision(commandRevision)) return;
     const flattened: GuiTreeNode[] = [];
     const visit = (nodes: readonly GuiTreeNode[]): void => { for (const node of nodes) { flattened.push(node); visit(node.children); } };
     visit(this.rootNodes);
@@ -291,7 +314,8 @@ export class GuiTextList extends GuiArray {
     this._guiCommandText = this.getSelectedText() ?? '';
   }
 
-  _applyNativeSelectionIndex(index: number): void {
+  _applyNativeSelectionIndex(index: number, commandRevision = this._captureValueRevision()): void {
+    if (!this._matchesNativeSelectionRevision(commandRevision)) return;
     const item = Number.isInteger(index) ? this.items[index] : undefined;
     if (item !== undefined && item.id !== this.selectedId) {
       this.selectedId = item.id;
@@ -303,6 +327,7 @@ export class GuiTextList extends GuiArray {
 }
 
 export class GuiTab extends GuiArray {
+  private static readonly TAB_BAR_HEIGHT = 28;
   private selectedId: GuiItemId | null = null;
   private pages = new Map<GuiItemId, GuiPanel>();
 
@@ -313,7 +338,13 @@ export class GuiTab extends GuiArray {
   addTab(label: string, id: GuiItemId): GuiPanel {
     this.validateId(id);
     if (this.findItem(id) >= 0) throw new Error(`GUI tab ID already exists: ${String(id)}`);
-    const page = new GuiPanel({ width: this.getWidth(), height: this.getHeight(), visible: this.selectedId === null });
+    const page = new GuiPanel({
+      x: 0,
+      y: GuiTab.TAB_BAR_HEIGHT,
+      width: this.getWidth(),
+      height: Math.max(0, this.getHeight() - GuiTab.TAB_BAR_HEIGHT),
+      visible: this.selectedId === null,
+    });
     this.insertItem(label, id);
     this.pages.set(id, page);
     this.addControl(page);
@@ -334,13 +365,25 @@ export class GuiTab extends GuiArray {
   getSelected(): GuiItemId | null { return this.selectedId; }
   getTab(id: GuiItemId): GuiPanel | null { return this.pages.get(id) ?? null; }
 
+  override _getContentInsets(): { left: number; top: number; right: number; bottom: number } {
+    return { left: 0, top: 0, right: 0, bottom: 0 };
+  }
+
+  protected override onResize(): void {
+    for (const page of this.pages.values()) {
+      page.setPosition(0, GuiTab.TAB_BAR_HEIGHT);
+      page.setSize(this.getWidth(), Math.max(0, this.getHeight() - GuiTab.TAB_BAR_HEIGHT));
+    }
+  }
+
   private syncTabs(): void {
     this.syncItems(this.selectedId === null ? -1 : this.findItem(this.selectedId));
     const index = this.selectedId === null ? -1 : this.findItem(this.selectedId);
     this._guiCommandText = index < 0 ? '' : this.items[index].label;
   }
 
-  _applyNativeSelectionIndex(index: number): void {
+  _applyNativeSelectionIndex(index: number, commandRevision = this._captureValueRevision()): void {
+    if (!this._matchesNativeSelectionRevision(commandRevision)) return;
     const item = Number.isInteger(index) ? this.items[index] : undefined;
     if (item !== undefined && item.id !== this.selectedId) this.setSelected(item.id);
   }
@@ -348,6 +391,7 @@ export class GuiTab extends GuiArray {
 
 export class GuiMenu extends GuiPopUpMenu {
   private callbacks = new Map<GuiItemId, (() => void) | null>();
+  private skipNextActionCallback = false;
 
   constructor(options: GUIControlOptions = {}) {
     super(options);
@@ -365,8 +409,20 @@ export class GuiMenu extends GuiPopUpMenu {
     this.setSelected(id);
     this.callbacks.get(id)?.();
     const manager = this._getManager();
-    if (manager !== null) manager.dispatchEvent(this, GUIEventType.Action);
+    if (manager !== null) {
+      this.skipNextActionCallback = true;
+      if (manager.dispatchEvent(this, GUIEventType.Action) === null) this.skipNextActionCallback = false;
+    }
     return true;
+  }
+
+  protected override onAction(): void {
+    if (this.skipNextActionCallback) {
+      this.skipNextActionCallback = false;
+      return;
+    }
+    const selected = this.getSelected();
+    if (selected !== null) this.callbacks.get(selected)?.();
   }
 }
 
@@ -374,6 +430,7 @@ export class GuiContextMenu extends GuiMenu {
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.ContextMenu;
+    if (options.width === undefined) this.setWidth(160);
     this.hide();
   }
 
@@ -381,8 +438,17 @@ export class GuiContextMenu extends GuiMenu {
     if (button !== MouseButton.RIGHT) return false;
     validateGuiCoordinate(x, 'x');
     validateGuiCoordinate(y, 'y');
+    if (this.getHeight() === 0) {
+      const rowHeight = Math.max(24, this.getProfile().font.size + 10);
+      const padding = this.getProfile().spacing.padding;
+      this.setHeight(Math.max(24, this.getItemCount() * rowHeight + padding * 2));
+    }
     this.setPosition(x, y).show();
     return true;
+  }
+
+  override _openContextMenuAt(x: number, y: number, button: number): boolean {
+    return this.openAt(x, y, button);
   }
 
   isOpen(): boolean { return this.isVisible(); }
@@ -392,5 +458,10 @@ export class GuiContextMenu extends GuiMenu {
     const activated = super.activateItem(id);
     if (activated) this.hide();
     return activated;
+  }
+
+  protected override onAction(): void {
+    super.onAction();
+    this.hide();
   }
 }
