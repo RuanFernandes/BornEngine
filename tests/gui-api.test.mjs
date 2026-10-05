@@ -17,6 +17,9 @@ const {
   GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
   GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton,
   GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider, GuiSlider,
+  GuiArray, GuiPopUpMenu, GuiPopUpEdit, GuiTreeView, GuiTextList, GuiTab, GuiMenu, GuiContextMenu,
+  GuiBitmap, GuiShowImg, GuiProgress, GuiDrawingPanel,
+  GUI_TREE_MAX_PATH_LENGTH,
 } = await import('../src/gui/index.ts');
 const { GUIIdAllocator } = await import('../src/gui/types.ts');
 
@@ -467,4 +470,190 @@ test('GuiTextEditSlider.keeps_numeric_and_edit_options_in_commands', () => {
 
   assert.deepEqual(commands[0].values.slice(0, 6), [42, 0, 100, 1, 0, 4]);
   assert.equal(commands[0].text, '42');
+});
+
+test('every_documented_gui_class_extends_GUI', () => {
+  const classes = [
+    GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
+    GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton,
+    GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider, GuiSlider,
+    GuiArray, GuiPopUpMenu, GuiPopUpEdit, GuiTreeView, GuiTextList, GuiTab, GuiMenu, GuiContextMenu,
+    GuiBitmap, GuiShowImg, GuiProgress, GuiDrawingPanel,
+  ];
+  for (const Control of classes) assert.equal(Control.prototype instanceof GUI, true, `${Control.name} must extend GUI`);
+});
+
+test('GuiBitmapButton_keeps_normal_hover_pressed_and_disabled_textures', () => {
+  const textures = {
+    normal: { handle: 11, width: 16, height: 16 },
+    hover: { handle: 12, width: 16, height: 16 },
+    pressed: { handle: 13, width: 16, height: 16 },
+    disabled: { handle: 14, width: 16, height: 16 },
+  };
+  const button = new GuiBitmapButton();
+  button.setTextures(textures);
+
+  assert.deepEqual(button.getTextures(), textures);
+  assert.notEqual(button.getTextures(), textures);
+});
+
+test('GuiPopUpMenu.preserves_selected_id_and_text', () => {
+  const menu = new GuiPopUpMenu();
+  menu.add('Continue', 'continue');
+  menu.add('Quit', 'quit');
+  menu.setSelected('quit');
+
+  assert.equal(menu.getSelected(), 'quit');
+  assert.equal(menu.getSelectedText(), 'Quit');
+  assert.throws(() => menu.add('Duplicate', 'quit'), /duplicate|already exists/i);
+  menu.clear();
+  assert.equal(menu.getSelected(), null);
+  assert.equal(menu.getSelectedText(), null);
+});
+
+test('GuiArray.keeps_item_strings_as_typed_entries_without_packing_them_into_text', () => {
+  const menu = new GuiPopUpMenu();
+  menu.add('First option', 1);
+  menu.add('Second option', 2);
+  menu.setSelected(2);
+  const commands = [];
+  menu._emitCommands(commands);
+
+  assert.deepEqual(menu.getItems(), [
+    { id: 1, label: 'First option' },
+    { id: 2, label: 'Second option' },
+  ]);
+  assert.equal(commands[0].text, 'Second option');
+  assert.equal(commands[0].text.includes('\n'), false);
+});
+
+test('GuiTreeView.addNodeByPath_builds_and_selects_path', () => {
+  const tree = new GuiTreeView();
+  const leaf = tree.addNodeByPath('Inventory/Weapons/Sword', 23);
+
+  assert.equal(leaf.label, 'Sword');
+  assert.equal(leaf.value, 23);
+  assert.equal(tree.getSelected(), leaf);
+  assert.equal(tree.getSelectedPath(), 'Inventory/Weapons/Sword');
+  assert.equal(tree.getRootNodes()[0].children[0].children[0], leaf);
+  assert.throws(() => tree.addNodeByPath(''), /empty|path/i);
+});
+
+test('GuiTreeView.rejects_invalid_values_and_bounded_path_overflow', () => {
+  const tree = new GuiTreeView();
+  assert.throws(() => tree.addNode('Invalid', Number.NaN), RangeError);
+  assert.throws(() => tree.addNodeByPath('A/'.repeat(128) + 'Leaf'), /segments/i);
+  assert.throws(() => tree.addNodeByPath('X'.repeat(GUI_TREE_MAX_PATH_LENGTH + 1)), /characters/i);
+  assert.equal(tree.getRootNodes().length, 0);
+});
+
+test('GuiTab.selects_one_child_page', () => {
+  const tabs = new GuiTab();
+  const first = tabs.addTab('World', 'world');
+  const second = tabs.addTab('Settings', 'settings');
+
+  assert.equal(tabs.getSelected(), 'world');
+  assert.equal(first.isVisible(), true);
+  assert.equal(second.isVisible(), false);
+  tabs.setSelected('settings');
+  assert.equal(tabs.getSelected(), 'settings');
+  assert.equal(first.isVisible(), false);
+  assert.equal(second.isVisible(), true);
+  assert.equal(tabs.getTab('settings'), second);
+});
+
+test('GuiTextList.selects_rows_by_id', () => {
+  const list = new GuiTextList();
+  list.addRow(10, 'Alpha');
+  list.addRow(20, 'Beta');
+  list.setSelected(20);
+  list.addRow(30, 'Gamma');
+
+  assert.equal(list.getSelected(), 20);
+  assert.equal(list.getSelectedText(), 'Beta');
+  const commands = [];
+  list._emitCommands(commands);
+  assert.deepEqual(commands[0].values, [3, 1]);
+  assert.equal(list.removeRow(20), true);
+  assert.equal(list.getSelected(), null);
+  list.clearRows();
+  assert.equal(list.getRowCount(), 0);
+});
+
+test('GuiPopUpEdit.preserves_typed_editable_text', () => {
+  const popup = new GuiPopUpEdit();
+  popup.setText('Custom text');
+  popup.add('One', 'one');
+  popup.setSelected('one');
+
+  assert.equal(popup.getSelected(), 'one');
+  assert.equal(popup.getText(), 'Custom text');
+  const commands = [];
+  popup._emitCommands(commands);
+  assert.equal(commands[0].text, 'Custom text');
+});
+
+test('GuiContextMenu.opens_on_secondary_click_and_bubbles_action', () => {
+  const calls = [];
+  class Host extends GUI {
+    onAction(event) { calls.push([event.target, event.currentTarget]); }
+  }
+  const manager = new GUIManager({});
+  const host = new Host();
+  const menu = new GuiContextMenu();
+  let selected = 0;
+  host.addControl(menu);
+  menu.add('Delete', 'delete', () => selected++);
+  manager.addControl(host);
+
+  assert.equal(menu.isOpen(), false);
+  assert.equal(menu.openAt(40, 50, 0), false);
+  assert.equal(menu.openAt(40, 50, 1), true);
+  assert.equal(menu.isOpen(), true);
+  assert.deepEqual(menu.getPosition(), { x: 40, y: 50 });
+  assert.equal(menu.activateItem('delete'), true);
+  assert.equal(selected, 1);
+  assert.deepEqual(calls, [[menu, host]]);
+  assert.equal(menu.isOpen(), false);
+});
+
+test('GuiProgress.clamps_to_unit_interval', () => {
+  const progress = new GuiProgress();
+  progress.setValue(2);
+  assert.equal(progress.getValue(), 1);
+  progress.setValue(-0.5);
+  assert.equal(progress.getValue(), 0);
+});
+
+test('GuiDrawingPanel.preserves_typed_primitives_and_clear_order', () => {
+  const panel = new GuiDrawingPanel({ x: 10, y: 20, width: 100, height: 80 });
+  const texture = { handle: 77, width: 8, height: 8 };
+  panel
+    .drawLine({ x: 0, y: 1 }, { x: 2, y: 3 }, { r: 1, g: 0, b: 0, a: 1 })
+    .drawRect({ x: 3, y: 4, width: 5, height: 6 }, { r: 0, g: 1, b: 0, a: 1 })
+    .drawCircle({ x: 7, y: 8 }, 9, { r: 0, g: 0, b: 1, a: 1 })
+    .drawText('score', { x: 10, y: 11 }, 12, { r: 1, g: 1, b: 1, a: 1 })
+    .drawImage(texture, { x: 13, y: 14, width: 15, height: 16 })
+    .drawPolyline([{ x: 1, y: 1 }, { x: 2, y: 2 }], { r: 1, g: 1, b: 0, a: 1 })
+    .drawPolygon([{ x: 1, y: 1 }, { x: 4, y: 1 }, { x: 2, y: 5 }], { r: 0, g: 1, b: 1, a: 1 });
+  const beforeClear = panel.getDrawingCommands();
+  assert.deepEqual(beforeClear.map((item) => item.kind), ['line', 'rect', 'circle', 'text', 'image', 'polyline', 'polygon']);
+  assert.equal(beforeClear[4].texture, texture);
+  assert.equal(panel.getClipToBounds(), true);
+  panel.clearDrawing().drawRect({ x: 0, y: 0, width: 1, height: 1 }, { r: 1, g: 1, b: 1, a: 1 });
+  assert.deepEqual(panel.getDrawingCommands().map((item) => item.kind), ['rect']);
+});
+
+test('GuiBitmap_and_GuiShowImg_keep_transform_and_tint_values', () => {
+  const texture = { handle: 99, width: 32, height: 24, isLoaded: true };
+  const tint = { r: 0.4, g: 0.5, b: 0.6, a: 0.7 };
+  for (const image of [new GuiBitmap(), new GuiShowImg()]) {
+    image.setTexture(texture).setTint(tint).setOpacity(0.5).setRotation(30).setZoom(2);
+    assert.equal(image.getTexture(), texture);
+    assert.deepEqual(image.getTint(), tint);
+    assert.equal(image.getOpacity(), 0.5);
+    assert.equal(image.getRotation(), 30);
+    assert.equal(image.getZoom(), 2);
+    assert.throws(() => image.setOpacity(2), RangeError);
+  }
 });

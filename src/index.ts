@@ -134,12 +134,18 @@ export {
   GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
   GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton, GuiSlider,
   GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider,
+  GuiArray, GuiPopUpMenu, GuiPopUpEdit, GuiTreeView, GuiTextList, GuiTab, GuiMenu, GuiContextMenu,
+  GuiBitmap, GuiShowImg, GuiProgress, GuiDrawingPanel,
+  GUI_TREE_MAX_PATH_LENGTH, GUI_TREE_MAX_PATH_SEGMENTS,
 } from './gui';
 export type {
   GUIEventOptions, GUIEventTypeCode, GUIControlOptions, GuiCursor, GuiPoint, GuiRect, GuiSize,
   GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile,
   GuiShadowProfile, GuiButtonSounds, GuiTextAlignment, GuiControlCommand, GuiControlKindCode,
   GuiScrollBarMode, GuiBitmapButtonTextures,
+  GuiItemId, GuiArrayItem, GuiTreeNode,
+  GuiDrawingCommand, GuiDrawingLine, GuiDrawingRect, GuiDrawingCircle, GuiDrawingText,
+  GuiDrawingImage, GuiDrawingPolyline,
 } from './gui';
 export { ColyseusClient, Room } from './colyseus';
 export type { RoomRequestOptions, RoomRequestCallbacks, ColyseusError, RoomJoinCallbacks } from './colyseus';

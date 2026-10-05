@@ -19,6 +19,17 @@ export const GuiControlKind = {
   MLTextEdit: 14,
   TextEditSlider: 15,
   Slider: 16,
+  PopUpMenu: 17,
+  PopUpEdit: 18,
+  TreeView: 19,
+  TextList: 20,
+  Tab: 21,
+  Menu: 22,
+  ContextMenu: 23,
+  Bitmap: 24,
+  ShowImg: 25,
+  Progress: 26,
+  DrawingPanel: 27,
 } as const;
 
 export type GuiControlKindCode = typeof GuiControlKind[keyof typeof GuiControlKind];
