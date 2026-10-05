@@ -12,7 +12,12 @@ registerHooks({
   },
 });
 
-const { GUI, GUIManager, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind } = await import('../src/gui/index.ts');
+const {
+  GUI, GUIManager, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind,
+  GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
+  GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton,
+  GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider, GuiSlider,
+} = await import('../src/gui/index.ts');
 const { GUIIdAllocator } = await import('../src/gui/types.ts');
 
 test('GUI.center_uses_parent_content_bounds_and_reflows_after_resize', () => {
@@ -304,4 +309,162 @@ test('package_exports_GUI_subpath_without_replacing_immediate_UI', async () => {
   const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(packageJson.exports['./gui'], './src/gui/index.ts');
   assert.equal(packageJson.exports['./ui'], './src/ui/index.ts');
+});
+
+test('GuiScroll.clips_children_to_its_viewport', () => {
+  const scroll = new GuiScroll({ x: 10, y: 20, width: 80, height: 50 });
+  const child = new GUI({ x: 70, y: 40, width: 30, height: 30 });
+  scroll.addControl(child);
+
+  const commands = [];
+  scroll._emitCommands(commands);
+
+  assert.equal(commands[1].id, child.id);
+  assert.deepEqual(commands[1].clip, { x: 10, y: 20, width: 80, height: 50 });
+  assert.equal(scroll.getClipChildren(), true);
+});
+
+test('GuiRadioButton.enforces_one_selection_per_group', () => {
+  const parent = new GUI();
+  const first = new GuiRadioButton();
+  const second = new GuiRadioButton();
+  const initialCommands = [];
+  second._emitCommands(initialCommands);
+  assert.equal(initialCommands[0].kind, GuiControlKind.RadioButton);
+  first.setGroup('inventory');
+  second.setGroup('inventory');
+  parent.addControl(first);
+  parent.addControl(second);
+
+  first.setValue(true);
+  second.setValue(true);
+  assert.equal(first.getValue(), false);
+  assert.equal(second.getValue(), true);
+  assert.equal(second.getGroup(), 'inventory');
+});
+
+test('GuiTextEdit.applies_length_password_and_numeric_options', () => {
+  const edit = new GuiTextEdit();
+  edit.setMaxLength(5).setPassword(true).setNumbersOnly(true);
+  edit.setText('12a34567');
+
+  assert.equal(edit.getText(), '12345');
+  assert.equal(edit.getMaxLength(), 5);
+  assert.equal(edit.isPassword(), true);
+  assert.equal(edit.isNumbersOnly(), true);
+  edit.selectAll();
+  assert.deepEqual(edit.getSelection(), { start: 0, end: 5 });
+  edit.clear();
+  assert.equal(edit.getText(), '');
+  assert.deepEqual(edit.getSelection(), { start: 0, end: 0 });
+});
+
+test('GuiTextEdit.emits_selection_and_editing_options', () => {
+  const edit = new GuiTextEdit();
+  edit.setMaxLength(8).setPassword(true).setNumbersOnly(true).setText('23456').selectAll();
+  const commands = [];
+  edit._emitCommands(commands);
+
+  assert.deepEqual(commands[0].values, [1, 1, 8, 0, 5]);
+  assert.equal(commands[0].text, '23456');
+});
+
+test('GuiSlider.clamps_and_preserves_value_by_control_id', () => {
+  const parent = new GUI();
+  const first = new GuiSlider();
+  const second = new GuiSlider();
+  parent.addControl(first);
+  parent.addControl(second);
+  first.setRange(10, 50).setValue(75);
+  second.setRange(-1, 1).setValue(-0.5);
+  const firstId = first.id;
+  const revision = first._captureValueRevision();
+
+  first.setValue(35);
+  first._applyNativeValue(20, revision);
+  first.bringToFront();
+
+  assert.equal(first.getValue(), 35);
+  assert.equal(second.getValue(), -0.5);
+  assert.equal(first.id, firstId);
+  assert.deepEqual(parent.getControls(), [second, first]);
+});
+
+test('native_value_changes_dispatch_onChange_once_with_typed_target', () => {
+  const changes = [];
+  class TrackingSlider extends GuiSlider {
+    onChange(event) { changes.push([event.target.id, event.currentTarget.id, event.type]); }
+  }
+  const manager = new GUIManager({});
+  const slider = new TrackingSlider();
+  manager.addControl(slider);
+  const commandRevision = slider._captureValueRevision();
+
+  slider._applyNativeValue(0.6, commandRevision);
+  slider._applyNativeValue(0.9, commandRevision);
+
+  assert.equal(slider.getValue(), 0.6);
+  assert.deepEqual(changes, [[slider.id, slider.id, GUIEventType.Change]]);
+});
+
+test('planned_layout_controls_expose_configuration_and_validate_sizes', () => {
+  const window = new GuiWindow();
+  const panel = new GuiPanel();
+  const border = new GuiBitmapBorder();
+  const stretch = new GuiStretch();
+  const frameSet = new GuiFrameSet();
+
+  window.setTitle('Inventory').setMovable(false).setResizable(true).setClosable(false);
+  assert.equal(window.getTitle(), 'Inventory');
+  assert.equal(window.isMovable(), false);
+  assert.equal(window.isResizable(), true);
+  assert.equal(window.isClosable(), false);
+  border.setTiled(true);
+  assert.equal(border.isTiled(), true);
+  stretch.setClientSize(640, 480);
+  assert.deepEqual(stretch.getClientSize(), { width: 640, height: 480 });
+  frameSet.setColumnCount(3).setRowCount(2).setSplitterWidth(4);
+  assert.deepEqual(frameSet.getGridSize(), { columns: 3, rows: 2 });
+  assert.equal(frameSet.getSplitterWidth(), 4);
+  assert.throws(() => frameSet.setColumnCount(0), RangeError);
+  assert.ok(panel instanceof GUI);
+});
+
+test('planned_button_and_text_controls_keep_text_and_scroll_modes', () => {
+  const button = new GuiButton();
+  const checkBox = new GuiCheckBox();
+  const bitmapButton = new GuiBitmapButton();
+  const text = new GuiText();
+  const multiline = new GuiMLText();
+  const edit = new GuiMLTextEdit();
+  const editSlider = new GuiTextEditSlider();
+  const scroll = new GuiScroll();
+
+  button.setText('Open');
+  text.setText('Name');
+  multiline.setText('First line\nSecond line');
+  edit.setText('Multiline input').setMaxLength(20);
+  editSlider.setRange(0, 100).setValue(42);
+  scroll.setHorizontalScrollBarMode('alwaysOff').setVerticalScrollBarMode('alwaysOn').setScrollBarThickness(12);
+
+  assert.equal(button.getText(), 'Open');
+  assert.equal(text.getText(), 'Name');
+  assert.equal(multiline.getText(), 'First line\nSecond line');
+  assert.equal(edit.getText(), 'Multiline input');
+  assert.equal(editSlider.getValue(), 42);
+  assert.equal(checkBox.getValue(), false);
+  assert.equal(bitmapButton instanceof GuiButtonBase, true);
+  assert.equal(scroll.getHorizontalScrollBarMode(), 'alwaysOff');
+  assert.equal(scroll.getVerticalScrollBarMode(), 'alwaysOn');
+  assert.equal(scroll.getScrollBarThickness(), 12);
+});
+
+test('GuiTextEditSlider.keeps_numeric_and_edit_options_in_commands', () => {
+  const editSlider = new GuiTextEditSlider();
+  editSlider.setRange(0, 100).setValue(42).setPassword(true).setMaxLength(4);
+  const commands = [];
+  editSlider._emitCommands(commands);
+
+  assert.deepEqual(commands[0].values.slice(0, 6), [42, 0, 100, 1, 0, 4]);
+  assert.equal(commands[0].text, '42');
 });

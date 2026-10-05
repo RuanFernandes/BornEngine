@@ -129,11 +129,17 @@ export type { FractalNoiseOptions } from './procedural';
 export { Ui, UiBackend, UiOpcode } from './ui';
 export { DebugUi } from './debug-ui';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui';
-export { GUI, GUIManager, GUIEvent, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind } from './gui';
+export {
+  GUI, GUIManager, GUIEvent, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind,
+  GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
+  GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton, GuiSlider,
+  GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider,
+} from './gui';
 export type {
   GUIEventOptions, GUIEventTypeCode, GUIControlOptions, GuiCursor, GuiPoint, GuiRect, GuiSize,
   GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile,
   GuiShadowProfile, GuiButtonSounds, GuiTextAlignment, GuiControlCommand, GuiControlKindCode,
+  GuiScrollBarMode, GuiBitmapButtonTextures,
 } from './gui';
 export { ColyseusClient, Room } from './colyseus';
 export type { RoomRequestOptions, RoomRequestCallbacks, ColyseusError, RoomJoinCallbacks } from './colyseus';

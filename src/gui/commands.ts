@@ -3,6 +3,22 @@ import type { GuiRect } from './types';
 
 export const GuiControlKind = {
   Control: 0,
+  Panel: 1,
+  Window: 2,
+  Scroll: 3,
+  BitmapBorder: 4,
+  Stretch: 5,
+  FrameSet: 6,
+  Button: 7,
+  CheckBox: 8,
+  RadioButton: 9,
+  BitmapButton: 10,
+  Text: 11,
+  MLText: 12,
+  TextEdit: 13,
+  MLTextEdit: 14,
+  TextEditSlider: 15,
+  Slider: 16,
 } as const;
 
 export type GuiControlKindCode = typeof GuiControlKind[keyof typeof GuiControlKind];

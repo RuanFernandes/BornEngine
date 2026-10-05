@@ -7,3 +7,9 @@ export { GuiProfile, GUIProfiles } from './profile';
 export type { GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile, GuiShadowProfile, GuiButtonSounds, GuiTextAlignment } from './profile';
 export { GuiControlKind } from './commands';
 export type { GuiControlCommand, GuiControlKindCode } from './commands';
+export {
+  GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
+  GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton, GuiSlider,
+  GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider,
+} from './controls/index';
+export type { GuiScrollBarMode, GuiBitmapButtonTextures } from './controls/index';
