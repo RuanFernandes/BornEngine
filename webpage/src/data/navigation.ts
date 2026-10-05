@@ -72,6 +72,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'World', href: '/docs/api/world/' },
       { title: 'Mobile', href: '/docs/api/mobile/' },
       { title: 'UI', href: '/docs/api/ui/' },
+      { title: 'GUI controls', href: '/docs/api/gui/' },
     ],
   },
   {
@@ -100,6 +101,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Physics gameplay', href: '/docs/guides/physics-gameplay/' },
       { title: 'Assets and worlds', href: '/docs/guides/assets-and-worlds/' },
       { title: 'Audio and UI', href: '/docs/guides/audio-and-ui/' },
+      { title: 'GUI controls guide', href: '/docs/guides/gui-controls/' },
       { title: 'Multiplayer with Colyseus', href: '/docs/guides/multiplayer/' },
     ],
   },

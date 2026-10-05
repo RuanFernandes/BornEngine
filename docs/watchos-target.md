@@ -48,6 +48,14 @@ the Canvas and handled by a SceneKit `SceneView` layered underneath.
 What is *not* built on watchOS is the wgpu renderer and Jolt physics — see
 Limitations.
 
+## Retained GUI availability
+
+GUI controls do not work on watchOS in the current release: controls do not
+render and GUI input/events are unavailable. This limitation is temporary. A
+future SwiftUI adapter is planned, with no delivery date promised.
+`game.gui.isAvailable()` returns `false` on watchOS. The existing SwiftUI Canvas
+draw-list adapter does not render these retained controls; see the [GUI API](../webpage/src/content/docs/api/gui.md) for the supported API and behavior.
+
 ## Building
 
 watchOS builds go through Perry. The engine's watch crate (`native/watchos`) and

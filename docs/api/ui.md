@@ -4,6 +4,8 @@ BornEngine provides a Game-owned player UI surface and a separate developer over
 
 UI commands are described during the `render()` hook. The backend evaluates them at the end of the frame and exposes the completed responses on the next frame. Keep numeric widget IDs stable so the backend can retain state.
 
+For persistent control objects, nested parents, subclass event hooks, profiles, and method-based geometry, use the [retained GUI API](gui.md). Both APIs share the same egui context and display while keeping separate IDs and response data.
+
 ```ts
 import { Game } from '@bornengine/engine';
 class ExampleGame extends Game {

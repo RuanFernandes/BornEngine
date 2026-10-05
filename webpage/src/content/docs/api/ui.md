@@ -7,6 +7,8 @@ order: 45
 
 `game.ui` is a player-facing immediate UI surface. Describe widgets during the `render()` hook with stable numeric IDs; the backend processes commands after the callback and reports responses on the next frame.
 
+For persistent control objects, nested parents, subclass event hooks, profiles, and method-based geometry, use the [retained GUI API](../gui/). Both APIs share the same egui context and display while keeping separate IDs and response data.
+
 ## Player UI
 
 ```ts
