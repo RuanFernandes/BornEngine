@@ -38,6 +38,7 @@
     "./input": "./src/input/index.ts",
     "./storage": "./src/storage/index.ts",
     "./ui": "./src/ui/index.ts",
+    "./gui": "./src/gui/index.ts",
     "./debug-ui": "./src/debug-ui/index.ts",
     "./colyseus": "./src/colyseus/index.ts"
   },

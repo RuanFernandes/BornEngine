@@ -1,5 +1,7 @@
 import { addGuiPoints, centeredCoordinate, clampGuiSize, subtractGuiPoints, validateGuiCoordinate, validateGuiDimension } from './layout';
 import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
+import { GuiControlKind, intersectGuiRects, type GuiControlCommand } from './commands';
+import { GUIProfiles, GuiProfile } from './profile';
 import { allocateGUIId, type GUIControlOptions, type GuiCursor, type GuiPoint, type GuiRect, type GuiSize } from './types';
 import type { GUIManager } from './manager';
 
@@ -25,6 +27,10 @@ export class GUI {
   private _focused = false;
   private _firstResponder = false;
   private _destroyed = false;
+  private _profile: GuiProfile | null = null;
+  protected _guiCommandKind: number = GuiControlKind.Control;
+  protected _guiCommandValues: number[] = [];
+  protected _guiCommandText = '';
 
   constructor(options: GUIControlOptions = {}) {
     this.id = allocateGUIId();
@@ -227,6 +233,47 @@ export class GUI {
   setHint(text: string): this { this._hint = text; return this; }
   getCursor(): GuiCursor { return this._cursor; }
   setCursor(cursor: GuiCursor): this { this._cursor = cursor; return this; }
+
+  getProfile(): GuiProfile { return this._profile ?? GUIProfiles.get('default'); }
+  setProfile(profile: GuiProfile | null): this {
+    if (profile !== null && !(profile instanceof GuiProfile)) throw new TypeError('setProfile expects a GuiProfile or null.');
+    this._profile = profile;
+    return this;
+  }
+
+  setOwnProfile(profile?: GuiProfile): GuiProfile {
+    const source = profile ?? this._profile ?? GUIProfiles.get('default');
+    this._profile = source.clone();
+    return this._profile;
+  }
+
+  /** @internal Flattens this control and its descendants to typed render commands. */
+  _emitCommands(
+    commands: GuiControlCommand[],
+    inheritedProfile: GuiProfile | null = null,
+    clip: GuiRect | null = null,
+  ): void {
+    if (!this._visible || !this._active || this._destroyed) return;
+    const profile = this._profile ?? inheritedProfile ?? GUIProfiles.get('default');
+    const origin = this.localToGlobal({ x: 0, y: 0 });
+    const rect: GuiRect = { x: origin.x, y: origin.y, width: this._width, height: this._height };
+    const ownClip = this._clipToBounds
+      ? (clip === null ? rect : intersectGuiRects(clip, rect))
+      : clip;
+    commands.push({
+      kind: this._guiCommandKind,
+      id: this.id,
+      rect,
+      clip: ownClip,
+      profile: profile.clone(),
+      values: this._guiCommandValues.slice(),
+      text: this._guiCommandText,
+    });
+    const childClip = this._clipChildren
+      ? (ownClip === null ? rect : intersectGuiRects(ownClip, rect))
+      : ownClip;
+    for (const child of this._controls) child._emitCommands(commands, profile, childClip);
+  }
 
   focus(): this {
     this._manager?._focusControl(this);

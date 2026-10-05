@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
 
@@ -11,7 +12,7 @@ registerHooks({
   },
 });
 
-const { GUI, GUIManager, GUIEventType } = await import('../src/gui/index.ts');
+const { GUI, GUIManager, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind } = await import('../src/gui/index.ts');
 const { GUIIdAllocator } = await import('../src/gui/types.ts');
 
 test('GUI.center_uses_parent_content_bounds_and_reflows_after_resize', () => {
@@ -211,4 +212,96 @@ test('GUI.focus_helpers_select_first_responder_and_detach_cleanly', () => {
   first.destroy();
   assert.deepEqual(root.getControls(), [second]);
   assert.equal(first.getParent(), null);
+});
+
+test('GUIProfiles.clone_is_independent_of_registered_profile', () => {
+  const profile = new GuiProfile({
+    normalColor: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
+    font: { family: 'Inter', size: 18, bold: true, italic: false },
+    border: { color: { r: 0, g: 0, b: 0, a: 1 }, width: 2, radius: 4 },
+    shadow: { color: { r: 0, g: 0, b: 0, a: 0.5 }, offsetX: 1, offsetY: 2, blur: 3 },
+    spacing: { item: 5, padding: 6, inner: 7 },
+  });
+  GUIProfiles.register('gui-api-profile-clone', profile);
+
+  const clone = GUIProfiles.clone('gui-api-profile-clone');
+  clone.normalColor.r = 0.9;
+  clone.font.size = 30;
+  clone.border.color.a = 0.25;
+  clone.shadow.offsetX = 9;
+  clone.spacing.inner = 12;
+
+  assert.equal(GUIProfiles.get('gui-api-profile-clone').normalColor.r, 0.2);
+  assert.equal(GUIProfiles.get('gui-api-profile-clone').font.size, 18);
+  assert.equal(GUIProfiles.get('gui-api-profile-clone').border.color.a, 1);
+  assert.equal(GUIProfiles.get('gui-api-profile-clone').shadow.offsetX, 1);
+  assert.equal(GUIProfiles.get('gui-api-profile-clone').spacing.inner, 7);
+  for (const name of ['default', 'text', 'button', 'window', 'scroll', 'checkbox', 'radio', 'popup', 'slider', 'progress', 'tree', 'list', 'blue', 'blue-button', 'blue-window']) {
+    assert.ok(GUIProfiles.get(name) instanceof GuiProfile, `missing built-in profile: ${name}`);
+  }
+});
+
+test('GUIProfiles.rejects_duplicate_names_and_unknown_profiles', () => {
+  const profile = new GuiProfile();
+  GUIProfiles.register('gui-api-profile-duplicate', profile);
+
+  assert.throws(() => GUIProfiles.register('gui-api-profile-duplicate', new GuiProfile()), /already registered|duplicate/i);
+  assert.throws(() => GUIProfiles.get('gui-api-profile-missing'), /unknown|not found/i);
+});
+
+test('GUI.setOwnProfile_assigns_and_returns_clone', () => {
+  const shared = GUIProfiles.get('button');
+  const control = new GUI();
+  control.setProfile(shared);
+  const own = control.setOwnProfile();
+
+  assert.equal(control.getProfile(), own);
+  assert.notEqual(own, shared);
+  own.textColor.g = 0.17;
+  assert.notEqual(shared.textColor.g, 0.17);
+
+  const explicit = control.setOwnProfile(GUIProfiles.get('text'));
+  assert.equal(control.getProfile(), explicit);
+  assert.notEqual(explicit, GUIProfiles.get('text'));
+});
+
+test('GUI._emitCommands_keeps_stable_id_bounds_clip_and_profile', () => {
+  const parent = new GUI({ x: 10, y: 20, width: 300, height: 200 });
+  const child = new GUI({ x: 4, y: 5, width: 50, height: 30 });
+  const profile = new GuiProfile({ normalColor: { r: 0.8, g: 0.2, b: 0.1, a: 1 } });
+  parent.addControl(child);
+  child.setProfile(profile).setClipToBounds(true);
+
+  const commands = [];
+  child._emitCommands(commands, null, { x: 0, y: 0, width: 30, height: 30 });
+
+  assert.equal(commands.length, 1);
+  assert.equal(commands[0].kind, GuiControlKind.Control);
+  assert.equal(commands[0].id, child.id);
+  assert.deepEqual(commands[0].rect, { x: 14, y: 25, width: 50, height: 30 });
+  assert.deepEqual(commands[0].clip, { x: 14, y: 25, width: 16, height: 5 });
+  assert.deepEqual(commands[0].profile.normalColor, { r: 0.8, g: 0.2, b: 0.1, a: 1 });
+  assert.notEqual(commands[0].profile, profile);
+});
+
+test('GUI._emitCommands_inherits_profile_for_controls_without_an_override', () => {
+  const parent = new GUI({ width: 100, height: 100 });
+  const child = new GUI({ width: 20, height: 20 });
+  const profile = new GuiProfile({ textColor: { r: 0.1, g: 0.2, b: 0.3, a: 1 } });
+  parent.addControl(child);
+  parent.setProfile(profile);
+
+  const commands = [];
+  parent._emitCommands(commands);
+
+  assert.equal(commands.length, 2);
+  assert.equal(commands[1].id, child.id);
+  assert.deepEqual(commands[1].profile.textColor, profile.textColor);
+  assert.notEqual(commands[1].profile, profile);
+});
+
+test('package_exports_GUI_subpath_without_replacing_immediate_UI', async () => {
+  const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(packageJson.exports['./gui'], './src/gui/index.ts');
+  assert.equal(packageJson.exports['./ui'], './src/ui/index.ts');
 });
