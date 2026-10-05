@@ -48,6 +48,12 @@ const NOT_IN_MANIFEST_ALLOWLIST = new Set([
 // generated as no-op stubs by gen_stubs.js from this same manifest, so
 // name presence is checked but a thinner hand-written set is expected.
 const STUB_PLATFORMS = new Set(['watchos']);
+const RETAINED_GUI_FFI = new Set([
+  'bloom_gui_command', 'bloom_gui_scratch_reset', 'bloom_gui_scratch_push_f64',
+  'bloom_gui_scratch_command', 'bloom_gui_response', 'bloom_gui_response_text',
+  'bloom_gui_event_count', 'bloom_gui_event_field', 'bloom_gui_is_available',
+  'bloom_gui_wants_input',
+]);
 
 // ---------------------------------------------------------------------------
 // parsing helpers
@@ -280,6 +286,17 @@ if (!NATIVE_ONLY) {
     if (sig.arity !== arity) {
       fail(`web: ${name} arity ${sig.arity} != manifest ${arity} `
          + `(argument shift — the game's args land in the wrong slots)`);
+    }
+  }
+  for (const name of RETAINED_GUI_FFI) {
+    const manifestArity = manifest.get(name);
+    const webSig = webSigs.get(name);
+    if (manifestArity === undefined) {
+      fail(`retained GUI FFI ${name} is missing from package.json`);
+    } else if (!webSig) {
+      fail(`web: retained GUI FFI ${name} has no direct wasm-bindgen export`);
+    } else if (webSig.arity !== manifestArity) {
+      fail(`web: retained GUI FFI ${name} arity ${webSig.arity} != manifest ${manifestArity}`);
     }
   }
   console.log(`ok    web: arity checked on ${checked} all-f64 mirror functions`);

@@ -274,6 +274,56 @@
           "returns": "f64"
         },
         {
+          "name": "bloom_gui_command",
+          "params": ["f64", "f64", "f64", "f64", "f64", "f64", "string"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_gui_scratch_reset",
+          "params": [],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_gui_scratch_push_f64",
+          "params": ["f64"],
+          "returns": "void"
+        },
+        {
+          "name": "bloom_gui_scratch_command",
+          "params": ["f64", "f64", "f64", "string"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_gui_response",
+          "params": ["f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_gui_response_text",
+          "params": ["f64"],
+          "returns": "string"
+        },
+        {
+          "name": "bloom_gui_event_count",
+          "params": [],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_gui_event_field",
+          "params": ["f64", "f64"],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_gui_is_available",
+          "params": [],
+          "returns": "f64"
+        },
+        {
+          "name": "bloom_gui_wants_input",
+          "params": ["f64"],
+          "returns": "f64"
+        },
+        {
           "name": "bloom_take_screenshot",
           "params": [
             "string"

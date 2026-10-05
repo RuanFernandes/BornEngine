@@ -322,9 +322,11 @@ mod input_ffi;
 mod material_ffi;
 mod particle2d_ffi;
 mod ui_ffi;
+mod gui_ffi;
 pub use input_ffi::*;
 pub use particle2d_ffi::*;
 pub use ui_ffi::*;
+pub use gui_ffi::*;
 
 // EN-063 — web FFI parity for full-3D games: mesh/instance/texture-array
 // scratch builders, staged-model bytes, env-HDR bytes, profiler text,

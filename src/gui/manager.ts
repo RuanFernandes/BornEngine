@@ -2,6 +2,13 @@ import type { Game } from '../core/game';
 import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
 import type { GUI } from './gui';
 import type { GuiSize } from './types';
+import { GuiNativeBridge } from './native-bridge';
+
+type NativeValueControl = GUI & {
+  _captureValueRevision?: () => number;
+  _applyNativeValue?: (value: number | boolean, commandRevision: number) => void;
+  getValue?: () => number | boolean;
+};
 
 export class GUIManager {
   readonly game: Game;
@@ -9,9 +16,12 @@ export class GUIManager {
   private focusedControl: GUI | null = null;
   private viewport: GuiSize = { width: 0, height: 0 };
   private disposed = false;
+  private readonly bridge: GuiNativeBridge;
+  private submittedControls = new Map<number, { control: GUI; revision: number }>();
 
-  constructor(game: Game) {
+  constructor(game: Game, bridge: GuiNativeBridge = new GuiNativeBridge()) {
     this.game = game;
+    this.bridge = bridge;
   }
 
   getControls(): readonly GUI[] { return this.controls.slice(); }
@@ -42,11 +52,49 @@ export class GUIManager {
     for (const control of this.controls.slice()) this.removeControl(control);
   }
 
-  updateFrame(_deltaTime: number): void {}
-  renderFrame(): void {}
-  isAvailable(): boolean { return !this.disposed; }
-  wantsPointerInput(): boolean { return false; }
-  wantsKeyboardInput(): boolean { return false; }
+  updateFrame(_deltaTime: number): void {
+    if (this.disposed || !this.bridge.isAvailable()) return;
+    for (const [id, entry] of this.submittedControls) {
+      const response = this.bridge.response(id);
+      if (!response.present) continue;
+      const control = entry.control as NativeValueControl;
+      if (control._applyNativeValue !== undefined) {
+        const currentValue = control.getValue?.();
+        const value = typeof currentValue === 'boolean' ? response.value > 0.5 : response.value;
+        control._applyNativeValue(value, entry.revision);
+      }
+    }
+
+    for (const nativeEvent of this.bridge.events()) {
+      const control = this.submittedControls.get(nativeEvent.controlId)?.control;
+      if (control === undefined) continue;
+      this.dispatchEvent(control, nativeEvent.type, {
+        local: { x: nativeEvent.localX, y: nativeEvent.localY },
+        global: { x: nativeEvent.globalX, y: nativeEvent.globalY },
+        key: nativeEvent.key,
+        button: nativeEvent.button,
+        wheelX: nativeEvent.wheelX,
+        wheelY: nativeEvent.wheelY,
+        modifiers: nativeEvent.modifiers,
+      });
+    }
+  }
+
+  renderFrame(): void {
+    if (this.disposed || !this.bridge.isAvailable()) return;
+    const commands: import('./commands').GuiControlCommand[] = [];
+    this.submittedControls.clear();
+    for (const root of this.controls) {
+      root._emitCommands(commands);
+      const emittedIds = new Set(commands.map((command) => command.id));
+      this.collectSubmittedControls(root, emittedIds);
+    }
+    this.bridge.submit(commands);
+  }
+
+  isAvailable(): boolean { return !this.disposed && this.bridge.isAvailable(); }
+  wantsPointerInput(): boolean { return !this.disposed && this.bridge.wantsPointerInput(); }
+  wantsKeyboardInput(): boolean { return !this.disposed && this.bridge.wantsKeyboardInput(); }
 
   dispatchEvent(target: GUI, type: number, options: GUIEventOptions = {}): GUIEvent | null {
     if (this.disposed || target._getManager() !== this || !target._isInputEligible()) return null;
@@ -110,6 +158,17 @@ export class GUIManager {
 
   /** @internal Viewport bounds are supplied by Game integration. */
   _getViewportSize(): GuiSize { return { ...this.viewport }; }
+
+  private collectSubmittedControls(control: GUI, emittedIds: Set<number>): void {
+    if (emittedIds.has(control.id)) {
+      const valueControl = control as NativeValueControl;
+      this.submittedControls.set(control.id, {
+        control,
+        revision: valueControl._captureValueRevision?.() ?? 0,
+      });
+    }
+    for (const child of control.getControls()) this.collectSubmittedControls(child, emittedIds);
+  }
 
   /** @internal Updates centered root controls after a viewport resize. */
   _setViewportSize(width: number, height: number): void {

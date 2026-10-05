@@ -46,6 +46,7 @@ pub mod physics_jolt;
 pub mod engine;
 pub mod drs;
 pub mod ui;
+pub mod gui;
 pub mod colyseus;
 pub mod colyseus_targets;
 #[cfg(all(

@@ -23,6 +23,7 @@ pub struct EngineState {
     pub text: TextRenderer,
     pub input: InputState,
     pub ui: crate::ui::UiSystem,
+    pub gui: crate::gui::GuiSystem,
     pub audio: AudioMixer,
     pub textures: TextureManager,
     /// Native file-backed textures and audio handles that can be refreshed
@@ -93,6 +94,7 @@ impl EngineState {
         let mut scene = SceneGraph::new();
         scene.hw_rt_enabled = renderer.hw_rt_enabled;
         let ui = crate::ui::UiSystem::default();
+        let gui = crate::gui::GuiSystem::default();
         #[cfg(feature = "debug-ui")]
         let renderer = {
             let mut renderer = renderer;
@@ -104,6 +106,7 @@ impl EngineState {
             text: TextRenderer::new(),
             input: InputState::new(),
             ui,
+            gui,
             audio: AudioMixer::new(),
             textures: TextureManager::new(),
             asset_hot_reload: crate::asset_hot_reload::FileAssetHotReload::new(),
@@ -182,6 +185,7 @@ impl EngineState {
 
         self.input.begin_frame();
         self.ui.begin_frame();
+        self.gui.begin_frame();
         self.ui.set_input_snapshot(self.input.ui_snapshot());
         self.poll_file_asset_hot_reload();
         self.renderer.begin_frame();

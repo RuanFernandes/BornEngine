@@ -131,6 +131,7 @@ export { DebugUi } from './debug-ui';
 export type { UiApi, UiId, UiResponse, UiColor } from './ui';
 export {
   GUI, GUIManager, GUIEvent, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind,
+  GuiNativeBridge, GuiOpcode, GuiEventField,
   GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
   GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton, GuiSlider,
   GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider,
@@ -140,6 +141,7 @@ export {
 } from './gui';
 export type {
   GUIEventOptions, GUIEventTypeCode, GUIControlOptions, GuiCursor, GuiPoint, GuiRect, GuiSize,
+  GuiNativeApi, GuiNativeResponse, GuiNativeEvent, GuiOpcodeCode, GuiEventFieldCode,
   GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile,
   GuiShadowProfile, GuiButtonSounds, GuiTextAlignment, GuiControlCommand, GuiControlKindCode,
   GuiScrollBarMode, GuiBitmapButtonTextures,

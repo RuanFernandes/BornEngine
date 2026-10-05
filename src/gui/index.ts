@@ -7,6 +7,10 @@ export { GuiProfile, GUIProfiles } from './profile';
 export type { GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile, GuiShadowProfile, GuiButtonSounds, GuiTextAlignment } from './profile';
 export { GuiControlKind } from './commands';
 export type { GuiControlCommand, GuiControlKindCode } from './commands';
+export { GuiNativeBridge } from './native-bridge';
+export { GuiOpcode, GuiEventField } from './opcodes';
+export type { GuiNativeApi, GuiNativeResponse, GuiNativeEvent } from './native-bridge';
+export type { GuiOpcodeCode, GuiEventFieldCode } from './opcodes';
 export {
   GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
   GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton, GuiSlider,

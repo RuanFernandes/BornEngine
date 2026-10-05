@@ -14,6 +14,7 @@ registerHooks({
 
 const {
   GUI, GUIManager, GUIEventType, GuiProfile, GUIProfiles, GuiControlKind,
+  GuiNativeBridge, GuiOpcode, GuiEventField,
   GuiWindow, GuiPanel, GuiScroll, GuiBitmapBorder, GuiStretch, GuiFrameSet,
   GuiButtonBase, GuiButton, GuiCheckBox, GuiRadioButton, GuiBitmapButton,
   GuiText, GuiMLText, GuiTextEdit, GuiMLTextEdit, GuiTextEditSlider, GuiSlider,
@@ -656,4 +657,59 @@ test('GuiBitmap_and_GuiShowImg_keep_transform_and_tint_values', () => {
     assert.equal(image.getZoom(), 2);
     assert.throws(() => image.setOpacity(2), RangeError);
   }
+});
+
+test('gui_manager_encodes_typed_commands_and_reads_GUI_domain_responses', () => {
+  const nativeCalls = [];
+  const responseFields = { 0: 0, 1: 1, 2: 0, 3: 0, 4: 0, 5: 0.75, 6: 1 };
+  let slider;
+  const bridge = new GuiNativeBridge({
+    command: (...args) => { nativeCalls.push(['command', ...args]); return 1; },
+    scratchReset: () => nativeCalls.push(['scratchReset']),
+    scratchPushF64: (value) => nativeCalls.push(['scratchPushF64', value]),
+    scratchCommand: (...args) => { nativeCalls.push(['scratchCommand', ...args]); return 1; },
+    response: (id, field) => { assert.equal(id, slider.id); return responseFields[field] ?? 0; },
+    responseText: (id) => { assert.equal(id, slider.id); return ''; },
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  });
+  const manager = new GUIManager({}, bridge);
+  slider = new GuiSlider({ x: 10, y: 20, width: 100, height: 18 });
+  slider.setRange(0, 1).setValue(0.25);
+  manager.addControl(slider);
+
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+
+  assert.deepEqual(nativeCalls.find(([kind]) => kind === 'command'), [
+    'command', GuiOpcode.Control, slider.id, 10, 20, 100, 18, '',
+  ]);
+  assert.ok(nativeCalls.some(([kind]) => kind === 'scratchCommand' && kind === 'scratchCommand'));
+  assert.equal(slider.getValue(), 0.75);
+});
+
+test('gui_opcodes_match_native_rust_constants', async () => {
+  const typescriptOpcodes = await readFile(new URL('../src/gui/opcodes.ts', import.meta.url), 'utf8');
+  const rustCommands = await readFile(new URL('../native/shared/src/gui/commands.rs', import.meta.url), 'utf8');
+  const rustResponses = await readFile(new URL('../native/shared/src/gui/responses.rs', import.meta.url), 'utf8');
+
+  const parseObject = (source, name) => {
+    const match = source.match(new RegExp(`export const ${name} = \\{([\\s\\S]*?)\\} as const`));
+    assert.ok(match, `missing TypeScript ${name}`);
+    return Object.fromEntries([...match[1].matchAll(/([A-Za-z][A-Za-z0-9]*):\s*(\d+)/g)].map((entry) => [entry[1], Number(entry[2])]));
+  };
+  const parseEnum = (source, name) => {
+    const match = source.match(new RegExp(`pub enum ${name}\\s*\\{([^}]+)\\}`));
+    assert.ok(match, `missing Rust ${name}`);
+    return Object.fromEntries([...match[1].matchAll(/([A-Za-z][A-Za-z0-9]*)\s*=\s*(\d+)/g)].map((entry) => [entry[1], Number(entry[2])]));
+  };
+
+  assert.deepEqual(parseObject(typescriptOpcodes, 'GuiOpcode'), parseEnum(rustCommands, 'GuiOpcode'));
+  assert.deepEqual(parseObject(typescriptOpcodes, 'GUIEventType'), parseEnum(rustResponses, 'GuiEventType'));
+  assert.deepEqual(parseObject(typescriptOpcodes, 'GuiEventField'), parseEnum(rustResponses, 'GuiEventField'));
+  assert.equal(GuiOpcode.Control, 1);
+  assert.equal(GuiEventField.ControlId, 1);
+  assert.equal(GUIEventType.KeyUp, 13);
 });
