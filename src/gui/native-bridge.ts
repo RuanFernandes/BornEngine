@@ -85,7 +85,12 @@ function profileValues(command: GuiControlCommand): number[] {
     ...colorValues(profile.border.color), profile.border.width, profile.border.radius, profile.opacity,
     ...colorValues(profile.shadow.color), profile.shadow.offsetX, profile.shadow.offsetY, profile.shadow.blur,
     profile.focusable ? 1 : 0, profile.modal ? 1 : 0, cursor,
-    command.values.length, ...command.values,
+    command.backgroundTextureHandle,
+    command.parentId,
+    command.clips.length,
+    ...command.clips.flatMap((clip) => [clip.ownerId, clip.rect.x, clip.rect.y, clip.rect.width, clip.rect.height]),
+    command.values.length,
+    ...command.values,
   ];
 }
 
@@ -109,6 +114,26 @@ export class GuiNativeBridge {
       this.api.scratchReset();
       for (const value of values) this.api.scratchPushF64(value);
       this.api.scratchCommand(GuiOpcode.Control, command.id, values.length, command.text);
+      const selectedIndex = command.values[1] ?? -1;
+      for (let index = 0; index < command.items.length; index++) {
+        const item = command.items[index];
+        this.api.command(GuiOpcode.Item, command.id, index, selectedIndex, item.depth, typeof item.id === 'number' ? item.id : 0, item.label);
+      }
+      for (let index = 0; index < command.drawings.length; index++) {
+        const drawing = command.drawings[index];
+        this.api.command(GuiOpcode.Drawing, command.id, index, drawing.kind, command.rect.x, command.rect.y, drawing.text);
+        const drawingValues = drawing.kind === 4 ? [drawing.textureHandle ?? 0, ...drawing.values] : drawing.values;
+        const payload = [
+          command.rect.width, command.rect.height,
+          command.clip === null ? 0 : 1,
+          command.clip?.x ?? 0, command.clip?.y ?? 0,
+          command.clip?.width ?? 0, command.clip?.height ?? 0,
+          ...drawingValues,
+        ];
+        this.api.scratchReset();
+        for (const value of payload) this.api.scratchPushF64(value);
+        this.api.scratchCommand(GuiOpcode.Drawing, command.id, payload.length, drawing.text);
+      }
     }
   }
 

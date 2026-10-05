@@ -50,7 +50,24 @@ impl GuiSystem {
     }
 
     pub fn take_commands(&mut self) -> Vec<GuiCommand> {
-        std::mem::take(&mut self.commands)
+        let queued = std::mem::take(&mut self.commands);
+        let mut paired = Vec::with_capacity(queued.len());
+        let mut index = 0;
+        while index < queued.len() {
+            let mut command = queued[index].clone();
+            let should_pair = matches!(command.opcode, GuiOpcode::Control | GuiOpcode::Drawing);
+            if should_pair {
+                if let Some(payload) = queued.get(index + 1).filter(|payload| {
+                    payload.opcode == command.opcode && payload.id == command.id && !payload.scratch.is_empty()
+                }) {
+                    command.scratch = payload.scratch.clone();
+                    index += 1;
+                }
+            }
+            paired.push(command);
+            index += 1;
+        }
+        paired
     }
 
     pub fn reset_scratch(&mut self) {

@@ -1,5 +1,6 @@
 import type { GuiProfile } from './profile';
 import type { GuiRect } from './types';
+import type { Texture } from '../core/types';
 
 export const GuiControlKind = {
   Control: 0,
@@ -34,14 +35,38 @@ export const GuiControlKind = {
 
 export type GuiControlKindCode = typeof GuiControlKind[keyof typeof GuiControlKind];
 
+export interface GuiControlItemCommand {
+  id: string | number;
+  label: string;
+  depth: number;
+}
+
+export interface GuiDrawingPayload {
+  kind: number;
+  values: number[];
+  text: string;
+  texture?: Texture;
+  textureHandle?: number;
+}
+
+export interface GuiClipCommand {
+  ownerId: number;
+  rect: GuiRect;
+}
+
 export interface GuiControlCommand {
   kind: number;
   id: number;
+  parentId: number;
   rect: GuiRect;
   clip: GuiRect | null;
+  clips: GuiClipCommand[];
+  backgroundTextureHandle: number;
   profile: GuiProfile;
   values: number[];
   text: string;
+  items: GuiControlItemCommand[];
+  drawings: GuiDrawingPayload[];
 }
 
 export function intersectGuiRects(left: GuiRect, right: GuiRect): GuiRect {

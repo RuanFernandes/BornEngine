@@ -98,6 +98,8 @@ export class GuiBitmapButton extends GuiButtonBase {
   }
 
   getTextures(): GuiBitmapButtonTextures { return { ...this.textures }; }
+  /** @internal Texture ownership is checked by the Game-owned GUIManager. */
+  _getButtonTextures(): GuiBitmapButtonTextures { return this.getTextures(); }
 }
 
 export class GuiSlider extends GuiNumberValueControl<number> {

@@ -131,15 +131,15 @@ impl UiSystem {
 
     pub fn evaluate_egui(
         &mut self,
+        gui_commands: &[crate::gui::GuiCommand],
         screen_rect: [f32; 4],
         pixels_per_point: f32,
         dt: f64,
     ) -> EguiFrameOutput {
-        self.egui.set_native_pixels_per_point(pixels_per_point);
         let commands = self.take_commands(UiBackend::Egui);
         let output = self
             .egui
-            .run_frame(&commands, self.input_snapshot.clone(), screen_rect, dt);
+            .run_frame(&commands, gui_commands, self.input_snapshot.clone(), screen_rect, pixels_per_point, dt);
         self.publish_completed_responses(
             UiBackend::Egui,
             output

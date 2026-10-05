@@ -23,6 +23,7 @@ const {
   GUI_TREE_MAX_PATH_LENGTH,
 } = await import('../src/gui/index.ts');
 const { GUIIdAllocator } = await import('../src/gui/types.ts');
+const { bindGameContext, GameContext } = await import('../src/core/context.ts');
 
 test('GUI.center_uses_parent_content_bounds_and_reflows_after_resize', () => {
   const parent = new GUI({ width: 300, height: 200 });
@@ -324,8 +325,52 @@ test('GuiScroll.clips_children_to_its_viewport', () => {
   scroll._emitCommands(commands);
 
   assert.equal(commands[1].id, child.id);
+  assert.equal(commands[1].parentId, scroll.id);
   assert.deepEqual(commands[1].clip, { x: 10, y: 20, width: 80, height: 50 });
+  assert.deepEqual(commands[1].clips, [{ ownerId: scroll.id, rect: { x: 10, y: 20, width: 80, height: 50 } }]);
   assert.equal(scroll.getClipChildren(), true);
+});
+
+test('GUI.clipToBounds_does_not_clip_children_without_clipChildren', () => {
+  const parent = new GUI({ x: 10, y: 20, width: 80, height: 50, clipToBounds: true });
+  const child = new GUI({ x: 4, y: 5, width: 20, height: 10 });
+  parent.addControl(child);
+  const commands = [];
+  parent._emitCommands(commands);
+
+  assert.deepEqual(commands[0].clip, { x: 10, y: 20, width: 80, height: 50 });
+  assert.equal(commands[1].clip, null);
+  assert.deepEqual(commands[1].clips, []);
+});
+
+test('GuiNativeBridge encodes parent IDs and hierarchical clip bounds', () => {
+  const calls = [];
+  const api = {
+    command: (...args) => { calls.push(['command', ...args]); return 1; },
+    scratchReset: () => calls.push(['scratchReset']),
+    scratchPushF64: (value) => calls.push(['scratchPushF64', value]),
+    scratchCommand: (...args) => { calls.push(['scratchCommand', ...args]); return 1; },
+    response: () => 0,
+    responseText: () => '',
+    eventCount: () => 0,
+    eventField: () => 0,
+    isAvailable: () => 1,
+    wantsInput: () => 0,
+  };
+  const scroll = new GuiScroll({ x: 10, y: 20, width: 80, height: 50 });
+  const child = new GUI({ x: 4, y: 5, width: 20, height: 10 });
+  scroll.addControl(child);
+  const commands = [];
+  scroll._emitCommands(commands);
+
+  new GuiNativeBridge(api).submit(commands);
+  const resets = calls.reduce((indices, call, index) => (call[0] === 'scratchReset' ? [...indices, index] : indices), []);
+  const childStart = resets[1] + 1;
+  const childValues = calls.slice(childStart).filter(([kind]) => kind === 'scratchPushF64').map(([, value]) => value);
+  assert.equal(childValues[52], scroll.id);
+  assert.equal(childValues[53], 1);
+  assert.deepEqual(childValues.slice(54, 59), [scroll.id, 10, 20, 80, 50]);
+  assert.equal(childValues[59], 0);
 });
 
 test('GuiRadioButton.enforces_one_selection_per_group', () => {
@@ -688,6 +733,85 @@ test('gui_manager_encodes_typed_commands_and_reads_GUI_domain_responses', () => 
   ]);
   assert.ok(nativeCalls.some(([kind]) => kind === 'scratchCommand' && kind === 'scratchCommand'));
   assert.equal(slider.getValue(), 0.75);
+});
+
+test('gui_manager_registers_only_loaded_textures_owned_by_its_game', () => {
+  const context = GameContext.create();
+  context.markReady();
+  const registrations = [];
+  const game = { ui: { registerTexture: (texture) => registrations.push(texture) } };
+  bindGameContext(game, context);
+  const owned = { isLoaded: true, handleValue: 123, dispose() {} };
+  const unloaded = { isLoaded: false, handleValue: 456, dispose() {} };
+  const foreign = { isLoaded: true, handleValue: 789, dispose() {} };
+  context.register(owned);
+  context.register(unloaded);
+  const submitted = [];
+  const manager = new GUIManager(game, {
+    isAvailable: () => true,
+    submit: (commands) => submitted.push(...commands),
+    response: () => ({ present: false }),
+    events: () => [],
+    wantsPointerInput: () => false,
+    wantsKeyboardInput: () => false,
+  });
+  try {
+    const valid = new GuiBitmap({ width: 16, height: 16 }).setTexture(owned);
+    const invalid = new GuiBitmap({ x: 20, width: 16, height: 16 }).setTexture(foreign);
+    const notLoaded = new GuiBitmap({ x: 40, width: 16, height: 16 }).setTexture(unloaded);
+    manager.addControl(valid);
+    manager.addControl(invalid);
+    manager.addControl(notLoaded);
+    manager.renderFrame();
+
+    assert.equal(submitted.find((command) => command.id === valid.id).values[7], 123);
+    assert.equal(submitted.find((command) => command.id === invalid.id).values[7], 0);
+    assert.equal(submitted.find((command) => command.id === notLoaded.id).values[7], 0);
+    assert.deepEqual(registrations, [owned]);
+  } finally {
+    manager.dispose();
+    context.dispose();
+  }
+});
+
+test('gui_manager_drops_stale_responses_for_hidden_controls', () => {
+  let actions = 0;
+  const button = new (class extends GuiButton { onAction() { actions++; } })({ width: 40, height: 20 });
+  const manager = new GUIManager({}, {
+    isAvailable: () => true,
+    submit() {},
+    response: () => ({ present: true, changed: true, clicked: true, value: 1, text: '' }),
+    events: () => [{ type: GUIEventType.Action, controlId: button.id, globalX: 0, globalY: 0, localX: 0, localY: 0, key: 0, button: 0, wheelX: 0, wheelY: 0, modifiers: 0 }],
+    wantsPointerInput: () => false,
+    wantsKeyboardInput: () => false,
+  });
+  manager.addControl(button);
+  manager.renderFrame();
+  button.hide();
+  manager.updateFrame(1 / 60);
+  assert.equal(actions, 0);
+  manager.dispose();
+});
+
+test('gui_manager_skips_all_retained_work_when_the_platform_is_unavailable', () => {
+  let submits = 0;
+  let eventReads = 0;
+  const button = new (class extends GuiButton { onAction() { throw new Error('unavailable GUI dispatched an event'); } })({ width: 40, height: 20 });
+  const manager = new GUIManager({}, {
+    isAvailable: () => false,
+    submit: () => { submits++; },
+    response: () => ({ present: false }),
+    events: () => { eventReads++; return []; },
+    wantsPointerInput: () => false,
+    wantsKeyboardInput: () => false,
+  });
+  manager.addControl(button);
+  manager.renderFrame();
+  manager.updateFrame(1 / 60);
+  assert.equal(manager.isAvailable(), false);
+  assert.equal(submits, 0);
+  assert.equal(eventReads, 0);
+  manager.dispose();
 });
 
 test('gui_opcodes_match_native_rust_constants', async () => {

@@ -241,10 +241,18 @@ impl EngineState {
         let logical_width = self.renderer.width().max(1) as f32;
         let logical_height = self.renderer.height().max(1) as f32;
         let pixels_per_point = self.renderer.physical_width() as f32 / logical_width;
+        let gui_commands = self.gui.take_commands();
         let ui_frame = self.ui.evaluate_egui(
+            &gui_commands,
             [0.0, 0.0, logical_width, logical_height],
             pixels_per_point,
             self.delta_time,
+        );
+        self.gui.publish_completed_snapshot(
+            ui_frame.gui_responses.iter().map(|(&id, response)| (id, response.clone())).collect(),
+            ui_frame.gui_events.clone(),
+            ui_frame.gui_wants_pointer_input,
+            ui_frame.gui_wants_keyboard_input,
         );
         let native_texture_indices = ui_frame
             .registered_textures

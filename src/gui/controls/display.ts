@@ -60,7 +60,7 @@ abstract class GuiImageBase extends GUI {
   _getTexture(): Texture | null { return this.texture; }
 
   private syncCommand(): void {
-    this._guiCommandValues = [this.opacity, this.rotation, this.zoom, this.tint.r, this.tint.g, this.tint.b, this.tint.a];
+    this._guiCommandValues = [this.opacity, this.rotation, this.zoom, this.tint.r, this.tint.g, this.tint.b, this.tint.a, 0];
   }
 }
 
@@ -173,44 +173,52 @@ export class GuiDrawingPanel extends GUI {
 
   drawLine(start: GuiPoint, end: GuiPoint, color: Color, thickness = 1): this {
     this.drawings.push({ kind: 'line', start: copyPoint(start, 'start'), end: copyPoint(end, 'end'), color: copyColor(color), thickness: validateGuiDimension(thickness, 'thickness') });
+    this.syncDrawings();
     return this;
   }
 
   drawRect(rect: GuiRect, color: Color, filled = true): this {
     this.drawings.push({ kind: 'rect', rect: copyRect(rect, 'rect'), color: copyColor(color), filled });
+    this.syncDrawings();
     return this;
   }
 
   drawCircle(center: GuiPoint, radius: number, color: Color, thickness = 1): this {
     this.drawings.push({ kind: 'circle', center: copyPoint(center, 'center'), radius: validateGuiDimension(radius, 'radius'), color: copyColor(color), thickness: validateGuiDimension(thickness, 'thickness') });
+    this.syncDrawings();
     return this;
   }
 
   drawText(text: string, position: GuiPoint, size: number, color: Color): this {
     this.drawings.push({ kind: 'text', text, position: copyPoint(position, 'position'), size: validateGuiDimension(size, 'size'), color: copyColor(color) });
+    this.syncDrawings();
     return this;
   }
 
   drawImage(texture: Texture, destination: GuiRect, tint: Color = WHITE, rotation = 0): this {
     validateGuiCoordinate(rotation, 'rotation');
     this.drawings.push({ kind: 'image', texture, destination: copyRect(destination, 'destination'), tint: copyColor(tint), rotation });
+    this.syncDrawings();
     return this;
   }
 
   drawPolyline(points: GuiPoint[], color: Color, thickness = 1): this {
     if (points.length < 2) throw new RangeError('A polyline requires at least two points.');
     this.drawings.push({ kind: 'polyline', points: points.map((point) => copyPoint(point, 'point')), color: copyColor(color), thickness: validateGuiDimension(thickness, 'thickness') });
+    this.syncDrawings();
     return this;
   }
 
   drawPolygon(points: GuiPoint[], color: Color): this {
     if (points.length < 3) throw new RangeError('A polygon requires at least three points.');
     this.drawings.push({ kind: 'polygon', points: points.map((point) => copyPoint(point, 'point')), color: copyColor(color), thickness: 1 });
+    this.syncDrawings();
     return this;
   }
 
   clearDrawing(): this {
     this.drawings = [];
+    this.syncDrawings();
     return this;
   }
 
@@ -222,6 +230,18 @@ export class GuiDrawingPanel extends GUI {
       if (command.kind === 'text') return { ...command, position: { ...command.position }, color: { ...command.color } };
       if (command.kind === 'image') return { ...command, destination: { ...command.destination }, tint: { ...command.tint } };
       return { ...command, points: command.points.map((point) => ({ ...point })), color: { ...command.color } };
+    });
+  }
+
+  private syncDrawings(): void {
+    this._guiCommandDrawings = this.drawings.map((drawing) => {
+      if (drawing.kind === 'line') return { kind: 0, values: [drawing.start.x, drawing.start.y, drawing.end.x, drawing.end.y, drawing.color.r, drawing.color.g, drawing.color.b, drawing.color.a, drawing.thickness], text: '' };
+      if (drawing.kind === 'rect') return { kind: 1, values: [drawing.rect.x, drawing.rect.y, drawing.rect.width, drawing.rect.height, drawing.color.r, drawing.color.g, drawing.color.b, drawing.color.a, drawing.filled ? 1 : 0], text: '' };
+      if (drawing.kind === 'circle') return { kind: 2, values: [drawing.center.x, drawing.center.y, drawing.radius, drawing.color.r, drawing.color.g, drawing.color.b, drawing.color.a, drawing.thickness], text: '' };
+      if (drawing.kind === 'text') return { kind: 3, values: [drawing.position.x, drawing.position.y, drawing.size, drawing.color.r, drawing.color.g, drawing.color.b, drawing.color.a], text: drawing.text };
+      if (drawing.kind === 'image') return { kind: 4, values: [drawing.destination.x, drawing.destination.y, drawing.destination.width, drawing.destination.height, drawing.tint.r, drawing.tint.g, drawing.tint.b, drawing.tint.a, drawing.rotation], text: '', texture: drawing.texture };
+      const points = drawing.points.flatMap((point) => [point.x, point.y]);
+      return { kind: drawing.kind === 'polygon' ? 6 : 5, values: [drawing.points.length, drawing.color.r, drawing.color.g, drawing.color.b, drawing.color.a, drawing.thickness, ...points], text: '' };
     });
   }
 }

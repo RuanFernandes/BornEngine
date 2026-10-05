@@ -8,6 +8,7 @@ import { SceneManager } from '../game/scene-manager';
 import { SceneGraph } from '../scene/scene-graph';
 import { TouchControls } from '../mobile';
 import { Ui } from '../ui';
+import { GUIManager } from '../gui/manager';
 import { DebugUi } from '../debug-ui';
 import { GameInspector } from '../debug-ui/game-inspector';
 import { AssetManager } from '../assets';
@@ -94,6 +95,7 @@ export class Game {
   readonly sceneGraph: SceneGraph;
   readonly mobile: TouchControls;
   readonly ui: Ui;
+  readonly gui: GUIManager;
   readonly debugUi: DebugUi;
   readonly assets: AssetManager;
   readonly scripting: ScriptRuntime;
@@ -137,6 +139,7 @@ export class Game {
     this.sceneGraph = new SceneGraph(this);
     this.mobile = new TouchControls(this);
     this.ui = new Ui(this);
+    this.gui = new GUIManager(this);
     this.debugUi = new DebugUi(this);
     this.assets = new AssetManager(this);
     this.scripting = new ScriptRuntime(this);
@@ -289,6 +292,7 @@ export class Game {
     getGameContext(this).register(this.sceneGraph);
     getGameContext(this).register(this.mobile);
     getGameContext(this).register(this.ui);
+    getGameContext(this).registerFrameService(this.gui);
     getGameContext(this).register(this.debugUi);
     this.audio.activate();
   }
@@ -321,6 +325,8 @@ export class Game {
       const renderStartedAt = getTime();
       try {
         callbacks.render();
+        this.gui._setViewportSize(this.window.width, this.window.height);
+        this.gui.renderFrame();
       } finally {
         this.renderTimeMsValue = elapsedMilliseconds(renderStartedAt);
       }
@@ -393,6 +399,7 @@ export class Game {
       try { this.assets.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.inspector.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.ui.dispose(); } catch (error) { this.recordRunError(error); }
+      try { this.gui.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.debugUi.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.audio.dispose(); } catch (error) { this.recordRunError(error); }
       try { this.input.dispose(); } catch (error) { this.recordRunError(error); }

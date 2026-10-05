@@ -4,6 +4,8 @@ use std::convert::TryFrom;
 #[repr(u32)]
 pub enum GuiOpcode {
     Control = 1,
+    Item = 2,
+    Drawing = 3,
 }
 
 impl TryFrom<u32> for GuiOpcode {
@@ -12,6 +14,8 @@ impl TryFrom<u32> for GuiOpcode {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(Self::Control),
+            2 => Ok(Self::Item),
+            3 => Ok(Self::Drawing),
             _ => Err(()),
         }
     }

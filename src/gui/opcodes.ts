@@ -1,5 +1,7 @@
 export const GuiOpcode = {
   Control: 1,
+  Item: 2,
+  Drawing: 3,
 } as const;
 
 export const GUIEventType = {

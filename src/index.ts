@@ -142,8 +142,9 @@ export {
 export type {
   GUIEventOptions, GUIEventTypeCode, GUIControlOptions, GuiCursor, GuiPoint, GuiRect, GuiSize,
   GuiNativeApi, GuiNativeResponse, GuiNativeEvent, GuiOpcodeCode, GuiEventFieldCode,
+  GuiControlItemCommand, GuiDrawingPayload,
   GuiProfileOptions, GuiFontProfile, GuiAlignmentProfile, GuiSpacingProfile, GuiBorderProfile,
-  GuiShadowProfile, GuiButtonSounds, GuiTextAlignment, GuiControlCommand, GuiControlKindCode,
+  GuiShadowProfile, GuiButtonSounds, GuiTextAlignment, GuiClipCommand, GuiControlCommand, GuiControlKindCode,
   GuiScrollBarMode, GuiBitmapButtonTextures,
   GuiItemId, GuiArrayItem, GuiTreeNode,
   GuiDrawingCommand, GuiDrawingLine, GuiDrawingRect, GuiDrawingCircle, GuiDrawingText,

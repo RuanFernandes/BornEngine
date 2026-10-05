@@ -1,6 +1,6 @@
 import { addGuiPoints, centeredCoordinate, clampGuiSize, subtractGuiPoints, validateGuiCoordinate, validateGuiDimension } from './layout';
 import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
-import { GuiControlKind, intersectGuiRects, type GuiControlCommand } from './commands';
+import { GuiControlKind, intersectGuiRects, type GuiClipCommand, type GuiControlCommand, type GuiControlItemCommand, type GuiDrawingPayload } from './commands';
 import { GUIProfiles, GuiProfile } from './profile';
 import { allocateGUIId, type GUIControlOptions, type GuiCursor, type GuiPoint, type GuiRect, type GuiSize } from './types';
 import type { GUIManager } from './manager';
@@ -31,6 +31,8 @@ export class GUI {
   protected _guiCommandKind: number = GuiControlKind.Control;
   protected _guiCommandValues: number[] = [];
   protected _guiCommandText = '';
+  protected _guiCommandItems: GuiControlItemCommand[] = [];
+  protected _guiCommandDrawings: GuiDrawingPayload[] = [];
 
   constructor(options: GUIControlOptions = {}) {
     this.id = allocateGUIId();
@@ -252,6 +254,8 @@ export class GUI {
     commands: GuiControlCommand[],
     inheritedProfile: GuiProfile | null = null,
     clip: GuiRect | null = null,
+    parentId = 0,
+    clipStack: GuiClipCommand[] = [],
   ): void {
     if (!this._visible || !this._active || this._destroyed) return;
     const profile = this._profile ?? inheritedProfile ?? GUIProfiles.get('default');
@@ -260,19 +264,30 @@ export class GUI {
     const ownClip = this._clipToBounds
       ? (clip === null ? rect : intersectGuiRects(clip, rect))
       : clip;
+    const ownClipStack = this._clipToBounds
+      ? [...clipStack, { ownerId: this.id, rect: { ...rect } }]
+      : clipStack;
     commands.push({
       kind: this._guiCommandKind,
       id: this.id,
+      parentId,
       rect,
       clip: ownClip,
+      clips: ownClipStack.map((entry) => ({ ownerId: entry.ownerId, rect: { ...entry.rect } })),
+      backgroundTextureHandle: 0,
       profile: profile.clone(),
       values: this._guiCommandValues.slice(),
       text: this._guiCommandText,
+      items: this._guiCommandItems.map((item) => ({ ...item })),
+      drawings: this._guiCommandDrawings.map((drawing) => ({ ...drawing, values: drawing.values.slice() })),
     });
     const childClip = this._clipChildren
-      ? (ownClip === null ? rect : intersectGuiRects(ownClip, rect))
-      : ownClip;
-    for (const child of this._controls) child._emitCommands(commands, profile, childClip);
+      ? (clip === null ? rect : intersectGuiRects(clip, rect))
+      : clip;
+    const childClipStack = this._clipChildren
+      ? [...clipStack, { ownerId: this.id, rect: { ...rect } }]
+      : clipStack;
+    for (const child of this._controls) child._emitCommands(commands, profile, childClip, this.id, childClipStack);
   }
 
   focus(): this {

@@ -17,6 +17,7 @@ class Context {
   markReady() { this.isReady = true; }
   isActiveOwner() { return active === this && !this.isDisposed; }
   register() { return true; }
+  registerFrameService() { return true; }
   updateFrameServices() {}
   dispose() { events.push('context.dispose'); this.isDisposed = true; this.isReady = false; active = null; }
 }
@@ -31,6 +32,10 @@ class Service {
   render() {}
   clear() {}
   _beginFrame() {}
+}
+class GUIManager extends Service {
+  _setViewportSize() {}
+  renderFrame() {}
 }
 class ActionMap {
   constructor() { this.actions = []; }
@@ -76,7 +81,7 @@ const sandbox = {
   Window, Renderer: Service, InputSystem, AudioSystem: Service,
   SceneManager: class SceneManager extends Service { constructor(...args) { super(...args); this.currentScene = null; } },
   SceneGraph, TouchControls: Service,
-  Ui: Service, DebugUi: Service, GameInspector: Service, AssetManager: Service,
+  Ui: Service, GUIManager, DebugUi: Service, GameInspector: Service, AssetManager: Service,
   ScriptRuntime: Service,
   beginDrawing: () => events.push('begin'), endDrawing: () => events.push('end'),
   getPlatform: () => platform, Platform: {WEB:7}, setTargetFPS: () => {},

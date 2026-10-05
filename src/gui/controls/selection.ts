@@ -48,6 +48,7 @@ export abstract class GuiArray extends GUI {
   protected syncItems(selectedIndex = -1): void {
     this._guiCommandValues = [this.items.length, selectedIndex];
     this._guiCommandText = '';
+    this._guiCommandItems = this.items.map((item) => ({ ...item, depth: 0 }));
   }
 }
 
@@ -91,6 +92,11 @@ export class GuiPopUpMenu extends GuiArray {
     this.syncSelection();
     const manager = this._getManager();
     if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
+  }
+
+  _applyNativeSelectionIndex(index: number): void {
+    const item = Number.isInteger(index) ? this.items[index] : undefined;
+    if (item !== undefined) this._applyNativeSelection(item.id);
   }
 
   protected syncSelection(): void {
@@ -213,8 +219,27 @@ export class GuiTreeView extends GuiArray {
   }
 
   private syncTreeCommand(): void {
-    this._guiCommandValues = [this.rootNodes.length, this.selectedNode === null ? -1 : this.rootNodes.indexOf(this.selectedNode)];
+    const flattened: { node: GuiTreeNode; depth: number }[] = [];
+    const visit = (nodes: readonly GuiTreeNode[], depth: number): void => {
+      for (const node of nodes) { flattened.push({ node, depth }); visit(node.children, depth + 1); }
+    };
+    visit(this.rootNodes, 0);
+    this._guiCommandValues = [flattened.length, this.selectedNode === null ? -1 : flattened.findIndex((entry) => entry.node === this.selectedNode)];
     this._guiCommandText = this.selectedNode?.path ?? '';
+    this._guiCommandItems = flattened.map(({ node, depth }) => ({ id: node.id, label: node.label, depth }));
+  }
+
+  _applyNativeSelectionIndex(index: number): void {
+    const flattened: GuiTreeNode[] = [];
+    const visit = (nodes: readonly GuiTreeNode[]): void => { for (const node of nodes) { flattened.push(node); visit(node.children); } };
+    visit(this.rootNodes);
+    const selected = Number.isInteger(index) ? flattened[index] : undefined;
+    if (selected !== undefined && selected !== this.selectedNode) {
+      this.selectedNode = selected;
+      this.syncTreeCommand();
+      const manager = this._getManager();
+      if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
+    }
   }
 }
 
@@ -265,6 +290,16 @@ export class GuiTextList extends GuiArray {
     this.syncItems(this.selectedId === null ? -1 : this.findItem(this.selectedId));
     this._guiCommandText = this.getSelectedText() ?? '';
   }
+
+  _applyNativeSelectionIndex(index: number): void {
+    const item = Number.isInteger(index) ? this.items[index] : undefined;
+    if (item !== undefined && item.id !== this.selectedId) {
+      this.selectedId = item.id;
+      this.syncRows();
+      const manager = this._getManager();
+      if (manager !== null) manager.dispatchEvent(this, GUIEventType.Change);
+    }
+  }
 }
 
 export class GuiTab extends GuiArray {
@@ -303,6 +338,11 @@ export class GuiTab extends GuiArray {
     this.syncItems(this.selectedId === null ? -1 : this.findItem(this.selectedId));
     const index = this.selectedId === null ? -1 : this.findItem(this.selectedId);
     this._guiCommandText = index < 0 ? '' : this.items[index].label;
+  }
+
+  _applyNativeSelectionIndex(index: number): void {
+    const item = Number.isInteger(index) ? this.items[index] : undefined;
+    if (item !== undefined && item.id !== this.selectedId) this.setSelected(item.id);
   }
 }
 

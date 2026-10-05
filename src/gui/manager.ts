@@ -1,4 +1,7 @@
 import type { Game } from '../core/game';
+import { getGameContext } from '../core/context';
+import type { ContextFrameService, GameContext } from '../core/context';
+import type { Texture } from '../core/types';
 import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
 import type { GUI } from './gui';
 import type { GuiSize } from './types';
@@ -7,21 +10,25 @@ import { GuiNativeBridge } from './native-bridge';
 type NativeValueControl = GUI & {
   _captureValueRevision?: () => number;
   _applyNativeValue?: (value: number | boolean, commandRevision: number) => void;
+  _applyNativeSelectionIndex?: (index: number) => void;
   getValue?: () => number | boolean;
 };
 
-export class GUIManager {
+export class GUIManager implements ContextFrameService {
   readonly game: Game;
   private controls: GUI[] = [];
   private focusedControl: GUI | null = null;
   private viewport: GuiSize = { width: 0, height: 0 };
   private disposed = false;
   private readonly bridge: GuiNativeBridge;
+  private readonly context: GameContext | null;
   private submittedControls = new Map<number, { control: GUI; revision: number }>();
 
   constructor(game: Game, bridge: GuiNativeBridge = new GuiNativeBridge()) {
     this.game = game;
     this.bridge = bridge;
+    try { this.context = getGameContext(game); }
+    catch { this.context = null; }
   }
 
   getControls(): readonly GUI[] { return this.controls.slice(); }
@@ -58,7 +65,10 @@ export class GUIManager {
       const response = this.bridge.response(id);
       if (!response.present) continue;
       const control = entry.control as NativeValueControl;
-      if (control._applyNativeValue !== undefined) {
+      if (control._getManager() !== this || !control._isInputEligible()) continue;
+      if (control._applyNativeSelectionIndex !== undefined) {
+        control._applyNativeSelectionIndex(response.value);
+      } else if (control._applyNativeValue !== undefined) {
         const currentValue = control.getValue?.();
         const value = typeof currentValue === 'boolean' ? response.value > 0.5 : response.value;
         control._applyNativeValue(value, entry.revision);
@@ -86,8 +96,33 @@ export class GUIManager {
     this.submittedControls.clear();
     for (const root of this.controls) {
       root._emitCommands(commands);
-      const emittedIds = new Set(commands.map((command) => command.id));
+    }
+    const emittedIds = new Set(commands.map((command) => command.id));
+    const controlsById = new Map<number, GUI>();
+    for (const root of this.controls) {
+      this.collectControls(root, controlsById);
       this.collectSubmittedControls(root, emittedIds);
+    }
+    const registeredTextures = new Set<number>();
+    for (const command of commands) {
+      const control = controlsById.get(command.id);
+      command.backgroundTextureHandle = this.registerTexture(command.profile.background, registeredTextures);
+      if (control !== undefined && (command.kind === 24 || command.kind === 25)) {
+        const texture = (control as any)._getTexture?.() as Texture | null | undefined;
+        command.values[7] = this.registerTexture(texture ?? null, registeredTextures);
+      }
+      if (control !== undefined && command.kind === 10) {
+        const textures = (control as any)._getButtonTextures?.();
+        if (textures !== undefined) {
+          command.values = [textures.normal, textures.hover, textures.pressed, textures.disabled]
+            .map((texture) => this.registerTexture(texture ?? null, registeredTextures));
+        }
+      }
+      command.drawings = command.drawings.filter((drawing) => {
+        if (drawing.texture === undefined) return true;
+        drawing.textureHandle = this.registerTexture(drawing.texture, registeredTextures);
+        return drawing.textureHandle !== 0;
+      });
     }
     this.bridge.submit(commands);
   }
@@ -113,6 +148,7 @@ export class GUIManager {
   dispose(): void {
     if (this.disposed) return;
     this.clearControls();
+    this.context?.unregisterFrameService(this);
     this.disposed = true;
   }
 
@@ -168,6 +204,22 @@ export class GUIManager {
       });
     }
     for (const child of control.getControls()) this.collectSubmittedControls(child, emittedIds);
+  }
+
+  private collectControls(control: GUI, result: Map<number, GUI>): void {
+    result.set(control.id, control);
+    for (const child of control.getControls()) this.collectControls(child, result);
+  }
+
+  private registerTexture(texture: Texture | null, registered: Set<number>): number {
+    if (texture === null || this.context === null || !this.context.owns(texture) || (texture as any).isLoaded !== true) return 0;
+    const handle = (texture as any).handleValue;
+    if (typeof handle !== 'number' || !Number.isFinite(handle) || handle <= 0) return 0;
+    if (!registered.has(handle)) {
+      this.game.ui.registerTexture(texture);
+      registered.add(handle);
+    }
+    return handle;
   }
 
   /** @internal Updates centered root controls after a viewport resize. */
