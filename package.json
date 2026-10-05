@@ -1,6 +1,6 @@
 {
   "name": "@bornengine/engine",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
     "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs",
