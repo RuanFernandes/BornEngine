@@ -62,7 +62,7 @@ packages after the schema is agreed.
 
 ## Phase A: CLI server scaffolding
 
-### Task A1: Add the nested `create server` command
+### Task 1: Add the nested `create server` command
 
 **Repository:** `bornengine-cli`
 
@@ -90,7 +90,7 @@ new focused server command module, `src/lib.rs` if exports are required.
    marker writing fails, preserve the generated project and explain how to
    recover rather than deleting the server directory.
 
-### Task A2: Define and validate the server marker
+### Task 2: Define and validate the server marker
 
 **Files:** the server command module, focused Rust unit/integration tests,
 `README.md` and CLI command help.
@@ -117,7 +117,7 @@ the server command.
 
 ## Phase B: BornEngineTools server discovery and blueprint authoring
 
-### Task B1: Discover a marked server safely
+### Task 3: Discover a marked server safely
 
 **Workspace:** BornEngineTools source under `tools/vscode/bornengine-tools`.
 
@@ -136,7 +136,7 @@ the tools tree provider, and extension tests.
 5. Add tests for valid, malformed, unsupported-version, copied, escaped,
    missing, and multiple markers.
 
-### Task B2: Implement blueprint template and document schemas
+### Task 4: Implement blueprint template and document schemas
 
 **Files:** new pure schema/validation/edit modules beneath
 `tools/vscode/bornengine-tools/src/blueprints/`, plus focused tests.
@@ -159,7 +159,7 @@ the tools tree provider, and extension tests.
 6. Add schema, edit-operation, migration/version, and round-trip tests before
    implementation changes, using the previously approved TDD approach.
 
-### Task B3: Build the template editor
+### Task 5: Build the template editor
 
 **Files:** new custom editor provider, Webview HTML/CSS/TypeScript and tests
 under `tools/vscode/bornengine-tools/src/blueprints/` and `src/webview/`;
@@ -177,7 +177,7 @@ activation/registration in `src/extension.ts` and contribution metadata.
 5. Save shared templates by default to
    `<project>/.bornengine/blueprint-templates/`.
 
-### Task B4: Build the blueprint form and graph editor
+### Task 6: Build the blueprint form and graph editor
 
 **Files:** blueprint Webview provider, form/graph view, edit operations, and
 focused tests.
@@ -198,7 +198,7 @@ focused tests.
    `<server>/blueprints/`; save client-target blueprints under
    `<project>/assets/blueprints/`. Confirm the resolved target in the picker.
 
-### Task B5: Document the game-side contract
+### Task 7: Document the game-side contract
 
 **Files:** engine website/docs content and the CLI/BornEngineTools guides.
 
@@ -221,7 +221,7 @@ never appears as a destination.
 
 ## Phase C: Reusable animation templates with named image parameters
 
-### Task C1: Add the animation template schema and binding validation
+### Task 8: Add the animation template schema and binding validation
 
 **Engine files:** `src/sprites/`, sprite exports in `src/index.ts`, runtime API
 type checks, and focused tests.
@@ -242,7 +242,7 @@ type checks, and focused tests.
    parameters, wrong/unknown IDs, per-layer crop bounds, signed stretch,
    transform serialization, and bad template versions.
 
-### Task C2: Extend the animation editor for template inputs
+### Task 9: Extend the animation editor for template inputs
 
 **Files:** the current animation editor provider, schema/edit helpers, sidebar
 HTML/CSS, Webview animation editor, preview code, and tests.
@@ -266,7 +266,7 @@ HTML/CSS, Webview animation editor, preview code, and tests.
 6. Preserve the previous compatibility rules for ordinary `.spriteanim.json`
    documents and their approved optional editor-layer data.
 
-### Task C3: Bind template parameters to textures in the engine
+### Task 10: Bind template parameters to textures in the engine
 
 **Files:** new sprite template model, sprite animation keyframe types,
 layer-aware renderer/animation target, `SpriteAnimator` integration, public
@@ -295,7 +295,7 @@ exports, and runtime tests.
    frame changes, marker emission exactly once, bad textures/crops, scene
    ownership, renderer transforms, and the unchanged single-sprite path.
 
-### Task C4: Document runtime use and template authoring
+### Task 11: Document runtime use and template authoring
 
 **Files:** website sprite animation API/guide pages, local AI docs, template
 example assets, and API type tests.
