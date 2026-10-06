@@ -6,19 +6,19 @@ Design draft for review. No implementation is authorized by this document alone.
 
 ## Goal
 
-Let a developer define a layered animation once, declare named image parameters
-such as `body`, `head`, and `sword`, and bind different loaded textures to those
-same parameters for each character at runtime. The template controls the number
-and meaning of image inputs, the frame crops, their order, timing, and per-layer
-transforms.
+Let a developer define a layered animation once, declare any named image
+parameters they need, and bind different loaded textures to those same
+parameters at runtime. Parameter names are chosen by the template author; the
+engine defines no reserved roles such as body, head, or weapon. The template
+controls the number and meaning of image inputs, the frame crops, their order,
+timing, and per-layer transforms.
 
 ## User intent
 
 - Make one reusable `idle`/`walk`/attack animation for multiple character,
   equipment, or other art variants.
-- Let the template declare the inputs it needs. A sword-character template may
-  request a body image, head image, and sword image; another template may ask
-  for a different set.
+- Let the template author declare and name the inputs it needs. Different
+  templates may use different parameter names and counts.
 - Identify each image input by a stable parameter ID so runtime code maps the
   right texture to the right visual part without relying on argument order.
 - Place, crop, stretch, zoom, rotate, and pivot each image independently in
@@ -45,9 +45,9 @@ state-transition behavior.
    reuse: each character and equipment combination would still need its own
    animation data.
 2. **A single-texture template.** Binding one texture to the same crop layout
-   is useful for spritesheets, but cannot request separate body, head, and
-   weapon images.
-3. **A source-independent layered template with named image parameters
+   is useful for spritesheets, but cannot request multiple separately bound
+   image inputs.
+3. **A source-independent layered template with user-defined image parameters
    (recommended).** The template declares image slots and each keyframe lists
    the crops and transforms that use those slots. One binding supplies the
    texture for each slot; one animation playhead advances every layer together.
@@ -64,9 +64,13 @@ Use a new versioned `bornengine.spriteanim-template` format saved as
 The template contains:
 
 - A stable template ID, format version, display name, and optional description.
-- An ordered list of image parameters. Each parameter has a stable ID, a
-  display label, and a `required` flag. The ID, not its position in the list,
-  is the runtime binding key. Examples are `body`, `head`, and `sword`.
+- An ordered list of image parameters. Each parameter has a unique,
+  template-author-defined stable ID, an optional display label, a `required`
+  flag, and optional user-defined tags for editor organization. IDs are opaque
+  runtime keys: there are no reserved semantic names, and layers refer to
+  whichever IDs the author chose. Tags are saved with the template and may be
+  used to group or filter parameters in the editor; they do not affect texture
+  binding or runtime behavior.
 - Named clips with FPS and loop mode. Each clip contains ordered keyframes with
   optional duration and markers.
 - A common output canvas size per clip. Layer offsets and pivots are measured
@@ -84,12 +88,12 @@ Conceptual JSON shape:
 {
   "format": "bornengine.spriteanim-template",
   "version": 1,
-  "id": "character-with-weapon",
-  "name": "Character with Weapon",
+  "id": "layered-animation-example",
+  "name": "Layered Animation Example",
   "imageParameters": [
-    { "id": "body", "label": "Body", "required": true },
-    { "id": "head", "label": "Head", "required": true },
-    { "id": "sword", "label": "Sword", "required": true }
+    { "id": "primary_layer", "label": "Primary Layer", "required": true, "tags": ["character"] },
+    { "id": "overlay_fx", "label": "Overlay FX", "required": true, "tags": ["effects"] },
+    { "id": "extra_art_01", "label": "Extra Art 01", "required": false, "tags": ["extras"] }
   ],
   "clips": [
     {
@@ -100,9 +104,9 @@ Conceptual JSON shape:
       "frames": [
         {
           "layers": [
-            { "parameter": "body", "source": { "x": 0, "y": 0, "width": 32, "height": 48 } },
-            { "parameter": "head", "source": { "x": 0, "y": 0, "width": 16, "height": 16 } },
-            { "parameter": "sword", "source": { "x": 0, "y": 0, "width": 16, "height": 32 } }
+            { "parameter": "primary_layer", "source": { "x": 0, "y": 0, "width": 32, "height": 48 } },
+            { "parameter": "overlay_fx", "source": { "x": 0, "y": 0, "width": 16, "height": 16 } },
+            { "parameter": "extra_art_01", "source": { "x": 0, "y": 0, "width": 16, "height": 32 } }
           ]
         }
       ]
@@ -116,6 +120,27 @@ the format schema defines their defaults explicitly. The editor may display
 friendly labels, but saved parameter and clip IDs remain stable when labels are
 renamed.
 
+## Compact JSON storage
+
+Save animation documents as compact JSON without indentation or insignificant
+whitespace. This removes formatting bytes while preserving every animation
+value. For versioned formats with documented defaults, the canonical serializer
+may also omit a field only when its value exactly equals that default and
+loading reconstructs the same editor/runtime value. Existing concrete
+`*.spriteanim.json` documents are minified without dropping fields unless their
+format explicitly defines the same safe default behavior.
+
+Do not round numeric values, reorder arrays, discard IDs/tags/markers, merge
+distinct layers, or otherwise change animation meaning for size savings. The
+visual editor remains the primary authoring view; users can still open the file
+as text and format it for inspection, while a subsequent visual save writes the
+compact representation again.
+
+Tests compare the parsed animation data before and after compact serialization,
+including parameter IDs and tags, numeric transforms, frame/layer order, and
+legacy concrete documents. Pretty-printed input must load and round-trip to the
+same animation data.
+
 ## Editor workflow
 
 Extend the existing Sprite Animation editor with separate flows for creating a
@@ -123,8 +148,10 @@ concrete animation document and a reusable template. Template editing uses the
 same Clip, Frames, and Layers concepts approved for composite frames, and adds
 an **Inputs** area to manage the template's image parameters.
 
-1. Create a template and add, rename, reorder, or remove parameters such as
-   `body`, `head`, and `sword`.
+1. Create a template and add, rename, reorder, or remove parameters with
+   author-chosen IDs. Add optional user-defined tags and use them to organize,
+   group, or filter parameters in the Inputs area. IDs remain independent of
+   labels and tags.
 2. Choose a temporary preview image for each parameter. The editor shows which
    preview image is assigned to each slot. The author can replace a slot's
    preview image or load alternate images to check that the same composition
@@ -153,19 +180,20 @@ For example, the conceptual call is:
 
 ```ts
 const bound = template.bind({
-  body: bodyTexture,
-  head: headTexture,
-  sword: swordTexture,
+  primary_layer: primaryTexture,
+  overlay_fx: effectTexture,
+  extra_art_01: optionalTexture,
 });
 ```
 
-This is a named map, not positional parameters: the `head` texture is assigned
-to layers whose parameter is `head`, regardless of input order. Each bound
+This is a named map, not positional parameters: each texture is assigned to
+layers that reference the matching author-defined parameter ID, regardless of
+input order. Each bound
 character gets its own generated SpriteSheet/SpriteFrame objects, clip data,
 and playback state while sharing the immutable template definition. Game code
-provides this map when binding the template for a character, then selects
-`idle`, `walk`, or another clip on that character's animator; it does not need
-to duplicate or rewrite the template JSON for each image combination.
+provides this map when binding the template, then selects `idle`, `walk`, or
+another clip on that animator; it does not need to duplicate or rewrite the
+template JSON for each image combination.
 
 The bound result exposes clips that use the existing FPS, loop, duration, and
 marker semantics. Add a layer-aware animation target/renderer that can draw all
@@ -210,9 +238,9 @@ texture loading.
 
 Included:
 
-- A versioned template JSON format with named required/optional image
-  parameters, clips, synchronized keyframes, per-layer crops, order, and
-  transforms.
+- A versioned template JSON format with author-defined required/optional image
+  parameters and organizational tags, clips, synchronized keyframes,
+  per-layer crops, order, and transforms.
 - BornEngineTools create/open/save support for animation templates, including
   parameter management, one preview source per parameter, crop selection, and
   composite animation preview.
@@ -220,8 +248,8 @@ Included:
   objects and validation.
 - Layer-aware rendering/playback integrated with the existing animation
   playhead, markers, and state transitions.
-- Documentation and an example reusing one walk/idle template with multiple
-  body/head/sword texture combinations.
+- Documentation and an example reusing one walk/idle template with different
+  author-defined parameter-to-texture maps.
 - Backward compatibility for existing concrete animation JSON and the current
   single-sprite runtime APIs.
 
@@ -238,8 +266,8 @@ Excluded:
 
 ## Acceptance criteria
 
-1. A template can declare three named required parameters (`body`, `head`,
-   `sword`), save/reopen them, and use them from multiple clips.
+1. A template can declare multiple required parameters with arbitrary
+   author-chosen IDs, save/reopen them, and use them from multiple clips.
 2. Each keyframe can contain ordered layers that refer to different parameters;
    each layer preserves its crop and independent transform through save/reopen.
 3. The editor can preview a clip using one set of temporary images, then swap
@@ -261,8 +289,9 @@ Excluded:
 
 - **A source variant does not match the template crops.** Check every crop
   against each preview/bound texture and show the parameter ID in diagnostics.
-- **Input ordering maps a sword to a body slot.** Use stable named IDs in JSON
-  and a record/object argument in the runtime API, never positional matching.
+- **Input ordering or tags map a texture to the wrong layer.** Use stable,
+  author-defined IDs in JSON and a record/object argument in the runtime API,
+  never positional matching; tags remain organizational metadata only.
 - **Independent layer animators drift or duplicate events.** Advance composite
   keyframes from one existing animation playhead and one state machine.
 - **Layer drawing changes old render behavior.** Keep the current one-frame

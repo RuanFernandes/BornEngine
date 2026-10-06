@@ -9,8 +9,8 @@ and the engine's sprite runtime:
    relationship to the client project.
 2. Author reusable JSON templates and template-based blueprints in BornEngineTools,
    then save each blueprint in the marked server or the client assets.
-3. Create parameterized layered 2D animation templates whose named image inputs
-   can be rebound to different body, head, weapon, or other textures at runtime.
+3. Create parameterized layered 2D animation templates whose author-defined
+   image inputs can be rebound to different textures at runtime.
 
 ## Design references
 
@@ -232,15 +232,19 @@ type checks, and focused tests.
 1. Define the versioned `bornengine.spriteanim-template` data types for named
    image parameters, clip timing, output canvas size, keyframes, ordered
    layers, source crops, and per-layer transforms.
-2. Use stable parameter IDs such as `body`, `head`, and `sword`; display labels
-   may change without changing runtime references. Keep source image paths out
-   of the reusable document.
+2. Let template authors define uniquely identified image parameters with
+   arbitrary IDs, optional display labels, and optional user-defined tags for
+   grouping/filtering in the editor. Tags are saved as organizational metadata
+   and never affect texture binding or runtime behavior. Keep source image
+   paths out of the reusable document.
 3. Implement extension and runtime validation for unique IDs, clip/frame
    structure, required/optional inputs, timing, non-zero transforms, crop
-   bounds, and supported format versions.
-4. Add tests before code changes for three named inputs, optional missing
-   parameters, wrong/unknown IDs, per-layer crop bounds, signed stretch,
-   transform serialization, and bad template versions.
+   bounds, supported format versions, and explicit defaults for safely
+   omittable fields.
+4. Add tests before code changes for multiple arbitrary input IDs, optional
+   missing parameters, tag editing/round trips, wrong/unknown IDs, per-layer
+   crop bounds, signed stretch, transform serialization, compact JSON semantic
+   round trips, and bad template versions.
 
 ### Task 9: Extend the animation editor for template inputs
 
@@ -249,9 +253,10 @@ HTML/CSS, Webview animation editor, preview code, and tests.
 
 1. Add separate create/open/save flows for concrete animation documents and
    reusable templates. Do not auto-convert either format.
-2. Build an Inputs panel where the template author declares named parameters,
-   labels, and required status. Show which temporary preview image is assigned
-   to each parameter.
+2. Build an Inputs panel where the template author adds, names, reorders, and
+   removes arbitrary parameters, sets optional labels and required status,
+   assigns user-defined organizational tags, and sees which temporary preview
+   image is assigned to each parameter. Support grouping or filtering by tags.
 3. Add/replace one preview image per input and allow alternate preview images
    to verify the same crop layout. Do not serialize preview image paths into
    template JSON.
@@ -265,6 +270,13 @@ HTML/CSS, Webview animation editor, preview code, and tests.
    validation errors.
 6. Preserve the previous compatibility rules for ordinary `.spriteanim.json`
    documents and their approved optional editor-layer data.
+7. Save animation JSON compactly by removing insignificant whitespace. Omit
+   fields equal to defaults only when the format defines those defaults and
+   loading restores the exact same value. Preserve numeric values, array order,
+   tags, IDs, markers, and all other animation data.
+8. Test pretty and compact input, canonical compact output, default omission,
+   and semantic round trips for both new templates and supported existing
+   animation documents.
 
 ### Task 10: Bind template parameters to textures in the engine
 
@@ -300,12 +312,12 @@ exports, and runtime tests.
 **Files:** website sprite animation API/guide pages, local AI docs, template
 example assets, and API type tests.
 
-1. Document the template JSON, the named `Texture` binding map, required versus
-   optional parameters, crop/transform semantics, and compatibility with old
-   animation documents.
-2. Show one `idle`/`walk` template reused with two different bodies, heads, and
-   swords. Demonstrate loading each texture through the existing asset system,
-   binding by parameter ID, and playing a clip.
+1. Document the template JSON, its compact serialization, the author-defined
+   `Texture` binding map, required versus optional parameters, crop/transform
+   semantics, and compatibility with old animation documents.
+2. Show one `idle`/`walk` template reused with different images supplied for
+   arbitrary parameter IDs. Demonstrate loading each texture through the
+   existing asset system, binding by parameter ID, and playing a clip.
 3. State clearly that all layers in one clip share frame timing in V1; bones,
    independent tracks, and skeletal animation are not part of this feature.
 4. Include a small fixture template and tests/docs that validate it against the
@@ -344,8 +356,10 @@ example confirm editor/runtime transforms and layer order match.
   only its declared graph events/actions/conditions in a blueprint JSON.
 - Server blueprints remain server data and client blueprints remain client
   assets. Runtime execution is performed by explicit game-owned code.
-- An animation template declares its named image parameters and uses them in
+- An animation template declares its author-defined image parameters and uses them in
   ordered, independently transformable layers across shared keyframes.
+- Compact animation JSON reopens with the same values, ordering, and playback
+  behavior as its pretty-printed source.
 - One runtime template binding maps each provided `Texture` by stable
   parameter ID; alternate characters/equipment reuse the same clips without
   copied animation definitions.
