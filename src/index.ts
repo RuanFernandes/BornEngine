@@ -106,7 +106,7 @@ export type {
 
 export {
   WORLD2D_FORMAT, WORLD2D_VERSION, BUILTIN_WORLD2D_COMPONENT_KINDS,
-  validateWorld2D, formatWorld2DDiagnostics, migrateWorld2D, serializeWorld2D,
+  validateWorld2D, formatWorld2DDiagnostics, normalizeWorld2DStorage, migrateWorld2D, serializeWorld2D,
   World2DComponentRegistry, World2DLoader,
 } from './world2d';
 export type {
@@ -118,6 +118,10 @@ export type {
   World2DValidationResult, World2DMigrationResult, World2DLoadInstance,
   World2DLoadResult, World2DSerializeResult, World2DComponentFactoryValue,
   World2DComponentFactoryContext, World2DComponentFactory, World2DLoaderOptions,
+  World2DSerializeMode, World2DSerializeEffort, World2DSerializeOptions,
+  World2DTuple2, World2DTuple4, World2DStoredTileGrid, World2DStoredTileDefinition,
+  World2DStoredTileset, World2DStoredObject, World2DStoredLayerBase,
+  World2DStoredTileLayer, World2DStoredObjectLayer, World2DStoredLayer, World2DStorageV2,
 } from './world2d';
 
 export { TouchControls, VirtualJoystick, VirtualButton } from './mobile';

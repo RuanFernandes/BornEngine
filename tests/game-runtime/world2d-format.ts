@@ -176,14 +176,15 @@ expect(!invalidAtlasResult.ok && hasDiagnostic(invalidAtlasResult.diagnostics, '
   'tileset margin and spacing must be non-negative integer vectors');
 
 const migration = migrateWorld2D(sample);
-expect(migration.ok && migration.document.version === 1,
-  'current v1 migration preserves the current document');
+expect(migration.ok && migration.document.version === 2,
+  'v1 migration produces the normalized v2 document');
 
 const serializedResult = serializeWorld2D(sample);
 expect(serializedResult.ok, 'sample serializes successfully');
 const serialized = serializedResult.json;
-const reparsed = JSON.parse(serialized) as World2DDocument;
-expect(validateWorld2D(reparsed).ok, 'serialized sample reparses and validates');
+const reparsedStorage = JSON.parse(serialized) as unknown;
+expect(validateWorld2D(reparsedStorage).ok, 'serialized sample reparses and validates');
+const reparsed = migrateWorld2D(reparsedStorage).document as World2DDocument;
 expect(reparsed.tilesets[0].margin.x === 1 && reparsed.tilesets[0].margin.y === 2 &&
   reparsed.tilesets[0].spacing.x === 3 && reparsed.tilesets[0].spacing.y === 4,
   'asymmetric tileset margins and spacing survive serialization');
@@ -206,10 +207,10 @@ expect(metadataKeys.length === 2 && metadataKeys[0] === 'ordered' && metadataKey
 const sortedAssets = makeWorld('asset-order');
 sortedAssets.assets = ['z/data.bin', 'a/data.bin'];
 const sortedAssetsResult = serializeWorld2D(sortedAssets);
-const sortedAssetsDocument = JSON.parse(sortedAssetsResult.json) as World2DDocument;
-expect(sortedAssetsResult.ok && sortedAssetsDocument.assets[0] === 'a/data.bin' &&
-  sortedAssetsDocument.assets[1] === 'z/data.bin',
-  'asset set order is canonicalized while semantic array order is preserved');
+const sortedAssetsDocument = JSON.parse(sortedAssetsResult.json) as { assets?: string[] };
+expect(sortedAssetsResult.ok && sortedAssetsDocument.assets !== undefined &&
+  sortedAssetsDocument.assets[0] === 'a/data.bin' && sortedAssetsDocument.assets[1] === 'z/data.bin',
+  'additional asset order is canonicalized');
 const roundTripTileLayer = reparsed.layers[0];
 expect(roundTripTileLayer.type === 'tilemap' && roundTripTileLayer.data[7] !== null &&
   roundTripTileLayer.data[7].flipX && roundTripTileLayer.data[7].flipY &&
@@ -256,7 +257,7 @@ expect(!missingFileCheck.ok && hasDiagnostic(missingFileCheck.diagnostics, 'miss
   'file properties must refer to declared project assets');
 
 const future = makeWorld('future');
-future.version = 2;
+future.version = 3;
 const futureCheck = validateWorld2D(future);
 const futureMigration = migrateWorld2D(future);
 expect(!futureCheck.ok && hasDiagnostic(futureCheck.diagnostics, 'unsupported_version', '/version'),

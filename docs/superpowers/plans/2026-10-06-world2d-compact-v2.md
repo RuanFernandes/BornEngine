@@ -10,13 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-06-world2d-compact-v2-design.md`.
 
-**Status:** Draft for user approval. Implement inline after approval. This replaces only the compact-storage portion of the combined map/animation plan; patterned bucket, ghost, icons, and composite animation frames remain pending in that plan.
+**Status:** Approved; inline execution is underway. This covers the compact-storage portion of the combined map/animation plan; patterned bucket, ghost, icons, and composite animation frames remain pending in that plan.
 
 ## Workspace and constraints
 
 - Continue in `/home/nullborne/Documentos/Bornengine/.worktrees/bornengine-visual-editor`, branch `work/gui-retained-controls`. Inspect current changes before editing.
 - `tools/vscode/` currently contains existing untracked editor work. Preserve it and all prior animation/map functionality.
-- Current engine `WORLD2D_VERSION` is 1. Compact v2 has not been implemented.
+- The starting engine `WORLD2D_VERSION` was 1. Task 4 introduces compact storage v2 while retaining strict v1 reads.
 - The extension imports `@bornengine/engine/world2d/editor`; the checked-out package lacks that pure subpath. Add it as part of this work rather than bundling native runtime imports into the extension.
 - `tilesets[0]` is primary. IDs remain stable in memory; numeric intervals are regenerated from source order on save.
 - Maximum cells per layer: 1.000.000. Decode exact dimensions, exact palette indices, canonical Base64, and bounded LZ output before constructing cell arrays.
@@ -61,11 +61,11 @@
 - `createWorld2DTileCodebook(tilesets: World2DTilesetData[]): World2DTileCodebook` creates consecutive ranges from 1. The codebook exposes `encode(cell: WorldTileCell | null): number` and `decode(code: number): WorldTileCell | null`.
 - Invalid codebook/codes throw an internal codec error carrying a diagnostic; public APIs catch it and return diagnostics.
 
-- [ ] Add failing tests for `[16,4]` tile counts: main tile 0 → `1`, extra tile 0 → `17`, extra flip X → `-137`, and `0` → null. Round-trip masks 0..7, large main ranges, last tile IDs, and swapped primary order.
-- [ ] Run `node --test tests/world2d-tile-codes.test.mjs`; confirm failure is the missing module/behavior.
-- [ ] Implement the range/mask contract from the spec. Reject non-safe integers, negative codes with mask 0, unknown source IDs, out-of-range tile IDs and overflow of `(g * 8 + mask)`.
-- [ ] Set current version to 2 only with the migration/validation changes in Task 4; keep this task's code independent of document migration.
-- [ ] Rerun the focused tests and inspect the diff. Commit the independently tested tile-code module with a technical message.
+- [x] Add failing tests for `[16,4]` tile counts: main tile 0 → `1`, extra tile 0 → `17`, extra flip X → `-137`, and `0` → null. Round-trip masks 0..7, large main ranges, last tile IDs, and swapped primary order.
+- [x] Run `node --test tests/world2d-tile-codes.test.mjs`; confirm failure is the missing module/behavior.
+- [x] Implement the range/mask contract from the spec. Reject non-safe integers, negative codes with mask 0, unknown source IDs, out-of-range tile IDs and overflow of `(g * 8 + mask)`.
+- [x] Set current version to 2 only with the migration/validation changes in Task 4; keep this task's code independent of document migration.
+- [x] Rerun the focused tests and inspect the diff. Commit the independently tested tile-code module with a technical message.
 
 ## Task 2: Implement adaptive numeric JSON grids
 
@@ -77,11 +77,11 @@
 - `decodeWorld2DTileGrid(input: unknown, cellCount: number): number[]`.
 - `tileGridEncodedSize(grid: EncodedWorld2DTileGrid): number` measures its full minified ASCII JSON envelope; selection ties use Dense, RLE, Sparse, Bits, LZ.
 
-- [ ] Add failing tests for a constant grid selecting RLE, a sparse grid selecting Sparse, irregular values selecting Dense when smaller, runs crossing row boundaries, and candidate ties.
-- [ ] Add malformed-input cases for zero/negative counts, wrong totals, duplicate/out-of-bounds Sparse positions, unknown codecs and excessive dimensions.
-- [ ] Run `node --test tests/world2d-tile-grid.test.mjs` and observe the missing implementations fail.
-- [ ] Implement Dense/RLE/Sparse, base selection and exact-length decoding. Sparse values are flat `[gap, code]` pairs from previous position `-1`; omit `base` only when it is 0.
-- [ ] Rerun the focused suite; assert every decoded sequence equals its input and the selected envelope is no larger than each generated candidate. Commit this codec task.
+- [x] Add failing tests for a constant grid selecting RLE, a sparse grid selecting Sparse, irregular values selecting Dense when smaller, runs crossing row boundaries, and candidate ties.
+- [x] Add malformed-input cases for zero/negative counts, wrong totals, duplicate/out-of-bounds Sparse positions, unknown codecs and excessive dimensions.
+- [x] Run `node --test tests/world2d-tile-grid.test.mjs` and observe the missing implementations fail.
+- [x] Implement Dense/RLE/Sparse, base selection and exact-length decoding. Sparse values are flat `[gap, code]` pairs from previous position `-1`; omit `base` only when it is 0.
+- [x] Rerun the focused suite; assert every decoded sequence equals its input and the selected envelope is no larger than each generated candidate. Commit this codec task.
 
 ## Task 3: Add bit packing and bounded LZ
 
@@ -93,11 +93,11 @@
 - `encodeBase64(bytes: number[]): string` and `decodeBase64(text: string, maxBytes: number): number[]`.
 - `compressTileGridBytes(bytes: number[]): number[]` and `decompressTileGridBytes(bytes: number[], expectedByteCount: number): number[]` implement the spec's packet grammar.
 
-- [ ] Add failing byte-vector tests: palette `[0,1,2,3]` with indices `[0,1,2,3]` packs to `0xe4`, Base64 `5A==`. Add overlapping LZ copies and distances at the window boundary.
-- [ ] Add truncation, invalid Base64/padding, invalid palette indices, nonzero bit padding, zero distance, excessive output and trailing-byte cases. Use deterministic generated grids for lossless round trips, including primary/extra/flipped codes.
-- [ ] Run the focused suite and confirm the unimplemented binary codecs fail.
-- [ ] Implement pure TypeScript packing/Base64 and bounded LZ. LZ examines at most 64 recent three-byte-hash candidates per position, takes the longest match and nearest distance on ties, and emits references only with a size benefit.
-- [ ] Add Bits to fast candidates and LZ to max candidates. Compare complete envelopes including the palette and Base64 overhead; rerun all grid tests and commit.
+- [x] Add failing byte-vector tests: palette `[0,1,2,3]` with indices `[0,1,2,3]` packs to `0xe4`, Base64 `5A==`. Add overlapping LZ copies and distances at the window boundary.
+- [x] Add truncation, invalid Base64/padding, invalid palette indices, nonzero bit padding, zero distance, excessive output and trailing-byte cases. Use deterministic generated grids for lossless round trips, including primary/extra/flipped codes.
+- [x] Run the focused suite and confirm the unimplemented binary codecs fail.
+- [x] Implement pure TypeScript packing/Base64 and bounded LZ. LZ examines at most 64 recent three-byte-hash candidates per position, takes the longest match and nearest distance on ties, and emits references only with a size benefit.
+- [x] Add Bits to fast candidates and LZ to max candidates. Compare complete envelopes including the palette and Base64 overhead; rerun all grid tests and commit.
 
 ## Task 4: Integrate v2 storage, defaults, migration and saver
 
@@ -109,13 +109,13 @@
 - `serializeWorld2D(input: unknown, options?: World2DSerializeOptions): World2DSerializeResult`; defaults are compact/max.
 - Normalized `World2DDocument` continues to contain complete assets, descriptor geometry, object geometry and dense `WorldTileCell | null` arrays. Expanded v2 programmatic input is accepted as well as canonical v2 disk input.
 
-- [ ] Add failing tests for strict v1 validation followed by v2 migration, every disk codec, compact/default restoration, extra assets, object transforms, file properties and custom component/metadata JSON.
-- [ ] Add a semantic-preservation test that changes the primary source, serializes and reloads, then compares all expanded cell fields and dimensions. Opening/migrating must not mutate the original input or rewrite a file.
-- [ ] Run `node --test tests/world2d-storage.test.mjs`; confirm current v1-only behavior fails the new contract.
-- [ ] Implement normalization, default/tuple restoration and inferred asset union. Validate dimensions and codec payloads before allocating dense cells. Reject conflicting compact and expanded fields; preserve separately mutable cell values.
-- [ ] Update validator and migrator to accept supported v1/v2 inputs, set `WORLD2D_VERSION = 2`, and preserve diagnostics. Keep runtime loader construction behind successful migration as it is today.
-- [ ] Implement compact and readable manual emitters, including omitted defaults and minified inline envelopes. Readable emits numeric Dense data, formatted by rows without changing its flat structure.
-- [ ] Add the pure `@bornengine/engine/world2d/editor` subpath and expose options/types through existing public exports. Rerun all three focused storage/code suites and the existing World2D format harness; commit the integrated contract.
+- [x] Add failing tests for strict v1 validation followed by v2 migration, every disk codec, compact/default restoration, extra assets, object transforms, file properties and custom component/metadata JSON.
+- [x] Add a semantic-preservation test that changes the primary source, serializes and reloads, then compares all expanded cell fields and dimensions. Opening/migrating must not mutate the original input or rewrite a file.
+- [x] Run `node --test tests/world2d-storage.test.mjs`; confirm current v1-only behavior fails the new contract.
+- [x] Implement normalization, default/tuple restoration and inferred asset union. Validate dimensions and codec payloads before allocating dense cells. Reject conflicting compact and expanded fields; preserve separately mutable cell values.
+- [x] Update validator and migrator to accept supported v1/v2 inputs, set `WORLD2D_VERSION = 2`, and preserve diagnostics. Keep runtime loader construction behind successful migration as it is today.
+- [x] Implement compact and readable manual emitters, including omitted defaults and minified inline envelopes. Readable emits numeric Dense data, formatted by rows without changing its flat structure.
+- [x] Add the pure `@bornengine/engine/world2d/editor` subpath and expose options/types through existing public exports. Rerun all three focused storage/code suites and the existing World2D format harness; commit the integrated contract.
 
 ## Task 5: Integrate main/extra UI and save compaction
 

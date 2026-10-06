@@ -2,7 +2,7 @@ import type { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 
 export const WORLD2D_FORMAT = 'bornengine.world2d';
-export const WORLD2D_VERSION = 1;
+export const WORLD2D_VERSION = 2;
 
 export type {
   World2DSerializeEffort,

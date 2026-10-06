@@ -1,0 +1,43 @@
+{
+  "format": "bornengine.world2d",
+  "version": 2,
+  "id": "compact-mixed",
+  "size": [4, 2],
+  "tileSize": [16, 16],
+  "assets": ["data/custom.bin"],
+  "tilesets": [
+    { "id": "main", "image": "assets/main.png", "columns": 4, "tileCount": 16 },
+    { "id": "extra", "image": "assets/extra.png", "columns": 2, "tileCount": 4 }
+  ],
+  "layers": [
+    { "id": "dense", "type": "tilemap", "data": [1, 0, 17, 0, 2, 0, -137, 0] },
+    { "id": "rle", "type": "tilemap", "data": { "encoding": "rle", "values": [8, 1] } },
+    { "id": "sparse", "type": "tilemap", "data": { "encoding": "sparse", "values": [2, 17, 4, -137] } },
+    { "id": "bits", "type": "tilemap", "data": { "encoding": "bits", "palette": [0, 1], "values": "qg==" } },
+    { "id": "lz", "type": "tilemap", "data": { "encoding": "lz", "palette": [1], "values": "AAA=" } },
+    {
+      "id": "actors",
+      "type": "objects",
+      "objects": [
+        {
+          "id": "npc-1",
+          "type": "npc",
+          "position": [32, 48],
+          "rotation": 45,
+          "size": [24, 48],
+          "origin": [0.25, 0.75],
+          "visible": false,
+          "tags": ["town", "guard"],
+          "properties": {
+            "voice": { "type": "file", "value": "audio/guard.ogg" },
+            "health": { "type": "int", "value": 12 }
+          },
+          "components": [
+            { "kind": "gameplay.guard", "data": { "patrol": [1.25, 8.5], "enabled": true } }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": { "custom": { "precise": 1.234567890123, "ordered": ["a", "b"] } }
+}
