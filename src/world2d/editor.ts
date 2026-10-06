@@ -15,6 +15,8 @@ export type {
   World2DTileDefinition,
   World2DTilesetData,
   WorldTileCell,
+  World2DTileCell,
+  World2DComponentDescriptor,
   World2DLayerBase,
   World2DTileLayer,
   World2DObjectData,
