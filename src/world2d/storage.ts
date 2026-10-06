@@ -479,7 +479,7 @@ function normalizeVersion2(root: any): World2DDocument {
           const item = diagnosticFromError(error);
           fail(path + '/data' + item.path, item.code, item.message);
         }
-      } else if (isObject(raw.data)) {
+      } else if (raw.data !== null && typeof raw.data === 'object' && typeof raw.data.encoding === 'string') {
         try {
           data = decodeCompactCells(raw.data, cellCount, codebook);
         } catch (error) {

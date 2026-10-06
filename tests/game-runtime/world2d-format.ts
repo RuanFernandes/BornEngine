@@ -3,6 +3,7 @@ import type { Game } from '../../src/core/game';
 import { GameComponent } from '../../src/game/game-component';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
+import { decodeWorld2DTileGrid } from '../../src/world2d/tileGridCodec';
 import {
   World2DComponentRegistry,
   World2DLoader,
@@ -356,7 +357,62 @@ expect(successLoad.ok && loadedObject !== null && loadedObject.name === 'Player 
   marker !== null && marker.spawnId === 'start' && marker.awakeSceneObjectCount === 2,
   'registered factories create every object before atomic scene attachment callbacks run');
 
+const repeatedCells: Array<WorldTileCell | null> = [];
+for (let cellIndex = 0; cellIndex < 1024; cellIndex++) {
+  repeatedCells.push(null);
+}
+const compactRuntimeLayer = tileLayer(repeatedCells);
+if (compactRuntimeLayer.type === 'tilemap') {
+  compactRuntimeLayer.width = 32;
+  compactRuntimeLayer.height = 32;
+}
+const compactRuntimeWorld = makeWorld('compact-runtime-map', [compactRuntimeLayer, objectLayer()]);
+const compactRuntimeStorage = serializeWorld2D(compactRuntimeWorld);
+expect(compactRuntimeStorage.ok, 'compact runtime fixture serializes');
+const compactRuntimeInput = JSON.parse(compactRuntimeStorage.json) as {
+  version: number;
+  layers: Array<{ data: unknown }>;
+};
+const compactGrid = compactRuntimeInput.layers[0].data;
+const compactGridObject = compactGrid as { encoding?: string };
+expect(typeof compactGrid === 'object' && compactGrid !== null && typeof compactGridObject.encoding === 'string',
+  'runtime fixture uses a compact tile-grid codec');
+const compactRuntimeCodes = decodeWorld2DTileGrid(compactGrid, 1024);
+expect(Array.isArray(compactRuntimeCodes) && compactRuntimeCodes.length === 1024 && compactRuntimeCodes[0] === 0,
+  'native codec returns dense row-major codes from its compact payload');
+const compactRuntimeMigration = migrateWorld2D(compactRuntimeInput);
+expect(compactRuntimeMigration.ok, 'native compact storage migration succeeds: version=' + compactRuntimeInput.version +
+  ', encoding=' + compactGridObject.encoding +
+  ', array=' + Array.isArray(compactGrid) + ', diagnostics=' + JSON.stringify(compactRuntimeMigration.diagnostics));
+const occupiedCells: Array<WorldTileCell | null> = [];
+for (let cellIndex = 0; cellIndex < 1024; cellIndex++) {
+  occupiedCells.push({ tilesetId: 'terrain', tileId: 0, flipX: false, flipY: false, flipDiagonal: false });
+}
+const occupiedLayer = tileLayer(occupiedCells);
+if (occupiedLayer.type === 'tilemap') {
+  occupiedLayer.width = 32;
+  occupiedLayer.height = 32;
+}
+const occupiedStorage = serializeWorld2D(makeWorld('compact-occupied-map', [occupiedLayer]));
+const occupiedInput = JSON.parse(occupiedStorage.json) as { layers: Array<{ data: unknown }> };
+const occupiedMigration = migrateWorld2D(occupiedInput);
+const occupiedRuntimeLayer = occupiedMigration.document?.layers[0];
+expect(occupiedStorage.ok && occupiedMigration.ok && occupiedRuntimeLayer?.type === 'tilemap' &&
+  occupiedRuntimeLayer.data.length === 1024 && occupiedRuntimeLayer.data[0]?.tilesetId === 'terrain',
+  'native storage migration expands a compact grid with occupied tile cells');
+const compactRuntimeScene = new GameScene(owner as Game);
+const compactRuntimeLoader = new World2DLoader(successRegistry);
+const compactRuntimeLoad = compactRuntimeLoader.loadJSON(compactRuntimeStorage.json, compactRuntimeScene);
+const compactRuntimeLayerLoaded = compactRuntimeLoad.document?.layers[0];
+expect(compactRuntimeLoad.ok && compactRuntimeLoad.document !== null &&
+  compactRuntimeLoad.document.version === 2 && compactRuntimeLayerLoaded?.type === 'tilemap' &&
+  compactRuntimeLayerLoaded.data.length === 1024 && compactRuntimeLayerLoaded.data[0] === null &&
+  compactRuntimeLoad.instances.length === 2 && compactRuntimeScene.objects.length === 2 &&
+  compactRuntimeScene.objects[0].name === 'Player Spawn',
+  'engine loader expands a compact v2 tile grid and instantiates its object layer');
+
 successScene.destroy();
+compactRuntimeScene.destroy();
 failedScene.destroy();
 emptyScene.destroy();
 context.dispose();
