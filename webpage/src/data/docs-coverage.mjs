@@ -60,7 +60,7 @@ export const apiCoverage = [
     slug: 'sprites',
     file: 'api/sprites.md',
     href: '/docs/api/sprites/',
-    sections: ['Atlas frames', 'Sprite components and camera', 'Animation and state machines', '2D particle emitters', 'Marker-driven effects'],
+    sections: ['Atlas frames', 'Sprite components and camera', 'Animation and state machines', 'Reusable animation templates', '2D particle emitters', 'Marker-driven effects'],
   },
   {
     slug: 'scripting',
@@ -169,4 +169,6 @@ export const recipeCoverage = [
   { slug: 'physics-gameplay', file: 'guides/physics-gameplay.md', href: '/docs/guides/physics-gameplay/', sections: recipeSections },
   { slug: 'assets-and-worlds', file: 'guides/assets-and-worlds.md', href: '/docs/guides/assets-and-worlds/', sections: recipeSections },
   { slug: 'audio-and-ui', file: 'guides/audio-and-ui.md', href: '/docs/guides/audio-and-ui/', sections: recipeSections },
+  { slug: 'blueprints', file: 'guides/blueprints.md', href: '/docs/guides/blueprints/', sections: ['Create the project files', 'Template and blueprint formats', 'Read a server blueprint', 'Validation and compatibility'] },
+  { slug: 'sprite-animation-templates', file: 'guides/sprite-animation-templates.md', href: '/docs/guides/sprite-animation-templates/', sections: ['Setup', 'Game loop', 'Complete example', 'Next steps'] },
 ];

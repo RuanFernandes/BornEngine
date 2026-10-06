@@ -95,6 +95,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Assets', href: '/docs/guides/assets/' },
       { title: 'Runtime debugging', href: '/docs/guides/debugging/' },
       { title: '2D game', href: '/docs/guides/2d-game/' },
+      { title: 'Sprite animation templates', href: '/docs/guides/sprite-animation-templates/' },
       { title: '2D production workflow', href: '/docs/guides/2d-production-workflow/' },
       { title: 'Migrating the 2D API', href: '/docs/guides/migrating-2d-api/' },
       { title: '3D scene', href: '/docs/guides/3d-scene/' },
@@ -103,6 +104,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Audio and UI', href: '/docs/guides/audio-and-ui/' },
       { title: 'GUI controls guide', href: '/docs/guides/gui-controls/' },
       { title: 'Multiplayer with Colyseus', href: '/docs/guides/multiplayer/' },
+      { title: 'JSON blueprints', href: '/docs/guides/blueprints/' },
     ],
   },
   {

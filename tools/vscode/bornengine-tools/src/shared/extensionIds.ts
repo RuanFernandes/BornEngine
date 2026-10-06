@@ -1,0 +1,11 @@
+export const WORLD2D_EDITOR_VIEW_TYPE = 'bornengineTools.world2dEditor';
+export const CREATE_WORLD2D_COMMAND = 'bornengineTools.createWorld2D';
+export const OPTIMIZE_WORLD2D_COMMAND = 'bornengineTools.optimizeWorld2D';
+export const CREATE_SPRITE_ANIMATION_COMMAND = 'bornengine.createSpriteAnimation';
+export const CREATE_SPRITE_ANIMATION_TEMPLATE_COMMAND = 'bornengine.createSpriteAnimationTemplate';
+export const SPRITE_ANIMATION_TEMPLATE_EDITOR_VIEW_TYPE = 'bornengineTools.spriteAnimationTemplateEditor';
+export const CREATE_BLUEPRINT_TEMPLATE_COMMAND = 'bornengineTools.createBlueprintTemplate';
+export const BLUEPRINT_TEMPLATE_EDITOR_VIEW_TYPE = 'bornengineTools.blueprintTemplateEditor';
+export const CREATE_BLUEPRINT_COMMAND = 'bornengineTools.createBlueprint';
+export const BLUEPRINT_EDITOR_VIEW_TYPE = 'bornengineTools.blueprintEditor';
+export const BORNENGINE_TOOLS_VIEW_ID = 'bornengineTools.assets';

@@ -22,6 +22,21 @@ export interface ResolvedSpriteKeyframe {
   readonly markers: readonly string[];
 }
 
+/** Common timing data used by SpriteAnimator for concrete and layered clips. */
+export interface SpriteAnimationPlaybackFrame {
+  readonly duration: number;
+  readonly markers: readonly string[];
+}
+
+/** A clip whose frames can be advanced by one SpriteAnimator playhead. */
+export interface SpriteAnimationPlaybackClip {
+  readonly fps: number;
+  readonly loop: SpriteAnimationLoop;
+  readonly duration: number;
+  readonly error: string | null;
+  readonly frames: readonly SpriteAnimationPlaybackFrame[];
+}
+
 function isFiniteNumber(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
 }

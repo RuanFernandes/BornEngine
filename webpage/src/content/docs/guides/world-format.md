@@ -22,9 +22,11 @@ Load the document with `WorldData`, then create its runtime nodes through `World
 
 ## 2D worlds
 
-A World2D document starts with `format: "bornengine.world2d"` and `version: 1`. Its top-level data contains stable IDs, a sorted asset list, tilesets, ordered layers, and game-owned JSON metadata. Tile layers store row-major cells with zero-based local tile IDs and explicit X, Y, and diagonal flip flags. Both layer kinds can retain typed, name-keyed layer properties; object layers also store pixel-space transforms and typed object properties. The 3D `WorldData` schema remains independent.
+A World2D document starts with `format: "bornengine.world2d"` and `version: 2`. The 3D `WorldData` schema remains independent. Version 1 maps are still readable and are upgraded when saved; opening a map does not rewrite it. A map saved as version 2 requires an engine release with World2D v2 storage support.
 
-Use `validateWorld2D` to collect JSON Pointer diagnostics and `serializeWorld2D` to produce canonical JSON. A `World2DLoader` constructs runtime objects in an existing `GameScene`; supply a `resolveSpriteFrame` callback and a ready `PhysicsWorld2D` instance when those built-ins are present. Custom component kinds must be registered in a `World2DComponentRegistry`. See the [World2D API](../../api/world2d/) for the full contract and loader example.
+The first entry in `tilesets` is the main image source; later entries are extra atlases or single-tile images. Sources can be mixed in one layer when their tile dimensions match the layer grid. Cells are stored row-major as numeric codes, and the format selects the smallest supported Dense, RLE, Sparse, Bits, or bounded LZ representation per layer. The normalized runtime model still uses stable source IDs, zero-based local tile IDs, and explicit flip flags.
+
+Use `validateWorld2D` to collect JSON Pointer diagnostics and `serializeWorld2D` to produce compact version-2 JSON. Its `readable` mode writes formatted metadata and numeric Dense tile data. The VS Code editor uses fast serialization while editing, upgrades old maps on save, and offers **Optimize World2D Map** for maximum-effort compaction. Normal saves wait briefly for a matching background result and use a valid fast result if maximum compaction is not ready. See the [World2D API](../../api/world2d/) for the storage contract, codec shapes, and loader example.
 
 ```ts
 import { serializeWorld2D, validateWorld2D } from '@bornengine/engine/world2d';
@@ -33,7 +35,7 @@ const validation = validateWorld2D(world2dDocument);
 if (!validation.ok) {
   console.error(validation.diagnostics);
 } else {
-  const saved = serializeWorld2D(world2dDocument);
+  const saved = serializeWorld2D(world2dDocument, { mode: 'compact', effort: 'max' });
   if (saved.ok) writeProjectFile('maps/level.world2d.json', saved.json);
 }
 ```

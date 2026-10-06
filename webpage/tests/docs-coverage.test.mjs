@@ -10,7 +10,7 @@ test('declares every public module and recipe route', () => {
     'scene', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
-    '2d-game', 'physics2d-tilemap', '3d-scene', 'physics-gameplay', 'assets-and-worlds', 'audio-and-ui',
+    '2d-game', 'physics2d-tilemap', '3d-scene', 'physics-gameplay', 'assets-and-worlds', 'audio-and-ui', 'blueprints', 'sprite-animation-templates',
   ]);
 });
 
@@ -133,5 +133,21 @@ test('composition recipes contain the complete learning path', async () => {
     for (const section of item.sections) {
       assert.match(source, new RegExp(`^##\\s+${section.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\s*$`, 'm'));
     }
+  }
+});
+
+test('sprite animation template docs explain IDs, shared timing, validation, and compact data', async () => {
+  const api = apiCoverage.find((entry) => entry.slug === 'sprites');
+  const apiSource = await readFile(new URL(`../src/content/docs/${api.file}`, import.meta.url), 'utf8');
+  const guide = recipeCoverage.find((entry) => entry.slug === 'sprite-animation-templates');
+  const guideSource = await readFile(new URL(`../src/content/docs/${guide.file}`, import.meta.url), 'utf8');
+
+  for (const detail of ['.spriteanim-template.json', 'Template authors choose any stable ID', 'optional', 'compact JSON', 'same `Game`',
+    'share the clip loop', 'signed values', 'Existing `.spriteanim.json`']) {
+    assert.ok(apiSource.includes(detail), `api/sprites.md needs ${detail}`);
+  }
+  for (const detail of ['body_art', 'held_item', 'template.bind', 'SpriteAnimationTemplateRenderer',
+    'one shared frame schedule', 'independent animator playheads']) {
+    assert.ok(guideSource.includes(detail), `sprite-animation-templates.md needs ${detail}`);
   }
 });

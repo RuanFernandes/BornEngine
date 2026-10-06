@@ -53,7 +53,7 @@ Both paths expose the same supported classes and types. Internal FFI functions a
 | Shapes | `@bornengine/engine/shapes` | Renderer drawing and pure collision helpers |
 | Textures | `@bornengine/engine/textures` | `Texture`, `RenderTexture`, `ImageData` |
 | Assets | `@bornengine/engine/assets` | `AssetManager`, texture cache, `AssetGroup` preload batches |
-| Sprites | `@bornengine/engine/sprites` | `SpriteSheet`, `SpriteRenderer`, `SpriteAnimation`, `SpriteAnimator`, `ParticleEmitter2D` |
+| Sprites | `@bornengine/engine/sprites` | `SpriteSheet`, `SpriteRenderer`, `SpriteAnimation`, `SpriteAnimator`, `SpriteAnimationTemplateAsset`, `SpriteAnimationTemplateRenderer`, `ParticleEmitter2D` |
 | Text | `@bornengine/engine/text` | `Font` |
 | Audio | `@bornengine/engine/audio` | `AudioSystem`, `Sound`, `Music`, `SoundManager`, `AudioListener2D`, `AudioEmitter2D` |
 | Data | `@bornengine/engine/storage` | `GameDatabase`, typed SQLite schema, queries, transactions, and migrations |

@@ -3,7 +3,7 @@
   "version": "0.16.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
-    "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs",
+    "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
     "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --experimental-vm-modules --disable-warning=ExperimentalWarning tests/game-runtime/scripted-actor-package-harness.cjs",
     "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
     "examples:check:static": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs --static",
@@ -32,6 +32,7 @@
     "./camera2d": "./src/camera2d/index.ts",
     "./world": "./src/world/index.ts",
     "./world2d": "./src/world2d/index.ts",
+    "./world2d/editor": "./src/world2d/editor.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
     "./scripting": "./src/scripting/index.ts",

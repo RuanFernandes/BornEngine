@@ -3,6 +3,7 @@ import type { Game } from '../../src/core/game';
 import { GameComponent } from '../../src/game/game-component';
 import { GameObject } from '../../src/game/game-object';
 import { GameScene } from '../../src/game/game-scene';
+import { decodeWorld2DTileGrid } from '../../src/world2d/tileGridCodec';
 import {
   World2DComponentRegistry,
   World2DLoader,
@@ -176,14 +177,15 @@ expect(!invalidAtlasResult.ok && hasDiagnostic(invalidAtlasResult.diagnostics, '
   'tileset margin and spacing must be non-negative integer vectors');
 
 const migration = migrateWorld2D(sample);
-expect(migration.ok && migration.document.version === 1,
-  'current v1 migration preserves the current document');
+expect(migration.ok && migration.document.version === 2,
+  'v1 migration produces the normalized v2 document');
 
 const serializedResult = serializeWorld2D(sample);
 expect(serializedResult.ok, 'sample serializes successfully');
 const serialized = serializedResult.json;
-const reparsed = JSON.parse(serialized) as World2DDocument;
-expect(validateWorld2D(reparsed).ok, 'serialized sample reparses and validates');
+const reparsedStorage = JSON.parse(serialized) as unknown;
+expect(validateWorld2D(reparsedStorage).ok, 'serialized sample reparses and validates');
+const reparsed = migrateWorld2D(reparsedStorage).document as World2DDocument;
 expect(reparsed.tilesets[0].margin.x === 1 && reparsed.tilesets[0].margin.y === 2 &&
   reparsed.tilesets[0].spacing.x === 3 && reparsed.tilesets[0].spacing.y === 4,
   'asymmetric tileset margins and spacing survive serialization');
@@ -195,6 +197,33 @@ const unknownMetadataKeys = Object.keys(reparsed.metadata.unknown as { [key: str
 expect(unknownMetadataKeys.length === 3 && unknownMetadataKeys[0] === 'keep' &&
   unknownMetadataKeys[1] === 'zeta' && unknownMetadataKeys[2] === 'alpha',
   'nested metadata key order survives serialization');
+const specialKeyWorld = makeWorld('special-json-key', [objectLayer()]);
+specialKeyWorld.metadata = JSON.parse('{"__proto__":{"quest":42},"ordinary":1}');
+const specialKeyLayer = specialKeyWorld.layers[0];
+if (specialKeyLayer.type === 'objects') {
+  specialKeyLayer.objects[0].properties = JSON.parse(
+    '{"__proto__":{"type":"int","value":7},"ordinary":{"type":"int","value":1}}',
+  );
+  specialKeyLayer.objects[0].components[0].data = JSON.parse('{"__proto__":{"quest":42},"ordinary":true}');
+}
+const specialKeySerialized = serializeWorld2D(specialKeyWorld);
+expect(specialKeySerialized.ok, 'custom __proto__ JSON keys serialize on native targets');
+const specialKeyStorage = JSON.parse(specialKeySerialized.json) as {
+  metadata: Record<string, { quest?: number }>;
+  layers: Array<{ objects: Array<{
+    properties: Record<string, { value: number }>;
+    components: Array<{ data: Record<string, { quest?: number }> }>;
+  }> }>;
+};
+const specialKeyActor = specialKeyStorage.layers[0].objects[0];
+expect(Object.prototype.hasOwnProperty.call(specialKeyStorage.metadata, '__proto__') &&
+  specialKeyStorage.metadata.__proto__.quest === 42 &&
+  Object.prototype.hasOwnProperty.call(specialKeyActor.properties, '__proto__') &&
+  specialKeyActor.properties.__proto__.value === 7 &&
+  Object.prototype.hasOwnProperty.call(specialKeyActor.components[0].data, '__proto__') &&
+  specialKeyActor.components[0].data.__proto__.quest === 42 &&
+  ({} as { quest?: number }).quest === undefined,
+  'custom __proto__ JSON keys survive serialization without prototype mutation');
 expect(reparsed.layers[0].properties !== undefined &&
   reparsed.layers[0].properties.surface.value === 'grass' &&
   reparsed.layers[1].properties !== undefined &&
@@ -206,10 +235,10 @@ expect(metadataKeys.length === 2 && metadataKeys[0] === 'ordered' && metadataKey
 const sortedAssets = makeWorld('asset-order');
 sortedAssets.assets = ['z/data.bin', 'a/data.bin'];
 const sortedAssetsResult = serializeWorld2D(sortedAssets);
-const sortedAssetsDocument = JSON.parse(sortedAssetsResult.json) as World2DDocument;
-expect(sortedAssetsResult.ok && sortedAssetsDocument.assets[0] === 'a/data.bin' &&
-  sortedAssetsDocument.assets[1] === 'z/data.bin',
-  'asset set order is canonicalized while semantic array order is preserved');
+const sortedAssetsDocument = JSON.parse(sortedAssetsResult.json) as { assets?: string[] };
+expect(sortedAssetsResult.ok && sortedAssetsDocument.assets !== undefined &&
+  sortedAssetsDocument.assets[0] === 'a/data.bin' && sortedAssetsDocument.assets[1] === 'z/data.bin',
+  'additional asset order is canonicalized');
 const roundTripTileLayer = reparsed.layers[0];
 expect(roundTripTileLayer.type === 'tilemap' && roundTripTileLayer.data[7] !== null &&
   roundTripTileLayer.data[7].flipX && roundTripTileLayer.data[7].flipY &&
@@ -256,7 +285,7 @@ expect(!missingFileCheck.ok && hasDiagnostic(missingFileCheck.diagnostics, 'miss
   'file properties must refer to declared project assets');
 
 const future = makeWorld('future');
-future.version = 2;
+future.version = 3;
 const futureCheck = validateWorld2D(future);
 const futureMigration = migrateWorld2D(future);
 expect(!futureCheck.ok && hasDiagnostic(futureCheck.diagnostics, 'unsupported_version', '/version'),
@@ -328,7 +357,62 @@ expect(successLoad.ok && loadedObject !== null && loadedObject.name === 'Player 
   marker !== null && marker.spawnId === 'start' && marker.awakeSceneObjectCount === 2,
   'registered factories create every object before atomic scene attachment callbacks run');
 
+const repeatedCells: Array<WorldTileCell | null> = [];
+for (let cellIndex = 0; cellIndex < 1024; cellIndex++) {
+  repeatedCells.push(null);
+}
+const compactRuntimeLayer = tileLayer(repeatedCells);
+if (compactRuntimeLayer.type === 'tilemap') {
+  compactRuntimeLayer.width = 32;
+  compactRuntimeLayer.height = 32;
+}
+const compactRuntimeWorld = makeWorld('compact-runtime-map', [compactRuntimeLayer, objectLayer()]);
+const compactRuntimeStorage = serializeWorld2D(compactRuntimeWorld);
+expect(compactRuntimeStorage.ok, 'compact runtime fixture serializes');
+const compactRuntimeInput = JSON.parse(compactRuntimeStorage.json) as {
+  version: number;
+  layers: Array<{ data: unknown }>;
+};
+const compactGrid = compactRuntimeInput.layers[0].data;
+const compactGridObject = compactGrid as { encoding?: string };
+expect(typeof compactGrid === 'object' && compactGrid !== null && typeof compactGridObject.encoding === 'string',
+  'runtime fixture uses a compact tile-grid codec');
+const compactRuntimeCodes = decodeWorld2DTileGrid(compactGrid, 1024);
+expect(Array.isArray(compactRuntimeCodes) && compactRuntimeCodes.length === 1024 && compactRuntimeCodes[0] === 0,
+  'native codec returns dense row-major codes from its compact payload');
+const compactRuntimeMigration = migrateWorld2D(compactRuntimeInput);
+expect(compactRuntimeMigration.ok, 'native compact storage migration succeeds: version=' + compactRuntimeInput.version +
+  ', encoding=' + compactGridObject.encoding +
+  ', array=' + Array.isArray(compactGrid) + ', diagnostics=' + JSON.stringify(compactRuntimeMigration.diagnostics));
+const occupiedCells: Array<WorldTileCell | null> = [];
+for (let cellIndex = 0; cellIndex < 1024; cellIndex++) {
+  occupiedCells.push({ tilesetId: 'terrain', tileId: 0, flipX: false, flipY: false, flipDiagonal: false });
+}
+const occupiedLayer = tileLayer(occupiedCells);
+if (occupiedLayer.type === 'tilemap') {
+  occupiedLayer.width = 32;
+  occupiedLayer.height = 32;
+}
+const occupiedStorage = serializeWorld2D(makeWorld('compact-occupied-map', [occupiedLayer]));
+const occupiedInput = JSON.parse(occupiedStorage.json) as { layers: Array<{ data: unknown }> };
+const occupiedMigration = migrateWorld2D(occupiedInput);
+const occupiedRuntimeLayer = occupiedMigration.document?.layers[0];
+expect(occupiedStorage.ok && occupiedMigration.ok && occupiedRuntimeLayer?.type === 'tilemap' &&
+  occupiedRuntimeLayer.data.length === 1024 && occupiedRuntimeLayer.data[0]?.tilesetId === 'terrain',
+  'native storage migration expands a compact grid with occupied tile cells');
+const compactRuntimeScene = new GameScene(owner as Game);
+const compactRuntimeLoader = new World2DLoader(successRegistry);
+const compactRuntimeLoad = compactRuntimeLoader.loadJSON(compactRuntimeStorage.json, compactRuntimeScene);
+const compactRuntimeLayerLoaded = compactRuntimeLoad.document?.layers[0];
+expect(compactRuntimeLoad.ok && compactRuntimeLoad.document !== null &&
+  compactRuntimeLoad.document.version === 2 && compactRuntimeLayerLoaded?.type === 'tilemap' &&
+  compactRuntimeLayerLoaded.data.length === 1024 && compactRuntimeLayerLoaded.data[0] === null &&
+  compactRuntimeLoad.instances.length === 2 && compactRuntimeScene.objects.length === 2 &&
+  compactRuntimeScene.objects[0].name === 'Player Spawn',
+  'engine loader expands a compact v2 tile grid and instantiates its object layer');
+
 successScene.destroy();
+compactRuntimeScene.destroy();
 failedScene.destroy();
 emptyScene.destroy();
 context.dispose();

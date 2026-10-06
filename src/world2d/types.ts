@@ -2,7 +2,13 @@ import type { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 
 export const WORLD2D_FORMAT = 'bornengine.world2d';
-export const WORLD2D_VERSION = 1;
+export const WORLD2D_VERSION = 2;
+
+export type {
+  World2DSerializeEffort,
+  World2DSerializeMode,
+  World2DSerializeOptions,
+} from './storageTypes';
 
 /** Explicit descriptor kinds implemented by the engine's built-in loader. */
 export const BUILTIN_WORLD2D_COMPONENT_KINDS = ['spriteRenderer', 'physicsBody2D'] as const;

@@ -28,8 +28,25 @@ export type {
   World2DComponentFactoryValue,
 } from './types';
 export { validateWorld2D, formatWorld2DDiagnostics } from './validate';
+export { normalizeWorld2DStorage } from './storage';
 export { migrateWorld2D } from './migrate';
 export { serializeWorld2D } from './saver';
+export type {
+  World2DSerializeMode,
+  World2DSerializeEffort,
+  World2DSerializeOptions,
+  World2DTuple2,
+  World2DTuple4,
+  World2DStoredTileGrid,
+  World2DStoredTileDefinition,
+  World2DStoredTileset,
+  World2DStoredObject,
+  World2DStoredLayerBase,
+  World2DStoredTileLayer,
+  World2DStoredObjectLayer,
+  World2DStoredLayer,
+  World2DStorageV2,
+} from './storageTypes';
 export { World2DComponentRegistry, World2DLoader } from './loader';
 export type {
   World2DComponentFactoryContext,
