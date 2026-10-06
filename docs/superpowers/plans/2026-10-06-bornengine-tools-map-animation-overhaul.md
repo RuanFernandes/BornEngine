@@ -36,8 +36,7 @@
 Execute `docs/superpowers/plans/2026-10-06-world2d-compact-v2.md` after its
 approval. It owns the storage schema, numeric source references, adaptive
 codecs, defaults, v1 migration, main/extras source UI, save compaction and
-storage documentation. Tasks 2–8 below continue to own bucket/ghost, icons and
-the composite animation editor. Do not implement the superseded per-row codec.
+storage documentation. The shipped reference is the [World2D API](../../../webpage/src/content/docs/api/world2d.md), with an overview in the [World format guide](../../../webpage/src/content/docs/guides/world-format.md). Reproduce size and codec timings with the [storage measurement script](../../../tools/measure-world2d-storage.mjs). Tasks 2–8 below continue to own bucket/ghost, icons and the composite animation editor. Do not implement the superseded per-row codec.
 
 ### Task 2: Specify and test shared multi-tile bucket placement
 

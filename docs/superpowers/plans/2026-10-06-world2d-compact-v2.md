@@ -126,24 +126,24 @@
 - Worker requests/results carry the document URI, text version, generation and source text. Max JSON can replace a document only if all revision checks still match.
 - Register `bornengineTools.optimizeWorld2D`; it awaits max encoding, applies it through VS Code history and saves, or reports a conflict/error.
 
-- [ ] Add failing tests for primary switching with placed extras/flips, single-image extras, immutable edits, stale worker results after undo/text edits/source changes and Optimize Map failure.
-- [ ] Run the focused extension tests and confirm the new behavior is absent.
-- [ ] Add main/extra source indicators and a Set Main action to the existing tileset workflow. Reuse Add Tileset for supplemental atlases/unit images; support mixed sources on the same compatible grid.
-- [ ] Make new documents use v2 via the shared saver. Edits use compact/fast, preserve ready/load behavior, and reset caches on external edits.
-- [ ] Build a persistent worker for idle max encoding, debounced by 250 ms and retaining only the latest revision. Save uses a matching cached result or requests the current revision with a local 750 ms deadline; retain valid fast text on timeout. Never recompress during hover.
-- [ ] Implement Optimize Map for guaranteed max-effort completion on the current revision. Check versions again before applying/saving; retain normal undo/redo and conflict handling.
-- [ ] Run the extension's complete CJS suite once the focused cases pass; build the host, both webviews and worker using the actual package/build layout. Commit source changes only, preserving existing untracked work.
+- [x] Add failing tests for primary switching with placed extras/flips, single-image extras, immutable edits, stale worker results after undo/text edits/source changes and Optimize Map failure.
+- [x] Run the focused extension tests and confirm the new behavior is absent.
+- [x] Add main/extra source indicators and a Set Main action to the existing tileset workflow. Reuse Add Tileset for supplemental atlases/unit images; support mixed sources on the same compatible grid.
+- [x] Make new documents use v2 via the shared saver. Edits use compact/fast, preserve ready/load behavior, and reset caches on external edits.
+- [x] Build a persistent worker for idle max encoding, debounced by 250 ms and retaining only the latest revision. Save uses a matching cached result or requests the current revision with a local 750 ms deadline; retain valid fast text on timeout. Never recompress during hover.
+- [x] Implement Optimize Map for guaranteed max-effort completion on the current revision. Check versions again before applying/saving; retain normal undo/redo and conflict handling.
+- [x] Run the extension's complete CJS suite once the focused cases pass; build the host, both webviews and worker using the actual package/build layout. Commit tracked source changes while preserving the pre-existing untracked extension tree.
 
 ## Task 6: Document, measure and verify the handoff
 
 **Files:** `webpage/src/content/docs/api/world2d.md`, `webpage/src/content/docs/guides/world-format.md`, extension README; new `tools/measure-world2d-storage.mjs`; fixtures/tests from preceding tasks; update the compact-storage links in the combined editor plan.
 
-- [ ] Document primary source ordering, mixed tiles, numeric codes, disk defaults, codec shapes, compact/readable options, Optimize Map, migration and the requirement for an engine release supporting v2. Document fast-save fallback accurately.
-- [ ] Measure complete serialized document bytes and line counts for 32×32 constant, 2×2 pattern, sparse-extra and varied-extra fixtures; require v2 compact bytes ≤20% of their legacy v1 bytes. Preserve a legacy-byte baseline using the current explicit v1 representation.
-- [ ] Report encode/decode timings for 32×32, 256×256 and a 1.000.000-cell layer with bounded compression. Use timings to fix stalls, without flaky timing assertions in tests.
-- [ ] Run focused codec/storage tests, extension tests, affected TypeScript/build checks, the existing World2D runtime harness and a Perry/native codec round trip on the available host. Run documentation build/checks after documentation edits.
-- [ ] Review malformed-input handling, enum/codec names, range math, worker version guards, bundle source paths and generated artifacts. Record results and any unavailable platform checks.
-- [ ] Keep engine and extension ready together. Publishing and local installation of v2 require the complete compatibility verification and the approved release scope.
+- [x] Document primary source ordering, mixed tiles, numeric codes, disk defaults, codec shapes, compact/readable options, Optimize Map, migration and the requirement for an engine release supporting v2. Document fast-save fallback accurately.
+- [x] Measure complete serialized document bytes and line counts for 32×32 constant, 2×2 pattern, sparse-extra and varied-extra fixtures; require v2 compact bytes ≤20% of their legacy v1 bytes. Preserve a legacy-byte baseline using the current explicit v1 representation.
+- [x] Report encode/decode timings for 32×32, 256×256 and a 1.000.000-cell layer with bounded compression. Use timings to fix stalls, without flaky timing assertions in tests.
+- [x] Run focused codec/storage tests, extension tests, affected TypeScript/build checks, the existing World2D runtime harness and a Perry/native codec round trip on the available host. Run documentation build/checks after documentation edits.
+- [x] Review malformed-input handling, enum/codec names, range math, worker version guards, bundle source paths and generated artifacts. Record results and the existing engine TypeScript diagnostics.
+- [x] Keep engine and extension ready together. Publishing and local installation of v2 require the complete compatibility verification and the approved release scope.
 
 ## Approval and completion
 
