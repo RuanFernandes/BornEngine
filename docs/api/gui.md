@@ -28,7 +28,7 @@ top when enabled.
 Import from the package root or from the `gui` subpath:
 
 ```ts
-import { GUI, GuiButton, GuiPanel, GuiScroll, GuiText } from '@bornengine/engine';
+import { GUI, GuiButton, GuiPanel, GuiScroll, GuiText, Vector2D } from '@bornengine/engine';
 // Or: import { GUI, GuiButton, GuiPanel, GuiScroll, GuiText } from '@bornengine/engine/gui';
 ```
 
@@ -36,8 +36,8 @@ Construct controls independently, then attach one or more roots to the
 Game-owned manager. A child can only belong to one parent at a time.
 
 ```ts
-const panel = new GuiPanel({ x: 24, y: 24, width: 320, height: 180 });
-const title = new GuiText({ x: 12, y: 10, width: 280, height: 28 });
+const panel = new GuiPanel({ position: new Vector2D(24, 24), width: 320, height: 180 });
+const title = new GuiText({ position: new Vector2D(12, 10), width: 280, height: 28 });
 title.setText('Inventory');
 panel.addControl(title);
 game.gui.addControl(panel);
@@ -54,26 +54,38 @@ after parent or viewport resize. Geometry setters return the control for
 chaining.
 
 ```ts
-const scroll = new GuiScroll({ width: 420, height: 300 });
+const scroll = new GuiScroll({ position: Vector2D.zero(), width: 420, height: 300 });
 scroll.center();
-scroll.setX(24).centerVertical();
+scroll.moveBy(Vector2D.right().scale(24)).centerVertical();
 scroll.setSize(460, 320);
 
-const child = new GUI({ x: 12, y: 16, width: 120, height: 32 });
+const child = new GUI({ position: new Vector2D(12, 16), width: 120, height: 32 });
 scroll.addControl(child);
 const parent = child.getParent();
-const screenPoint = child.localToGlobal({ x: 0, y: 0 });
+const screenPoint = child.localToGlobal(Vector2D.zero());
+const localPoint = child.globalToLocal(screenPoint);
+const position = child.getPosition();
+child.setPosition(position.add(new Vector2D(4, 0)));
 ```
+
+Positions accept `Vector2D` or any `{ x, y }` value through `position` and
+`setPosition()`. `getPosition()`, `localToGlobal()`, and `globalToLocal()` return
+independent `Vector2D` snapshots. `moveBy(offset)` translates the control and
+clears both center anchors. Existing `x`/`y`, `setX()`/`setY()`, and
+`setPosition(x, y)` calls remain supported; explicit `x` or `y` options override
+only the matching component of `position`. Width and height remain separate
+dimensions.
 
 Common geometry and tree methods:
 
 | Methods | Purpose |
 | --- | --- |
 | `getX()` / `setX(x)`, `getY()` / `setY(y)` | Read or set a parent-relative offset; setting one axis clears only that axis's center anchor. |
-| `getPosition()` / `setPosition(x, y)`, `getSize()` / `setSize(width, height)`, `resize(x, y, width, height)` | Read or update geometry. Dimensions must be finite and non-negative. |
+| `position?: Vector2DLike`, `getPosition()` / `setPosition(position)` / `moveBy(offset)` | Set and read parent-relative position with `Vector2D`; numeric `x`/`y` and `setPosition(x, y)` are kept for convenience and compatibility. Returned positions are detached snapshots. |
+| `getSize()` / `setSize(width, height)`, `resize(x, y, width, height)` | Read or update dimensions. Width and height must be finite and non-negative. |
 | `center()`, `centerHorizontal()`, `centerVertical()` | Anchor the control to its parent's center. |
 | `getParent()`, `getRoot()`, `getControls()`, `addControl(control)`, `removeControl(control)`, `clearControls()` | Inspect and manage the retained tree. `parent` is a read-only getter. |
-| `localToGlobal(point)`, `globalToLocal(point)` | Convert coordinates through the current ancestor chain. |
+| `localToGlobal(point)`, `globalToLocal(point)` | Accept vector-like positions and return `Vector2D` coordinates through the current ancestor chain. |
 | `show()`, `hide()`, `setVisible(value)`, `setActive(value)` | Control visibility and whether a subtree participates in GUI input/rendering. |
 | `setClipChildren(value)`, `setClipToBounds(value)` | Clip descendants or the control's own drawing to bounds. `GuiScroll` clips children to its viewport. |
 | `getProfile()` / `setProfile(profile)`, `setOwnProfile(profile?)` | Read, share, or clone a visual profile. |
@@ -158,7 +170,7 @@ or to the root with `game.gui.addControl()`. Controls accept optional
 | `GuiTextList` | `addRow(id, text)`, `removeRow(id)`, `clearRows()`, and `getSelected()` manage rows. |
 | `GuiTab` | Horizontal tab bar with pages below it. `addTab(label, id)`, `setSelected(id)`, and `getSelected()` choose a page. |
 | `GuiMenu` | Horizontal menu bar that invokes the selected item's callback and bubbles an action event. |
-| `GuiContextMenu` | Context menu that opens at the pointer on a secondary click inside its parent, invokes the selected item's callback, bubbles an action event, and closes after activation. `openAt(x, y, button)` is also available for explicit positioning. |
+| `GuiContextMenu` | Context menu that opens at the pointer on a secondary click inside its parent, invokes the selected item's callback, bubbles an action event, and closes after activation. `openAt(position, button)` accepts a vector-like position; the numeric `openAt(x, y, button)` form remains supported. |
 
 ### Images, progress, and custom drawing
 
@@ -189,9 +201,10 @@ class ApplyButton extends GuiButton {
 }
 ```
 
-GUI events carry `target`, `currentTarget`, local/global pointer coordinates,
-key/button/wheel data, and modifiers when present. They bubble from the target
-to its parents; call `event.stopPropagation()` to stop bubbling. Use
+GUI events carry `target`, `currentTarget`, `localPosition` and `globalPosition`
+as `Vector2D` snapshots, plus the compatible scalar `localX`/`localY` and
+`globalX`/`globalY` fields, key/button/wheel data, and modifiers when present.
+They bubble from the target to its parents; call `event.stopPropagation()` to stop bubbling. Use
 `focus()`, `blur()`, `isFocused()`, `makeFirstResponder()`, and `isFirstResponder()`
 for keyboard focus. Hidden, inactive, detached, or destroyed controls do not
 receive stale input responses.
