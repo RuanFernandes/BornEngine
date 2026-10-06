@@ -1,4 +1,6 @@
 import type { World2DSerializeOptions } from './storageTypes';
+import { decodeBase64, encodeBase64, packTileCodes, unpackTileCodes } from './tileGridBits';
+import { compressTileGridBytes, decompressTileGridBytes } from './tileGridLz';
 
 const MAX_WORLD2D_TILE_CELLS = 1_000_000;
 const MAX_SAFE_INTEGER_VALUE = 9007199254740991;
@@ -119,6 +121,16 @@ function optionValue(options: World2DSerializeOptions | undefined): World2DSeria
   return options;
 }
 
+function packedByteCount(palette: unknown, cellCount: number): number {
+  if (!Array.isArray(palette)) fail('/data/palette', 'invalid_tile_palette', 'Packed tile grids need a palette array.');
+  if (palette.length > cellCount || (cellCount === 0 && palette.length !== 0) || (cellCount > 0 && palette.length === 0)) {
+    fail('/data/palette', 'invalid_tile_palette', 'Palette size must match a nonempty grid and cannot exceed its cell count.');
+  }
+  let bits = 1;
+  while (Math.pow(2, bits) < palette.length) bits++;
+  return Math.ceil(cellCount * bits / 8);
+}
+
 /** Measures the complete canonical minified JSON envelope of one supported grid candidate. */
 export function tileGridEncodedSize(grid: EncodedWorld2DTileGrid): number {
   if (Array.isArray(grid)) {
@@ -164,6 +176,13 @@ export function encodeWorld2DTileGrid(
   if (normalizedOptions.mode === 'readable') return dense;
 
   const candidates: EncodedWorld2DTileGrid[] = [dense, runLengthEncode(codes), sparseEncode(codes)];
+  const packed = packTileCodes(codes);
+  const packedPayload = encodeBase64(packed.bytes);
+  candidates.push({ encoding: 'bits', palette: packed.palette, values: packedPayload });
+  if (normalizedOptions.effort !== 'fast') {
+    const compressed = compressTileGridBytes(packed.bytes);
+    candidates.push({ encoding: 'lz', palette: packed.palette, values: encodeBase64(compressed) });
+  }
   let best = candidates[0];
   let bestSize = tileGridEncodedSize(best);
   for (let index = 1; index < candidates.length; index++) {
@@ -251,7 +270,14 @@ export function decodeWorld2DTileGrid(input: unknown, inputCellCount: number): n
   if (value.encoding === 'rle') return decodeRle(value, cellCount);
   if (value.encoding === 'sparse') return decodeSparse(value, cellCount);
   if (value.encoding === 'bits' || value.encoding === 'lz') {
-    fail('/data/encoding', 'unsupported_tile_grid_encoding', 'Packed tile grid decoding is not available yet.');
+    const expectedByteCount = packedByteCount(value.palette, cellCount);
+    if (value.encoding === 'bits') {
+      const bytes = decodeBase64(value.values, expectedByteCount);
+      return unpackTileCodes(value.palette, bytes, cellCount);
+    }
+    const compressed = decodeBase64(value.values, expectedByteCount + Math.ceil(expectedByteCount / 8));
+    const bytes = decompressTileGridBytes(compressed, expectedByteCount);
+    return unpackTileCodes(value.palette, bytes, cellCount);
   }
   fail('/data/encoding', 'unknown_tile_grid_encoding', 'Tile grid encoding is unsupported.');
 }
