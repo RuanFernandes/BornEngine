@@ -4,6 +4,9 @@ import type { Color, Rect, Vector2DLike } from '../core/types';
 import { Vector2D } from '../math/vector2d';
 import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
+import { SpriteAnimation } from './sprite-animation';
+import type { SpriteAnimationPlaybackClip } from './sprite-animation';
+import type { SpriteAnimationTarget } from './sprite-animation-target';
 import type { SpriteFrame } from './sprite-sheet';
 import { getParallaxOffset } from '../camera2d/parallax-layer-2d';
 
@@ -49,7 +52,7 @@ function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number
 }
 
 /** Draws a SpriteSheet frame from its GameObject transform during scene rendering. */
-export class SpriteRenderer extends GameComponent {
+export class SpriteRenderer extends GameComponent implements SpriteAnimationTarget {
   size: Vector2D;
   pivot: Vector2D;
   tint: Color;
@@ -160,6 +163,40 @@ export class SpriteRenderer extends GameComponent {
       this.fadingFrame = outgoing;
       this.fadeDuration = duration;
       this.fadeElapsed = 0;
+    }
+    return true;
+  }
+
+  /** @internal Reports whether this single-sprite target can render a clip. */
+  _canPlayClip(clip: SpriteAnimationPlaybackClip): boolean {
+    if (!(clip instanceof SpriteAnimation) || clip.error !== null || clip.frames.length === 0) return false;
+    for (let index = 0; index < clip.frames.length; index++) {
+      const frame = clip.frames[index].sprite;
+      if (frame === null || frame === undefined || frame.sheet === null || frame.sheet === undefined ||
+          frame.sheet.error !== null || !frame.sheet.texture.isLoaded) return false;
+    }
+    return true;
+  }
+
+  /** @internal Selects a clip frame and preserves the existing renderer crossfade behavior. */
+  _startClipFrame(clip: SpriteAnimationPlaybackClip, frameIndex: number, fade: number): boolean {
+    if (!this._canPlayClip(clip) || frameIndex < 0 || frameIndex >= clip.frames.length) return false;
+    return this._transitionTo((clip as SpriteAnimation).frames[frameIndex].sprite, fade);
+  }
+
+  /** @internal Selects an animation frame without interrupting an active crossfade. */
+  _selectClipFrame(clip: SpriteAnimationPlaybackClip, frameIndex: number, cancelCrossfade = false): boolean {
+    if (!this._canPlayClip(clip) || frameIndex < 0 || frameIndex >= clip.frames.length) return false;
+    const frame = (clip as SpriteAnimation).frames[frameIndex].sprite;
+    return cancelCrossfade ? this.setFrame(frame) : this._setAnimationFrame(frame);
+  }
+
+  /** @internal Checks every frame texture when an animator is attached to a Game. */
+  _canAttachClipTo(clip: SpriteAnimationPlaybackClip, context: GameContext): boolean {
+    if (!this._canPlayClip(clip)) return false;
+    const animation = clip as SpriteAnimation;
+    for (let index = 0; index < animation.frames.length; index++) {
+      if (!animation.frames[index].sprite.sheet._canAttachTo(context)) return false;
     }
     return true;
   }

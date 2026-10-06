@@ -135,19 +135,19 @@ function canBeDefaultTileSize(size: Size2 | null): size is Size2 {
 
 function chooseMapSize(layers: World2DLayer[]): Size2 | null {
   const counts: Record<string, number> = {};
-  let best: Size2 | null = null;
-  let bestCount = 0;
   for (const layer of layers) {
     if (layer.type !== 'tilemap') continue;
-    const size = { x: layer.width, y: layer.height };
-    const key = size.x + ',' + size.y;
+    const key = layer.width + ',' + layer.height;
     counts[key] = (counts[key] || 0) + 1;
-    if (counts[key] > bestCount) {
-      best = size;
-      bestCount = counts[key];
-    }
   }
-  return best;
+  let maximum = 0;
+  for (const key of Object.keys(counts)) maximum = Math.max(maximum, counts[key]);
+  for (const layer of layers) {
+    if (layer.type !== 'tilemap') continue;
+    const key = layer.width + ',' + layer.height;
+    if (counts[key] === maximum) return { x: layer.width, y: layer.height };
+  }
+  return null;
 }
 
 function chooseTileSize(document: World2DDocument): Size2 | null {

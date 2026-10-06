@@ -1,0 +1,10 @@
+node_modules/**
+package-lock.json
+src/**
+test/**
+tsconfig.json
+esbuild.mjs
+media/**
+bornengine-tools-0.1.0/**
+bornengine-tools-0.1.0.vsix
+dist/**/*.map

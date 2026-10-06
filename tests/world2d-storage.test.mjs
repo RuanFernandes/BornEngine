@@ -159,6 +159,34 @@ test('preserves a fractional empty layer tile size without promoting it to the i
   assert.deepEqual(reopened.document.layers[0].tileSize, { x: 1.5, y: 1.5 });
 });
 
+test('uses the first layer size as the map default when layer-size counts tie', () => {
+  const makeLayer = (id, width) => ({
+    id,
+    type: 'tilemap',
+    size: [width, 1],
+    tileSize: [16, 16],
+    data: Array(width).fill(0),
+  });
+  const input = {
+    format: 'bornengine.world2d',
+    version: 2,
+    id: 'tied-map-sizes',
+    tilesets: [],
+    layers: [makeLayer('first', 2), makeLayer('second', 3), makeLayer('third', 3), makeLayer('fourth', 2)],
+  };
+
+  const serialized = serializeWorld2D(input);
+  assert.equal(serialized.ok, true, JSON.stringify(serialized.diagnostics));
+  const stored = JSON.parse(serialized.json);
+  assert.deepEqual(stored.size, [2, 1]);
+  assert.deepEqual(stored.layers.map((layer) => layer.size), [undefined, [3, 1], [3, 1], undefined]);
+
+  const reopened = normalizeWorld2DStorage(stored);
+  assert.equal(reopened.ok, true, JSON.stringify(reopened.diagnostics));
+  assert.deepEqual(reopened.document.layers.map((layer) => [layer.width, layer.height]),
+    [[2, 1], [3, 1], [3, 1], [2, 1]]);
+});
+
 test('preserves own __proto__ keys in metadata, typed properties, and component JSON', () => {
   const input = structuredClone(compactFixture);
   const actor = input.layers.find((layer) => layer.type === 'objects').objects[0];

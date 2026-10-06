@@ -20,15 +20,15 @@ test('registerTexture sends a bounded UI ID separate from the engine handle', ()
     return 1;
   };
 
-  const ui = createUiApi(0);
+  const ui = createUiApi(0, () => true, () => true, (value) => value.handle);
   const texture = { handle: 0x1_0000_0001, width: 8, height: 8 };
   const secondTexture = { handle: 0x2_0000_0002, width: 16, height: 16 };
   const reusedSlotTexture = { handle: 0x2_0000_0001, width: 4, height: 4 };
-  const returnedHandle = ui.registerTexture(texture);
+  ui.registerTexture(texture);
   ui.registerTexture(secondTexture);
   ui.registerTexture(reusedSlotTexture);
 
-  assert.equal(returnedHandle, texture.handle);
+  assert.equal(commands.length, 3);
   assert.ok(Number.isInteger(commands[0][2]));
   assert.ok(commands[0][2] > 0 && commands[0][2] <= 0xffff_ffff);
   assert.notEqual(commands[0][2], texture.handle);

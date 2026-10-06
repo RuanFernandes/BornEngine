@@ -1,8 +1,10 @@
 import type { GameContext } from '../core/context';
 import { GameComponent } from '../game/game-component';
 import { SpriteAnimation } from './sprite-animation';
-import type { SpriteFrame } from './sprite-sheet';
+import type { SpriteAnimationPlaybackClip } from './sprite-animation';
 import { SpriteRenderer } from './sprite-renderer';
+import { SpriteAnimationTemplateBoundClip, SpriteAnimationTemplateRenderer } from './sprite-animation-template-runtime';
+import type { SpriteAnimationTarget } from './sprite-animation-target';
 
 export type SpriteNumberComparison = 'eq' | 'gt' | 'gte' | 'lt' | 'lte';
 
@@ -28,7 +30,7 @@ export interface SpriteAnimatorState {
 }
 
 export interface SpriteAnimatorOptions {
-  readonly clips: Readonly<Record<string, SpriteAnimation>>;
+  readonly clips: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
   readonly states?: readonly SpriteAnimatorState[];
   readonly initialState?: string;
 }
@@ -77,15 +79,15 @@ function validCondition(condition: SpriteTransitionCondition): boolean {
   return false;
 }
 
-/** Plays shared SpriteAnimation clips on one SpriteRenderer and evaluates an optional state machine. */
+/** Plays concrete or layered clips on one animation target and evaluates an optional state machine. */
 export class SpriteAnimator extends GameComponent {
   onMarker: SpriteMarkerCallback | null = null;
   onComplete: SpriteCompleteCallback | null = null;
   onStateChanged: SpriteStateChangedCallback | null = null;
 
-  private readonly spriteRenderer: SpriteRenderer;
+  private readonly animationTarget: SpriteAnimationTarget;
   private clipNames: string[] = [];
-  private clips: SpriteAnimation[] = [];
+  private clips: SpriteAnimationPlaybackClip[] = [];
   private states: StoredState[] = [];
   private boolNames: string[] = [];
   private boolValues: boolean[] = [];
@@ -93,7 +95,7 @@ export class SpriteAnimator extends GameComponent {
   private numberValues: number[] = [];
   private triggerNames: string[] = [];
   private triggerValues: boolean[] = [];
-  private currentAnimationValue: SpriteAnimation | null = null;
+  private currentAnimationValue: SpriteAnimationPlaybackClip | null = null;
   private currentClipNameValue: string | null = null;
   private currentStateValue: string | null = null;
   private frameIndexValue = 0;
@@ -108,17 +110,18 @@ export class SpriteAnimator extends GameComponent {
   private playbackRevision = 0;
   private animationError: string | null = null;
 
-  constructor(renderer: SpriteRenderer, options: SpriteAnimatorOptions) {
+  constructor(renderer: SpriteRenderer | SpriteAnimationTemplateRenderer, options: SpriteAnimatorOptions) {
     super();
     const settings: SpriteAnimatorOptions = options === null || options === undefined
       ? { clips: {} }
       : options;
-    this.spriteRenderer = renderer;
+    this.animationTarget = renderer;
 
-    if (renderer === null || renderer === undefined || renderer.error !== null || renderer.frame === null) {
+    if (renderer === null || renderer === undefined || renderer.error !== null ||
+        (renderer instanceof SpriteRenderer && renderer.frame === null)) {
       this.animationError = renderer === null || renderer === undefined
         ? 'SpriteAnimator requires a SpriteRenderer.'
-        : renderer.error || 'SpriteAnimator requires a SpriteRenderer with a valid frame.';
+        : renderer.error || 'SpriteAnimator requires a valid animation target.';
       return;
     }
     if (settings.clips === null || settings.clips === undefined || typeof settings.clips !== 'object') {
@@ -135,9 +138,15 @@ export class SpriteAnimator extends GameComponent {
       const name = names[index];
       const clip = settings.clips[name];
       if (!isValidName(name) || clip === null || clip === undefined ||
-          !(clip instanceof SpriteAnimation) ||
+          (!(clip instanceof SpriteAnimation) && !(clip instanceof SpriteAnimationTemplateBoundClip)) ||
           !isArray(clip.frames) || clip.error !== null || clip.frames.length === 0) {
         this.animationError = 'SpriteAnimator received an invalid clip: ' + name;
+        this.clipNames = [];
+        this.clips = [];
+        return;
+      }
+      if (!renderer._canPlayClip(clip)) {
+        this.animationError = 'SpriteAnimator received a clip unsupported by its animation target: ' + name;
         this.clipNames = [];
         this.clips = [];
         return;
@@ -214,7 +223,11 @@ export class SpriteAnimator extends GameComponent {
 
   get error(): string | null { return this.animationError; }
   get currentClip(): string | null { return this.currentClipNameValue; }
-  get currentAnimation(): SpriteAnimation | null { return this.currentAnimationValue; }
+  get currentAnimation(): SpriteAnimation | null {
+    return this.currentAnimationValue instanceof SpriteAnimation ? this.currentAnimationValue : null;
+  }
+  /** Current concrete or template clip. Use currentAnimation for the original concrete-only API. */
+  get currentClipData(): SpriteAnimationPlaybackClip | null { return this.currentAnimationValue; }
   get currentState(): string | null { return this.currentStateValue; }
   get currentFrameIndex(): number { return this.frameIndexValue; }
   get isPlaying(): boolean { return this.playingValue; }
@@ -300,7 +313,7 @@ export class SpriteAnimator extends GameComponent {
     this.pingPongDirection = 1;
     this.completionSent = false;
     this.pendingInitialMarkers = false;
-    this.spriteRenderer.setFrame(animation.frames[0].sprite);
+    this.animationTarget._selectClipFrame(animation, 0, true);
     return true;
   }
 
@@ -330,7 +343,7 @@ export class SpriteAnimator extends GameComponent {
     this.pingPongDirection = 1;
     this.completionSent = false;
     this.pendingInitialMarkers = false;
-    this.spriteRenderer.setFrame(animation.frames[0].sprite);
+    this.animationTarget._selectClipFrame(animation, 0, true);
     this.playingValue = true;
     this.pausedValue = false;
     if (targetTime > 0) this.advanceTime(targetTime, emitMarkers, false);
@@ -338,7 +351,7 @@ export class SpriteAnimator extends GameComponent {
     if (animation.loop === 'once' && timeSeconds >= animation.duration) {
       this.frameIndexValue = animation.frames.length - 1;
       this.frameElapsed = animation.frames[this.frameIndexValue].duration;
-      this.spriteRenderer._setAnimationFrame(animation.frames[this.frameIndexValue].sprite);
+      this.animationTarget._selectClipFrame(animation, this.frameIndexValue);
       this.playingValue = false;
       this.completionSent = true;
     } else {
@@ -444,7 +457,7 @@ export class SpriteAnimator extends GameComponent {
     if (this.playbackRevision !== markerRevision || this.pausedValue) return;
 
     if (isFiniteNumber(deltaTime) && deltaTime > 0) {
-      this.spriteRenderer._advanceCrossfade(deltaTime);
+      this.animationTarget._advanceCrossfade(deltaTime);
       if (this.playingValue && this.speedValue > 0) {
         this.advanceTime(deltaTime * this.speedValue, true, true);
       }
@@ -457,17 +470,14 @@ export class SpriteAnimator extends GameComponent {
 
   /** @internal Keeps this animator with the Game that owns its renderer's texture. */
   _canAttachTo(context: GameContext): boolean {
-    if (!this.spriteRenderer._canAttachTo(context)) return false;
+    if (!this.animationTarget._canAttachTo(context)) return false;
     for (let clipIndex = 0; clipIndex < this.clips.length; clipIndex++) {
-      const frames = this.clips[clipIndex].frames;
-      for (let frameIndex = 0; frameIndex < frames.length; frameIndex++) {
-        if (!frames[frameIndex].sprite.sheet._canAttachTo(context)) return false;
-      }
+      if (!this.animationTarget._canAttachClipTo(this.clips[clipIndex], context)) return false;
     }
     return true;
   }
 
-  private findClip(name: string): SpriteAnimation | null {
+  private findClip(name: string): SpriteAnimationPlaybackClip | null {
     for (let index = 0; index < this.clipNames.length; index++) {
       if (this.clipNames[index] === name) return this.clips[index];
     }
@@ -481,10 +491,9 @@ export class SpriteAnimator extends GameComponent {
     return null;
   }
 
-  private startClip(name: string, animation: SpriteAnimation, fade: number): boolean {
-    const firstFrame = animation.frames[0].sprite;
-    if (!this.spriteRenderer._transitionTo(firstFrame, fade)) {
-      this.animationError = this.spriteRenderer.error || 'SpriteAnimator could not select the clip frame.';
+  private startClip(name: string, animation: SpriteAnimationPlaybackClip, fade: number): boolean {
+    if (!this.animationTarget._startClipFrame(animation, 0, fade)) {
+      this.animationError = this.animationTarget.error || 'SpriteAnimator could not select the clip frame.';
       return false;
     }
     this.playbackRevision++;
@@ -525,7 +534,7 @@ export class SpriteAnimator extends GameComponent {
     this.dispatchFrameMarkers(this.currentAnimationValue, this.frameIndexValue);
   }
 
-  private dispatchFrameMarkers(animation: SpriteAnimation, frameIndex: number): void {
+  private dispatchFrameMarkers(animation: SpriteAnimationPlaybackClip, frameIndex: number): void {
     const callback = this.onMarker;
     if (callback === null) return;
     const markers = animation.frames[frameIndex].markers;
@@ -566,15 +575,15 @@ export class SpriteAnimator extends GameComponent {
       }
 
       this.advanceFrameIndex(animation);
-      if (!this.spriteRenderer._setAnimationFrame(animation.frames[this.frameIndexValue].sprite)) {
-        this.animationError = this.spriteRenderer.error || 'SpriteAnimator could not select the next frame.';
+      if (!this.animationTarget._selectClipFrame(animation, this.frameIndexValue)) {
+        this.animationError = this.animationTarget.error || 'SpriteAnimator could not select the next frame.';
       }
       if (emitMarkers) this.dispatchFrameMarkers(animation, this.frameIndexValue);
       if (this.playbackRevision !== revision) return;
     }
   }
 
-  private advanceFrameIndex(animation: SpriteAnimation): void {
+  private advanceFrameIndex(animation: SpriteAnimationPlaybackClip): void {
     const count = animation.frames.length;
     if (count <= 1 || animation.loop === 'loop') {
       this.frameIndexValue = (this.frameIndexValue + 1) % count;
@@ -602,7 +611,7 @@ export class SpriteAnimator extends GameComponent {
     }
   }
 
-  private pingPongCycleDuration(animation: SpriteAnimation): number {
+  private pingPongCycleDuration(animation: SpriteAnimationPlaybackClip): number {
     if (animation.frames.length <= 1) return animation.duration;
     return animation.duration * 2 - animation.frames[0].duration -
       animation.frames[animation.frames.length - 1].duration;

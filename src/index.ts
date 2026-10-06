@@ -13,10 +13,27 @@ export type { Matrix4Array } from './math';
 export { Texture, ImageData, RenderTexture, FILTER_LINEAR, FILTER_NEAREST } from './textures';
 export { AssetManager, SceneAssetManager, AssetGroup } from './assets';
 export type { AssetGroupAsset, AssetGroupEntryResult, AssetGroupEntryState, AssetGroupKind, AssetGroupState } from './assets';
-export { SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D } from './sprites';
+export {
+  SpriteSheet, SpriteRenderer, SpriteAnimation, SpriteAnimator, ParticleEmitter2D,
+  SPRITE_ANIMATION_TEMPLATE_FORMAT, SPRITE_ANIMATION_TEMPLATE_VERSION,
+  validateSpriteAnimationTemplate, validateSpriteAnimationTemplateBinding,
+  SpriteAnimationTemplateAsset, SpriteAnimationTemplateBoundAnimation,
+  SpriteAnimationTemplateBoundClip, SpriteAnimationTemplateRenderer,
+} from './sprites';
 export type {
   SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteFrameTrimDefinition, SpriteSheetOptions, SpriteRendererOptions,
   ResolvedSpriteKeyframe, SpriteAnimationLoop, SpriteAnimationOptions, SpriteKeyframe,
+  SpriteAnimationPlaybackClip, SpriteAnimationPlaybackFrame,
+  SpriteAnimationTemplateBindingFailure, SpriteAnimationTemplateBindingResult,
+  SpriteAnimationTemplateBindingSuccess, SpriteAnimationTemplateBoundFrame,
+  SpriteAnimationTemplateBoundLayer, SpriteAnimationTemplateRendererOptions,
+  ResolvedSpriteAnimationTemplate, ResolvedSpriteAnimationTemplateClip, ResolvedSpriteAnimationTemplateFrame,
+  ResolvedSpriteAnimationTemplateLayer, SpriteAnimationTemplate, SpriteAnimationTemplateBindingValidationResult,
+  SpriteAnimationTemplateCanvasSize, SpriteAnimationTemplateClip, SpriteAnimationTemplateDiagnostic,
+  SpriteAnimationTemplateFrame, SpriteAnimationTemplateImageSize, SpriteAnimationTemplateLayer,
+  SpriteAnimationTemplateLoop, SpriteAnimationTemplateParameter, ResolvedSpriteAnimationTemplateTransform,
+  SpriteAnimationTemplateSourceRect, SpriteAnimationTemplateTransform, SpriteAnimationTemplateValidationResult,
+  SpriteAnimationTemplateVector2,
   SpriteAnimationTransition, SpriteAnimatorOptions, SpriteAnimatorState, SpriteCompleteCallback,
   SpriteMarkerCallback, SpriteNumberComparison, SpritePlayOptions, SpriteStateChangedCallback,
   SpriteTransitionCondition,

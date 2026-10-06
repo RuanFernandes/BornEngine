@@ -6,6 +6,7 @@ import type { ImageData } from './image-data';
 import type { RenderTexture } from './render-texture';
 import type { Color, Rect, Vector2DLike } from '../core/types';
 import * as spriteOperations from '../sprites/internal';
+import { isTextureSourceRegionInBounds } from './texture-region';
 
 type TextureSource = string | ImageData | RenderTexture;
 
@@ -83,6 +84,16 @@ export class Texture implements ContextDrawable {
   }
   get isDisposed(): boolean { return this.disposed; }
 
+  /** @internal True when both loaded textures belong to the same Game context. */
+  _belongsToSameGame(other: Texture): boolean {
+    return other instanceof Texture && this.isLoaded && other.isLoaded && this.context === other.context;
+  }
+
+  /** @internal Checks whether this loaded texture is owned by the supplied Game context. */
+  _canAttachTo(context: GameContext): boolean {
+    return this.isLoaded && context.owns(this);
+  }
+
   /** @internal Creates a 2D particle pool without exposing this Texture's native handle. */
   _createParticleEmitter2D(capacity: number): number {
     if (!this.isLoaded) return 0;
@@ -104,10 +115,7 @@ export class Texture implements ContextDrawable {
         origin === null || origin === undefined || tint === null || tint === undefined ||
         !isFiniteNumber(source.x) || !isFiniteNumber(source.y) ||
         !isFiniteNumber(source.width) || !isFiniteNumber(source.height) ||
-        source.width === 0 || source.height === 0 ||
-        source.x < 0 || source.y < 0 ||
-        source.x + Math.abs(source.width) > this.width ||
-        source.y + Math.abs(source.height) > this.height ||
+        !isTextureSourceRegionInBounds(source, this.width, this.height) ||
         !isFiniteNumber(destination.x) || !isFiniteNumber(destination.y) ||
         !isFiniteNumber(destination.width) || !isFiniteNumber(destination.height) ||
         destination.width <= 0 || destination.height <= 0 ||

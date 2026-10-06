@@ -52,6 +52,11 @@ npm/jolt-prebuilt/lib/
 # Claude Code harness-local state
 .claude/scheduled_tasks.lock
 
+# The VS Code extension needs a committed lockfile for reproducible CI installs.
+!tools/vscode/bornengine-tools/package-lock.json
+tools/vscode/bornengine-tools/*.vsix
+tools/vscode/bornengine-tools/bornengine-tools-*/
+
 # Perry compiler cache
 .perry-cache/
 

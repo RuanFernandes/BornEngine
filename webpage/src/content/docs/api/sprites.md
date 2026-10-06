@@ -103,6 +103,63 @@ The animator exposes `play`, `pause`, `resume`, `stop`, `seek`, `setSpeed`, and 
 
 States can transition to another state based on bool, number (`eq`, `gt`, `gte`, `lt`, `lte`), trigger, or callback conditions. Conditions on one transition are ANDed. Transitions are checked in declaration order, only one is taken per update, and trigger parameters are consumed only when their transition succeeds. Call `setBool`, `setNumber`, or `setTrigger` to provide parameters; `resetTrigger` clears a trigger manually.
 
+## Reusable animation templates
+
+An animation template stores clip timing and ordered image layers separately from the actual textures. BornEngineTools saves `.spriteanim-template.json` documents using the `bornengine.spriteanim-template` format. Its compact JSON mode removes only defaults such as an implicit frame duration or identity transform; it preserves parameter IDs, tags, frame and layer order, crops, markers, and playback values. Existing `.spriteanim.json` assets and concrete `SpriteAnimation` playback remain supported.
+
+Template authors choose any stable ID for each image parameter. Labels and tags help organize the editor fields; they do not change runtime behavior. Each parameter maps to one loaded texture from the same `Game`. Required parameters must be supplied. An optional parameter may be omitted, in which case only layers that use that parameter are skipped. A frame can combine several parameters, and multiple characters or equipment sets can bind the same clips to different images.
+
+```ts
+import {
+  Game,
+  GameObject,
+  Scene,
+  SpriteAnimationTemplateAsset,
+  SpriteAnimationTemplateRenderer,
+  SpriteAnimator,
+  Vector2D,
+} from '@bornengine/engine';
+
+function addTemplateCharacters(game: Game): void {
+  const templateSource = game.input.readFile('assets/avatar.spriteanim-template.json');
+  if (templateSource.length === 0) throw new Error('Could not read the animation template.');
+  const template = new SpriteAnimationTemplateAsset(JSON.parse(templateSource) as unknown);
+  if (template.error !== null) throw new Error(template.error);
+
+  const bodyTexture = game.assets.loadTexture('assets/body-blue.png');
+  const equipmentTexture = game.assets.loadTexture('assets/sword-bronze.png');
+  const alternateBodyTexture = game.assets.loadTexture('assets/body-red.png');
+  const alternateEquipmentTexture = game.assets.loadTexture('assets/sword-silver.png');
+  if (bodyTexture === null || !bodyTexture.isLoaded || equipmentTexture === null || !equipmentTexture.isLoaded ||
+      alternateBodyTexture === null || !alternateBodyTexture.isLoaded ||
+      alternateEquipmentTexture === null || !alternateEquipmentTexture.isLoaded) {
+    throw new Error('The animation images must be loaded before binding.');
+  }
+
+  // IDs are defined by this template; they do not have built-in names or positional order.
+  const first = template.bind({ body_art: bodyTexture, held_item: equipmentTexture });
+  const second = template.bind({ body_art: alternateBodyTexture, held_item: alternateEquipmentTexture });
+  if (!first.ok || !second.ok) throw new Error('The template image bindings are invalid.');
+
+  const scene = new Scene(game, { name: 'Characters' });
+  for (let index = 0; index < 2; index++) {
+    const binding = index === 0 ? first.value : second.value;
+    const renderer = new SpriteAnimationTemplateRenderer(binding, { size: new Vector2D(48, 48) });
+    const animator = new SpriteAnimator(renderer, { clips: binding.clips });
+    const character = new GameObject({ position: { x: 180 + index * 96, y: 120, z: 0 } });
+    character.addComponent(renderer);
+    character.addComponent(animator);
+    scene.add(character);
+    animator.play('walk');
+  }
+  game.scenes.changeTo(scene);
+}
+```
+
+`SpriteAnimationTemplateAsset` validates parsed JSON and fills documented defaults. `bind()` returns a result with diagnostics instead of throwing for invalid IDs, missing required images, unloaded or foreign-Game textures, and crops outside an image. Read and parse JSON with the application's existing project workflow, such as `game.input.readFile`; the engine does not add a general filesystem JSON loader. The returned bound animation owns per-binding `SpriteSheet` and `SpriteFrame` data, while each `SpriteAnimator` owns its own playback state.
+
+Each clip has one canvas size and one shared FPS/frame schedule. In V1, all visible layers in a frame advance together and share the clip loop, markers, state machine, and crossfade. Bones, independent layer timelines, and skeletal animation are not part of this format. A layer crop uses source-image pixels. Offsets are measured from the clip canvas center in template pixels; the renderer's `size` scales that canvas into world units. Stretch accepts signed values for mirroring, zoom is positive, rotation is in degrees, and pivot is normalized within the source crop. Layers draw in their authored bottom-to-top order.
+
 ## 2D particle emitters
 
 `ParticleEmitter2D` is a `GameComponent` backed by a native CPU pool. Its `frames` must come from one `SpriteSheet` and one loaded texture. The scene updates and draws it automatically while its owner is active.

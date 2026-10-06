@@ -13,6 +13,22 @@ bornengine create
 
 `create` prompts for the project name, game type, package manager, and stable engine version. Choose 2D, 2.5D, or 3D before selecting the package manager. It is intentionally interactive and does not take a project-name argument.
 
+## Colyseus server
+
+From a BornEngine project, create a server subproject with:
+
+```sh
+bornengine create server
+```
+
+The CLI runs the Colyseus project generator in `server/` by default and writes `server/bornengine.server.json` after generation succeeds. Pass an empty child folder to choose a different location or use `--package-manager pnpm|npm|yarn` to override the configured package manager:
+
+```sh
+bornengine create server services/game-server --package-manager pnpm
+```
+
+The versioned marker points from the server folder to its owning game project. BornEngineTools checks that relationship before offering the server as a blueprint destination. The [JSON blueprints guide](../../guides/blueprints/) explains templates, server/client storage, and dispatching operation IDs in game-owned server code.
+
 ## Scriptable projects
 
 ```sh

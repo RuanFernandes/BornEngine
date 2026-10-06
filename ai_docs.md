@@ -134,6 +134,14 @@ BornEngine's current development focus is 2D. Use `Vector2D` for 2D math and vec
 
 Attach the renderer and animator to the same `GameObject`. The scene handles update and drawing while the object is active. The 3D model `Animation` API remains separate.
 
+#### Reusable animation templates
+
+`.spriteanim-template.json` files use `bornengine.spriteanim-template` version 1 and store reusable clip timing plus ordered image layers. `SpriteAnimationTemplateAsset` validates a parsed JSON document; the engine does not add a general filesystem JSON loader. Bind loaded textures by the author-defined parameter IDs with `template.bind({ body_art: bodyTexture, held_item: swordTexture })`. IDs are arbitrary; labels and tags only organize the editor. Required inputs must be supplied, optional inputs may be omitted, and all supplied textures must belong to the same `Game` and contain every referenced crop.
+
+A successful binding returns per-binding `SpriteSheet`/`SpriteFrame` data and clips. Attach `new SpriteAnimationTemplateRenderer(binding, { size })` and `new SpriteAnimator(renderer, { clips: binding.clips })` to one `GameObject`, then call `animator.play('walk')`. A frame may draw multiple layers in bottom-to-top order. Crop values use source-image pixels; offsets are relative to the clip canvas center, signed stretch mirrors an axis, zoom is positive, rotation uses degrees, and pivot is normalized within the crop. Renderer size scales the clip canvas into world units.
+
+In V1, every layer in a clip shares FPS, frame durations, loop mode, markers, state transitions, and crossfade. Independent layer timelines, bones, and skeletal animation are not included. Compact serialization omits only safe defaults and preserves IDs, tags, ordering, crops, markers, and transforms. Existing concrete `.spriteanim.json` documents and single-sprite playback remain compatible. See the [sprite animation template guide](https://ruanfernandes.github.io/BornEngine/docs/guides/sprite-animation-templates/) and [API reference](https://ruanfernandes.github.io/BornEngine/docs/api/sprites/).
+
 ### 2D physics, tilemaps, and maps
 
 `PhysicsWorld2D` implements a deterministic arcade solver in pixels/second, with positive Y downward. Call `step(deltaTime)` once per update; it accumulates time and runs substeps for `PhysicsBody2D` bodies. Dynamic bodies support axis-aligned boxes and circles; segments and convex polygons are static surfaces. Collider rotation/scaling, 2D joints, and dynamic polygon pairs are not part of this solver.
@@ -174,6 +182,14 @@ Persistent mode is the default on supported targets. On Web, each opened databas
 `ColyseusClient(game, endpoint)` manages connections associated with the `Game`. Use authoritative servers and send player intent rather than a final position the server trusts. The engine synchronizes room data, but does not automatically create a `GameObject` for each remote entity; keep a view layer and synchronize it with snapshots.
 
 `Game.run()` pumps the Colyseus service each frame. In native Perry games, the standalone loop blocks; use `joinOrCreateWithCallbacks()`/`requestWithCallbacks()` when promises need an event loop that is not being yielded to. An embedded host must keep calling `runFrame()`. To clean up explicitly, leave rooms and dispose of the client.
+
+## JSON blueprints
+
+BornEngineTools authors data-only `bornengine.blueprint-template` and `bornengine.blueprint` JSON documents. Both use schema `version: 1`; templates also use an independent positive `revision`, and each blueprint references the exact template ID and revision. Templates declare typed fields, events, action/condition definitions, execution pins, and game-chosen `operationId` values. Blueprints store field values, graph node instances, parameters, canvas positions, and connections. JSON contains no executable source, expression runtime, or generic engine executor.
+
+Shared templates are authored under `.bornengine/blueprint-templates/`. Client blueprints are stored under `assets/blueprints/`; server-target blueprints are stored under a valid linked server's `blueprints/`. The CLI creates that server with `bornengine create server` and writes a versioned `bornengine.server.json` marker. BornEngineTools offers the server only when `clientProjectRoot` resolves to the current BornEngine project. Invalid JSON, unknown schema versions, and missing or mismatched template revisions remain unchanged and produce diagnostics.
+
+For server execution, deploy the exact referenced template revision with its blueprint so game code can resolve `definitionId` values to declared operation IDs. Validate the full data against game rules and map each allowed `operationId` to an explicit handler in client/server code. Multiplayer outcomes remain server-authoritative; client blueprints may drive presentation only. BornEngineTools is optional at runtime and edits version-controlled project files; it does not write to live servers or publish remote changes. See `docs/guides/blueprints.md` and `webpage/src/content/docs/guides/blueprints.md` for the Colyseus example and authoring details.
 
 ## Scripting sandbox
 

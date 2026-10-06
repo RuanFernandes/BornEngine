@@ -1,0 +1,94 @@
+{
+  "name": "bornengine-tools",
+  "displayName": "BornEngineTools",
+  "description": "Visual editors for BornEngine maps, sprite animations, and reusable game blueprints.",
+  "version": "0.1.0",
+  "publisher": "nullborne",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RuanFernandes/BornEngine.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:bornengineTools.assets",
+    "onCommand:bornengineTools.createWorld2D",
+    "onCommand:bornengineTools.optimizeWorld2D",
+    "onCommand:bornengine.createSpriteAnimation",
+    "onCommand:bornengine.createSpriteAnimationTemplate",
+    "onCommand:bornengineTools.createBlueprintTemplate",
+    "onCommand:bornengineTools.createBlueprint",
+    "onCustomEditor:bornengineTools.world2dEditor",
+    "onCustomEditor:bornengineTools.spriteAnimationEditor",
+    "onCustomEditor:bornengineTools.spriteAnimationTemplateEditor",
+    "onCustomEditor:bornengineTools.blueprintTemplateEditor",
+    "onCustomEditor:bornengineTools.blueprintEditor"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [{"id": "bornengineTools", "title": "BornEngine", "icon": "./dist/bornengine.svg"}]
+    },
+    "views": {
+      "bornengineTools": [{"id": "bornengineTools.assets", "name": "BornEngine Tools"}]
+    },
+    "commands": [
+      {"command": "bornengineTools.createWorld2D", "title": "BornEngineTools: New World2D Map"},
+      {"command": "bornengineTools.optimizeWorld2D", "title": "BornEngineTools: Optimize World2D Map"},
+      {"command": "bornengine.createSpriteAnimation", "title": "BornEngineTools: New Sprite Animation"},
+      {"command": "bornengine.createSpriteAnimationTemplate", "title": "BornEngineTools: New Sprite Animation Template"},
+      {"command": "bornengineTools.createBlueprintTemplate", "title": "BornEngineTools: New Blueprint Template"},
+      {"command": "bornengineTools.createBlueprint", "title": "BornEngineTools: New Blueprint"}
+    ],
+    "customEditors": [
+      {
+        "viewType": "bornengineTools.world2dEditor",
+        "displayName": "BornEngine World2D Map",
+        "selector": [{"filenamePattern": "*.world2d.json"}],
+        "priority": "default"
+      },
+      {
+        "viewType": "bornengineTools.spriteAnimationEditor",
+        "displayName": "BornEngine Sprite Animation",
+        "selector": [{"filenamePattern": "*.spriteanim.json"}],
+        "priority": "default"
+      },
+      {
+        "viewType": "bornengineTools.spriteAnimationTemplateEditor",
+        "displayName": "BornEngine Sprite Animation Template",
+        "selector": [{"filenamePattern": "*.spriteanim-template.json"}],
+        "priority": "default"
+      },
+      {
+        "viewType": "bornengineTools.blueprintTemplateEditor",
+        "displayName": "BornEngine Blueprint Template",
+        "selector": [{"filenamePattern": "*.blueprint-template.json"}],
+        "priority": "default"
+      },
+      {
+        "viewType": "bornengineTools.blueprintEditor",
+        "displayName": "BornEngine Blueprint",
+        "selector": [{"filenamePattern": "*.blueprint.json"}],
+        "priority": "default"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

@@ -7,11 +7,14 @@ import {
   ParticleEmitter2D,
   Scene,
   SpriteAnimation,
+  SpriteAnimationTemplateAsset,
+  SpriteAnimationTemplateRenderer,
   SpriteAnimator,
   SpriteRenderer,
   SpriteSheet,
   Vector2D,
 } from '@bornengine/engine';
+import type { SpriteAnimationTemplateBoundAnimation } from '@bornengine/engine/sprites';
 import type { InputActionMap } from '@bornengine/engine/input';
 import type { SpriteFrame } from '@bornengine/engine/sprites';
 
@@ -21,7 +24,15 @@ class SpriteDemoScene extends Scene {
   readonly animator: SpriteAnimator;
   readonly particles: ParticleEmitter2D;
 
-  constructor(game: Game, idle: SpriteFrame, walk: SpriteFrame[], attack: SpriteFrame[], sparks: SpriteFrame[]) {
+  constructor(
+    game: Game,
+    idle: SpriteFrame,
+    walk: SpriteFrame[],
+    attack: SpriteFrame[],
+    sparks: SpriteFrame[],
+    templateBodyA: SpriteAnimationTemplateBoundAnimation,
+    templateBodyB: SpriteAnimationTemplateBoundAnimation,
+  ) {
     super(game, { name: 'Sprite animation' });
     this.camera2D = {
       offset: new Vector2D(400, 225),
@@ -111,6 +122,19 @@ class SpriteDemoScene extends Scene {
     this.player.addComponent(this.sprite);
     this.player.addComponent(this.animator);
     this.add(this.player);
+
+    this.addTemplatePreview('Body A + effects B', templateBodyA, 245);
+    this.addTemplatePreview('Body B + effects A', templateBodyB, 555);
+  }
+
+  private addTemplatePreview(name: string, animation: SpriteAnimationTemplateBoundAnimation, x: number): void {
+    const object = new GameObject({ name, position: { x, y: 225, z: 0 } });
+    const renderer = new SpriteAnimationTemplateRenderer(animation, { size: new Vector2D(48, 48) });
+    const animator = new SpriteAnimator(renderer, { clips: animation.clips });
+    object.addComponent(renderer);
+    object.addComponent(animator);
+    this.add(object);
+    animator.play('walk');
   }
 
   onEnter(): void {
@@ -148,6 +172,49 @@ class SpriteAnimationGame extends Game {
     }
     texture.setFilter(FILTER_NEAREST);
 
+    const alternateImage = this.assets.createImageData('assets/atlas.png');
+    if (alternateImage === null || !alternateImage.isLoaded || !alternateImage.flipHorizontal()) {
+      console.error('Could not prepare an alternate sprite atlas.');
+      this.dispose();
+      return;
+    }
+    const alternateTexture = this.assets.createTexture(alternateImage);
+    if (alternateTexture === null || !alternateTexture.isLoaded) {
+      console.error('Could not upload the alternate sprite atlas.');
+      this.dispose();
+      return;
+    }
+    alternateTexture.setFilter(FILTER_NEAREST);
+
+    const templateSource = this.input.readFile('assets/layered-avatar.spriteanim-template.json');
+    if (templateSource.length === 0) {
+      console.error('Could not read assets/layered-avatar.spriteanim-template.json.');
+      this.dispose();
+      return;
+    }
+    let templateDocument: unknown;
+    try {
+      templateDocument = JSON.parse(templateSource) as unknown;
+    } catch {
+      console.error('The layered avatar animation template is not valid JSON.');
+      this.dispose();
+      return;
+    }
+    const template = new SpriteAnimationTemplateAsset(templateDocument);
+    if (template.error !== null) {
+      console.error(template.error);
+      this.dispose();
+      return;
+    }
+    const templateBodyA = template.bind({ body_art: texture, spark_art: alternateTexture });
+    const templateBodyB = template.bind({ body_art: alternateTexture, spark_art: texture });
+    if (!templateBodyA.ok || !templateBodyB.ok) {
+      const diagnostics = !templateBodyA.ok ? templateBodyA.diagnostics : templateBodyB.diagnostics;
+      console.error(diagnostics.map((item) => item.message).join('\n'));
+      this.dispose();
+      return;
+    }
+
     const sheet = new SpriteSheet(texture, { frameWidth: 32, frameHeight: 32 });
     const idle = sheet.gridFrame(0, 0);
     const walkA = sheet.gridFrame(1, 0);
@@ -174,7 +241,8 @@ class SpriteAnimationGame extends Game {
     });
     this.controls.bindAction('attack', { kind: 'key', key: Key.SPACE });
 
-    this.level = new SpriteDemoScene(this, idle, [walkA, walkB, walkA], [attackA, attackB], [sparkA, sparkB]);
+    this.level = new SpriteDemoScene(this, idle, [walkA, walkB, walkA], [attackA, attackB], [sparkA, sparkB],
+      templateBodyA.value, templateBodyB.value);
     if (!this.scenes.changeTo(this.level)) {
       console.error('Could not activate the sprite demo scene.');
       this.dispose();
