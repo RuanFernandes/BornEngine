@@ -139,6 +139,56 @@ test('serializes compact defaults and emits readable dense grids on request', ()
   assert.equal(normalizeWorld2DStorage(readableStored).ok, true);
 });
 
+test('preserves a fractional empty layer tile size without promoting it to the integer map default', () => {
+  const input = {
+    format: 'bornengine.world2d',
+    version: 2,
+    id: 'fractional-empty-layer',
+    size: [1, 1],
+    tilesets: [],
+    layers: [{ id: 'empty', type: 'tilemap', size: [1, 1], tileSize: [1.5, 1.5], data: [0] }],
+  };
+
+  const serialized = serializeWorld2D(input);
+  assert.equal(serialized.ok, true, JSON.stringify(serialized.diagnostics));
+  const stored = JSON.parse(serialized.json);
+  assert.equal(Object.hasOwn(stored, 'tileSize'), false);
+  assert.deepEqual(stored.layers[0].tileSize, [1.5, 1.5]);
+  const reopened = normalizeWorld2DStorage(stored);
+  assert.equal(reopened.ok, true, JSON.stringify(reopened.diagnostics));
+  assert.deepEqual(reopened.document.layers[0].tileSize, { x: 1.5, y: 1.5 });
+});
+
+test('preserves own __proto__ keys in metadata, typed properties, and component JSON', () => {
+  const input = structuredClone(compactFixture);
+  const actor = input.layers.find((layer) => layer.type === 'objects').objects[0];
+  input.metadata = JSON.parse('{"__proto__":{"quest":42},"ordinary":1}');
+  actor.properties = JSON.parse('{"__proto__":{"type":"int","value":7},"ordinary":{"type":"int","value":1}}');
+  actor.components[0].data = JSON.parse('{"__proto__":{"quest":42},"ordinary":true}');
+
+  const normalized = normalizeWorld2DStorage(input);
+  assert.equal(normalized.ok, true, JSON.stringify(normalized.diagnostics));
+  const normalizedActor = normalized.document.layers.find((layer) => layer.type === 'objects').objects[0];
+  assert.equal(Object.hasOwn(normalized.document.metadata, '__proto__'), true);
+  assert.equal(normalized.document.metadata.__proto__.quest, 42);
+  assert.equal(Object.getPrototypeOf(normalized.document.metadata), Object.prototype);
+  assert.equal(Object.hasOwn(normalizedActor.properties, '__proto__'), true);
+  assert.equal(normalizedActor.properties.__proto__.value, 7);
+  assert.equal(normalizedActor.components[0].data.__proto__.quest, 42);
+  assert.equal(({}).quest, undefined);
+
+  const serialized = serializeWorld2D(normalized.document);
+  assert.equal(serialized.ok, true, JSON.stringify(serialized.diagnostics));
+  const stored = JSON.parse(serialized.json);
+  assert.equal(Object.hasOwn(stored.metadata, '__proto__'), true);
+  assert.equal(stored.metadata.__proto__.quest, 42);
+  const storedActor = stored.layers.find((layer) => layer.type === 'objects').objects[0];
+  assert.equal(Object.hasOwn(storedActor.properties, '__proto__'), true);
+  assert.equal(storedActor.properties.__proto__.value, 7);
+  assert.equal(Object.hasOwn(storedActor.components[0].data, '__proto__'), true);
+  assert.equal(storedActor.components[0].data.__proto__.quest, 42);
+});
+
 test('re-encodes stable source IDs after changing which tileset is primary', () => {
   const normalized = normalizeWorld2DStorage(compactFixture);
   assert.equal(normalized.ok, true, JSON.stringify(normalized.diagnostics));

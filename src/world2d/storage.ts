@@ -57,6 +57,14 @@ function safeInteger(value: any): boolean {
   return finite(value) && Math.floor(value) === value && Math.abs(value) <= 9007199254740991;
 }
 
+function setJsonProperty(target: Record<string, any>, key: string, value: any): void {
+  if (key === '__proto__') {
+    Object.defineProperty(target, key, { value, enumerable: true, configurable: true, writable: true });
+    return;
+  }
+  target[key] = value;
+}
+
 function fail(path: string, code: string, message: string): never {
   throw new World2DStorageError(path, code, message);
 }
@@ -88,7 +96,9 @@ function cloneJson(value: any, depth: number = 0): any {
   }
   const output: Record<string, any> = {};
   const keys = Object.keys(value);
-  for (let index = 0; index < keys.length; index++) output[keys[index]] = cloneJson(value[keys[index]], depth + 1);
+  for (let index = 0; index < keys.length; index++) {
+    setJsonProperty(output, keys[index], cloneJson(value[keys[index]], depth + 1));
+  }
   return output;
 }
 

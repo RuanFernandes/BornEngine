@@ -196,6 +196,33 @@ const unknownMetadataKeys = Object.keys(reparsed.metadata.unknown as { [key: str
 expect(unknownMetadataKeys.length === 3 && unknownMetadataKeys[0] === 'keep' &&
   unknownMetadataKeys[1] === 'zeta' && unknownMetadataKeys[2] === 'alpha',
   'nested metadata key order survives serialization');
+const specialKeyWorld = makeWorld('special-json-key', [objectLayer()]);
+specialKeyWorld.metadata = JSON.parse('{"__proto__":{"quest":42},"ordinary":1}');
+const specialKeyLayer = specialKeyWorld.layers[0];
+if (specialKeyLayer.type === 'objects') {
+  specialKeyLayer.objects[0].properties = JSON.parse(
+    '{"__proto__":{"type":"int","value":7},"ordinary":{"type":"int","value":1}}',
+  );
+  specialKeyLayer.objects[0].components[0].data = JSON.parse('{"__proto__":{"quest":42},"ordinary":true}');
+}
+const specialKeySerialized = serializeWorld2D(specialKeyWorld);
+expect(specialKeySerialized.ok, 'custom __proto__ JSON keys serialize on native targets');
+const specialKeyStorage = JSON.parse(specialKeySerialized.json) as {
+  metadata: Record<string, { quest?: number }>;
+  layers: Array<{ objects: Array<{
+    properties: Record<string, { value: number }>;
+    components: Array<{ data: Record<string, { quest?: number }> }>;
+  }> }>;
+};
+const specialKeyActor = specialKeyStorage.layers[0].objects[0];
+expect(Object.prototype.hasOwnProperty.call(specialKeyStorage.metadata, '__proto__') &&
+  specialKeyStorage.metadata.__proto__.quest === 42 &&
+  Object.prototype.hasOwnProperty.call(specialKeyActor.properties, '__proto__') &&
+  specialKeyActor.properties.__proto__.value === 7 &&
+  Object.prototype.hasOwnProperty.call(specialKeyActor.components[0].data, '__proto__') &&
+  specialKeyActor.components[0].data.__proto__.quest === 42 &&
+  ({} as { quest?: number }).quest === undefined,
+  'custom __proto__ JSON keys survive serialization without prototype mutation');
 expect(reparsed.layers[0].properties !== undefined &&
   reparsed.layers[0].properties.surface.value === 'grass' &&
   reparsed.layers[1].properties !== undefined &&

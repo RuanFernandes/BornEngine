@@ -52,6 +52,14 @@ function sortedKeys(value: Record<string, unknown>): string[] {
   return Object.keys(value).sort(compareStrings);
 }
 
+function setJsonProperty(target: Record<string, any>, key: string, value: any): void {
+  if (key === '__proto__') {
+    Object.defineProperty(target, key, { value, enumerable: true, configurable: true, writable: true });
+    return;
+  }
+  target[key] = value;
+}
+
 function emitReadableGrid(grid: ReadableTileGrid, depth: number): string {
   let output = '[\n';
   for (let row = 0; row < grid.values.length; row += grid.width) {
@@ -99,7 +107,7 @@ function emptyRecord(value: Record<string, unknown> | undefined): boolean {
 
 function orderedObject(value: Record<string, any>): Record<string, any> {
   const output: Record<string, any> = {};
-  for (const key of sortedKeys(value)) output[key] = value[key];
+  for (const key of sortedKeys(value)) setJsonProperty(output, key, value[key]);
   return output;
 }
 
@@ -107,7 +115,7 @@ function orderedJson(value: any): any {
   if (Array.isArray(value)) return value.map(orderedJson);
   if (value === null || typeof value !== 'object') return value;
   const output: Record<string, any> = {};
-  for (const key of Object.keys(value).sort(compareStrings)) output[key] = orderedJson(value[key]);
+  for (const key of Object.keys(value).sort(compareStrings)) setJsonProperty(output, key, orderedJson(value[key]));
   return output;
 }
 
@@ -117,6 +125,12 @@ function tuple(value: { x: number; y: number }): [number, number] {
 
 function sameSize(left: Size2, right: Size2): boolean {
   return left.x === right.x && left.y === right.y;
+}
+
+function canBeDefaultTileSize(size: Size2 | null): size is Size2 {
+  return size !== null && size.x > 0 && size.y > 0 &&
+    Math.floor(size.x) === size.x && Math.floor(size.y) === size.y &&
+    Math.abs(size.x) <= 9007199254740991 && Math.abs(size.y) <= 9007199254740991;
 }
 
 function chooseMapSize(layers: World2DLayer[]): Size2 | null {
@@ -267,7 +281,8 @@ function buildDiskDocument(document: World2DDocument, options: World2DSerializeO
   if (document.name !== document.id) output.name = document.name;
 
   const mapSize = chooseMapSize(document.layers);
-  const commonTileSize = chooseTileSize(document);
+  const selectedTileSize = chooseTileSize(document);
+  const commonTileSize = canBeDefaultTileSize(selectedTileSize) ? selectedTileSize : null;
   if (mapSize !== null) output.size = [mapSize.x, mapSize.y];
   if (commonTileSize !== null) output.tileSize = [commonTileSize.x, commonTileSize.y];
 
