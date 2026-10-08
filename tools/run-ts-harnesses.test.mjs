@@ -119,6 +119,63 @@ test('ci entries are skipped unless --include-ci is passed', () => {
   }
 });
 
+test('disabled entries print SKIP with the reason, are not run, and do not affect the exit code', () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'ok.ts': PASSING, 'broken.ts': FAILING },
+    [
+      { file: 'ok.ts', runner: 'node' },
+      { file: 'broken.ts', runner: 'node', disabled: 'crashes under the pinned runtime' },
+    ],
+  );
+  try {
+    const result = runRunner(manifestPath);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /PASS ok\.ts/);
+    assert.match(result.stdout, /SKIP broken\.ts: crashes under the pinned runtime/);
+    assert.doesNotMatch(result.stdout, /(PASS|FAIL) broken\.ts/);
+    assert.match(result.stdout, /1 passed, 0 failed, 1 disabled/);
+
+    const withCi = runRunner(manifestPath, '--include-ci');
+    assert.equal(withCi.status, 0, withCi.stdout + withCi.stderr);
+    assert.match(withCi.stdout, /SKIP broken\.ts: crashes under the pinned runtime/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a failing harness still fails the run when another entry is disabled', () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'bad.ts': FAILING, 'off.ts': FAILING },
+    [
+      { file: 'bad.ts', runner: 'node' },
+      { file: 'off.ts', runner: 'node', disabled: 'known crash' },
+    ],
+  );
+  try {
+    const result = runRunner(manifestPath);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stdout, /FAIL bad\.ts/);
+    assert.match(result.stdout, /SKIP off\.ts: known crash/);
+    assert.match(result.stdout, /0 passed, 1 failed, 1 disabled/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rejects an empty disabled reason in the manifest', () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'ok.ts': PASSING },
+    [{ file: 'ok.ts', runner: 'node', disabled: '' }],
+  );
+  try {
+    const result = runRunner(manifestPath);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /disabled/i);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('rejects an unknown runner value in the manifest', () => {
   const { dir, manifestPath } = createFixtureDir(
     { 'ok.ts': PASSING },

@@ -33,6 +33,9 @@ function loadManifest(manifestPath) {
     if (!RUNNERS.includes(entry.runner)) {
       throw new Error(`${manifestPath}: unknown runner "${entry.runner}" for ${entry.file}`);
     }
+    if (entry.disabled !== undefined && (typeof entry.disabled !== 'string' || entry.disabled.length === 0)) {
+      throw new Error(`${manifestPath}: "disabled" must be a non-empty reason string for ${entry.file}`);
+    }
   }
   return entries;
 }
@@ -71,8 +74,14 @@ function main() {
   const manifestDir = dirname(options.manifest);
   let failed = 0;
   let passed = 0;
+  let disabled = 0;
   for (const entry of entries) {
     if (options.runner !== null && entry.runner !== options.runner) continue;
+    if (entry.disabled !== undefined) {
+      console.log(`SKIP ${entry.file}: ${entry.disabled}`);
+      disabled += 1;
+      continue;
+    }
     if (entry.ci === true && !options.includeCi) {
       console.log(`SKIP ${entry.file} (ci)`);
       continue;
@@ -87,7 +96,7 @@ function main() {
       process.stdout.write('\n');
     }
   }
-  console.log(`${passed} passed, ${failed} failed`);
+  console.log(`${passed} passed, ${failed} failed, ${disabled} disabled`);
   process.exitCode = failed > 0 ? 1 : 0;
 }
 
