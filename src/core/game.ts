@@ -13,16 +13,8 @@ import { DebugUi } from '../debug-ui';
 import { GameInspector } from '../debug-ui/game-inspector';
 import { AssetManager } from '../assets';
 import { ScriptRuntime } from '../scripting/script-runtime';
-import {
-  beginDrawing,
-  endDrawing,
-  getPlatform,
-  getTime,
-  runGame,
-  setDirect2DMode,
-  setTargetFPS,
-  Platform,
-} from './internal';
+// biome-ignore format: tests/game-runtime harnesses strip imports line by line
+import { beginDrawing, endDrawing, getPlatform, getTime, runGame, setDirect2DMode, setTargetFPS, Platform } from './internal';
 
 /** Selects the native rendering path used by a Game. */
 export type GameRenderMode = '2d' | '3d' | '2.5d';

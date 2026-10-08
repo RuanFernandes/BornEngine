@@ -28,10 +28,8 @@ export class GameInspector {
   private readonly showAssets: boolean;
   private readonly showScripts: boolean;
 
-  constructor(
-    private readonly game: Game,
-    options?: boolean | GameDebugOptions,
-  ) {
+  // biome-ignore format: tests/game-runtime/game-inspector-scripts-harness.cjs matches this signature text
+  constructor(private readonly game: Game, options?: boolean | GameDebugOptions) {
     const config = typeof options === 'object' && options !== null ? options : null;
     this.enabled = options === true || (config !== null && config.enabled === true);
     this.showMetrics = config === null || config.metrics !== false;

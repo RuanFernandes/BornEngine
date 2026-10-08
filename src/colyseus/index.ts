@@ -145,10 +145,8 @@ export class ColyseusClient implements ContextResource {
   private pendingJoins: PendingJoin[] = [];
   private disposed = false;
 
-  constructor(
-    owner: Game,
-    readonly endpoint: string,
-  ) {
+  // biome-ignore format: tests/game-runtime/colyseus-timeout-harness.cjs matches this signature text
+  constructor(owner: Game, readonly endpoint: string) {
     this.context = getGameContext(owner);
     if (!this.context.isReady || this.context.isDisposed) {
       this.errorValue = 'ColyseusClient requires a ready Game.';
