@@ -480,13 +480,13 @@ export interface DrawCubeOpts {
   rotationY?: number;
 }
 
-// biome-ignore lint/correctness/noUnusedFunctionParameters: opts.rotationY is accepted for API compatibility until native support exists
 export function drawCube(
   position: Vec3,
   width: number,
   height: number,
   depth: number,
   color: Color,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: opts.rotationY is accepted for API compatibility until native support exists
   opts?: DrawCubeOpts,
 ): void {
   // Note: rotationY is accepted for API compatibility but applied only when native support exists
@@ -505,13 +505,13 @@ export function drawSphereWires(position: Vec3, radius: number, color: Color): v
   bloom_draw_sphere_wires(position.x, position.y, position.z, radius, color.r, color.g, color.b, color.a);
 }
 
-// biome-ignore lint/correctness/noUnusedFunctionParameters: slices is accepted for API compatibility until native support exists
 export function drawCylinder(
   position: Vec3,
   radiusTop: number,
   radiusBottom: number,
   height: number,
   color: Color,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: slices is accepted for API compatibility until native support exists
   slices?: number,
 ): void {
   bloom_draw_cylinder(

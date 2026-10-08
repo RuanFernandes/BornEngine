@@ -27,8 +27,8 @@ export class Texture implements ContextDrawable {
     return new Texture(game, source);
   }
 
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: game is kept as a retained field of the Perry-compiled class; dropping it would change instance shape and Game reference lifetime
   private constructor(
+    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: game is kept as a retained field of the Perry-compiled class; dropping it would change instance shape and Game reference lifetime
     private readonly game: Game,
     source: TextureSource,
   ) {
