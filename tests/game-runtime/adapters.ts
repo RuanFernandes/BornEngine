@@ -179,6 +179,7 @@ expect(otherWorldBody.position !== null && near(otherWorldBody.position.x, 4),
   'physics sync ignores bodies from another world');
 expect(kinematicBody.position !== null && near(kinematicBody.position.x, 20),
   'kinematic body follows its GameObject during the caller-owned step');
+dynamicBody.setLinearVelocity({ x: 0, y: 0, z: 0 });
 dynamicBody.setPosition({ x: 30, y: 0, z: 0 }, false);
 dynamicBody.setRotation({ x: 0, y: 0, z: 0.70710678, w: 0.70710678 }, false);
 physicsWorld.step(1 / 60);
