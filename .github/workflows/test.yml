@@ -367,6 +367,9 @@ jobs:
           zstd -d "$runtime_package/libperry_stdlib.a.zst" -o "$runtime_dir/libperry_stdlib.a"
           echo "PERRY_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
 
+      - name: Generate audio harness fixture
+        run: python3 tests/game-runtime/make-tone.py
+
       - name: Run TypeScript harnesses including native-library ones
         run: |
           lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
