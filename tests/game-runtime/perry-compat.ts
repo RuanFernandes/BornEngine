@@ -1,18 +1,18 @@
-import { Game, Vector2D } from '@bornengine/engine';
-import type { EmbeddedFrameCallbacks } from '@bornengine/engine';
-import type { Camera2DSnapshot, PhysicsRayHit2D, SpriteFrame } from '@bornengine/engine';
+import { Game, Vector2D } from '../../src';
+import type { EmbeddedFrameCallbacks } from '../../src';
+import type { Camera2DSnapshot, PhysicsRayHit2D, SpriteFrame } from '../../src';
 import {
   GameComponent,
   GameObject,
   GameScene,
   Scene,
   SceneNodeComponent,
-} from '@bornengine/engine/game';
-import type { SoundManager as AudioManager } from '@bornengine/engine/audio';
-import type { InputActionMap } from '@bornengine/engine/input';
-import type { ManagedSoundOptions as RootManagedSoundOptions, Vector2DLike } from '@bornengine/engine';
-import type { SoundManager as RootSoundManager } from '@bornengine/engine';
-import type { ManagedSoundOptions, SpatialSoundOptions } from '@bornengine/engine/audio';
+} from '../../src/game';
+import type { SoundManager as AudioManager } from '../../src/audio';
+import type { InputActionMap } from '../../src/input';
+import type { ManagedSoundOptions as RootManagedSoundOptions, Vector2DLike } from '../../src';
+import type { SoundManager as RootSoundManager } from '../../src';
+import type { ManagedSoundOptions, SpatialSoundOptions } from '../../src/audio';
 import type { DatabaseContractFixture } from './game-database-types';
 import type { verifyStandaloneLifecycle, verifyEmbeddedFrames } from './game-subclass-lifecycle';
 

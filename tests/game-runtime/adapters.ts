@@ -10,8 +10,8 @@ import {
   SceneNodeComponent,
   SphereCollider,
   WorldData,
-} from '@bornengine/engine';
-import type { SceneNode } from '@bornengine/engine/scene';
+} from '../../src';
+import type { SceneNode } from '../../src/scene';
 
 declare const process: { exit(code: number): never };
 
