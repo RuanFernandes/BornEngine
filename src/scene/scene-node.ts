@@ -22,6 +22,8 @@ export class SceneNode implements ContextResource {
   private readonly sceneGraph: SceneGraph;
 
   constructor(owner: Game, options?: SceneNodeOptions);
+  /** @internal */
+  constructor(owner: Game, options: SceneNodeOptions, adoptedHandle: number);
   constructor(owner: Game, options: SceneNodeOptions = {}, adoptedHandle?: number) {
     this.context = getGameContext(owner);
     this.sceneGraph = owner.sceneGraph;
