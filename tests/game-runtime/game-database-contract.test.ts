@@ -1,3 +1,4 @@
+import './native-link';
 import { columns, defineSchema, defineTable, validateSchema } from '../../src/storage/schema';
 import { validateFilter, validateSelect, validateValues } from '../../src/storage/query';
 import { defineMigration, validateMigrations } from '../../src/storage/migrations';

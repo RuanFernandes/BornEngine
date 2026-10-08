@@ -1,3 +1,4 @@
+import './native-link';
 import { Game, Vector2D } from '../../src';
 import type { EmbeddedFrameCallbacks } from '../../src';
 import type { Camera2DSnapshot, PhysicsRayHit2D, SpriteFrame } from '../../src';

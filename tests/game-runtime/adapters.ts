@@ -1,3 +1,4 @@
+import './native-link';
 import {
   AudioSourceComponent,
   Game,

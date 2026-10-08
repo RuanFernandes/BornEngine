@@ -1,3 +1,4 @@
+import './native-link';
 import { Game } from '../../src/core/game';
 import type { GameDebugOptions } from '../../src/core/game';
 

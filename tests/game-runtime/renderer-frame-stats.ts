@@ -1,3 +1,4 @@
+import './native-link';
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import { Renderer } from '../../src/core/renderer';

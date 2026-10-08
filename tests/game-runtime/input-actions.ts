@@ -1,3 +1,4 @@
+import './native-link';
 import { Game } from '../../src/core/game';
 
 declare const process: { exit(code: number): never };

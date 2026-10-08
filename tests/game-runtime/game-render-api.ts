@@ -1,3 +1,4 @@
+import './native-link';
 import { Game } from '../../src/core/game';
 
 class SceneDrawingGame extends Game {
