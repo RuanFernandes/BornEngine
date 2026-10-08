@@ -1,5 +1,9 @@
 [
   {
+    "file": "game-database-wire.ts",
+    "runner": "node"
+  },
+  {
     "file": "input-action-map-state.ts",
     "runner": "node"
   },
