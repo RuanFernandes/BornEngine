@@ -41,7 +41,7 @@ export type {
 } from './sprites';
 export { Font } from './text';
 export { Model, Mesh, Material, Animation } from './models';
-export type { MaterialKind, DrawCubeOpts, ProceduralSkyOptions, PbrMaterial } from './models';
+export type { MaterialKind, DrawCubeOpts, ProceduralSkyOptions } from './models';
 export {
   BUCKET_ADDITIVE, BUCKET_CUTOUT, BUCKET_OPAQUE, BUCKET_TRANSPARENT,
   PROFILE_OPAQUE, PROFILE_TRANSLUCENT,
@@ -73,7 +73,7 @@ export type {
   AudioSourceComponentOptions,
 } from './game';
 export { SceneGraph, SceneNode, FrameSubscription } from './scene';
-export type { ScenePickEntry, ScenePickHit, SceneNodeOptions } from './scene';
+export type { ScenePickEntry, ScenePickHit, SceneNodeOptions, PbrMaterial } from './scene';
 
 export { InputSystem, InputActionMap } from './input';
 export type {

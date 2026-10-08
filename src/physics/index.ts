@@ -1,10 +1,10 @@
 export { PhysicsWorld } from './physics-world';
 export type { PhysicsWorldOptions, PhysicsStepHooks, PhysicsRayHit, PhysicsContact } from './physics-world';
-export { BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
+export { Collider, BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
   ConvexHullCollider, MeshCollider, HeightfieldCollider, CompoundCollider,
   ScaledCollider, OffsetCollider } from './collider';
 export type { PhysicsTransform, CompoundColliderChild } from './collider';
-export { RigidBody } from './rigid-body';
+export { PhysicsBody, RigidBody } from './rigid-body';
 export type { RigidBodyOptions } from './rigid-body';
 export { Joint } from './joint';
 export type { JointKind, JointOptions } from './joint';
