@@ -1,6 +1,6 @@
 import type { GuiProfile } from './profile';
 import type { GuiRect } from './types';
-import type { Texture } from '../core/types';
+import type { Texture } from '../textures';
 
 export const GuiControlKind = {
   Control: 0,

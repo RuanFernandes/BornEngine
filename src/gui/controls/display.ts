@@ -1,5 +1,7 @@
-import type { Color, Texture } from '../../core/types';
+import type { Color } from '../../core/types';
+import type { Texture } from '../../textures';
 import { GuiControlKind } from '../commands';
+import type { GuiControlKindCode } from '../commands';
 import { GUI } from '../gui';
 import { GUIProfiles } from '../profile';
 import { validateGuiCoordinate, validateGuiDimension } from '../layout';
@@ -14,7 +16,7 @@ abstract class GuiImageBase extends GUI {
   private rotation = 0;
   private zoom = 1;
 
-  protected constructor(options: GUIControlOptions = {}, kind = GuiControlKind.Bitmap) {
+  protected constructor(options: GUIControlOptions = {}, kind: GuiControlKindCode = GuiControlKind.Bitmap) {
     super(options);
     this._guiCommandKind = kind;
     this.syncCommand();

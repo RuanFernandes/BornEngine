@@ -1,4 +1,4 @@
-import type { Texture } from '../../core/types';
+import type { Texture } from '../../textures';
 import { GuiControlKind } from '../commands';
 import { GUI } from '../gui';
 import { GUIProfiles } from '../profile';

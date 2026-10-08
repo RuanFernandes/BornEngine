@@ -4,6 +4,7 @@ import { GUI } from '../gui';
 import { GuiPanel } from './layout';
 import { GUIProfiles } from '../profile';
 import { GuiControlKind } from '../commands';
+import type { GuiControlKindCode } from '../commands';
 import { validateGuiCoordinate } from '../layout';
 import type { GUIControlOptions } from '../types';
 
@@ -18,7 +19,7 @@ export abstract class GuiArray extends GUI {
   protected items: GuiArrayItem[] = [];
   private selectionRevision = 0;
 
-  protected constructor(options: GUIControlOptions = {}, kind = GuiControlKind.Control, profile = 'default') {
+  protected constructor(options: GUIControlOptions = {}, kind: GuiControlKindCode = GuiControlKind.Control, profile = 'default') {
     super(options);
     this._guiCommandKind = kind;
     this.setProfile(GUIProfiles.get(profile));

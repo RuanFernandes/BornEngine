@@ -1,4 +1,5 @@
-import type { Color, Texture } from '../core/types';
+import type { Color } from '../core/types';
+import type { Texture } from '../textures';
 
 export type UiId = number;
 

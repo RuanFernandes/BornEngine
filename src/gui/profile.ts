@@ -1,4 +1,5 @@
-import type { Color, Sound, Texture } from '../core/types';
+import type { Color, Sound } from '../core/types';
+import type { Texture } from '../textures';
 import type { GuiCursor } from './types';
 
 export type GuiTextAlignment = 'start' | 'center' | 'end';

@@ -1,7 +1,7 @@
 import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
-import type { Texture } from '../core/types';
+import type { Texture } from '../textures';
 import { createUiApi } from './api';
 import { UiBackend, type UiBackendId } from './opcodes';
 import type { UiApi } from './types';

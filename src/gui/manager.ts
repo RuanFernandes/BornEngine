@@ -1,7 +1,7 @@
 import type { Game } from '../core/game';
 import { getGameContext } from '../core/context';
 import type { ContextFrameService, GameContext } from '../core/context';
-import type { Texture } from '../core/types';
+import type { Texture } from '../textures';
 import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
 import type { GUI } from './gui';
 import type { GuiSize } from './types';
@@ -257,7 +257,7 @@ export class GUIManager implements ContextFrameService {
   }
 
   private registerTexture(texture: Texture | null, registered: Set<number>): number {
-    if (texture === null || this.context === null || !this.context.owns(texture) || (texture as any).isLoaded !== true) return 0;
+    if (texture === null || this.context === null || !this.context.owns(texture) || texture.isLoaded !== true) return 0;
     const handle = (texture as any).handleValue;
     if (typeof handle !== 'number' || !Number.isFinite(handle) || handle <= 0) return 0;
     if (!registered.has(handle)) {

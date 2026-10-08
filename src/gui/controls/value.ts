@@ -2,6 +2,7 @@ import { GUIEventType } from '../events';
 import { GUI } from '../gui';
 import { GUIProfiles } from '../profile';
 import { GuiControlKind } from '../commands';
+import type { GuiControlKindCode } from '../commands';
 import { validateGuiCoordinate } from '../layout';
 import type { GUIControlOptions } from '../types';
 
@@ -11,7 +12,7 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
   private maximum = 1;
   private revision = 0;
 
-  constructor(options: GUIControlOptions = {}, initialValue: TValue, kind = GuiControlKind.Control, profile = 'default') {
+  constructor(options: GUIControlOptions = {}, initialValue: TValue, kind: GuiControlKindCode = GuiControlKind.Control, profile = 'default') {
     super(options);
     this.value = initialValue;
     this._guiCommandKind = kind;
