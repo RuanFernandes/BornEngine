@@ -5,6 +5,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
+    "lint": "biome lint src types",
+    "format:check": "biome format src types",
     "test:unit": "node --import ./tests/world2d/register-ts-resolution.mjs --test \"tests/*.test.mjs\"",
     "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
     "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --experimental-vm-modules --disable-warning=ExperimentalWarning tests/game-runtime/scripted-actor-package-harness.cjs",
@@ -104,6 +106,7 @@
     "@bornengine/jolt-prebuilt": "0.4.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "typescript": "5.9.3",
     "@perryts/perry": "0.5.1520"
   },
