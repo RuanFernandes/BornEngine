@@ -56,7 +56,7 @@ const movement = controls.readVector2('move', 'move-y');
 const normalizedMovement = Vector2D.clampMagnitude(movement, 1);
 ```
 
-`readVector2()` returns a `Vector2D` value, ready for vector math. Use `toData()` and `loadData()` to save and restore bindings. `loadData()` validates the full versioned record before replacing anything, then resets edge state so held inputs do not appear as new presses after rebinding. See [GameDatabase](../storage/) to store settings alongside other persistent game data.
+`readVector2()` returns a `Vector2D` value, ready for vector math. Use `toData()` and `loadData()` to save and restore bindings. `loadData()` validates the full versioned record before replacing anything, then resets edge state so held inputs do not appear as new presses after rebinding. A binding added with `bindAction()` or `loadData()` suppresses `wasPressed` and `wasReleased` for controls held through the change until the action returns to neutral; `isDown` still reports the held state. See [GameDatabase](../storage/) to store settings alongside other persistent game data.
 
 ## Frame loop
 
