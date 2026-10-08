@@ -4,9 +4,11 @@
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
+    "typecheck:tests": "tsc -p tests/tsconfig.json",
     "test:unit": "node --import ./tests/world2d/register-ts-resolution.mjs --test \"tests/*.test.mjs\"",
     "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
     "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --experimental-vm-modules --disable-warning=ExperimentalWarning tests/game-runtime/scripted-actor-package-harness.cjs",
+    "test:harnesses": "node tools/run-ts-harnesses.mjs",
     "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
     "examples:check:static": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs --static",
     "test:examples-validator": "node --test tools/validate-examples.test.mjs"

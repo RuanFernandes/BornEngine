@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["game-runtime/*-api-types.ts", "../types/**/*.d.ts"]
+}
