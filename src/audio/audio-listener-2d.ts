@@ -20,16 +20,21 @@ export class AudioListener2D {
   private disposed = false;
   private readonly context: GameContext;
 
-  constructor(private readonly game: Game, private readonly audio: AudioSystem) {
+  constructor(
+    private readonly game: Game,
+    private readonly audio: AudioSystem,
+  ) {
     this.context = getGameContext(game);
   }
 
-  get isDisposed(): boolean { return this.disposed; }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   /** Set an explicit listener location in the game's XY world plane. */
   setPosition(position: Position2D): boolean {
-    if (this.disposed || !this.context.isReady || this.context.isDisposed ||
-        !finite(position.x) || !finite(position.y)) return false;
+    if (this.disposed || !this.context.isReady || this.context.isDisposed || !finite(position.x) || !finite(position.y))
+      return false;
     this.explicitPosition = copyPosition(position);
     return true;
   }
@@ -53,7 +58,9 @@ export class AudioListener2D {
   }
 
   /** @internal */
-  _belongsToContext(context: GameContext): boolean { return this.context === context && !this.disposed; }
+  _belongsToContext(context: GameContext): boolean {
+    return this.context === context && !this.disposed;
+  }
 
   dispose(): void {
     this.disposed = true;

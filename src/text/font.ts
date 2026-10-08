@@ -13,9 +13,15 @@ export class Font implements ContextResource {
   private readonly context: GameContext;
 
   /** @internal Resource construction is routed through an asset scope. */
-  static _create(game: Game, path: string, size: number): Font { return new Font(game, path, size); }
+  static _create(game: Game, path: string, size: number): Font {
+    return new Font(game, path, size);
+  }
 
-  private constructor(game: Game, readonly path: string, readonly size: number) {
+  private constructor(
+    game: Game,
+    readonly path: string,
+    readonly size: number,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || size <= 0) {
@@ -27,8 +33,12 @@ export class Font implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   measureText(text: string, size = this.size, spacing = 0): Vector2D {
     if (!this.isLoaded) return Vector2D.zero();
@@ -46,7 +56,9 @@ export class Font implements ContextResource {
     return true;
   }
 
-  private toNativeFont(): { handle: number; size: number } { return { handle: this.handleValue, size: this.size }; }
+  private toNativeFont(): { handle: number; size: number } {
+    return { handle: this.handleValue, size: this.size };
+  }
 
   dispose(): void {
     if (this.disposed) return;

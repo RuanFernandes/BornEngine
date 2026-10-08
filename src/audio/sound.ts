@@ -46,9 +46,7 @@ export class StagedSound implements ContextResource {
 
   static stageMany(game: Game, paths: string[]): StagedSound[] {
     const context = getGameContext(game);
-    const handles = !context.isReady || context.isDisposed
-      ? []
-      : operations.stageSounds(paths);
+    const handles = !context.isReady || context.isDisposed ? [] : operations.stageSounds(paths);
     const staged: StagedSound[] = [];
     for (let index = 0; index < paths.length; index++) {
       staged.push(new StagedSound(game, paths[index], handles[index] || 0));
@@ -56,11 +54,17 @@ export class StagedSound implements ContextResource {
     return staged;
   }
 
-  get isReady(): boolean { return !this.consumed && this.handleValue !== 0 && this.context.isReady; }
+  get isReady(): boolean {
+    return !this.consumed && this.handleValue !== 0 && this.context.isReady;
+  }
 
-  commit(): Sound { return Sound._create(this.game, this); }
+  commit(): Sound {
+    return Sound._create(this.game, this);
+  }
 
-  private get context(): GameContext { return getGameContext(this.game); }
+  private get context(): GameContext {
+    return getGameContext(this.game);
+  }
 
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (source as any).takeForCommit(context) from the Sound constructor
   private takeForCommit(context: GameContext): number {
@@ -91,9 +95,14 @@ export class Sound implements ContextResource {
   private readonly context: GameContext;
 
   /** @internal Audio resources are created by AudioSystem or an asset scope. */
-  static _create(game: Game, source: string | StagedSound): Sound { return new Sound(game, source); }
+  static _create(game: Game, source: string | StagedSound): Sound {
+    return new Sound(game, source);
+  }
 
-  private constructor(private readonly game: Game, source: string | StagedSound) {
+  private constructor(
+    private readonly game: Game,
+    source: string | StagedSound,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     let loaded: { handle: number } = { handle: 0 };
@@ -125,9 +134,15 @@ export class Sound implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
-  _belongsToContext(context: GameContext): boolean { return this.context === context; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  _belongsToContext(context: GameContext): boolean {
+    return this.context === context;
+  }
 
   play(options: SoundPlayOptions = {}): boolean {
     if (!this.isLoaded) return false;
@@ -145,7 +160,10 @@ export class Sound implements ContextResource {
   play3D(position: Vec3, options: SpatialPlaybackOptions = {}): SoundVoice | null {
     if (!this.isLoaded) return null;
     const voiceHandle = operations.playSound3DEx(
-      this.toNativeSound(), position.x, position.y, position.z,
+      this.toNativeSound(),
+      position.x,
+      position.y,
+      position.z,
       options.looping === undefined ? false : options.looping,
       options.refDist === undefined ? 1 : options.refDist,
       options.maxDist === undefined ? 0 : options.maxDist,
@@ -165,10 +183,26 @@ export class Sound implements ContextResource {
     return true;
   }
 
-  setVolume(volume: number): boolean { if (!this.isLoaded) return false; operations.setSoundVolume(this.toNativeSound(), volume); return true; }
-  setBus(bus: number): boolean { if (!this.isLoaded) return false; operations.setSoundBus(this.toNativeSound(), bus); return true; }
-  setReverbSend(send: number): boolean { if (!this.isLoaded) return false; operations.setSoundReverbSend(this.toNativeSound(), send); return true; }
-  setLowpass(cutoffHz: number): boolean { if (!this.isLoaded) return false; operations.setSoundLowpass(this.toNativeSound(), cutoffHz); return true; }
+  setVolume(volume: number): boolean {
+    if (!this.isLoaded) return false;
+    operations.setSoundVolume(this.toNativeSound(), volume);
+    return true;
+  }
+  setBus(bus: number): boolean {
+    if (!this.isLoaded) return false;
+    operations.setSoundBus(this.toNativeSound(), bus);
+    return true;
+  }
+  setReverbSend(send: number): boolean {
+    if (!this.isLoaded) return false;
+    operations.setSoundReverbSend(this.toNativeSound(), send);
+    return true;
+  }
+  setLowpass(cutoffHz: number): boolean {
+    if (!this.isLoaded) return false;
+    operations.setSoundLowpass(this.toNativeSound(), cutoffHz);
+    return true;
+  }
 
   private trackVoice(handle: number): AudioVoice {
     const voice = new AudioVoice(this, handle);
@@ -182,7 +216,9 @@ export class Sound implements ContextResource {
     if (index >= 0) this.voices.splice(index, 1);
   }
 
-  private toNativeSound(): { handle: number } { return { handle: this.handleValue }; }
+  private toNativeSound(): { handle: number } {
+    return { handle: this.handleValue };
+  }
 
   dispose(): void {
     if (this.disposed) return;
@@ -203,17 +239,36 @@ export class Sound implements ContextResource {
 class AudioVoice implements SoundVoice {
   private handleValue: number;
 
-  constructor(private readonly sound: Sound, handle: number) { this.handleValue = handle; }
+  constructor(
+    private readonly sound: Sound,
+    handle: number,
+  ) {
+    this.handleValue = handle;
+  }
 
-  get isActive(): boolean { return this.handleValue !== 0 && this.sound.isLoaded; }
+  get isActive(): boolean {
+    return this.handleValue !== 0 && this.sound.isLoaded;
+  }
   setPosition(position: Vec3): boolean {
     if (!this.isActive) return false;
     operations.voiceSetPosition(this.handleValue, position.x, position.y, position.z);
     return true;
   }
-  setVolume(volume: number): boolean { if (!this.isActive) return false; operations.voiceSetVolume(this.handleValue, volume); return true; }
-  setPitch(pitch: number): boolean { if (!this.isActive) return false; operations.voiceSetPitch(this.handleValue, pitch); return true; }
-  setLowpass(cutoffHz: number): boolean { if (!this.isActive) return false; operations.voiceSetLowpass(this.handleValue, cutoffHz); return true; }
+  setVolume(volume: number): boolean {
+    if (!this.isActive) return false;
+    operations.voiceSetVolume(this.handleValue, volume);
+    return true;
+  }
+  setPitch(pitch: number): boolean {
+    if (!this.isActive) return false;
+    operations.voiceSetPitch(this.handleValue, pitch);
+    return true;
+  }
+  setLowpass(cutoffHz: number): boolean {
+    if (!this.isActive) return false;
+    operations.voiceSetLowpass(this.handleValue, cutoffHz);
+    return true;
+  }
 
   stop(): void {
     if (this.handleValue === 0) return;
@@ -222,5 +277,7 @@ class AudioVoice implements SoundVoice {
     this.sound.removeVoice(this);
   }
 
-  dispose(): void { this.stop(); }
+  dispose(): void {
+    this.stop();
+  }
 }

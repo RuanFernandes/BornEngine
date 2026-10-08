@@ -1,12 +1,7 @@
 import { Vec3, Quat } from '../core/types';
 import { mat4Multiply } from '../math/internal';
 import { GameComponent, GameComponentType } from './game-component';
-import {
-  decomposeTransformMatrix,
-  invertTransformMatrix,
-  Transform,
-  TransformOptions,
-} from './transform';
+import { decomposeTransformMatrix, invertTransformMatrix, Transform, TransformOptions } from './transform';
 import type { GameScene } from './game-scene';
 
 export interface GameObjectOptions extends TransformOptions {
@@ -109,8 +104,7 @@ export class GameObject {
     const childScene = child.ownerScene;
     if (childScene !== null && childScene !== targetScene) return null;
     if (targetScene === null && childScene !== null) return null;
-    if (targetScene !== null && childScene === null &&
-        !targetScene._canAttachSubtree(child)) return null;
+    if (targetScene !== null && childScene === null && !targetScene._canAttachSubtree(child)) return null;
 
     let nextLocalPosition: Vec3 | null = null;
     let nextLocalRotation: Quat | null = null;
@@ -134,8 +128,7 @@ export class GameObject {
       if (previousIndex >= 0) removeAt(previousParent.childObjects, previousIndex);
     }
     this.childObjects.push(child);
-    if (nextLocalPosition !== null && nextLocalRotation !== null &&
-        nextLocalScale !== null) {
+    if (nextLocalPosition !== null && nextLocalRotation !== null && nextLocalScale !== null) {
       child.transform._setLocalTRS(nextLocalPosition, nextLocalRotation, nextLocalScale);
     }
     if (targetScene !== null && childScene === null) {
@@ -161,8 +154,7 @@ export class GameObject {
     const index = this.childObjects.indexOf(child);
     if (index < 0 || !child._setParent(null)) return false;
     removeAt(this.childObjects, index);
-    if (nextLocalPosition !== null && nextLocalRotation !== null &&
-        nextLocalScale !== null) {
+    if (nextLocalPosition !== null && nextLocalRotation !== null && nextLocalScale !== null) {
       child.transform._setLocalTRS(nextLocalPosition, nextLocalRotation, nextLocalScale);
     }
     return true;

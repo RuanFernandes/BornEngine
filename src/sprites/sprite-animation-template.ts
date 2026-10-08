@@ -182,7 +182,9 @@ function failure(diagnostics: SpriteAnimationTemplateDiagnostic[]): SpriteAnimat
   return { ok: false, value: null, diagnostics };
 }
 
-function bindingFailure(diagnostics: SpriteAnimationTemplateDiagnostic[]): SpriteAnimationTemplateBindingValidationResult {
+function bindingFailure(
+  diagnostics: SpriteAnimationTemplateDiagnostic[],
+): SpriteAnimationTemplateBindingValidationResult {
   return { ok: false, diagnostics };
 }
 
@@ -202,16 +204,39 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
     addDiagnostic(diagnostics, '/format', 'template.format', `Format must be "${SPRITE_ANIMATION_TEMPLATE_FORMAT}".`);
   }
   if (input.version !== SPRITE_ANIMATION_TEMPLATE_VERSION) {
-    addDiagnostic(diagnostics, '/version', 'template.version', `Only animation template version ${SPRITE_ANIMATION_TEMPLATE_VERSION} is supported.`);
+    addDiagnostic(
+      diagnostics,
+      '/version',
+      'template.version',
+      `Only animation template version ${SPRITE_ANIMATION_TEMPLATE_VERSION} is supported.`,
+    );
   }
   if (!validStableText(input.id)) {
-    addDiagnostic(diagnostics, '/id', 'template.id', 'Template ID must be non-empty, trimmed text without control characters.');
+    addDiagnostic(
+      diagnostics,
+      '/id',
+      'template.id',
+      'Template ID must be non-empty, trimmed text without control characters.',
+    );
   }
   if (!validStableText(input.name)) {
-    addDiagnostic(diagnostics, '/name', 'template.name', 'Template name must be non-empty, trimmed text without control characters.');
+    addDiagnostic(
+      diagnostics,
+      '/name',
+      'template.name',
+      'Template name must be non-empty, trimmed text without control characters.',
+    );
   }
-  if (input.description !== undefined && (typeof input.description !== 'string' || input.description !== input.description.trim())) {
-    addDiagnostic(diagnostics, '/description', 'template.description', 'Description must be trimmed text when present.');
+  if (
+    input.description !== undefined &&
+    (typeof input.description !== 'string' || input.description !== input.description.trim())
+  ) {
+    addDiagnostic(
+      diagnostics,
+      '/description',
+      'template.description',
+      'Description must be trimmed text when present.',
+    );
   }
 
   const parameters: SpriteAnimationTemplateParameter[] = [];
@@ -228,30 +253,66 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
       checkKeys(rawParameter, PARAMETER_KEYS, path, diagnostics);
       let id = '';
       if (!validStableText(rawParameter.id)) {
-        addDiagnostic(diagnostics, pointer(path, 'id'), 'parameter.id', 'Parameter ID must be non-empty, trimmed text without control characters.');
+        addDiagnostic(
+          diagnostics,
+          pointer(path, 'id'),
+          'parameter.id',
+          'Parameter ID must be non-empty, trimmed text without control characters.',
+        );
       } else {
         id = rawParameter.id;
-        if (parameterIds.has(id)) addDiagnostic(diagnostics, pointer(path, 'id'), 'parameter.duplicate', `Parameter ID "${id}" must be unique.`);
+        if (parameterIds.has(id))
+          addDiagnostic(
+            diagnostics,
+            pointer(path, 'id'),
+            'parameter.duplicate',
+            `Parameter ID "${id}" must be unique.`,
+          );
         parameterIds.add(id);
       }
       if (rawParameter.label !== undefined && !validStableText(rawParameter.label)) {
-        addDiagnostic(diagnostics, pointer(path, 'label'), 'parameter.label', 'Parameter label must be non-empty, trimmed text without control characters when present.');
+        addDiagnostic(
+          diagnostics,
+          pointer(path, 'label'),
+          'parameter.label',
+          'Parameter label must be non-empty, trimmed text without control characters when present.',
+        );
       }
       if (typeof rawParameter.required !== 'boolean') {
-        addDiagnostic(diagnostics, pointer(path, 'required'), 'parameter.required', 'Parameter required must be a boolean.');
+        addDiagnostic(
+          diagnostics,
+          pointer(path, 'required'),
+          'parameter.required',
+          'Parameter required must be a boolean.',
+        );
       }
       let tags: string[] | undefined;
       if (rawParameter.tags !== undefined) {
         if (!Array.isArray(rawParameter.tags)) {
-          addDiagnostic(diagnostics, pointer(path, 'tags'), 'parameter.tags', 'Parameter tags must be an array of unique non-empty strings.');
+          addDiagnostic(
+            diagnostics,
+            pointer(path, 'tags'),
+            'parameter.tags',
+            'Parameter tags must be an array of unique non-empty strings.',
+          );
         } else {
           const tagSet = new Set<string>();
           tags = [];
           rawParameter.tags.forEach((tag, tagIndex) => {
             if (!validStableText(tag)) {
-              addDiagnostic(diagnostics, pointer(pointer(path, 'tags'), tagIndex), 'parameter.tag', 'Tags must be non-empty, trimmed text without control characters.');
+              addDiagnostic(
+                diagnostics,
+                pointer(pointer(path, 'tags'), tagIndex),
+                'parameter.tag',
+                'Tags must be non-empty, trimmed text without control characters.',
+              );
             } else if (tagSet.has(tag)) {
-              addDiagnostic(diagnostics, pointer(pointer(path, 'tags'), tagIndex), 'parameter.tag_duplicate', `Tag "${tag}" must be unique for this parameter.`);
+              addDiagnostic(
+                diagnostics,
+                pointer(pointer(path, 'tags'), tagIndex),
+                'parameter.tag_duplicate',
+                `Tag "${tag}" must be unique for this parameter.`,
+              );
             } else {
               tagSet.add(tag);
               tags?.push(tag);
@@ -259,9 +320,12 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
           });
         }
       }
-      if (id.length > 0 && typeof rawParameter.required === 'boolean' &&
-          (rawParameter.label === undefined || validStableText(rawParameter.label)) &&
-          (rawParameter.tags === undefined || Array.isArray(rawParameter.tags))) {
+      if (
+        id.length > 0 &&
+        typeof rawParameter.required === 'boolean' &&
+        (rawParameter.label === undefined || validStableText(rawParameter.label)) &&
+        (rawParameter.tags === undefined || Array.isArray(rawParameter.tags))
+      ) {
         parameters.push({
           id,
           ...(rawParameter.label === undefined ? {} : { label: rawParameter.label as string }),
@@ -286,10 +350,21 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
       checkKeys(rawClip, CLIP_KEYS, clipPath, diagnostics);
       let name = '';
       if (!validStableText(rawClip.name)) {
-        addDiagnostic(diagnostics, pointer(clipPath, 'name'), 'clip.name', 'Clip name must be non-empty, trimmed text without control characters.');
+        addDiagnostic(
+          diagnostics,
+          pointer(clipPath, 'name'),
+          'clip.name',
+          'Clip name must be non-empty, trimmed text without control characters.',
+        );
       } else {
         name = rawClip.name;
-        if (clipNames.has(name)) addDiagnostic(diagnostics, pointer(clipPath, 'name'), 'clip.duplicate', `Clip name "${name}" must be unique.`);
+        if (clipNames.has(name))
+          addDiagnostic(
+            diagnostics,
+            pointer(clipPath, 'name'),
+            'clip.duplicate',
+            `Clip name "${name}" must be unique.`,
+          );
         clipNames.add(name);
       }
       if (!isFiniteNumber(rawClip.fps) || rawClip.fps <= 0) {
@@ -300,12 +375,22 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
       }
       const canvas = isObject(rawClip.canvasSize) ? rawClip.canvasSize : null;
       if (!canvas || !isPositiveInteger(canvas.width) || !isPositiveInteger(canvas.height)) {
-        addDiagnostic(diagnostics, pointer(clipPath, 'canvasSize'), 'clip.canvas', 'Canvas width and height must be positive integers.');
+        addDiagnostic(
+          diagnostics,
+          pointer(clipPath, 'canvasSize'),
+          'clip.canvas',
+          'Canvas width and height must be positive integers.',
+        );
       } else checkKeys(canvas, ['width', 'height'], pointer(clipPath, 'canvasSize'), diagnostics);
 
       const frames: ResolvedSpriteAnimationTemplateFrame[] = [];
       if (!Array.isArray(rawClip.frames) || rawClip.frames.length === 0) {
-        addDiagnostic(diagnostics, pointer(clipPath, 'frames'), 'frame.list', 'Each clip must contain at least one frame.');
+        addDiagnostic(
+          diagnostics,
+          pointer(clipPath, 'frames'),
+          'frame.list',
+          'Each clip must contain at least one frame.',
+        );
       } else {
         rawClip.frames.forEach((rawFrame, frameIndex) => {
           const framePath = pointer(pointer(clipPath, 'frames'), frameIndex);
@@ -315,24 +400,44 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
           }
           checkKeys(rawFrame, FRAME_KEYS, framePath, diagnostics);
           if (rawFrame.duration !== undefined && (!isFiniteNumber(rawFrame.duration) || rawFrame.duration <= 0)) {
-            addDiagnostic(diagnostics, pointer(framePath, 'duration'), 'frame.duration', 'Frame duration must be finite and positive when present.');
+            addDiagnostic(
+              diagnostics,
+              pointer(framePath, 'duration'),
+              'frame.duration',
+              'Frame duration must be finite and positive when present.',
+            );
           }
           let markers: string[] | undefined;
           if (rawFrame.markers !== undefined) {
             if (!Array.isArray(rawFrame.markers)) {
-              addDiagnostic(diagnostics, pointer(framePath, 'markers'), 'frame.markers', 'Frame markers must be an array of non-empty strings.');
+              addDiagnostic(
+                diagnostics,
+                pointer(framePath, 'markers'),
+                'frame.markers',
+                'Frame markers must be an array of non-empty strings.',
+              );
             } else {
               markers = [];
               rawFrame.markers.forEach((marker, markerIndex) => {
                 if (!validStableText(marker)) {
-                  addDiagnostic(diagnostics, pointer(pointer(framePath, 'markers'), markerIndex), 'frame.marker', 'Marker names must be non-empty, trimmed text without control characters.');
+                  addDiagnostic(
+                    diagnostics,
+                    pointer(pointer(framePath, 'markers'), markerIndex),
+                    'frame.marker',
+                    'Marker names must be non-empty, trimmed text without control characters.',
+                  );
                 } else markers?.push(marker);
               });
             }
           }
           const layers: ResolvedSpriteAnimationTemplateLayer[] = [];
           if (!Array.isArray(rawFrame.layers) || rawFrame.layers.length === 0) {
-            addDiagnostic(diagnostics, pointer(framePath, 'layers'), 'layer.list', 'Each frame must contain at least one layer.');
+            addDiagnostic(
+              diagnostics,
+              pointer(framePath, 'layers'),
+              'layer.list',
+              'Each frame must contain at least one layer.',
+            );
           } else {
             rawFrame.layers.forEach((rawLayer, layerIndex) => {
               const layerPath = pointer(pointer(framePath, 'layers'), layerIndex);
@@ -343,21 +448,52 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
               checkKeys(rawLayer, LAYER_KEYS, layerPath, diagnostics);
               const parameter = rawLayer.parameter;
               if (!validStableText(parameter) || !parameterIds.has(parameter)) {
-                addDiagnostic(diagnostics, pointer(layerPath, 'parameter'), 'layer.parameter', 'Layer must reference a declared image parameter ID.');
+                addDiagnostic(
+                  diagnostics,
+                  pointer(layerPath, 'parameter'),
+                  'layer.parameter',
+                  'Layer must reference a declared image parameter ID.',
+                );
               }
               const source = isObject(rawLayer.source) ? rawLayer.source : null;
-              if (!source || !isNonNegativeInteger(source.x) || !isNonNegativeInteger(source.y) ||
-                  !isPositiveInteger(source.width) || !isPositiveInteger(source.height)) {
-                addDiagnostic(diagnostics, pointer(layerPath, 'source'), 'layer.source', 'Layer source needs non-negative integer x/y and positive integer width/height.');
+              if (
+                !source ||
+                !isNonNegativeInteger(source.x) ||
+                !isNonNegativeInteger(source.y) ||
+                !isPositiveInteger(source.width) ||
+                !isPositiveInteger(source.height)
+              ) {
+                addDiagnostic(
+                  diagnostics,
+                  pointer(layerPath, 'source'),
+                  'layer.source',
+                  'Layer source needs non-negative integer x/y and positive integer width/height.',
+                );
               } else checkKeys(source, SOURCE_KEYS, pointer(layerPath, 'source'), diagnostics);
               if (rawLayer.visible !== undefined && typeof rawLayer.visible !== 'boolean') {
-                addDiagnostic(diagnostics, pointer(layerPath, 'visible'), 'layer.visible', 'Layer visibility must be a boolean when present.');
+                addDiagnostic(
+                  diagnostics,
+                  pointer(layerPath, 'visible'),
+                  'layer.visible',
+                  'Layer visibility must be a boolean when present.',
+                );
               }
-              const transformResult = normalizeTransform(rawLayer.transform, pointer(layerPath, 'transform'), diagnostics);
-              if (validStableText(parameter) && parameterIds.has(parameter) && source &&
-                  isNonNegativeInteger(source.x) && isNonNegativeInteger(source.y) &&
-                  isPositiveInteger(source.width) && isPositiveInteger(source.height) && transformResult !== null &&
-                  (rawLayer.visible === undefined || typeof rawLayer.visible === 'boolean')) {
+              const transformResult = normalizeTransform(
+                rawLayer.transform,
+                pointer(layerPath, 'transform'),
+                diagnostics,
+              );
+              if (
+                validStableText(parameter) &&
+                parameterIds.has(parameter) &&
+                source &&
+                isNonNegativeInteger(source.x) &&
+                isNonNegativeInteger(source.y) &&
+                isPositiveInteger(source.width) &&
+                isPositiveInteger(source.height) &&
+                transformResult !== null &&
+                (rawLayer.visible === undefined || typeof rawLayer.visible === 'boolean')
+              ) {
                 layers.push({
                   parameter,
                   source: { x: source.x, y: source.y, width: source.width, height: source.height },
@@ -367,7 +503,11 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
               }
             });
           }
-          if (Array.isArray(rawFrame.layers) && rawFrame.layers.length > 0 && layers.length === rawFrame.layers.length) {
+          if (
+            Array.isArray(rawFrame.layers) &&
+            rawFrame.layers.length > 0 &&
+            layers.length === rawFrame.layers.length
+          ) {
             frames.push({
               ...(rawFrame.duration === undefined ? {} : { duration: rawFrame.duration as number }),
               ...(markers === undefined ? {} : { markers }),
@@ -376,10 +516,18 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
           }
         });
       }
-      if (name.length > 0 && isFiniteNumber(rawClip.fps) && rawClip.fps > 0 &&
-          (rawClip.loop === 'loop' || rawClip.loop === 'once' || rawClip.loop === 'ping-pong') && canvas &&
-          isPositiveInteger(canvas.width) && isPositiveInteger(canvas.height) &&
-          Array.isArray(rawClip.frames) && rawClip.frames.length > 0 && frames.length === rawClip.frames.length) {
+      if (
+        name.length > 0 &&
+        isFiniteNumber(rawClip.fps) &&
+        rawClip.fps > 0 &&
+        (rawClip.loop === 'loop' || rawClip.loop === 'once' || rawClip.loop === 'ping-pong') &&
+        canvas &&
+        isPositiveInteger(canvas.width) &&
+        isPositiveInteger(canvas.height) &&
+        Array.isArray(rawClip.frames) &&
+        rawClip.frames.length > 0 &&
+        frames.length === rawClip.frames.length
+      ) {
         clips.push({
           name,
           fps: rawClip.fps,
@@ -428,15 +576,30 @@ function normalizeTransform(
   const zoom = input.zoom === undefined ? 1 : input.zoom;
   const rotation = input.rotation === undefined ? 0 : input.rotation;
   let valid = offset !== null && stretch !== null && pivot !== null;
-  if (stretch && (!isFiniteNumber(stretch.x) || stretch.x === 0 || !isFiniteNumber(stretch.y) || stretch.y === 0)) valid = false;
-  if (pivot && (!isFiniteNumber(pivot.x) || pivot.x < 0 || pivot.x > 1 || !isFiniteNumber(pivot.y) || pivot.y < 0 || pivot.y > 1)) valid = false;
+  if (stretch && (!isFiniteNumber(stretch.x) || stretch.x === 0 || !isFiniteNumber(stretch.y) || stretch.y === 0))
+    valid = false;
+  if (
+    pivot &&
+    (!isFiniteNumber(pivot.x) || pivot.x < 0 || pivot.x > 1 || !isFiniteNumber(pivot.y) || pivot.y < 0 || pivot.y > 1)
+  )
+    valid = false;
   if (!isFiniteNumber(zoom) || zoom <= 0 || !isFiniteNumber(rotation)) valid = false;
   if (!valid) {
-    addDiagnostic(diagnostics, path, 'layer.transform', 'Transform needs finite offset, non-zero signed stretch, positive zoom, finite rotation, and normalized pivot coordinates from 0 to 1.');
+    addDiagnostic(
+      diagnostics,
+      path,
+      'layer.transform',
+      'Transform needs finite offset, non-zero signed stretch, positive zoom, finite rotation, and normalized pivot coordinates from 0 to 1.',
+    );
     return null;
   }
-  return { offset: offset as SpriteAnimationTemplateVector2, stretch: stretch as SpriteAnimationTemplateVector2,
-    zoom: zoom as number, rotation: rotation as number, pivot: pivot as SpriteAnimationTemplateVector2 };
+  return {
+    offset: offset as SpriteAnimationTemplateVector2,
+    stretch: stretch as SpriteAnimationTemplateVector2,
+    zoom: zoom as number,
+    rotation: rotation as number,
+    pivot: pivot as SpriteAnimationTemplateVector2,
+  };
 }
 
 function vectorWithDefault(
@@ -472,19 +635,36 @@ export function validateSpriteAnimationTemplateBinding(
   const declared = new Map<string, SpriteAnimationTemplateParameter>();
   for (const parameter of templateResult.value.imageParameters) declared.set(parameter.id, parameter);
   for (const key of Object.keys(imageSizes)) {
-    if (!declared.has(key)) addDiagnostic(diagnostics, pointer('/images', key), 'binding.unknown', `Image binding "${key}" is not declared by this template.`);
+    if (!declared.has(key))
+      addDiagnostic(
+        diagnostics,
+        pointer('/images', key),
+        'binding.unknown',
+        `Image binding "${key}" is not declared by this template.`,
+      );
   }
 
   const validSizes = new Map<string, SpriteAnimationTemplateImageSize>();
   for (const parameter of templateResult.value.imageParameters) {
     const supplied = hasOwn(imageSizes, parameter.id);
     if (!supplied) {
-      if (parameter.required) addDiagnostic(diagnostics, pointer('/images', parameter.id), 'binding.required', `Required image parameter "${parameter.id}" is missing.`);
+      if (parameter.required)
+        addDiagnostic(
+          diagnostics,
+          pointer('/images', parameter.id),
+          'binding.required',
+          `Required image parameter "${parameter.id}" is missing.`,
+        );
       continue;
     }
     const size = imageSizes[parameter.id];
     if (!isObject(size) || !isPositiveInteger(size.width) || !isPositiveInteger(size.height)) {
-      addDiagnostic(diagnostics, pointer('/images', parameter.id), 'binding.size', `Image parameter "${parameter.id}" needs positive integer texture dimensions.`);
+      addDiagnostic(
+        diagnostics,
+        pointer('/images', parameter.id),
+        'binding.size',
+        `Image parameter "${parameter.id}" needs positive integer texture dimensions.`,
+      );
       continue;
     }
     validSizes.set(parameter.id, { width: size.width, height: size.height });
@@ -500,7 +680,12 @@ export function validateSpriteAnimationTemplateBinding(
         if (!size) continue;
         if (layer.source.x + layer.source.width > size.width || layer.source.y + layer.source.height > size.height) {
           const path = pointer(pointer(pointer(pointer('/clips', clipIndex), 'frames'), frameIndex), 'layers');
-          addDiagnostic(diagnostics, pointer(pointer(path, layerIndex), 'source'), 'binding.crop', `Crop for image parameter "${layer.parameter}" is outside its ${size.width}x${size.height} texture.`);
+          addDiagnostic(
+            diagnostics,
+            pointer(pointer(path, layerIndex), 'source'),
+            'binding.crop',
+            `Crop for image parameter "${layer.parameter}" is outside its ${size.width}x${size.height} texture.`,
+          );
         }
       }
     }

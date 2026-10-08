@@ -4,7 +4,7 @@ import type { PhysicsBody, PhysicsWorld } from '../../physics';
 import { GameComponent } from '../game-component';
 import type { GameObject } from '../game-object';
 
-export type RigidBodyMotionType = typeof MotionType[keyof typeof MotionType];
+export type RigidBodyMotionType = (typeof MotionType)[keyof typeof MotionType];
 
 export interface RigidBodyComponentOptions {
   ownership?: 'borrowed' | 'owned';
@@ -21,9 +21,13 @@ export class RigidBodyComponent extends GameComponent {
     this.ownership = options.ownership || 'borrowed';
   }
 
-  get motionType(): RigidBodyMotionType { return this.body.motionType as RigidBodyMotionType; }
+  get motionType(): RigidBodyMotionType {
+    return this.body.motionType as RigidBodyMotionType;
+  }
 
-  _canAttachTo(context: GameContext): boolean { return this.body._belongsToContext(context); }
+  _canAttachTo(context: GameContext): boolean {
+    return this.body._belongsToContext(context);
+  }
 
   _syncPhysicsBeforeStep(world: PhysicsWorld, fixedDt: number): void {
     if (this.destroyed || this.body.world !== world || !this.body.isLoaded) return;
@@ -41,8 +45,8 @@ export class RigidBodyComponent extends GameComponent {
   }
 
   _syncPhysicsAfterStep(world: PhysicsWorld): void {
-    if (this.destroyed || this.body.world !== world ||
-        this.motionType !== MotionType.DYNAMIC || !this.body.isLoaded) return;
+    if (this.destroyed || this.body.world !== world || this.motionType !== MotionType.DYNAMIC || !this.body.isLoaded)
+      return;
     const owner: GameObject | null = this.gameObject;
     if (owner === null || owner.destroyed) return;
     const pose = this.body.transform;

@@ -32,7 +32,9 @@ export class AudioSystem {
   }
 
   /** @internal Opens the shared device after an embedded Game attaches its surface. */
-  activate(): void { this.ensureDevice(); }
+  activate(): void {
+    this.ensureDevice();
+  }
 
   /** Shared 2D listener for emitters in this Game. */
   get listener2D(): AudioListener2D {
@@ -112,7 +114,9 @@ export class AudioSystem {
     return staged;
   }
 
-  createSoundManager(): SoundManager { return new SoundManager(this); }
+  createSoundManager(): SoundManager {
+    return new SoundManager(this);
+  }
 
   setMasterVolume(volume: number): boolean {
     if (!this.isReady) return false;
@@ -166,10 +170,16 @@ export class AudioSystem {
   }
 
   /** @internal */
-  trackSound(sound: Sound): Sound { if (this.sounds.indexOf(sound) < 0) this.sounds.push(sound); return sound; }
+  trackSound(sound: Sound): Sound {
+    if (this.sounds.indexOf(sound) < 0) this.sounds.push(sound);
+    return sound;
+  }
 
   /** @internal */
-  trackMusic(music: Music): Music { if (this.musics.indexOf(music) < 0) this.musics.push(music); return music; }
+  trackMusic(music: Music): Music {
+    if (this.musics.indexOf(music) < 0) this.musics.push(music);
+    return music;
+  }
 
   /** @internal Removes an asset when its owning scope releases it. */
   untrackSound(sound: Sound): void {

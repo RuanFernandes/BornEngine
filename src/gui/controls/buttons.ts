@@ -13,7 +13,9 @@ export abstract class GuiButtonBase extends GUI {
     this.setProfile(GUIProfiles.get('button'));
   }
 
-  getText(): string { return this.text; }
+  getText(): string {
+    return this.text;
+  }
   setText(text: string): this {
     this.text = text;
     this._guiCommandText = text;
@@ -33,7 +35,9 @@ export class GuiCheckBox extends GuiNumberValueControl<boolean> {
     super(options, false, GuiControlKind.CheckBox, 'checkbox');
   }
 
-  setValue(value: boolean): this { return super.setValue(value); }
+  setValue(value: boolean): this {
+    return super.setValue(value);
+  }
 }
 
 export class GuiRadioButton extends GuiCheckBox {
@@ -51,7 +55,9 @@ export class GuiRadioButton extends GuiCheckBox {
     return this;
   }
 
-  getGroup(): string | null { return this.group; }
+  getGroup(): string | null {
+    return this.group;
+  }
 
   override setValue(value: boolean): this {
     if (value) this.clearSelectedSiblings();
@@ -65,7 +71,12 @@ export class GuiRadioButton extends GuiCheckBox {
     const parent = this.getParent();
     if (parent === null) return;
     for (const sibling of parent.getControls()) {
-      if (sibling !== this && sibling instanceof GuiRadioButton && sibling.getGroup() === this.group && sibling.getValue()) {
+      if (
+        sibling !== this &&
+        sibling instanceof GuiRadioButton &&
+        sibling.getGroup() === this.group &&
+        sibling.getValue()
+      ) {
         sibling.setValue(false);
       }
     }
@@ -97,9 +108,13 @@ export class GuiBitmapButton extends GuiButtonBase {
     return this;
   }
 
-  getTextures(): GuiBitmapButtonTextures { return { ...this.textures }; }
+  getTextures(): GuiBitmapButtonTextures {
+    return { ...this.textures };
+  }
   /** @internal Texture ownership is checked by the Game-owned GUIManager. */
-  _getButtonTextures(): GuiBitmapButtonTextures { return this.getTextures(); }
+  _getButtonTextures(): GuiBitmapButtonTextures {
+    return this.getTextures();
+  }
 }
 
 export class GuiSlider extends GuiNumberValueControl<number> {

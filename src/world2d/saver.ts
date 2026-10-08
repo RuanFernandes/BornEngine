@@ -84,17 +84,31 @@ function emitJson(value: any, depth: number, readable: boolean, sortObjects: boo
   if (Array.isArray(value)) {
     if (value.length === 0) return '[]';
     if (!readable) return '[' + value.map((item) => emitJson(item, depth + 1, false, sortObjects)).join(',') + ']';
-    return '[\n' + value.map((item) => indent(depth + 1) + emitJson(item, depth + 1, true, sortObjects)).join(',\n') +
-      '\n' + indent(depth) + ']';
+    return (
+      '[\n' +
+      value.map((item) => indent(depth + 1) + emitJson(item, depth + 1, true, sortObjects)).join(',\n') +
+      '\n' +
+      indent(depth) +
+      ']'
+    );
   }
   if (typeof value !== 'object') throw new Error('Value is not JSON data.');
   const keys = sortObjects ? sortedKeys(value) : Object.keys(value);
   if (keys.length === 0) return '{}';
   if (!readable) {
-    return '{' + keys.map((key) => quote(key) + ':' + emitJson(value[key], depth + 1, false, sortObjects)).join(',') + '}';
+    return (
+      '{' + keys.map((key) => quote(key) + ':' + emitJson(value[key], depth + 1, false, sortObjects)).join(',') + '}'
+    );
   }
-  return '{\n' + keys.map((key) => indent(depth + 1) + quote(key) + ': ' +
-    emitJson(value[key], depth + 1, true, sortObjects)).join(',\n') + '\n' + indent(depth) + '}';
+  return (
+    '{\n' +
+    keys
+      .map((key) => indent(depth + 1) + quote(key) + ': ' + emitJson(value[key], depth + 1, true, sortObjects))
+      .join(',\n') +
+    '\n' +
+    indent(depth) +
+    '}'
+  );
 }
 
 function emptyRecord(value: Record<string, unknown> | undefined): boolean {
@@ -128,9 +142,15 @@ function sameSize(left: Size2, right: Size2): boolean {
 }
 
 function canBeDefaultTileSize(size: Size2 | null): size is Size2 {
-  return size !== null && size.x > 0 && size.y > 0 &&
-    Math.floor(size.x) === size.x && Math.floor(size.y) === size.y &&
-    Math.abs(size.x) <= 9007199254740991 && Math.abs(size.y) <= 9007199254740991;
+  return (
+    size !== null &&
+    size.x > 0 &&
+    size.y > 0 &&
+    Math.floor(size.x) === size.x &&
+    Math.floor(size.y) === size.y &&
+    Math.abs(size.x) <= 9007199254740991 &&
+    Math.abs(size.y) <= 9007199254740991
+  );
 }
 
 function chooseMapSize(layers: World2DLayer[]): Size2 | null {
@@ -180,8 +200,14 @@ function propertyReferences(properties: Record<string, any> | undefined, output:
   if (properties === undefined) return;
   for (const key of Object.keys(properties)) {
     const property = properties[key];
-    if (property !== null && typeof property === 'object' && property.type === 'file' && typeof property.value === 'string' &&
-        output.indexOf(property.value) < 0) output.push(property.value);
+    if (
+      property !== null &&
+      typeof property === 'object' &&
+      property.type === 'file' &&
+      typeof property.value === 'string' &&
+      output.indexOf(property.value) < 0
+    )
+      output.push(property.value);
   }
 }
 
@@ -200,7 +226,8 @@ function referencedAssets(document: World2DDocument): string[] {
 
 function diskTileDefinition(tile: World2DTileDefinition): Record<string, unknown> {
   const output: Record<string, unknown> = { tileId: tile.tileId };
-  if (tile.collision !== undefined) output.collision = [tile.collision.x, tile.collision.y, tile.collision.width, tile.collision.height];
+  if (tile.collision !== undefined)
+    output.collision = [tile.collision.x, tile.collision.y, tile.collision.width, tile.collision.height];
   if (!emptyRecord(tile.properties)) output.properties = orderedObject(tile.properties);
   return output;
 }
@@ -228,10 +255,11 @@ function diskObject(object: World2DObjectData): Record<string, unknown> {
   if (!object.visible) output.visible = false;
   if (object.tags.length > 0) output.tags = object.tags;
   if (!emptyRecord(object.properties)) output.properties = orderedObject(object.properties);
-  if (object.components.length > 0) output.components = object.components.map((component) => ({
-    kind: component.kind,
-    data: orderedJson(component.data),
-  }));
+  if (object.components.length > 0)
+    output.components = object.components.map((component) => ({
+      kind: component.kind,
+      data: orderedJson(component.data),
+    }));
   return output;
 }
 
@@ -263,12 +291,12 @@ function diskLayer(
   const tileLayer = layer as World2DTileLayer;
   const size = { x: tileLayer.width, y: tileLayer.height };
   if (mapSize === null || !sameSize(size, mapSize)) output.size = tuple(size);
-  if (commonTileSize === null || !sameSize(tileLayer.tileSize, commonTileSize)) output.tileSize = tuple(tileLayer.tileSize);
+  if (commonTileSize === null || !sameSize(tileLayer.tileSize, commonTileSize))
+    output.tileSize = tuple(tileLayer.tileSize);
   const codebook = createWorld2DTileCodebook(document.tilesets);
   const codes = tileLayer.data.map((cell: WorldTileCell | null) => codebook.encode(cell));
-  output.data = options.mode === 'readable'
-    ? new ReadableTileGrid(codes, tileLayer.width)
-    : encodeWorld2DTileGrid(codes, options);
+  output.data =
+    options.mode === 'readable' ? new ReadableTileGrid(codes, tileLayer.width) : encodeWorld2DTileGrid(codes, options);
   return output;
 }
 
@@ -290,22 +318,29 @@ function buildDiskDocument(document: World2DDocument, options: World2DSerializeO
   const extraAssets = document.assets.filter((asset) => inferred.indexOf(asset) < 0).sort(compareStrings);
   if (extraAssets.length > 0) output.assets = extraAssets;
   output.tilesets = document.tilesets.map((tileset) => diskTileset(tileset, commonTileSize));
-  output.layers = document.layers.map((layer) =>
-    diskLayer(layer, document, mapSize, commonTileSize, options));
+  output.layers = document.layers.map((layer) => diskLayer(layer, document, mapSize, commonTileSize, options));
   if (!emptyRecord(document.metadata)) output.metadata = document.metadata;
   return output;
 }
 
 function normalizeOptions(options: World2DSerializeOptions | undefined): World2DSerializeOptions {
   if (options === undefined) return { mode: 'compact', effort: 'max' };
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) throw new Error('Serialization options must be an object.');
-  if (options.mode !== undefined && options.mode !== 'compact' && options.mode !== 'readable') throw new Error('Serialization mode is unsupported.');
-  if (options.effort !== undefined && options.effort !== 'fast' && options.effort !== 'max') throw new Error('Serialization effort is unsupported.');
+  if (options === null || typeof options !== 'object' || Array.isArray(options))
+    throw new Error('Serialization options must be an object.');
+  if (options.mode !== undefined && options.mode !== 'compact' && options.mode !== 'readable')
+    throw new Error('Serialization mode is unsupported.');
+  if (options.effort !== undefined && options.effort !== 'fast' && options.effort !== 'max')
+    throw new Error('Serialization effort is unsupported.');
   return { mode: options.mode || 'compact', effort: options.effort || 'max' };
 }
 
 function caughtDiagnostic(error: any): World2DDiagnostic {
-  if (error !== null && typeof error === 'object' && error.diagnostic !== null && typeof error.diagnostic === 'object') {
+  if (
+    error !== null &&
+    typeof error === 'object' &&
+    error.diagnostic !== null &&
+    typeof error.diagnostic === 'object'
+  ) {
     const item = error.diagnostic;
     if (typeof item.path === 'string' && typeof item.code === 'string' && typeof item.message === 'string') return item;
   }
@@ -313,10 +348,7 @@ function caughtDiagnostic(error: any): World2DDiagnostic {
 }
 
 /** Writes compact v2 storage by default, while retaining readable JSON on request. */
-export function serializeWorld2D(
-  input: unknown,
-  options?: World2DSerializeOptions,
-): World2DSerializeResult {
+export function serializeWorld2D(input: unknown, options?: World2DSerializeOptions): World2DSerializeResult {
   const normalized = normalizeWorld2DStorage(input);
   if (!normalized.ok || normalized.document === null) {
     return { ok: false, diagnostics: normalized.diagnostics, json: '' };

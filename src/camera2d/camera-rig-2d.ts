@@ -51,11 +51,20 @@ function point(value: Vector2DLike | undefined | null): value is Vector2DLike {
 }
 
 function rect(value: Rect | undefined): value is Rect {
-  return value !== undefined && finite(value.x) && finite(value.y) &&
-    finite(value.width) && finite(value.height) && value.width >= 0 && value.height >= 0;
+  return (
+    value !== undefined &&
+    finite(value.x) &&
+    finite(value.y) &&
+    finite(value.width) &&
+    finite(value.height) &&
+    value.width >= 0 &&
+    value.height >= 0
+  );
 }
 
-function copyPoint(value: Vector2DLike): Vector2D { return new Vector2D(value.x, value.y); }
+function copyPoint(value: Vector2DLike): Vector2D {
+  return new Vector2D(value.x, value.y);
+}
 function copyRect(value: Rect): Rect {
   return { x: value.x, y: value.y, width: value.width, height: value.height };
 }
@@ -96,43 +105,58 @@ export class CameraRig2D extends GameComponent {
     this.smoothing = settings.smoothing === undefined ? 0 : settings.smoothing;
     this.minZoom = settings.minZoom === undefined ? 0.01 : settings.minZoom;
     this.maxZoom = settings.maxZoom === undefined ? 100 : settings.maxZoom;
-    this.deadZone = settings.deadZone === undefined ? null :
-      (rect(settings.deadZone) ? copyRect(settings.deadZone) : null);
-    this.bounds = settings.bounds === undefined ? null :
-      (rect(settings.bounds) ? copyRect(settings.bounds) : null);
-    this.viewSize = settings.viewSize === undefined ? null :
-      (point(settings.viewSize) && settings.viewSize.x > 0 && settings.viewSize.y > 0
-        ? copyPoint(settings.viewSize) : null);
-    this.targetOffsetValue = settings.targetOffset === undefined
-      ? { x: 0, y: 0 }
-      : (point(settings.targetOffset) ? copyPoint(settings.targetOffset) : { x: 0, y: 0 });
+    this.deadZone =
+      settings.deadZone === undefined ? null : rect(settings.deadZone) ? copyRect(settings.deadZone) : null;
+    this.bounds = settings.bounds === undefined ? null : rect(settings.bounds) ? copyRect(settings.bounds) : null;
+    this.viewSize =
+      settings.viewSize === undefined
+        ? null
+        : point(settings.viewSize) && settings.viewSize.x > 0 && settings.viewSize.y > 0
+          ? copyPoint(settings.viewSize)
+          : null;
+    this.targetOffsetValue =
+      settings.targetOffset === undefined
+        ? { x: 0, y: 0 }
+        : point(settings.targetOffset)
+          ? copyPoint(settings.targetOffset)
+          : { x: 0, y: 0 };
 
     let error: string | null = null;
     if (!finite(this.smoothing) || this.smoothing < 0) error = 'CameraRig2D smoothing must be finite and non-negative.';
     else if (!finite(this.minZoom) || this.minZoom <= 0 || !finite(this.maxZoom) || this.maxZoom < this.minZoom) {
       error = 'CameraRig2D zoom limits must be positive and ordered.';
     } else if (settings.offset !== undefined && !point(settings.offset)) error = 'CameraRig2D offset must be finite.';
-    else if (settings.cameraTarget !== undefined && !point(settings.cameraTarget)) error = 'CameraRig2D cameraTarget must be finite.';
-    else if (settings.targetOffset !== undefined && !point(settings.targetOffset)) error = 'CameraRig2D targetOffset must be finite.';
-    else if (settings.rotation !== undefined && !finite(settings.rotation)) error = 'CameraRig2D rotation must be finite.';
-    else if (settings.zoom !== undefined && (!finite(settings.zoom) || settings.zoom <= 0)) error = 'CameraRig2D zoom must be positive and finite.';
-    else if (settings.deadZone !== undefined && !rect(settings.deadZone)) error = 'CameraRig2D deadZone must be finite and non-negative.';
-    else if (settings.bounds !== undefined && !rect(settings.bounds)) error = 'CameraRig2D bounds must be finite and non-negative.';
-    else if (settings.viewSize !== undefined && (!point(settings.viewSize) || settings.viewSize.x <= 0 || settings.viewSize.y <= 0)) {
+    else if (settings.cameraTarget !== undefined && !point(settings.cameraTarget))
+      error = 'CameraRig2D cameraTarget must be finite.';
+    else if (settings.targetOffset !== undefined && !point(settings.targetOffset))
+      error = 'CameraRig2D targetOffset must be finite.';
+    else if (settings.rotation !== undefined && !finite(settings.rotation))
+      error = 'CameraRig2D rotation must be finite.';
+    else if (settings.zoom !== undefined && (!finite(settings.zoom) || settings.zoom <= 0))
+      error = 'CameraRig2D zoom must be positive and finite.';
+    else if (settings.deadZone !== undefined && !rect(settings.deadZone))
+      error = 'CameraRig2D deadZone must be finite and non-negative.';
+    else if (settings.bounds !== undefined && !rect(settings.bounds))
+      error = 'CameraRig2D bounds must be finite and non-negative.';
+    else if (
+      settings.viewSize !== undefined &&
+      (!point(settings.viewSize) || settings.viewSize.x <= 0 || settings.viewSize.y <= 0)
+    ) {
       error = 'CameraRig2D viewSize must be positive and finite.';
     } else if (!validTarget(this.target)) error = 'CameraRig2D target must be a live GameObject.';
     this.error = error;
 
-    const initialTarget = settings.cameraTarget !== undefined && point(settings.cameraTarget)
-      ? copyPoint(settings.cameraTarget)
-      : { x: 0, y: 0 };
-    const initialOffset = settings.offset !== undefined && point(settings.offset)
-      ? copyPoint(settings.offset)
-      : { x: 0, y: 0 };
+    const initialTarget =
+      settings.cameraTarget !== undefined && point(settings.cameraTarget)
+        ? copyPoint(settings.cameraTarget)
+        : { x: 0, y: 0 };
+    const initialOffset =
+      settings.offset !== undefined && point(settings.offset) ? copyPoint(settings.offset) : { x: 0, y: 0 };
     const requestedZoom = settings.zoom === undefined ? 1 : settings.zoom;
-    const initialZoom = error === null && finite(requestedZoom) && requestedZoom > 0
-      ? clamp(requestedZoom, this.minZoom, this.maxZoom)
-      : 1;
+    const initialZoom =
+      error === null && finite(requestedZoom) && requestedZoom > 0
+        ? clamp(requestedZoom, this.minZoom, this.maxZoom)
+        : 1;
     this.baseTargetValue = copyPoint(initialTarget);
     this.cameraValue = {
       offset: initialOffset,
@@ -152,7 +176,9 @@ export class CameraRig2D extends GameComponent {
     };
   }
 
-  get targetOffset(): Vector2D { return copyPoint(this.targetOffsetValue); }
+  get targetOffset(): Vector2D {
+    return copyPoint(this.targetOffsetValue);
+  }
 
   setTarget(target: GameObject | null): boolean {
     if (target === undefined || !validTarget(target)) return false;
@@ -179,9 +205,10 @@ export class CameraRig2D extends GameComponent {
       const world = target.transform.worldPosition;
       if (!finite(world.x) || !finite(world.y)) return;
       const targetPosition = { x: world.x + this.targetOffsetValue.x, y: world.y + this.targetOffsetValue.y };
-      const desired = this.deadZone === null
-        ? { x: targetPosition.x, y: targetPosition.y }
-        : { x: this.baseTargetValue.x, y: this.baseTargetValue.y };
+      const desired =
+        this.deadZone === null
+          ? { x: targetPosition.x, y: targetPosition.y }
+          : { x: this.baseTargetValue.x, y: this.baseTargetValue.y };
       if (this.deadZone !== null) {
         const left = this.baseTargetValue.x + this.deadZone.x;
         const right = left + this.deadZone.width;
@@ -206,8 +233,14 @@ export class CameraRig2D extends GameComponent {
   }
 
   shake(options: CameraShake2DOptions): boolean {
-    if (this.error !== null || options === null || options === undefined ||
-        !finite(options.duration) || options.duration <= 0) return false;
+    if (
+      this.error !== null ||
+      options === null ||
+      options === undefined ||
+      !finite(options.duration) ||
+      options.duration <= 0
+    )
+      return false;
     const amplitude = options.amplitude === undefined ? { x: 1, y: 1 } : options.amplitude;
     if (!point(amplitude) || (options.seed !== undefined && !finite(options.seed))) return false;
     let envelope: Vector2DLike[] | null = null;
@@ -296,14 +329,11 @@ export class CameraRig2D extends GameComponent {
   private getViewSize(): Vector2D {
     if (this.viewSize !== null) return copyPoint(this.viewSize);
     const owner = this.gameObject;
-    const scene = owner === null ? null : owner.scene as any;
-    const viewport = scene === null ? null : scene.viewport2D as Viewport2D | null;
+    const scene = owner === null ? null : (owner.scene as any);
+    const viewport = scene === null ? null : (scene.viewport2D as Viewport2D | null);
     if (viewport !== null && viewport !== undefined && viewport.isValid) {
       return new Vector2D(viewport.logicalWidth, viewport.logicalHeight);
     }
-    return new Vector2D(
-      Math.max(0, this.cameraValue.offset.x * 2),
-      Math.max(0, this.cameraValue.offset.y * 2),
-    );
+    return new Vector2D(Math.max(0, this.cameraValue.offset.x * 2), Math.max(0, this.cameraValue.offset.y * 2));
   }
 }

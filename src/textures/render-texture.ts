@@ -19,7 +19,11 @@ export class RenderTexture implements ContextDrawable {
     return new RenderTexture(game, width, height);
   }
 
-  private constructor(private readonly game: Game, readonly width: number, readonly height: number) {
+  private constructor(
+    private readonly game: Game,
+    readonly width: number,
+    readonly height: number,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || width <= 0 || height <= 0) {
@@ -31,16 +35,24 @@ export class RenderTexture implements ContextDrawable {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   get texture(): Texture {
     if (this.textureValue === null) this.textureValue = Texture._create(this.game, this);
     return this.textureValue;
   }
 
-  begin(): boolean { return this.isLoaded && this.context.beginRenderTarget(this); }
-  end(): boolean { return this.isLoaded && this.context.endRenderTarget(this); }
+  begin(): boolean {
+    return this.isLoaded && this.context.beginRenderTarget(this);
+  }
+  end(): boolean {
+    return this.isLoaded && this.context.endRenderTarget(this);
+  }
   draw(position: Vector2DLike, tint: Color = Colors.WHITE): boolean {
     if (!this.isLoaded) return false;
     return this.context.draw(this, position, tint);

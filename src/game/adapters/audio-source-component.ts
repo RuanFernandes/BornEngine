@@ -29,7 +29,9 @@ export class AudioSourceComponent extends GameComponent {
     this.rolloff = options.rolloff === undefined ? 1 : options.rolloff;
   }
 
-  _canAttachTo(context: GameContext): boolean { return this.sound._belongsToContext(context); }
+  _canAttachTo(context: GameContext): boolean {
+    return this.sound._belongsToContext(context);
+  }
 
   play(): boolean {
     this.stop();
@@ -60,5 +62,7 @@ export class AudioSourceComponent extends GameComponent {
     this.voice.setPosition(owner.transform.worldPosition);
   }
 
-  onDestroy(): void { this.stop(); }
+  onDestroy(): void {
+    this.stop();
+  }
 }

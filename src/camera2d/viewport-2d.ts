@@ -33,33 +33,35 @@ function isPositive(value: number): boolean {
 }
 
 function validPoint(value: Vector2DLike): boolean {
-  return value !== null && value !== undefined &&
-    isFiniteNumber(value.x) && isFiniteNumber(value.y);
+  return value !== null && value !== undefined && isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
 
 function validCamera(camera: Camera2D): boolean {
-  return camera !== null && camera !== undefined &&
-    validPoint(camera.offset) && validPoint(camera.target) &&
-    isFiniteNumber(camera.rotation) && isFiniteNumber(camera.zoom) && camera.zoom > 0;
+  return (
+    camera !== null &&
+    camera !== undefined &&
+    validPoint(camera.offset) &&
+    validPoint(camera.target) &&
+    isFiniteNumber(camera.rotation) &&
+    isFiniteNumber(camera.zoom) &&
+    camera.zoom > 0
+  );
 }
 
 function screenToWorld(position: Vector2DLike, camera: Camera2D): Vector2D | null {
   if (!validPoint(position) || !validCamera(camera)) return null;
-  const radians = camera.rotation * Math.PI / 180;
+  const radians = (camera.rotation * Math.PI) / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   const dx = (position.x - camera.offset.x) / camera.zoom;
   const dy = (position.y - camera.offset.y) / camera.zoom;
-  const result = new Vector2D(
-    cosine * dx + sine * dy + camera.target.x,
-    -sine * dx + cosine * dy + camera.target.y,
-  );
+  const result = new Vector2D(cosine * dx + sine * dy + camera.target.x, -sine * dx + cosine * dy + camera.target.y);
   return validPoint(result) ? result : null;
 }
 
 function worldToScreen(position: Vector2DLike, camera: Camera2D): Vector2D | null {
   if (!validPoint(position) || !validCamera(camera)) return null;
-  const radians = camera.rotation * Math.PI / 180;
+  const radians = (camera.rotation * Math.PI) / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   const dx = position.x - camera.target.x;
@@ -79,7 +81,7 @@ export class Viewport2D {
   readonly error: string | null;
 
   constructor(options: Viewport2DOptions) {
-    const settings = options === null || options === undefined ? {} as Viewport2DOptions : options;
+    const settings = options === null || options === undefined ? ({} as Viewport2DOptions) : options;
     this.logicalWidth = settings.width;
     this.logicalHeight = settings.height;
     this.mode = settings.mode === undefined ? 'fit' : settings.mode;
@@ -93,7 +95,9 @@ export class Viewport2D {
     this.error = error;
   }
 
-  get isValid(): boolean { return this.error === null; }
+  get isValid(): boolean {
+    return this.error === null;
+  }
 
   /** Returns an immutable-by-copy mapping for the current renderer size. */
   getTransform(screenWidth: number, screenHeight: number): ViewportTransform2D | null {
@@ -123,9 +127,7 @@ export class Viewport2D {
       scaleY = screenHeight / this.logicalHeight;
     } else {
       const fitScale = Math.min(screenWidth / this.logicalWidth, screenHeight / this.logicalHeight);
-      const scale = this.mode === 'integer' && fitScale >= 1
-        ? Math.floor(fitScale)
-        : fitScale;
+      const scale = this.mode === 'integer' && fitScale >= 1 ? Math.floor(fitScale) : fitScale;
       scaleX = scale;
       scaleY = scale;
       offsetX = (screenWidth - this.logicalWidth * scaleX) * 0.5;
@@ -134,9 +136,15 @@ export class Viewport2D {
 
     const contentWidth = this.logicalWidth * scaleX;
     const contentHeight = this.logicalHeight * scaleY;
-    if (!isPositive(scaleX) || !isPositive(scaleY) ||
-        !isFiniteNumber(contentWidth) || !isFiniteNumber(contentHeight) ||
-        !isFiniteNumber(offsetX) || !isFiniteNumber(offsetY)) return null;
+    if (
+      !isPositive(scaleX) ||
+      !isPositive(scaleY) ||
+      !isFiniteNumber(contentWidth) ||
+      !isFiniteNumber(contentHeight) ||
+      !isFiniteNumber(offsetX) ||
+      !isFiniteNumber(offsetY)
+    )
+      return null;
 
     return {
       screenWidth,
@@ -156,9 +164,13 @@ export class Viewport2D {
     if (!validPoint(position)) return null;
     const transform = this.getTransform(screenWidth, screenHeight);
     if (transform === null) return null;
-    if (position.x < transform.offsetX || position.y < transform.offsetY ||
-        position.x >= transform.offsetX + transform.contentWidth ||
-        position.y >= transform.offsetY + transform.contentHeight) return null;
+    if (
+      position.x < transform.offsetX ||
+      position.y < transform.offsetY ||
+      position.x >= transform.offsetX + transform.contentWidth ||
+      position.y >= transform.offsetY + transform.contentHeight
+    )
+      return null;
     const logical = new Vector2D(
       (position.x - transform.offsetX) / transform.scaleX,
       (position.y - transform.offsetY) / transform.scaleY,
@@ -177,22 +189,12 @@ export class Viewport2D {
     return validPoint(screen) ? screen : null;
   }
 
-  screenToWorld(
-    position: Vector2DLike,
-    camera: Camera2D,
-    screenWidth: number,
-    screenHeight: number,
-  ): Vector2D | null {
+  screenToWorld(position: Vector2DLike, camera: Camera2D, screenWidth: number, screenHeight: number): Vector2D | null {
     const logical = this.screenToLogical(position, screenWidth, screenHeight);
     return logical === null ? null : screenToWorld(logical, camera);
   }
 
-  worldToScreen(
-    position: Vector2DLike,
-    camera: Camera2D,
-    screenWidth: number,
-    screenHeight: number,
-  ): Vector2D | null {
+  worldToScreen(position: Vector2DLike, camera: Camera2D, screenWidth: number, screenHeight: number): Vector2D | null {
     const logical = worldToScreen(position, camera);
     return logical === null ? null : this.logicalToScreen(logical, screenWidth, screenHeight);
   }

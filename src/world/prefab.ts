@@ -22,23 +22,18 @@ import {
   mat4Scale,
 } from '../math/internal';
 import { Mat4, Vec3 } from '../core/types';
-import {
-  WORLD_SCHEMA_VERSION,
-  PrefabData,
-  TransformData,
-  Vec4Lit,
-} from './types';
+import { WORLD_SCHEMA_VERSION, PrefabData, TransformData, Vec4Lit } from './types';
 import { migratePrefabData } from './version';
 import { validatePrefab, formatValidationErrors, listUnknownPrefabFields } from './validate';
 
 // One leaf of an expanded prefab — a single glb to spawn at a world-space
 // matrix. The loader turns each of these into one scene node.
 export interface PrefabLeaf {
-  modelRef: string;        // Always a glb path; prefabs are fully flattened.
-  worldMatrix: Mat4;       // Column-major 4x4 in world space.
-  tint: Vec4Lit | null;    // Inherited from ancestor unless a child overrides.
-  tags: string[];          // Union of the leaf's own tags and ancestor tags.
-  sourcePath: string;      // Dotted path for debugging: "small_house.wall_0".
+  modelRef: string; // Always a glb path; prefabs are fully flattened.
+  worldMatrix: Mat4; // Column-major 4x4 in world space.
+  tint: Vec4Lit | null; // Inherited from ancestor unless a child overrides.
+  tags: string[]; // Union of the leaf's own tags and ancestor tags.
+  sourcePath: string; // Dotted path for debugging: "small_house.wall_0".
 }
 
 // Registry of all prefabs known to a project. The editor populates it at
@@ -54,7 +49,7 @@ export function createPrefabRegistry(): PrefabRegistry {
   return {
     byId: byId,
     // biome-ignore lint/complexity/useArrowFunction: function expression kept as written to avoid altering Perry closure codegen in the registry object literal
-    getPrefab: function(id: string): PrefabData | null {
+    getPrefab: function (id: string): PrefabData | null {
       const found = byId.get(id);
       return found ? found : null;
     },
@@ -93,8 +88,11 @@ export function loadPrefab(path: string): PrefabData {
   const unknown = listUnknownPrefabFields(migrated);
   for (let i = 0; i < unknown.length; i++) {
     console.error(
-      'loadPrefab: WARNING: ' + path + ' contains unknown field "' + unknown[i] +
-      '" — it will be DROPPED if this prefab is saved.',
+      'loadPrefab: WARNING: ' +
+        path +
+        ' contains unknown field "' +
+        unknown[i] +
+        '" — it will be DROPPED if this prefab is saved.',
     );
   }
 
@@ -124,10 +122,7 @@ export function expandPrefab(
   pathPrefix: string,
 ): void {
   if (visited.has(prefabId)) {
-    errors.push(
-      'prefab cycle detected: ' + pathPrefix + ' -> ' + prefabId +
-        ' (already in chain)',
-    );
+    errors.push('prefab cycle detected: ' + pathPrefix + ' -> ' + prefabId + ' (already in chain)');
     return;
   }
 
@@ -155,17 +150,7 @@ export function expandPrefab(
         sourcePath: childPath,
       });
     } else if (child.prefabRef !== null && child.prefabRef.length > 0) {
-      expandPrefab(
-        registry,
-        child.prefabRef,
-        childMatrix,
-        childTint,
-        childTags,
-        out,
-        errors,
-        visited,
-        childPath,
-      );
+      expandPrefab(registry, child.prefabRef, childMatrix, childTint, childTags, out, errors, visited, childPath);
     } else {
       errors.push('prefab child ' + childPath + ' has neither modelRef nor prefabRef');
     }
@@ -196,10 +181,16 @@ function mergeTags(parent: ReadonlyArray<string>, child: ReadonlyArray<string>):
   const seen = new Set<string>();
   const out: string[] = [];
   for (let i = 0; i < parent.length; i++) {
-    if (!seen.has(parent[i])) { seen.add(parent[i]); out.push(parent[i]); }
+    if (!seen.has(parent[i])) {
+      seen.add(parent[i]);
+      out.push(parent[i]);
+    }
   }
   for (let i = 0; i < child.length; i++) {
-    if (!seen.has(child[i])) { seen.add(child[i]); out.push(child[i]); }
+    if (!seen.has(child[i])) {
+      seen.add(child[i]);
+      out.push(child[i]);
+    }
   }
   return out;
 }

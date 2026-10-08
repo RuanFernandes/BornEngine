@@ -17,8 +17,18 @@ interface SearchEntry {
   score: number;
 }
 
-const ORTHOGONAL_NEIGHBORS: number[][] = [[-1, 0], [0, -1], [1, 0], [0, 1]];
-const DIAGONAL_NEIGHBORS: number[][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+const ORTHOGONAL_NEIGHBORS: number[][] = [
+  [-1, 0],
+  [0, -1],
+  [1, 0],
+  [0, 1],
+];
+const DIAGONAL_NEIGHBORS: number[][] = [
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+];
 const DIAGONAL_COST = Math.SQRT2;
 
 function comesBefore(a: SearchEntry, b: SearchEntry): boolean {
@@ -73,10 +83,18 @@ export class AStarGrid2D {
 
   /** Creates an open grid. Grids are limited to one million cells. */
   constructor(width: number, height: number) {
-    if (typeof width !== 'number' || typeof height !== 'number' ||
-      Math.floor(width) !== width || Math.floor(height) !== height ||
-      width <= 0 || height <= 0 || width * height > ASTAR_GRID_2D_MAX_CELLS) {
-      throw new RangeError(`AStarGrid2D dimensions must be positive integers with at most ${ASTAR_GRID_2D_MAX_CELLS} cells`);
+    if (
+      typeof width !== 'number' ||
+      typeof height !== 'number' ||
+      Math.floor(width) !== width ||
+      Math.floor(height) !== height ||
+      width <= 0 ||
+      height <= 0 ||
+      width * height > ASTAR_GRID_2D_MAX_CELLS
+    ) {
+      throw new RangeError(
+        `AStarGrid2D dimensions must be positive integers with at most ${ASTAR_GRID_2D_MAX_CELLS} cells`,
+      );
     }
     this.width = width;
     this.height = height;
@@ -99,8 +117,13 @@ export class AStarGrid2D {
 
   /** Finds an optimal path including both endpoints, or returns null when invalid or unreachable. */
   findPath(start: GridPoint2D, goal: GridPoint2D, options: AStarGrid2DOptions = {}): GridPoint2D[] | null {
-    if (!this.isPoint(start) || !this.isPoint(goal) ||
-      !this.isWalkable(start.x, start.y) || !this.isWalkable(goal.x, goal.y)) return null;
+    if (
+      !this.isPoint(start) ||
+      !this.isPoint(goal) ||
+      !this.isWalkable(start.x, start.y) ||
+      !this.isWalkable(goal.x, goal.y)
+    )
+      return null;
 
     const startIndex = start.y * this.width + start.x;
     const goalIndex = goal.y * this.width + goal.x;
@@ -142,9 +165,12 @@ export class AStarGrid2D {
         if (!this.isWalkable(nextX, nextY)) continue;
 
         const diagonal = offset[0] !== 0 && offset[1] !== 0;
-        if (diagonal && !allowCornerCutting &&
-          (!this.isWalkable(currentX + offset[0], currentY) ||
-            !this.isWalkable(currentX, currentY + offset[1]))) continue;
+        if (
+          diagonal &&
+          !allowCornerCutting &&
+          (!this.isWalkable(currentX + offset[0], currentY) || !this.isWalkable(currentX, currentY + offset[1]))
+        )
+          continue;
 
         const nextIndex = nextY * this.width + nextX;
         if (closed[nextIndex]) continue;
@@ -162,9 +188,16 @@ export class AStarGrid2D {
   }
 
   private isCellCoordinate(x: number, y: number): boolean {
-    return typeof x === 'number' && typeof y === 'number' &&
-      Math.floor(x) === x && Math.floor(y) === y &&
-      x >= 0 && y >= 0 && x < this.width && y < this.height;
+    return (
+      typeof x === 'number' &&
+      typeof y === 'number' &&
+      Math.floor(x) === x &&
+      Math.floor(y) === y &&
+      x >= 0 &&
+      y >= 0 &&
+      x < this.width &&
+      y < this.height
+    );
   }
 
   private isPoint(value: GridPoint2D): boolean {

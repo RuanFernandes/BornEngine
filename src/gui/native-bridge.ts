@@ -1,7 +1,15 @@
 import type { GuiControlCommand } from './commands';
 import { GuiEventField, GuiOpcode } from './opcodes';
 
-declare function bloom_gui_command(opcode: number, id: number, a: number, b: number, c: number, d: number, text: number): number;
+declare function bloom_gui_command(
+  opcode: number,
+  id: number,
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  text: number,
+): number;
 declare function bloom_gui_scratch_reset(): void;
 declare function bloom_gui_scratch_push_f64(value: number): void;
 declare function bloom_gui_scratch_command(opcode: number, id: number, count: number, text: number): number;
@@ -72,20 +80,41 @@ function colorValues(color: { r: number; g: number; b: number; a: number }): num
 
 function profileValues(command: GuiControlCommand): number[] {
   const profile = command.profile;
-  const alignment = (value: string): number => value === 'center' ? 1 : value === 'end' ? 2 : 0;
-  const cursor = ['arrow', 'pointer', 'text', 'crosshair', 'resizeHorizontal', 'resizeVertical', 'hidden'].indexOf(profile.cursor);
+  const alignment = (value: string): number => (value === 'center' ? 1 : value === 'end' ? 2 : 0);
+  const cursor = ['arrow', 'pointer', 'text', 'crosshair', 'resizeHorizontal', 'resizeVertical', 'hidden'].indexOf(
+    profile.cursor,
+  );
   return [
     command.kind,
     command.clip === null ? 0 : 1,
-    command.clip?.x ?? 0, command.clip?.y ?? 0, command.clip?.width ?? 0, command.clip?.height ?? 0,
-    ...colorValues(profile.normalColor), ...colorValues(profile.hoverColor), ...colorValues(profile.disabledColor),
-    ...colorValues(profile.textColor), ...colorValues(profile.selectionColor),
-    profile.font.size, profile.font.bold ? 1 : 0, profile.font.italic ? 1 : 0,
-    alignment(profile.alignment.horizontal), alignment(profile.alignment.vertical),
-    profile.spacing.item, profile.spacing.padding, profile.spacing.inner,
-    ...colorValues(profile.border.color), profile.border.width, profile.border.radius, profile.opacity,
-    ...colorValues(profile.shadow.color), profile.shadow.offsetX, profile.shadow.offsetY, profile.shadow.blur,
-    profile.focusable ? 1 : 0, profile.modal ? 1 : 0, cursor,
+    command.clip?.x ?? 0,
+    command.clip?.y ?? 0,
+    command.clip?.width ?? 0,
+    command.clip?.height ?? 0,
+    ...colorValues(profile.normalColor),
+    ...colorValues(profile.hoverColor),
+    ...colorValues(profile.disabledColor),
+    ...colorValues(profile.textColor),
+    ...colorValues(profile.selectionColor),
+    profile.font.size,
+    profile.font.bold ? 1 : 0,
+    profile.font.italic ? 1 : 0,
+    alignment(profile.alignment.horizontal),
+    alignment(profile.alignment.vertical),
+    profile.spacing.item,
+    profile.spacing.padding,
+    profile.spacing.inner,
+    ...colorValues(profile.border.color),
+    profile.border.width,
+    profile.border.radius,
+    profile.opacity,
+    ...colorValues(profile.shadow.color),
+    profile.shadow.offsetX,
+    profile.shadow.offsetY,
+    profile.shadow.blur,
+    profile.focusable ? 1 : 0,
+    profile.modal ? 1 : 0,
+    cursor,
     command.backgroundTextureHandle,
     command.parentId,
     command.clips.length,
@@ -98,7 +127,9 @@ function profileValues(command: GuiControlCommand): number[] {
 export class GuiNativeBridge {
   private readonly api: GuiNativeApi;
 
-  constructor(api: GuiNativeApi = nativeApi()) { this.api = api; }
+  constructor(api: GuiNativeApi = nativeApi()) {
+    this.api = api;
+  }
 
   submit(commands: readonly GuiControlCommand[]): void {
     for (const command of commands) {
@@ -118,17 +149,36 @@ export class GuiNativeBridge {
       const selectedIndex = command.values[1] ?? -1;
       for (let index = 0; index < command.items.length; index++) {
         const item = command.items[index];
-        this.api.command(GuiOpcode.Item, command.id, index, selectedIndex, item.depth, typeof item.id === 'number' ? item.id : 0, item.label);
+        this.api.command(
+          GuiOpcode.Item,
+          command.id,
+          index,
+          selectedIndex,
+          item.depth,
+          typeof item.id === 'number' ? item.id : 0,
+          item.label,
+        );
       }
       for (let index = 0; index < command.drawings.length; index++) {
         const drawing = command.drawings[index];
-        this.api.command(GuiOpcode.Drawing, command.id, index, drawing.kind, command.rect.x, command.rect.y, drawing.text);
+        this.api.command(
+          GuiOpcode.Drawing,
+          command.id,
+          index,
+          drawing.kind,
+          command.rect.x,
+          command.rect.y,
+          drawing.text,
+        );
         const drawingValues = drawing.kind === 4 ? [drawing.textureHandle ?? 0, ...drawing.values] : drawing.values;
         const payload = [
-          command.rect.width, command.rect.height,
+          command.rect.width,
+          command.rect.height,
           command.clip === null ? 0 : 1,
-          command.clip?.x ?? 0, command.clip?.y ?? 0,
-          command.clip?.width ?? 0, command.clip?.height ?? 0,
+          command.clip?.x ?? 0,
+          command.clip?.y ?? 0,
+          command.clip?.width ?? 0,
+          command.clip?.height ?? 0,
           ...drawingValues,
         ];
         this.api.scratchReset();
@@ -164,17 +214,27 @@ export class GuiNativeBridge {
       events.push({
         type: read(index, GuiEventField.EventType),
         controlId: read(index, GuiEventField.ControlId),
-        globalX: read(index, GuiEventField.GlobalX), globalY: read(index, GuiEventField.GlobalY),
-        localX: read(index, GuiEventField.LocalX), localY: read(index, GuiEventField.LocalY),
-        key: read(index, GuiEventField.Key), button: read(index, GuiEventField.Button),
-        wheelX: read(index, GuiEventField.WheelX), wheelY: read(index, GuiEventField.WheelY),
+        globalX: read(index, GuiEventField.GlobalX),
+        globalY: read(index, GuiEventField.GlobalY),
+        localX: read(index, GuiEventField.LocalX),
+        localY: read(index, GuiEventField.LocalY),
+        key: read(index, GuiEventField.Key),
+        button: read(index, GuiEventField.Button),
+        wheelX: read(index, GuiEventField.WheelX),
+        wheelY: read(index, GuiEventField.WheelY),
         modifiers: read(index, GuiEventField.Modifiers),
       });
     }
     return events;
   }
 
-  isAvailable(): boolean { return this.api.isAvailable() > 0.5; }
-  wantsPointerInput(): boolean { return this.api.wantsInput(0) > 0.5; }
-  wantsKeyboardInput(): boolean { return this.api.wantsInput(1) > 0.5; }
+  isAvailable(): boolean {
+    return this.api.isAvailable() > 0.5;
+  }
+  wantsPointerInput(): boolean {
+    return this.api.wantsInput(0) > 0.5;
+  }
+  wantsKeyboardInput(): boolean {
+    return this.api.wantsInput(1) > 0.5;
+  }
 }

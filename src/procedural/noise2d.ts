@@ -63,8 +63,7 @@ export class Noise2D {
     const octaves = options.octaves === undefined ? 4 : options.octaves;
     const lacunarity = options.lacunarity === undefined ? 2 : options.lacunarity;
     const persistence = options.persistence === undefined ? 0.5 : options.persistence;
-    if (!isFiniteNumber(octaves) || Math.floor(octaves) !== octaves ||
-      octaves < 1 || octaves > MAX_OCTAVES) {
+    if (!isFiniteNumber(octaves) || Math.floor(octaves) !== octaves || octaves < 1 || octaves > MAX_OCTAVES) {
       throw new Error('Noise2D octaves must be an integer from 1 through 12');
     }
     if (!isFiniteNumber(lacunarity) || lacunarity < 1 || lacunarity > 4) {
@@ -90,25 +89,18 @@ export class Noise2D {
   private lattice(x: number, y: number): number {
     const wrappedXA = positiveModulo(x, HASH_MODULUS_A);
     const wrappedYA = positiveModulo(y, HASH_MODULUS_A);
-    let hashA = positiveModulo(
-      this.seedA + wrappedXA * 25173 + wrappedYA * 13849,
-      HASH_MODULUS_A,
-    );
+    let hashA = positiveModulo(this.seedA + wrappedXA * 25173 + wrappedYA * 13849, HASH_MODULUS_A);
     hashA = positiveModulo(hashA * hashA + 12345, HASH_MODULUS_A);
     hashA = positiveModulo(hashA + wrappedXA * 3123 + wrappedYA * 19249, HASH_MODULUS_A);
     hashA = positiveModulo(hashA * hashA + 6789, HASH_MODULUS_A);
 
     const wrappedXB = positiveModulo(x, HASH_MODULUS_B);
     const wrappedYB = positiveModulo(y, HASH_MODULUS_B);
-    let hashB = positiveModulo(
-      this.seedB + wrappedXB * 25173 + wrappedYB * 13849,
-      HASH_MODULUS_B,
-    );
+    let hashB = positiveModulo(this.seedB + wrappedXB * 25173 + wrappedYB * 13849, HASH_MODULUS_B);
     hashB = positiveModulo(hashB * hashB + 12345, HASH_MODULUS_B);
     hashB = positiveModulo(hashB + wrappedXB * 3123 + wrappedYB * 19249, HASH_MODULUS_B);
     hashB = positiveModulo(hashB * hashB + 6789, HASH_MODULUS_B);
 
-    return (hashA * HASH_MODULUS_B + hashB) /
-      (HASH_MODULUS_A * HASH_MODULUS_B);
+    return (hashA * HASH_MODULUS_B + hashB) / (HASH_MODULUS_A * HASH_MODULUS_B);
   }
 }

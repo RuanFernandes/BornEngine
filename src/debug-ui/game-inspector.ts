@@ -28,7 +28,10 @@ export class GameInspector {
   private readonly showAssets: boolean;
   private readonly showScripts: boolean;
 
-  constructor(private readonly game: Game, options?: boolean | GameDebugOptions) {
+  constructor(
+    private readonly game: Game,
+    options?: boolean | GameDebugOptions,
+  ) {
     const config = typeof options === 'object' && options !== null ? options : null;
     this.enabled = options === true || (config !== null && config.enabled === true);
     this.showMetrics = config === null || config.metrics !== false;
@@ -38,8 +41,7 @@ export class GameInspector {
   }
 
   render(deltaTime: number): void {
-    if (this.disposed || !this.enabled || !this.game.isReady ||
-        !this.game.debugUi.isAvailable()) return;
+    if (this.disposed || !this.enabled || !this.game.isReady || !this.game.debugUi.isAvailable()) return;
 
     if (this.showMetrics) this.renderMetrics(deltaTime);
     if (this.showSceneHierarchy) this.renderSceneHierarchy();
@@ -66,8 +68,14 @@ export class GameInspector {
     ui.label(WINDOW_METRICS + 5, 'Culled sprites: ' + stats.spritesCulled);
     ui.label(WINDOW_METRICS + 6, 'Update: ' + formatNumber(gameStats.updateTimeMs, 2) + ' ms');
     ui.label(WINDOW_METRICS + 7, 'Render: ' + formatNumber(gameStats.renderTimeMs, 2) + ' ms');
-    ui.label(WINDOW_METRICS + 8, 'Objects: ' + gameStats.activeObjectCount + ' active / ' + gameStats.objectCount + ' total');
-    ui.label(WINDOW_METRICS + 9, 'Components: ' + gameStats.activeComponentCount + ' active / ' + gameStats.componentCount + ' total');
+    ui.label(
+      WINDOW_METRICS + 8,
+      'Objects: ' + gameStats.activeObjectCount + ' active / ' + gameStats.objectCount + ' total',
+    );
+    ui.label(
+      WINDOW_METRICS + 9,
+      'Components: ' + gameStats.activeComponentCount + ' active / ' + gameStats.componentCount + ' total',
+    );
     ui.endWindow(WINDOW_METRICS);
   }
 
@@ -116,10 +124,19 @@ export class GameInspector {
     ui.label(treeId + 1, state + ' · ' + object.getComponents(GameComponent).length + ' components');
     const position = object.transform.worldPosition;
     const scale = object.transform.worldScale;
-    ui.label(treeId + 2, 'Position: ' + formatNumber(position.x, 2) + ', ' +
-      formatNumber(position.y, 2) + ', ' + formatNumber(position.z, 2));
-    ui.label(treeId + 3, 'Scale: ' + formatNumber(scale.x, 2) + ', ' +
-      formatNumber(scale.y, 2) + ', ' + formatNumber(scale.z, 2));
+    ui.label(
+      treeId + 2,
+      'Position: ' +
+        formatNumber(position.x, 2) +
+        ', ' +
+        formatNumber(position.y, 2) +
+        ', ' +
+        formatNumber(position.z, 2),
+    );
+    ui.label(
+      treeId + 3,
+      'Scale: ' + formatNumber(scale.x, 2) + ', ' + formatNumber(scale.y, 2) + ', ' + formatNumber(scale.z, 2),
+    );
 
     if (depth >= MAX_HIERARCHY_DEPTH) {
       ui.label(treeId + 4, 'Hierarchy depth limit reached');
@@ -171,9 +188,7 @@ export class GameInspector {
       const script = components[index];
       const id = WINDOW_SCRIPTS + 10 + index * 4;
       const owner = script.gameObject;
-      const ownerName = owner === null
-        ? 'Unattached script'
-        : owner.name === '' ? 'GameObject' : owner.name;
+      const ownerName = owner === null ? 'Unattached script' : owner.name === '' ? 'GameObject' : owner.name;
       const ownerId = owner === null ? index + 1 : owner.id;
       ui.label(id, ownerName + ' #' + ownerId + ' · ' + script.status);
       ui.label(id + 1, 'Memory: ' + formatBytes(script.memoryUsed));
@@ -184,10 +199,7 @@ export class GameInspector {
     }
 
     if (components.length > MAX_VISIBLE_SCRIPTS) {
-      ui.label(
-        WINDOW_SCRIPTS + 2,
-        'Showing ' + MAX_VISIBLE_SCRIPTS + ' of ' + components.length + ' scripts',
-      );
+      ui.label(WINDOW_SCRIPTS + 2, 'Showing ' + MAX_VISIBLE_SCRIPTS + ' of ' + components.length + ' scripts');
     }
     ui.endWindow(WINDOW_SCRIPTS);
   }
@@ -195,7 +207,7 @@ export class GameInspector {
 
 function formatNumber(value: number, digits: number): string {
   const scale = digits === 1 ? 10 : 100;
-  return '' + (Math.round(value * scale) / scale);
+  return '' + Math.round(value * scale) / scale;
 }
 
 function formatBytes(value: number): string {

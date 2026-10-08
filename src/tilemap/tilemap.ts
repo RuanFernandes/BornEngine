@@ -70,12 +70,17 @@ function finite(value: number): boolean {
 }
 
 function validColor(value: Color): boolean {
-  return value !== null && value !== undefined && finite(value.r) && finite(value.g) &&
-    finite(value.b) && finite(value.a);
+  return (
+    value !== null && value !== undefined && finite(value.r) && finite(value.g) && finite(value.b) && finite(value.a)
+  );
 }
 
-function copyColor(value: Color): Color { return { r: value.r, g: value.g, b: value.b, a: value.a }; }
-function copyRect(value: Rect): Rect { return { x: value.x, y: value.y, width: value.width, height: value.height }; }
+function copyColor(value: Color): Color {
+  return { r: value.r, g: value.g, b: value.b, a: value.a };
+}
+function copyRect(value: Rect): Rect {
+  return { x: value.x, y: value.y, width: value.width, height: value.height };
+}
 
 function copyFlip(value: TilemapCellFlip): TilemapCellFlip {
   return { flipX: value.flipX === true, flipY: value.flipY === true, flipDiagonal: value.flipDiagonal === true };
@@ -92,7 +97,11 @@ function flipIsValid(value: TilemapCellFlip): boolean {
 function transformCellPoint(x: number, y: number, flip: TilemapCellFlip): Vector2DLike {
   let resultX = x;
   let resultY = y;
-  if (flip.flipDiagonal === true) { const swap = resultX; resultX = resultY; resultY = swap; }
+  if (flip.flipDiagonal === true) {
+    const swap = resultX;
+    resultX = resultY;
+    resultY = swap;
+  }
   if (flip.flipX === true) resultX = 1 - resultX;
   if (flip.flipY === true) resultY = 1 - resultY;
   return { x: resultX, y: resultY };
@@ -119,22 +128,32 @@ function transformCellRect(rect: Rect, tileWidth: number, tileHeight: number, fl
     maxX = Math.max(maxX, corners[index].x);
     maxY = Math.max(maxY, corners[index].y);
   }
-  return { x: minX * tileWidth, y: minY * tileHeight,
-    width: (maxX - minX) * tileWidth, height: (maxY - minY) * tileHeight };
+  return {
+    x: minX * tileWidth,
+    y: minY * tileHeight,
+    width: (maxX - minX) * tileWidth,
+    height: (maxY - minY) * tileHeight,
+  };
 }
 
-function transformPoint(x: number, y: number, position: Vector2DLike, width: number, height: number,
-  cosine: number, sine: number): Vector2DLike {
+function transformPoint(
+  x: number,
+  y: number,
+  position: Vector2DLike,
+  width: number,
+  height: number,
+  cosine: number,
+  sine: number,
+): Vector2DLike {
   const localX = x * width;
   const localY = y * height;
-  return { x: position.x + localX * cosine - localY * sine,
-    y: position.y + localX * sine + localY * cosine };
+  return { x: position.x + localX * cosine - localY * sine, y: position.y + localX * sine + localY * cosine };
 }
 
 function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number }): number {
   const sin = 2 * (rotation.w * rotation.z + rotation.x * rotation.y);
   const cos = 1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z);
-  return Math.atan2(sin, cos) * 180 / Math.PI;
+  return (Math.atan2(sin, cos) * 180) / Math.PI;
 }
 
 /** Grid-based, atlas-backed renderer and collision-data source for 2D tilemaps. */
@@ -160,15 +179,20 @@ export class Tilemap extends GameComponent {
   constructor(sheet: SpriteSheet, options: TilemapOptions) {
     super();
     this.sheet = sheet;
-    const settings: TilemapOptions = options === null || options === undefined
-      ? { columns: 0, rows: 0, tileWidth: 0, tileHeight: 0, tiles: [] }
-      : options;
+    const settings: TilemapOptions =
+      options === null || options === undefined
+        ? { columns: 0, rows: 0, tileWidth: 0, tileHeight: 0, tiles: [] }
+        : options;
     this.columns = settings.columns;
     this.rows = settings.rows;
     this.tileWidth = settings.tileWidth;
     this.tileHeight = settings.tileHeight;
-    this.tint = settings.tint === undefined ? copyColor(Colors.WHITE) : validColor(settings.tint)
-      ? copyColor(settings.tint) : copyColor(Colors.WHITE);
+    this.tint =
+      settings.tint === undefined
+        ? copyColor(Colors.WHITE)
+        : validColor(settings.tint)
+          ? copyColor(settings.tint)
+          : copyColor(Colors.WHITE);
     this.visible = settings.visible === undefined ? true : settings.visible;
 
     const error = this.validateOptions(settings);
@@ -181,17 +205,16 @@ export class Tilemap extends GameComponent {
     if (settings.renderOrder !== undefined) this.renderOrder = settings.renderOrder;
     for (let index = 0; index < settings.tiles.length; index++) {
       const definition = settings.tiles[index];
-      const frame = typeof definition.frame === 'string'
-        ? sheet.getFrame(definition.frame)
-        : definition.frame;
+      const frame = typeof definition.frame === 'string' ? sheet.getFrame(definition.frame) : definition.frame;
       if (frame === null || frame === undefined || frame.sheet !== sheet) {
         this.definitions = [];
         this.enabled = false;
         return;
       }
-      const collision = definition.collision === undefined
-        ? { x: 0, y: 0, width: this.tileWidth, height: this.tileHeight }
-        : copyRect(definition.collision);
+      const collision =
+        definition.collision === undefined
+          ? { x: 0, y: 0, width: this.tileWidth, height: this.tileHeight }
+          : copyRect(definition.collision);
       this.definitions.push({
         id: definition.id,
         frame,
@@ -211,7 +234,8 @@ export class Tilemap extends GameComponent {
       for (let index = 0; index < settings.data.length; index++) this.cells[index] = settings.data[index];
     }
     if (settings.cellFlips !== undefined) {
-      for (let index = 0; index < settings.cellFlips.length; index++) this.cellFlips[index] = copyFlip(settings.cellFlips[index]);
+      for (let index = 0; index < settings.cellFlips.length; index++)
+        this.cellFlips[index] = copyFlip(settings.cellFlips[index]);
     }
     this.buildChunks();
   }
@@ -223,13 +247,21 @@ export class Tilemap extends GameComponent {
   }
 
   /** Number of fixed-size chunks indexing this map. */
-  get chunkCount(): number { return this.chunks.length; }
+  get chunkCount(): number {
+    return this.chunks.length;
+  }
   /** Chunks marked by setTile or fill since their last visible render. */
-  get dirtyChunkCount(): number { return this.dirtyChunkCountValue; }
+  get dirtyChunkCount(): number {
+    return this.dirtyChunkCountValue;
+  }
   /** Visible chunks traversed by the most recent render call. */
-  get lastRenderVisibleChunkCount(): number { return this.lastRenderVisibleChunkCountValue; }
+  get lastRenderVisibleChunkCount(): number {
+    return this.lastRenderVisibleChunkCountValue;
+  }
   /** Occupied cells traversed inside visible chunks by the most recent render call. */
-  get lastRenderVisitedCellCount(): number { return this.lastRenderVisitedCellCountValue; }
+  get lastRenderVisitedCellCount(): number {
+    return this.lastRenderVisitedCellCountValue;
+  }
 
   getTile(column: number, row: number): number {
     const index = this.cellIndex(column, row);
@@ -238,8 +270,8 @@ export class Tilemap extends GameComponent {
 
   setTile(column: number, row: number, tileId: number, flip?: TilemapCellFlip): boolean {
     const index = this.cellIndex(column, row);
-    if (this.error !== null || index < 0 || !this.hasDefinition(tileId) ||
-        (flip !== undefined && !flipIsValid(flip))) return false;
+    if (this.error !== null || index < 0 || !this.hasDefinition(tileId) || (flip !== undefined && !flipIsValid(flip)))
+      return false;
     const nextFlip = flip === undefined ? { flipX: false, flipY: false, flipDiagonal: false } : copyFlip(flip);
     const previousTileId = this.cells[index];
     if (previousTileId === 0 && tileId !== 0) this.adjustChunkOccupancy(column, row, index, 1);
@@ -288,14 +320,22 @@ export class Tilemap extends GameComponent {
         const tileId = this.cells[row * this.columns + column];
         const definition = this.findDefinition(tileId);
         if (tileId === 0 || definition === null || !definition.solid) continue;
-        const collision = transformCellRect(definition.collision, this.tileWidth, this.tileHeight,
-          this.cellFlips[row * this.columns + column]);
+        const collision = transformCellRect(
+          definition.collision,
+          this.tileWidth,
+          this.tileHeight,
+          this.cellFlips[row * this.columns + column],
+        );
         result.push({
           column,
           row,
           tileId,
-          bounds: { x: column * this.tileWidth + collision.x, y: row * this.tileHeight + collision.y,
-            width: collision.width, height: collision.height },
+          bounds: {
+            x: column * this.tileWidth + collision.x,
+            y: row * this.tileHeight + collision.y,
+            width: collision.width,
+            height: collision.height,
+          },
         });
       }
     }
@@ -316,8 +356,12 @@ export class Tilemap extends GameComponent {
         const definition = this.findDefinition(this.cells[row * this.columns + column]);
         if (definition === null || !definition.solid || !this.isFullCellCollision(definition)) {
           if (definition !== null && definition.solid) {
-            const collision = transformCellRect(definition.collision, this.tileWidth, this.tileHeight,
-              this.cellFlips[row * this.columns + column]);
+            const collision = transformCellRect(
+              definition.collision,
+              this.tileWidth,
+              this.tileHeight,
+              this.cellFlips[row * this.columns + column],
+            );
             regions.push({
               x: column * this.tileWidth + collision.x,
               y: row * this.tileHeight + collision.y,
@@ -341,11 +385,19 @@ export class Tilemap extends GameComponent {
         nextRunKeys.push(key);
         const previous = activeRuns.get(key);
         if (previous !== undefined && previous.y + previous.height === row * this.tileHeight) {
-          nextRuns.set(key, { x: previous.x, y: previous.y, width: previous.width,
-            height: previous.height + this.tileHeight });
+          nextRuns.set(key, {
+            x: previous.x,
+            y: previous.y,
+            width: previous.width,
+            height: previous.height + this.tileHeight,
+          });
         } else {
-          nextRuns.set(key, { x: start * this.tileWidth, y: row * this.tileHeight,
-            width: (end - start) * this.tileWidth, height: this.tileHeight });
+          nextRuns.set(key, {
+            x: start * this.tileWidth,
+            y: row * this.tileHeight,
+            width: (end - start) * this.tileWidth,
+            height: this.tileHeight,
+          });
         }
       }
       for (let index = 0; index < activeRunKeys.length; index++) {
@@ -367,8 +419,14 @@ export class Tilemap extends GameComponent {
   }
 
   _canAttachTo(context: GameContext): boolean {
-    if (this.error !== null || this.sheet === null || this.sheet === undefined ||
-        this.sheet.error !== null || !this.sheet._canAttachTo(context)) return false;
+    if (
+      this.error !== null ||
+      this.sheet === null ||
+      this.sheet === undefined ||
+      this.sheet.error !== null ||
+      !this.sheet._canAttachTo(context)
+    )
+      return false;
     for (let index = 0; index < this.definitions.length; index++) {
       if (!this.definitions[index].frame.sheet._canAttachTo(context)) return false;
     }
@@ -378,16 +436,23 @@ export class Tilemap extends GameComponent {
   render(renderer: Renderer): void {
     this.lastRenderVisibleChunkCountValue = 0;
     this.lastRenderVisitedCellCountValue = 0;
-    if (!this.visible || this.error !== null || !this.isActiveAndEnabled ||
-        !validColor(this.tint) || this.gameObject === null || this.gameObject.scene === null ||
-        !this.sheet._canAttachTo(this.gameObject.scene.context)) return;
+    if (
+      !this.visible ||
+      this.error !== null ||
+      !this.isActiveAndEnabled ||
+      !validColor(this.tint) ||
+      this.gameObject === null ||
+      this.gameObject.scene === null ||
+      !this.sheet._canAttachTo(this.gameObject.scene.context)
+    )
+      return;
     const owner = this.gameObject;
     const transform = owner.transform;
     const position = transform.worldPosition;
     const scale = transform.worldScale;
     const rotation = rotationZDegrees(transform.worldRotation);
     if (!finite(scale.x) || !finite(scale.y) || scale.x === 0 || scale.y === 0 || !finite(rotation)) return;
-    const radians = rotation * Math.PI / 180;
+    const radians = (rotation * Math.PI) / 180;
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);
     const signedWidth = this.tileWidth * scale.x;
@@ -448,7 +513,7 @@ export class Tilemap extends GameComponent {
           const axisY = { x: (yEnd.x - yStart.x) * signedWidth, y: (yEnd.y - yStart.y) * signedHeight };
           const axisXLength = Math.sqrt(axisX.x * axisX.x + axisX.y * axisX.y);
           const axisYLength = Math.sqrt(axisY.x * axisY.x + axisY.y * axisY.y);
-          const localRotation = Math.atan2(axisX.y, axisX.x) * 180 / Math.PI;
+          const localRotation = (Math.atan2(axisX.y, axisX.x) * 180) / Math.PI;
           const sourceYFlipped = axisX.x * axisY.y - axisX.y * axisY.x < 0;
           source = {
             x: frame.source.x,
@@ -460,8 +525,8 @@ export class Tilemap extends GameComponent {
           const localY = (row + outputCenter.y) * signedHeight;
           centerX = position.x + localX * cos - localY * sin;
           centerY = position.y + localX * sin + localY * cos;
-          width = frame.source.width / original.x * axisXLength;
-          height = frame.source.height / original.y * axisYLength;
+          width = (frame.source.width / original.x) * axisXLength;
+          height = (frame.source.height / original.y) * axisYLength;
           drawRotation = rotation + localRotation;
         } else {
           const flipX = scale.x < 0;
@@ -480,12 +545,12 @@ export class Tilemap extends GameComponent {
           const localY = (row + sourceCenterY / original.y) * signedHeight;
           centerX = position.x + localX * cos - localY * sin;
           centerY = position.y + localX * sin + localY * cos;
-          width = frame.source.width / original.x * this.tileWidth * Math.abs(scale.x);
-          height = frame.source.height / original.y * this.tileHeight * Math.abs(scale.y);
+          width = (frame.source.width / original.x) * this.tileWidth * Math.abs(scale.x);
+          height = (frame.source.height / original.y) * this.tileHeight * Math.abs(scale.y);
           drawRotation = rotation;
         }
         const destination = { x: centerX - width * 0.5, y: centerY - height * 0.5, width, height };
-        const finalRadians = drawRotation * Math.PI / 180;
+        const finalRadians = (drawRotation * Math.PI) / 180;
         const finalCos = Math.cos(finalRadians);
         const finalSin = Math.sin(finalRadians);
         const halfWidth = (Math.abs(finalCos) * width + Math.abs(finalSin) * height) * 0.5;
@@ -498,9 +563,16 @@ export class Tilemap extends GameComponent {
           renderer._recordSpriteCulled();
           continue;
         }
-        if (this.sheet.texture.drawRegion(
-          source, destination, { x: width * 0.5, y: height * 0.5 }, drawRotation, this.tint,
-        )) renderer._recordSpriteDrawn();
+        if (
+          this.sheet.texture.drawRegion(
+            source,
+            destination,
+            { x: width * 0.5, y: height * 0.5 },
+            drawRotation,
+            this.tint,
+          )
+        )
+          renderer._recordSpriteDrawn();
       }
     }
   }
@@ -509,9 +581,18 @@ export class Tilemap extends GameComponent {
     if (this.sheet === null || this.sheet === undefined || this.sheet.error !== null || !this.sheet.texture.isLoaded) {
       return 'Tilemap requires a valid SpriteSheet with a loaded texture.';
     }
-    if (!finite(this.columns) || this.columns <= 0 || Math.floor(this.columns) !== this.columns ||
-        !finite(this.rows) || this.rows <= 0 || Math.floor(this.rows) !== this.rows ||
-        !finite(this.tileWidth) || this.tileWidth <= 0 || !finite(this.tileHeight) || this.tileHeight <= 0) {
+    if (
+      !finite(this.columns) ||
+      this.columns <= 0 ||
+      Math.floor(this.columns) !== this.columns ||
+      !finite(this.rows) ||
+      this.rows <= 0 ||
+      Math.floor(this.rows) !== this.rows ||
+      !finite(this.tileWidth) ||
+      this.tileWidth <= 0 ||
+      !finite(this.tileHeight) ||
+      this.tileHeight <= 0
+    ) {
       return 'Tilemap columns, rows, tileWidth, and tileHeight must be positive.';
     }
     if (!Array.isArray(options.tiles) || options.tiles.length === 0) return 'Tilemap requires tile definitions.';
@@ -522,8 +603,10 @@ export class Tilemap extends GameComponent {
     if (options.data !== undefined && (options.data === null || options.data.length !== cellCount)) {
       return 'Tilemap data length must match columns multiplied by rows.';
     }
-    if (options.cellFlips !== undefined &&
-        (options.cellFlips === null || !Array.isArray(options.cellFlips) || options.cellFlips.length !== cellCount)) {
+    if (
+      options.cellFlips !== undefined &&
+      (options.cellFlips === null || !Array.isArray(options.cellFlips) || options.cellFlips.length !== cellCount)
+    ) {
       return 'Tilemap cellFlips length must match columns multiplied by rows.';
     }
     if (options.cellFlips !== undefined) {
@@ -534,15 +617,22 @@ export class Tilemap extends GameComponent {
 
     for (let index = 0; index < options.tiles.length; index++) {
       const definition = options.tiles[index];
-      if (definition === null || definition === undefined || !finite(definition.id) ||
-          definition.id <= 0 || Math.floor(definition.id) !== definition.id) {
+      if (
+        definition === null ||
+        definition === undefined ||
+        !finite(definition.id) ||
+        definition.id <= 0 ||
+        Math.floor(definition.id) !== definition.id
+      ) {
         return 'Tilemap tile IDs must be positive integers; 0 is reserved for empty cells.';
       }
       for (let prior = 0; prior < index; prior++) {
         if (options.tiles[prior].id === definition.id) return 'Tilemap tile IDs must be unique.';
       }
-      if (typeof definition.frame !== 'string' &&
-          (definition.frame === null || definition.frame === undefined || definition.frame.sheet !== this.sheet)) {
+      if (
+        typeof definition.frame !== 'string' &&
+        (definition.frame === null || definition.frame === undefined || definition.frame.sheet !== this.sheet)
+      ) {
         return 'Tilemap frames must belong to its SpriteSheet.';
       }
       if (typeof definition.frame === 'string' && this.sheet.getFrame(definition.frame) === null) {
@@ -550,10 +640,19 @@ export class Tilemap extends GameComponent {
       }
       if (definition.collision !== undefined) {
         const collision = definition.collision;
-        if (collision === null || !finite(collision.x) || !finite(collision.y) ||
-            !finite(collision.width) || !finite(collision.height) || collision.x < 0 || collision.y < 0 ||
-            collision.width <= 0 || collision.height <= 0 ||
-            collision.x + collision.width > this.tileWidth || collision.y + collision.height > this.tileHeight) {
+        if (
+          collision === null ||
+          !finite(collision.x) ||
+          !finite(collision.y) ||
+          !finite(collision.width) ||
+          !finite(collision.height) ||
+          collision.x < 0 ||
+          collision.y < 0 ||
+          collision.width <= 0 ||
+          collision.height <= 0 ||
+          collision.x + collision.width > this.tileWidth ||
+          collision.y + collision.height > this.tileHeight
+        ) {
           return 'Tilemap collision rectangle must fit inside its tile.';
         }
       }
@@ -572,8 +671,17 @@ export class Tilemap extends GameComponent {
   }
 
   private cellIndex(column: number, row: number): number {
-    if (!finite(column) || !finite(row) || Math.floor(column) !== column || Math.floor(row) !== row ||
-        column < 0 || row < 0 || column >= this.columns || row >= this.rows) return -1;
+    if (
+      !finite(column) ||
+      !finite(row) ||
+      Math.floor(column) !== column ||
+      Math.floor(row) !== row ||
+      column < 0 ||
+      row < 0 ||
+      column >= this.columns ||
+      row >= this.rows
+    )
+      return -1;
     return row * this.columns + column;
   }
 
@@ -610,8 +718,15 @@ export class Tilemap extends GameComponent {
             }
           }
         }
-        this.chunks.push({ columnStart, rowStart, columnCount, rowCount, nonEmptyCellCount,
-          occupiedCellIndices, dirty: true });
+        this.chunks.push({
+          columnStart,
+          rowStart,
+          columnCount,
+          rowCount,
+          nonEmptyCellCount,
+          occupiedCellIndices,
+          dirty: true,
+        });
         this.dirtyChunkCountValue++;
       }
     }
@@ -627,7 +742,8 @@ export class Tilemap extends GameComponent {
     chunk.nonEmptyCellCount += amount;
     if (amount > 0) {
       let insertion = 0;
-      while (insertion < chunk.occupiedCellIndices.length && chunk.occupiedCellIndices[insertion] < cellIndex) insertion++;
+      while (insertion < chunk.occupiedCellIndices.length && chunk.occupiedCellIndices[insertion] < cellIndex)
+        insertion++;
       chunk.occupiedCellIndices.push(cellIndex);
       for (let index = chunk.occupiedCellIndices.length - 1; index > insertion; index--) {
         chunk.occupiedCellIndices[index] = chunk.occupiedCellIndices[index - 1];
@@ -663,7 +779,11 @@ export class Tilemap extends GameComponent {
   }
 
   private isFullCellCollision(definition: ResolvedTileDefinition): boolean {
-    return definition.collision.x === 0 && definition.collision.y === 0 &&
-      definition.collision.width === this.tileWidth && definition.collision.height === this.tileHeight;
+    return (
+      definition.collision.x === 0 &&
+      definition.collision.y === 0 &&
+      definition.collision.width === this.tileWidth &&
+      definition.collision.height === this.tileHeight
+    );
   }
 }

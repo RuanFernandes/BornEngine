@@ -57,11 +57,7 @@ function migrateV1ToV2(raw: WorldDocument): void {
       id: e.id,
       name: e.name,
       kind: 'point',
-      position: [
-        e.transform.position[0],
-        e.transform.position[1],
-        e.transform.position[2],
-      ],
+      position: [e.transform.position[0], e.transform.position[1], e.transform.position[2]],
       color: parseColor(e.userData['color']),
       intensity: parseNumber(e.userData['intensity'], 1),
       range: parseNumber(e.userData['range'], 12),

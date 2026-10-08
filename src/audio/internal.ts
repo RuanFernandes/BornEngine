@@ -30,8 +30,12 @@ export function closeAudio(): void {
 }
 
 // Spec-compliant aliases
-export function initAudioDevice(): void { bloom_init_audio(); }
-export function closeAudioDevice(): void { bloom_close_audio(); }
+export function initAudioDevice(): void {
+  bloom_init_audio();
+}
+export function closeAudioDevice(): void {
+  bloom_close_audio();
+}
 
 export function loadSound(path: string): Sound {
   const handle = bloom_load_sound(path as any);
@@ -131,7 +135,9 @@ export function updateMusicStreamRaw(handle: number): void {
 }
 
 // Spec-compliant alias
-export function updateMusic(music: Music): void { bloom_update_music_stream(music.handle); }
+export function updateMusic(music: Music): void {
+  bloom_update_music_stream(music.handle);
+}
 
 export function setMusicVolume(music: Music, volume: number): void {
   bloom_set_music_volume(music.handle, volume);
@@ -169,7 +175,14 @@ export function playSound3D(sound: Sound, x: number, y: number, z: number): void
   bloom_play_sound_3d(sound.handle, x, y, z);
 }
 
-export function setListenerPosition(x: number, y: number, z: number, forwardX: number, forwardY: number, forwardZ: number): void {
+export function setListenerPosition(
+  x: number,
+  y: number,
+  z: number,
+  forwardX: number,
+  forwardY: number,
+  forwardZ: number,
+): void {
   bloom_set_listener_position(x, y, z, forwardX, forwardY, forwardZ);
 }
 
@@ -185,8 +198,16 @@ export function setListenerPosition(x: number, y: number, z: number, forwardX: n
 // refDist/rolloff, distance air-absorption, a rear-hemisphere head-shadow
 // cue, and doppler derived from the motion you feed voiceSetPosition.
 
-declare function bloom_play_sound_3d_ex(handle: number, x: number, y: number, z: number,
-  looping: number, refDist: number, maxDist: number, rolloff: number): number;
+declare function bloom_play_sound_3d_ex(
+  handle: number,
+  x: number,
+  y: number,
+  z: number,
+  looping: number,
+  refDist: number,
+  maxDist: number,
+  rolloff: number,
+): number;
 declare function bloom_voice_set_position(voice: number, x: number, y: number, z: number): void;
 declare function bloom_voice_stop(voice: number): void;
 declare function bloom_voice_set_volume(voice: number, volume: number): void;
@@ -202,8 +223,16 @@ declare function bloom_voice_set_lowpass(voice: number, cutoffHz: number): void;
 /// farther). `maxDist` — the mixer culls past this (0 = never); a culled
 /// looping voice keeps its playback head moving and comes back mid-phrase,
 /// not from the top. refDist=1, rolloff=1 is exactly playSound3D's curve.
-export function playSound3DEx(sound: Sound, x: number, y: number, z: number,
-  looping: boolean, refDist: number, maxDist: number, rolloff: number): number {
+export function playSound3DEx(
+  sound: Sound,
+  x: number,
+  y: number,
+  z: number,
+  looping: boolean,
+  refDist: number,
+  maxDist: number,
+  rolloff: number,
+): number {
   return bloom_play_sound_3d_ex(sound.handle, x, y, z, looping ? 1 : 0, refDist, maxDist, rolloff);
 }
 

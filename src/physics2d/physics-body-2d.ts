@@ -87,8 +87,10 @@ function turn(a: Vector2DLike, b: Vector2DLike, c: Vector2DLike): number {
 }
 
 function edgesCross(a: Vector2DLike, b: Vector2DLike, c: Vector2DLike, d: Vector2DLike): boolean {
-  const first = turn(a, b, c), second = turn(a, b, d);
-  const third = turn(c, d, a), fourth = turn(c, d, b);
+  const first = turn(a, b, c),
+    second = turn(a, b, d);
+  const third = turn(c, d, a),
+    fourth = turn(c, d, b);
   return first * second < 0 && third * fourth < 0;
 }
 
@@ -132,9 +134,8 @@ export class PhysicsBody2D extends GameComponent {
     this.id = nextBodyId++;
     this.world = world;
 
-    const settings: PhysicsBody2DOptions = options === null || options === undefined
-      ? { shape: { type: 'box', width: 0, height: 0 } }
-      : options;
+    const settings: PhysicsBody2DOptions =
+      options === null || options === undefined ? { shape: { type: 'box', width: 0, height: 0 } } : options;
     this.type = settings.type === undefined ? 'dynamic' : settings.type;
     this.shapeValue = this.copyShape(settings.shape);
     this.positionValue = validVec(settings.position) ? copyVec(settings.position) : { x: 0, y: 0 };
@@ -146,11 +147,17 @@ export class PhysicsBody2D extends GameComponent {
     this.sensorValue = settings.isSensor === undefined ? false : settings.isSensor;
     this.layerValue = settings.layer === undefined ? 1 : settings.layer;
     this.maskValue = settings.mask === undefined ? 0x7fffffff : settings.mask;
-    this.oneWayValue = settings.oneWay === undefined ? null : {
-      normal: settings.oneWay === null || settings.oneWay.normal === undefined ? { x: NaN, y: NaN } :
-        { x: settings.oneWay.normal.x, y: settings.oneWay.normal.y },
-      tolerance: settings.oneWay === null ? NaN : settings.oneWay.tolerance === undefined ? 0 : settings.oneWay.tolerance,
-    };
+    this.oneWayValue =
+      settings.oneWay === undefined
+        ? null
+        : {
+            normal:
+              settings.oneWay === null || settings.oneWay.normal === undefined
+                ? { x: NaN, y: NaN }
+                : { x: settings.oneWay.normal.x, y: settings.oneWay.normal.y },
+            tolerance:
+              settings.oneWay === null ? NaN : settings.oneWay.tolerance === undefined ? 0 : settings.oneWay.tolerance,
+          };
     this.ccdValue = settings.ccd === true;
     this.ccdThresholdValue = settings.ccdThreshold === undefined ? 0 : settings.ccdThreshold;
 
@@ -160,22 +167,50 @@ export class PhysicsBody2D extends GameComponent {
     else this.enabled = false;
   }
 
-  get isDisposed(): boolean { return this.disposed; }
-  get position(): Vector2D { return Vector2D.from(this.positionValue); }
-  get velocity(): Vector2D { return Vector2D.from(this.velocityValue); }
-  get mass(): number { return this.massValue; }
-  get gravityScale(): number { return this.gravityScaleValue; }
-  get friction(): number { return this.frictionValue; }
-  get restitution(): number { return this.restitutionValue; }
-  get isSensor(): boolean { return this.sensorValue; }
-  get layer(): number { return this.layerValue; }
-  get mask(): number { return this.maskValue; }
-  get shape(): PhysicsShape2D { return this.copyShape(this.shapeValue); }
-  get oneWay(): OneWaySurface2D | null {
-    return this.oneWayValue === null ? null : { normal: copyVec(this.oneWayValue.normal), tolerance: this.oneWayValue.tolerance };
+  get isDisposed(): boolean {
+    return this.disposed;
   }
-  get ccd(): boolean { return this.ccdValue; }
-  get ccdThreshold(): number { return this.ccdThresholdValue; }
+  get position(): Vector2D {
+    return Vector2D.from(this.positionValue);
+  }
+  get velocity(): Vector2D {
+    return Vector2D.from(this.velocityValue);
+  }
+  get mass(): number {
+    return this.massValue;
+  }
+  get gravityScale(): number {
+    return this.gravityScaleValue;
+  }
+  get friction(): number {
+    return this.frictionValue;
+  }
+  get restitution(): number {
+    return this.restitutionValue;
+  }
+  get isSensor(): boolean {
+    return this.sensorValue;
+  }
+  get layer(): number {
+    return this.layerValue;
+  }
+  get mask(): number {
+    return this.maskValue;
+  }
+  get shape(): PhysicsShape2D {
+    return this.copyShape(this.shapeValue);
+  }
+  get oneWay(): OneWaySurface2D | null {
+    return this.oneWayValue === null
+      ? null
+      : { normal: copyVec(this.oneWayValue.normal), tolerance: this.oneWayValue.tolerance };
+  }
+  get ccd(): boolean {
+    return this.ccdValue;
+  }
+  get ccdThreshold(): number {
+    return this.ccdThresholdValue;
+  }
 
   setPosition(value: Vector2DLike): boolean {
     if (this.disposed || !validVec(value)) return false;
@@ -254,8 +289,12 @@ export class PhysicsBody2D extends GameComponent {
     if (owner === null) return true;
     if (!this.isActiveAndEnabled || owner.scene === null) return false;
     const worldPosition = owner.transform.worldPosition;
-    if (this.type !== 'dynamic' || !this.hasWrittenTransform ||
-        worldPosition.x !== this.lastWrittenX || worldPosition.y !== this.lastWrittenY) {
+    if (
+      this.type !== 'dynamic' ||
+      !this.hasWrittenTransform ||
+      worldPosition.x !== this.lastWrittenX ||
+      worldPosition.y !== this.lastWrittenY
+    ) {
       this.positionValue = { x: worldPosition.x, y: worldPosition.y };
     }
     return true;
@@ -273,13 +312,30 @@ export class PhysicsBody2D extends GameComponent {
   }
 
   /** @internal Collision solver hooks; inverse mass is zero for immovable bodies. */
-  _inverseMass(): number { return !this.disposed && this.type === 'dynamic' ? 1 / this.massValue : 0; }
-  _moveBy(x: number, y: number): void { this.positionValue.x += x; this.positionValue.y += y; }
-  _addVelocity(x: number, y: number): void { this.velocityValue.x += x; this.velocityValue.y += y; }
-  _clearForce(): void { this.forceValue.x = 0; this.forceValue.y = 0; }
-  _setPositionInternal(value: Vector2DLike): void { this.positionValue = copyVec(value); }
-  _setVelocityInternal(value: Vector2DLike): void { this.velocityValue = copyVec(value); }
-  _isUsable(): boolean { return !this.disposed && this.error === null && this.enabled; }
+  _inverseMass(): number {
+    return !this.disposed && this.type === 'dynamic' ? 1 / this.massValue : 0;
+  }
+  _moveBy(x: number, y: number): void {
+    this.positionValue.x += x;
+    this.positionValue.y += y;
+  }
+  _addVelocity(x: number, y: number): void {
+    this.velocityValue.x += x;
+    this.velocityValue.y += y;
+  }
+  _clearForce(): void {
+    this.forceValue.x = 0;
+    this.forceValue.y = 0;
+  }
+  _setPositionInternal(value: Vector2DLike): void {
+    this.positionValue = copyVec(value);
+  }
+  _setVelocityInternal(value: Vector2DLike): void {
+    this.velocityValue = copyVec(value);
+  }
+  _isUsable(): boolean {
+    return !this.disposed && this.error === null && this.enabled;
+  }
 
   /** @internal Writes dynamic simulation position back without changing Z. */
   _syncToTransform(): void {
@@ -311,7 +367,9 @@ export class PhysicsBody2D extends GameComponent {
   }
 
   /** @internal Removes the body when its GameObject destroys this component. */
-  onDestroy(): void { this.dispose(); }
+  onDestroy(): void {
+    this.dispose();
+  }
 
   dispose(): void {
     if (this.disposed) return;
@@ -332,10 +390,15 @@ export class PhysicsBody2D extends GameComponent {
   private copyShape(value: PhysicsShape2D): PhysicsShape2D {
     if (value === null || value === undefined) return { type: 'box', width: 0, height: 0 };
     if (value.type === 'circle') return { type: 'circle', radius: value.radius };
-    if (value.type === 'segment') return { type: 'segment', start: value.start === null || value.start === undefined ? { x: NaN, y: NaN } :
-      { x: value.start.x, y: value.start.y },
-      end: value.end === null || value.end === undefined ? { x: NaN, y: NaN } :
-        { x: value.end.x, y: value.end.y } };
+    if (value.type === 'segment')
+      return {
+        type: 'segment',
+        start:
+          value.start === null || value.start === undefined
+            ? { x: NaN, y: NaN }
+            : { x: value.start.x, y: value.start.y },
+        end: value.end === null || value.end === undefined ? { x: NaN, y: NaN } : { x: value.end.x, y: value.end.y },
+      };
     if (value.type === 'convex') {
       const vertices: Vector2DLike[] = [];
       if (value.vertices !== null && value.vertices !== undefined) {
@@ -354,13 +417,20 @@ export class PhysicsBody2D extends GameComponent {
     if (this.type !== 'static' && this.type !== 'dynamic' && this.type !== 'kinematic') {
       return 'PhysicsBody2D type must be static, dynamic, or kinematic.';
     }
-    if (options.shape === null || options.shape === undefined ||
-        (options.shape.type !== 'box' && options.shape.type !== 'circle' &&
-         options.shape.type !== 'segment' && options.shape.type !== 'convex')) {
+    if (
+      options.shape === null ||
+      options.shape === undefined ||
+      (options.shape.type !== 'box' &&
+        options.shape.type !== 'circle' &&
+        options.shape.type !== 'segment' &&
+        options.shape.type !== 'convex')
+    ) {
       return 'PhysicsBody2D requires a supported collision shape.';
     }
-    if (this.shape.type === 'box' && (!finite(this.shape.width) || !finite(this.shape.height) ||
-        this.shape.width <= 0 || this.shape.height <= 0)) {
+    if (
+      this.shape.type === 'box' &&
+      (!finite(this.shape.width) || !finite(this.shape.height) || this.shape.width <= 0 || this.shape.height <= 0)
+    ) {
       return 'PhysicsBody2D box dimensions must be finite and positive.';
     }
     if (this.shape.type === 'circle' && (!finite(this.shape.radius) || this.shape.radius <= 0)) {
@@ -369,14 +439,20 @@ export class PhysicsBody2D extends GameComponent {
     if (this.shapeValue.type === 'segment') {
       const shape = this.shapeValue;
       const length = Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y);
-      if (this.type !== 'static' || !validVec(shape.start) || !validVec(shape.end) ||
-          !finite(length) || length <= 0.0000001) {
+      if (
+        this.type !== 'static' ||
+        !validVec(shape.start) ||
+        !validVec(shape.end) ||
+        !finite(length) ||
+        length <= 0.0000001
+      ) {
         return 'PhysicsBody2D segment requires distinct finite endpoints and a static body.';
       }
     }
     if (this.shapeValue.type === 'convex') {
       const vertices = this.shapeValue.vertices;
-      if (this.type !== 'static' || vertices.length < 3) return 'PhysicsBody2D convex shape requires at least three vertices and a static body.';
+      if (this.type !== 'static' || vertices.length < 3)
+        return 'PhysicsBody2D convex shape requires at least three vertices and a static body.';
       let winding = 0;
       let area = 0;
       for (let index = 0; index < vertices.length; index++) {
@@ -386,14 +462,21 @@ export class PhysicsBody2D extends GameComponent {
         if (!validVec(a) || !validVec(b) || !validVec(c)) return 'PhysicsBody2D convex vertices must be finite.';
         const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
         const edgeLength = Math.hypot(b.x - a.x, b.y - a.y);
-        if (!finite(edgeLength) || !finite(cross) || edgeLength <= 0.0000001 || Math.abs(cross) <= 0.0000001 ||
-            (winding !== 0 && cross * winding < 0)) return 'PhysicsBody2D convex vertices must form a nondegenerate convex polygon.';
+        if (
+          !finite(edgeLength) ||
+          !finite(cross) ||
+          edgeLength <= 0.0000001 ||
+          Math.abs(cross) <= 0.0000001 ||
+          (winding !== 0 && cross * winding < 0)
+        )
+          return 'PhysicsBody2D convex vertices must form a nondegenerate convex polygon.';
         winding = cross;
         area += a.x * b.y - a.y * b.x;
       }
       if (!finite(area) || Math.abs(area) <= 0.0000001) return 'PhysicsBody2D convex area must be finite and nonzero.';
       for (let edge = 0; edge < vertices.length; edge++) {
-        const a = vertices[edge], b = vertices[(edge + 1) % vertices.length];
+        const a = vertices[edge],
+          b = vertices[(edge + 1) % vertices.length];
         for (let point = 0; point < vertices.length; point++) {
           if (point === edge || point === (edge + 1) % vertices.length) continue;
           const side = turn(a, b, vertices[point]) * winding;
@@ -405,8 +488,14 @@ export class PhysicsBody2D extends GameComponent {
       for (let first = 0; first < vertices.length; first++) {
         for (let second = first + 2; second < vertices.length; second++) {
           if (first === 0 && second === vertices.length - 1) continue;
-          if (edgesCross(vertices[first], vertices[(first + 1) % vertices.length],
-              vertices[second], vertices[(second + 1) % vertices.length])) {
+          if (
+            edgesCross(
+              vertices[first],
+              vertices[(first + 1) % vertices.length],
+              vertices[second],
+              vertices[(second + 1) % vertices.length],
+            )
+          ) {
             return 'PhysicsBody2D convex edges must not intersect.';
           }
         }
@@ -415,14 +504,23 @@ export class PhysicsBody2D extends GameComponent {
     if (this.oneWayValue !== null) {
       const normal = this.oneWayValue.normal;
       const length = Math.hypot(normal.x, normal.y);
-      if (this.type !== 'static' || !validVec(normal) || !finite(length) || length <= 0.0000001 ||
-          !finite(this.oneWayValue.tolerance!) || this.oneWayValue.tolerance! < 0) {
+      if (
+        this.type !== 'static' ||
+        !validVec(normal) ||
+        !finite(length) ||
+        length <= 0.0000001 ||
+        !finite(this.oneWayValue.tolerance!) ||
+        this.oneWayValue.tolerance! < 0
+      ) {
         return 'PhysicsBody2D one-way surface requires a static body, finite nonzero normal, and nonnegative tolerance.';
       }
       this.oneWayValue.normal = { x: normal.x / length, y: normal.y / length };
     }
-    if (options.ccd !== undefined && typeof options.ccd !== 'boolean' ||
-        !finite(this.ccdThresholdValue) || this.ccdThresholdValue < 0) {
+    if (
+      (options.ccd !== undefined && typeof options.ccd !== 'boolean') ||
+      !finite(this.ccdThresholdValue) ||
+      this.ccdThresholdValue < 0
+    ) {
       return 'PhysicsBody2D CCD settings are invalid.';
     }
     if (options.position !== undefined && !validVec(options.position)) {
@@ -434,8 +532,14 @@ export class PhysicsBody2D extends GameComponent {
     if (this.type === 'dynamic' && (!finite(this.massValue) || this.massValue <= 0)) {
       return 'Dynamic PhysicsBody2D mass must be finite and positive.';
     }
-    if (!finite(this.gravityScaleValue) || !finite(this.frictionValue) || this.frictionValue < 0 ||
-        !finite(this.restitutionValue) || this.restitutionValue < 0 || this.restitutionValue > 1) {
+    if (
+      !finite(this.gravityScaleValue) ||
+      !finite(this.frictionValue) ||
+      this.frictionValue < 0 ||
+      !finite(this.restitutionValue) ||
+      this.restitutionValue < 0 ||
+      this.restitutionValue > 1
+    ) {
       return 'PhysicsBody2D material settings are invalid.';
     }
     if (!validBits(this.layerValue) || this.layerValue === 0 || !validBits(this.maskValue)) {

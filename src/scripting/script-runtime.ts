@@ -22,9 +22,15 @@ export class ScriptRuntime {
     this.supportedValue = supported;
   }
 
-  get isSupported(): boolean { return this.supportedValue && !this.disposed; }
-  get isDisposed(): boolean { return this.disposed; }
-  get scriptCount(): number { return this.componentValues.length; }
+  get isSupported(): boolean {
+    return this.supportedValue && !this.disposed;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get scriptCount(): number {
+    return this.componentValues.length;
+  }
 
   /** @internal Tracks components so detached scripts are released with Game. */
   _register(component: ScriptComponent): boolean {
@@ -45,7 +51,9 @@ export class ScriptRuntime {
   }
 
   /** @internal Snapshot used by the opt-in Game inspector. */
-  _componentsSnapshot(): ScriptComponent[] { return this.componentValues.slice(); }
+  _componentsSnapshot(): ScriptComponent[] {
+    return this.componentValues.slice();
+  }
 
   dispose(): void {
     if (this.disposed) return;

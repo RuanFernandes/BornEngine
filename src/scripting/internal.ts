@@ -33,12 +33,7 @@ export function scriptRuntimeSupported(): boolean {
 }
 
 export function createScriptVm(permissionMask: number, limits: ScriptLimits): number {
-  return bloom_script_create(
-    permissionMask,
-    limits.maxMemoryBytes,
-    limits.maxStackBytes,
-    limits.maxInterruptChecks,
-  );
+  return bloom_script_create(permissionMask, limits.maxMemoryBytes, limits.maxStackBytes, limits.maxInterruptChecks);
 }
 
 export function loadScriptVm(handle: number, source: string): boolean {
@@ -62,14 +57,30 @@ export function disposeScriptVm(handle: number, id: string, position: { x: numbe
   return bloom_script_dispose(handle, id, position.x, position.y, position.z);
 }
 
-export function scriptCommandCount(handle: number): number { return bloom_script_command_count(handle); }
-export function scriptCommandKind(handle: number, index: number): number { return bloom_script_command_kind(handle, index); }
+export function scriptCommandCount(handle: number): number {
+  return bloom_script_command_count(handle);
+}
+export function scriptCommandKind(handle: number, index: number): number {
+  return bloom_script_command_kind(handle, index);
+}
 export function scriptCommandNumber(handle: number, index: number, slot: number): number {
   return bloom_script_command_number(handle, index, slot);
 }
-export function scriptCommandText(handle: number, index: number): string { return bloom_script_command_text(handle, index); }
-export function clearScriptCommands(handle: number): void { bloom_script_clear_commands(handle); }
-export function scriptVmStatus(handle: number): number { return bloom_script_status(handle); }
-export function scriptVmError(handle: number): string { return bloom_script_error(handle); }
-export function scriptVmMemoryUsed(handle: number): number { return bloom_script_memory_used(handle); }
-export function destroyScriptVm(handle: number): void { bloom_script_destroy(handle); }
+export function scriptCommandText(handle: number, index: number): string {
+  return bloom_script_command_text(handle, index);
+}
+export function clearScriptCommands(handle: number): void {
+  bloom_script_clear_commands(handle);
+}
+export function scriptVmStatus(handle: number): number {
+  return bloom_script_status(handle);
+}
+export function scriptVmError(handle: number): string {
+  return bloom_script_error(handle);
+}
+export function scriptVmMemoryUsed(handle: number): number {
+  return bloom_script_memory_used(handle);
+}
+export function destroyScriptVm(handle: number): void {
+  bloom_script_destroy(handle);
+}

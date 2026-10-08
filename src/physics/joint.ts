@@ -28,7 +28,10 @@ export class Joint implements ContextResource {
   constructor(world: PhysicsWorld, kind: JointKind, options: JointOptions) {
     this.world = world;
     this.context = world.context;
-    const valid = world.isReady && options.bodyA.world === world && options.bodyA.isLoaded &&
+    const valid =
+      world.isReady &&
+      options.bodyA.world === world &&
+      options.bodyA.isLoaded &&
       (options.bodyB === undefined || (options.bodyB.world === world && options.bodyB.isLoaded));
     let handle = 0;
     if (valid) {
@@ -41,12 +44,17 @@ export class Joint implements ContextResource {
       };
       if (kind === 'fixed') handle = native.fixedConstraint(anchors);
       else if (kind === 'point') handle = native.pointConstraint(anchors);
-      else if (kind === 'hinge') handle = native.hingeConstraint(anchors, options.axis || { x: 0, y: 1, z: 0 }, options.min, options.max);
-      else if (kind === 'slider') handle = native.sliderConstraint(anchors, options.axis || { x: 1, y: 0, z: 0 }, options.min, options.max);
+      else if (kind === 'hinge')
+        handle = native.hingeConstraint(anchors, options.axis || { x: 0, y: 1, z: 0 }, options.min, options.max);
+      else if (kind === 'slider')
+        handle = native.sliderConstraint(anchors, options.axis || { x: 1, y: 0, z: 0 }, options.min, options.max);
       else handle = native.distanceConstraint(anchors, options.min || 0, options.max || 0);
     }
-    this.error = valid ? (handle === 0 ? 'Unable to create joint.' : null) :
-      'Joint bodies must be loaded by the same PhysicsWorld.';
+    this.error = valid
+      ? handle === 0
+        ? 'Unable to create joint.'
+        : null
+      : 'Joint bodies must be loaded by the same PhysicsWorld.';
     if (handle !== 0) {
       registerNativeHandle(this, handle);
       world._registerJoint(this);
@@ -54,7 +62,9 @@ export class Joint implements ContextResource {
     }
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0; }
+  get isLoaded(): boolean {
+    return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0;
+  }
   setEnabled(enabled: boolean): boolean {
     if (!this.isLoaded) return false;
     native.setConstraintEnabled(getNativeHandle(this), enabled);

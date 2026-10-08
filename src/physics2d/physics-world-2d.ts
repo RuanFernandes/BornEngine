@@ -4,12 +4,7 @@ import type { Game } from '../core/game';
 import type { Vector2DLike } from '../core/types';
 import { Vector2D } from '../math/vector2d';
 import { PhysicsBody2D } from './physics-body-2d';
-import type {
-  PhysicsBodyContact2D,
-  PhysicsBody2DOptions,
-  PhysicsContact2D,
-  PhysicsShape2D,
-} from './physics-body-2d';
+import type { PhysicsBodyContact2D, PhysicsBody2DOptions, PhysicsContact2D, PhysicsShape2D } from './physics-body-2d';
 
 export interface PhysicsWorld2DOptions {
   gravity?: Vector2DLike;
@@ -90,19 +85,27 @@ function validVec(value: Vector2DLike): boolean {
   return value !== null && value !== undefined && finite(value.x) && finite(value.y);
 }
 
-function copyVec(value: Vector2DLike): Vector2D { return Vector2D.from(value); }
-function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
+function copyVec(value: Vector2DLike): Vector2D {
+  return Vector2D.from(value);
+}
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 function bodyBounds(body: PhysicsBody2D): BroadphaseBounds {
   const position = body.position;
   const shape = body.shape;
-  if (shape.type === 'segment') return {
-    minX: position.x + Math.min(shape.start.x, shape.end.x),
-    minY: position.y + Math.min(shape.start.y, shape.end.y),
-    maxX: position.x + Math.max(shape.start.x, shape.end.x),
-    maxY: position.y + Math.max(shape.start.y, shape.end.y),
-  };
+  if (shape.type === 'segment')
+    return {
+      minX: position.x + Math.min(shape.start.x, shape.end.x),
+      minY: position.y + Math.min(shape.start.y, shape.end.y),
+      maxX: position.x + Math.max(shape.start.x, shape.end.x),
+      maxY: position.y + Math.max(shape.start.y, shape.end.y),
+    };
   if (shape.type === 'convex') {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (let index = 0; index < shape.vertices.length; index++) {
       const point = shape.vertices[index];
       minX = Math.min(minX, position.x + point.x);
@@ -128,8 +131,14 @@ function bodyBounds(body: PhysicsBody2D): BroadphaseBounds {
   };
 }
 
-function sweepBoxAgainstBody(position: Vector2DLike, width: number, height: number, axis: 'x' | 'y', delta: number,
-  target: PhysicsBody2D): AxisSweepHit | null {
+function sweepBoxAgainstBody(
+  position: Vector2DLike,
+  width: number,
+  height: number,
+  axis: 'x' | 'y',
+  delta: number,
+  target: PhysicsBody2D,
+): AxisSweepHit | null {
   if (delta === 0) return null;
   const movingPositive = delta > 0;
   const targetPosition = target.position;
@@ -139,26 +148,28 @@ function sweepBoxAgainstBody(position: Vector2DLike, width: number, height: numb
   let targetMinimum: number;
   let targetMaximum: number;
   if (target.shape.type === 'circle') {
-    const orthogonalOffset = axis === 'x'
-      ? Math.max(Math.abs(position.y - targetPosition.y) - halfY, 0)
-      : Math.max(Math.abs(position.x - targetPosition.x) - halfX, 0);
+    const orthogonalOffset =
+      axis === 'x'
+        ? Math.max(Math.abs(position.y - targetPosition.y) - halfY, 0)
+        : Math.max(Math.abs(position.x - targetPosition.x) - halfX, 0);
     if (orthogonalOffset > target.shape.radius) return null;
-    const remainingRadius = Math.sqrt(Math.max(0,
-      target.shape.radius * target.shape.radius - orthogonalOffset * orthogonalOffset));
+    const remainingRadius = Math.sqrt(
+      Math.max(0, target.shape.radius * target.shape.radius - orthogonalOffset * orthogonalOffset),
+    );
     targetMinimum = (axis === 'x' ? targetPosition.x : targetPosition.y) - remainingRadius;
     targetMaximum = (axis === 'x' ? targetPosition.x : targetPosition.y) + remainingRadius;
   } else {
     const targetHalfX = target.shape.width * 0.5;
     const targetHalfY = target.shape.height * 0.5;
     if (axis === 'x') {
-      const overlapY = position.y + halfY > targetPosition.y - targetHalfY &&
-        position.y - halfY < targetPosition.y + targetHalfY;
+      const overlapY =
+        position.y + halfY > targetPosition.y - targetHalfY && position.y - halfY < targetPosition.y + targetHalfY;
       if (!overlapY) return null;
       targetMinimum = targetPosition.x - targetHalfX;
       targetMaximum = targetPosition.x + targetHalfX;
     } else {
-      const overlapX = position.x + halfX > targetPosition.x - targetHalfX &&
-        position.x - halfX < targetPosition.x + targetHalfX;
+      const overlapX =
+        position.x + halfX > targetPosition.x - targetHalfX && position.x - halfX < targetPosition.x + targetHalfX;
       if (!overlapX) return null;
       targetMinimum = targetPosition.y - targetHalfY;
       targetMaximum = targetPosition.y + targetHalfY;
@@ -174,7 +185,7 @@ function sweepBoxAgainstBody(position: Vector2DLike, width: number, height: numb
     if (distance <= delta) return { distance, normal: axis === 'x' ? { x: -1, y: 0 } : { x: 0, y: -1 } };
   } else {
     if (currentAxis < targetAxis) return null;
-    const distance = Math.max(0, (currentAxis - movingHalf) - targetMaximum);
+    const distance = Math.max(0, currentAxis - movingHalf - targetMaximum);
     if (distance <= -delta) return { distance, normal: axis === 'x' ? { x: 1, y: 0 } : { x: 0, y: 1 } };
   }
   return null;
@@ -195,7 +206,9 @@ function hasCellKey(values: string[], value: string): boolean {
   return false;
 }
 
-function gridCellKey(x: number, y: number): string { return x + ',' + y; }
+function gridCellKey(x: number, y: number): string {
+  return x + ',' + y;
+}
 
 function removeAt<T>(values: T[], index: number): void {
   for (let current = index; current + 1 < values.length; current++) values[current] = values[current + 1];
@@ -230,9 +243,12 @@ export class PhysicsWorld2D implements ContextResource {
   constructor(owner: Game, options: PhysicsWorld2DOptions = {}) {
     this.context = getGameContext(owner);
     const settings: PhysicsWorld2DOptions = options === null || options === undefined ? {} : options;
-    this.gravityValue = settings.gravity === undefined
-      ? { x: 0, y: 980 }
-      : validVec(settings.gravity) ? copyVec(settings.gravity) : { x: NaN, y: NaN };
+    this.gravityValue =
+      settings.gravity === undefined
+        ? { x: 0, y: 980 }
+        : validVec(settings.gravity)
+          ? copyVec(settings.gravity)
+          : { x: NaN, y: NaN };
     this.fixedTimeStepValue = settings.fixedTimeStep === undefined ? 1 / 60 : settings.fixedTimeStep;
     this.maxSubStepsValue = settings.maxSubSteps === undefined ? 5 : settings.maxSubSteps;
 
@@ -240,29 +256,56 @@ export class PhysicsWorld2D implements ContextResource {
       this.error = 'The Game must be ready before creating PhysicsWorld2D.';
       return;
     }
-    if (!validVec(this.gravityValue) || !finite(this.fixedTimeStepValue) || this.fixedTimeStepValue <= 0 ||
-        !finite(this.maxSubStepsValue) || this.maxSubStepsValue < 1 ||
-        Math.floor(this.maxSubStepsValue) !== this.maxSubStepsValue) {
+    if (
+      !validVec(this.gravityValue) ||
+      !finite(this.fixedTimeStepValue) ||
+      this.fixedTimeStepValue <= 0 ||
+      !finite(this.maxSubStepsValue) ||
+      this.maxSubStepsValue < 1 ||
+      Math.floor(this.maxSubStepsValue) !== this.maxSubStepsValue
+    ) {
       this.error = 'PhysicsWorld2D gravity, fixedTimeStep, or maxSubSteps is invalid.';
       return;
     }
     this.error = this.context.register(this) ? null : 'Unable to register PhysicsWorld2D with the Game.';
   }
 
-  get isReady(): boolean { return !this.disposed && this.error === null && this.context.isReady && !this.context.isDisposed; }
-  get isDisposed(): boolean { return this.disposed; }
-  get gravity(): Vector2D { return Vector2D.from(this.gravityValue); }
-  get fixedTimeStep(): number { return this.fixedTimeStepValue; }
-  get maxSubSteps(): number { return this.maxSubStepsValue; }
-  get bodyCount(): number { return this.bodies.length; }
-  get contactCount(): number { return this.contactEvents.length; }
-  get droppedTime(): number { return this.elapsedDroppedTime; }
+  get isReady(): boolean {
+    return !this.disposed && this.error === null && this.context.isReady && !this.context.isDisposed;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get gravity(): Vector2D {
+    return Vector2D.from(this.gravityValue);
+  }
+  get fixedTimeStep(): number {
+    return this.fixedTimeStepValue;
+  }
+  get maxSubSteps(): number {
+    return this.maxSubStepsValue;
+  }
+  get bodyCount(): number {
+    return this.bodies.length;
+  }
+  get contactCount(): number {
+    return this.contactEvents.length;
+  }
+  get droppedTime(): number {
+    return this.elapsedDroppedTime;
+  }
   /** Candidate pairs in the most recent fixed step, before collision filters. */
-  get lastCandidatePairCount(): number { return this.candidatePairCount; }
+  get lastCandidatePairCount(): number {
+    return this.candidatePairCount;
+  }
   /** Pairs that reached the existing narrowphase in the most recent fixed step. */
-  get lastNarrowphaseTestCount(): number { return this.narrowphaseTestCount; }
+  get lastNarrowphaseTestCount(): number {
+    return this.narrowphaseTestCount;
+  }
   /** Bodies tested by the most recent spatial query. */
-  get lastQueryCandidateCount(): number { return this.queryCandidateCount; }
+  get lastQueryCandidateCount(): number {
+    return this.queryCandidateCount;
+  }
 
   setGravity(value: Vector2DLike): boolean {
     if (!this.isReady || !validVec(value)) return false;
@@ -271,8 +314,15 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   setFixedTimeStep(value: number, maxSubSteps = this.maxSubStepsValue): boolean {
-    if (!this.isReady || !finite(value) || value <= 0 || !finite(maxSubSteps) ||
-        maxSubSteps < 1 || Math.floor(maxSubSteps) !== maxSubSteps) return false;
+    if (
+      !this.isReady ||
+      !finite(value) ||
+      value <= 0 ||
+      !finite(maxSubSteps) ||
+      maxSubSteps < 1 ||
+      Math.floor(maxSubSteps) !== maxSubSteps
+    )
+      return false;
     this.fixedTimeStepValue = value;
     this.maxSubStepsValue = maxSubSteps;
     this.accumulator = Math.min(this.accumulator, value);
@@ -294,8 +344,11 @@ export class PhysicsWorld2D implements ContextResource {
     this.stepping = true;
     let steps = 0;
     try {
-      while (this.accumulator + 0.0000000001 >= this.fixedTimeStepValue &&
-          steps < this.maxSubStepsValue && this.isReady) {
+      while (
+        this.accumulator + 0.0000000001 >= this.fixedTimeStepValue &&
+        steps < this.maxSubStepsValue &&
+        this.isReady
+      ) {
         this.simulate(this.fixedTimeStepValue);
         this.accumulator -= this.fixedTimeStepValue;
         if (this.accumulator < 0) this.accumulator = 0;
@@ -308,8 +361,14 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   /** Returns the nearest positive hit or null. Directions are normalized internally. */
-  raycast(origin: Vector2DLike, direction: Vector2DLike, maxDistance: number, options: PhysicsQueryOptions2D = {}): PhysicsRayHit2D | null {
-    if (!this.isReady || !validVec(origin) || !validVec(direction) || !finite(maxDistance) || maxDistance < 0) return null;
+  raycast(
+    origin: Vector2DLike,
+    direction: Vector2DLike,
+    maxDistance: number,
+    options: PhysicsQueryOptions2D = {},
+  ): PhysicsRayHit2D | null {
+    if (!this.isReady || !validVec(origin) || !validVec(direction) || !finite(maxDistance) || maxDistance < 0)
+      return null;
     const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
     if (length <= 0.0000001) return null;
     const dx = direction.x / length;
@@ -359,8 +418,10 @@ export class PhysicsWorld2D implements ContextResource {
     const query: ShapePose = { position: copyVec(center), shape: { type: 'circle', radius } };
     const result: PhysicsBody2D[] = [];
     const candidates = this.queryCandidates({
-      minX: center.x - radius, minY: center.y - radius,
-      maxX: center.x + radius, maxY: center.y + radius,
+      minX: center.x - radius,
+      minY: center.y - radius,
+      maxX: center.x + radius,
+      maxY: center.y + radius,
     });
     for (let index = 0; index < candidates.length; index++) {
       const body = candidates[index];
@@ -380,8 +441,10 @@ export class PhysicsWorld2D implements ContextResource {
     };
     const result: PhysicsBody2D[] = [];
     const candidates = this.queryCandidates({
-      minX: center.x - size.x * 0.5, minY: center.y - size.y * 0.5,
-      maxX: center.x + size.x * 0.5, maxY: center.y + size.y * 0.5,
+      minX: center.x - size.x * 0.5,
+      minY: center.y - size.y * 0.5,
+      maxX: center.x + size.x * 0.5,
+      maxY: center.y + size.y * 0.5,
     });
     for (let index = 0; index < candidates.length; index++) {
       const body = candidates[index];
@@ -426,16 +489,33 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   /** @internal Sweeps a kinematic box along X then Y and reports the blocking outward normals. */
-  _moveKinematicBox(body: PhysicsBody2D, width: number, height: number, delta: Vector2DLike):
-    { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
-    if (!this.isReady || body.world !== this || body.type !== 'kinematic' || body.shape.type !== 'box' ||
-        body.shape.width !== width || body.shape.height !== height || !body._isUsable() || !validVec(delta)) return null;
+  _moveKinematicBox(
+    body: PhysicsBody2D,
+    width: number,
+    height: number,
+    delta: Vector2DLike,
+  ): { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
+    if (
+      !this.isReady ||
+      body.world !== this ||
+      body.type !== 'kinematic' ||
+      body.shape.type !== 'box' ||
+      body.shape.width !== width ||
+      body.shape.height !== height ||
+      !body._isUsable() ||
+      !validVec(delta)
+    )
+      return null;
     let position: Vector2DLike = copyVec(body.position);
     const normals: Vector2DLike[] = [];
     const surfaceResult = this.sweepKinematicSurfaces(body, width, height, position, delta);
-    const movement = surfaceResult === null ? delta : {
-      x: surfaceResult.position.x - position.x, y: surfaceResult.position.y - position.y,
-    };
+    const movement =
+      surfaceResult === null
+        ? delta
+        : {
+            x: surfaceResult.position.x - position.x,
+            y: surfaceResult.position.y - position.y,
+          };
     if (surfaceResult !== null) {
       for (let index = 0; index < surfaceResult.normals.length; index++) normals.push(surfaceResult.normals[index]);
     }
@@ -513,16 +593,25 @@ export class PhysicsWorld2D implements ContextResource {
               break;
             }
             impacts++;
-            position = { x: position.x + remainingTravel.x * hit.time + hit.normal.x * 0.000001,
-              y: position.y + remainingTravel.y * hit.time + hit.normal.y * 0.000001 };
+            position = {
+              x: position.x + remainingTravel.x * hit.time + hit.normal.x * 0.000001,
+              y: position.y + remainingTravel.y * hit.time + hit.normal.y * 0.000001,
+            };
             const bodyA = body.id < hit.target.id ? body : hit.target;
             const bodyB = body.id < hit.target.id ? hit.target : body;
             const normal = bodyA === body ? { x: -hit.normal.x, y: -hit.normal.y } : hit.normal;
             resolveContact(bodyA, bodyB, { normal, point: hit.point, penetration: 0 });
             remaining *= 1 - hit.time;
             if (this.findContact(sweptContacts, bodyA, bodyB) === null) {
-              sweptContacts.push({ phase: this.findContact(this.activeContacts, bodyA, bodyB) === null ? 'enter' : 'stay',
-                bodyA, bodyB, normal: copyVec(normal), point: copyVec(hit.point), penetration: 0, isTrigger: false });
+              sweptContacts.push({
+                phase: this.findContact(this.activeContacts, bodyA, bodyB) === null ? 'enter' : 'stay',
+                bodyA,
+                bodyB,
+                normal: copyVec(normal),
+                point: copyVec(hit.point),
+                penetration: 0,
+                isTrigger: false,
+              });
             }
           }
           // The last resolved hit is a safe stopping point if this step exhausts its impact budget.
@@ -591,8 +680,8 @@ export class PhysicsWorld2D implements ContextResource {
 
   private queryCandidates(bounds: BroadphaseBounds): PhysicsBody2D[] {
     this.queryCandidateCount = 0;
-    if (!this.isReady || !finite(bounds.minX) || !finite(bounds.minY) ||
-        !finite(bounds.maxX) || !finite(bounds.maxY)) return [];
+    if (!this.isReady || !finite(bounds.minX) || !finite(bounds.minY) || !finite(bounds.maxX) || !finite(bounds.maxY))
+      return [];
     this.syncBroadphaseMemberships();
 
     const candidates: PhysicsBody2D[] = [];
@@ -656,8 +745,15 @@ export class PhysicsWorld2D implements ContextResource {
     }
   }
 
-  private sweepKinematicBoxAxis(body: PhysicsBody2D, width: number, height: number, position: Vector2DLike,
-    axis: 'x' | 'y', delta: number, includeSurfaces: boolean): AxisSweepHit | null {
+  private sweepKinematicBoxAxis(
+    body: PhysicsBody2D,
+    width: number,
+    height: number,
+    position: Vector2DLike,
+    axis: 'x' | 'y',
+    delta: number,
+    includeSurfaces: boolean,
+  ): AxisSweepHit | null {
     const halfX = width * 0.5;
     const halfY = height * 0.5;
     const endX = position.x + (axis === 'x' ? delta : 0);
@@ -675,13 +771,27 @@ export class PhysicsWorld2D implements ContextResource {
         if (filtersAllow(body, candidate)) {
           if (!includeSurfaces && (candidate.shape.type === 'segment' || candidate.shape.type === 'convex')) continue;
           const oneWay = candidate.oneWay;
-          if (oneWay !== null && !oneWaySweepAllows({ type: 'box', width, height }, position,
+          if (
+            oneWay !== null &&
+            !oneWaySweepAllows(
+              { type: 'box', width, height },
+              position,
               axis === 'x' ? { x: delta, y: 0 } : { x: 0, y: delta },
-              candidate, oneWay.normal, oneWay.tolerance || 0)) continue;
-          const hit = candidate.shape.type === 'segment' || candidate.shape.type === 'convex'
-            ? sweepAgainstStatic({ type: 'box', width, height }, position,
-              axis === 'x' ? { x: delta, y: 0 } : { x: 0, y: delta }, candidate)
-            : sweepBoxAgainstBody(position, width, height, axis, delta, candidate);
+              candidate,
+              oneWay.normal,
+              oneWay.tolerance || 0,
+            )
+          )
+            continue;
+          const hit =
+            candidate.shape.type === 'segment' || candidate.shape.type === 'convex'
+              ? sweepAgainstStatic(
+                  { type: 'box', width, height },
+                  position,
+                  axis === 'x' ? { x: delta, y: 0 } : { x: 0, y: delta },
+                  candidate,
+                )
+              : sweepBoxAgainstBody(position, width, height, axis, delta, candidate);
           if (hit !== null && (closest === null || hit.distance < closest.distance)) closest = hit;
         }
       }
@@ -689,9 +799,13 @@ export class PhysicsWorld2D implements ContextResource {
     return closest;
   }
 
-  private sweepKinematicSurfaces(body: PhysicsBody2D, width: number, height: number,
-    start: Vector2DLike, delta: Vector2DLike):
-    { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
+  private sweepKinematicSurfaces(
+    body: PhysicsBody2D,
+    width: number,
+    height: number,
+    start: Vector2DLike,
+    delta: Vector2DLike,
+  ): { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
     let position: Vector2DLike = copyVec(start);
     let travel: Vector2DLike = copyVec(delta);
     const normals: Vector2DLike[] = [];
@@ -708,14 +822,27 @@ export class PhysicsWorld2D implements ContextResource {
       let nearest: (AxisSweepHit & { point: Vector2DLike; target: PhysicsBody2D }) | null = null;
       for (let index = 0; index < candidates.length; index++) {
         const target = candidates[index];
-        if (target === body || target.type !== 'static' || target.isSensor ||
-            (target.shape.type !== 'segment' && target.shape.type !== 'convex') || !filtersAllow(body, target)) continue;
+        if (
+          target === body ||
+          target.type !== 'static' ||
+          target.isSensor ||
+          (target.shape.type !== 'segment' && target.shape.type !== 'convex') ||
+          !filtersAllow(body, target)
+        )
+          continue;
         const hit = sweepAgainstStatic(shape, position, travel, target);
         if (hit === null) continue;
         const config = target.oneWay;
-        if (config !== null && !oneWaySweepAllows(shape, position, travel, target, config.normal, config.tolerance || 0)) continue;
-        if (nearest === null || hit.distance < nearest.distance - 0.0000001 ||
-            (Math.abs(hit.distance - nearest.distance) <= 0.0000001 && target.id < nearest.target.id)) {
+        if (
+          config !== null &&
+          !oneWaySweepAllows(shape, position, travel, target, config.normal, config.tolerance || 0)
+        )
+          continue;
+        if (
+          nearest === null ||
+          hit.distance < nearest.distance - 0.0000001 ||
+          (Math.abs(hit.distance - nearest.distance) <= 0.0000001 && target.id < nearest.target.id)
+        ) {
           nearest = { distance: hit.distance, normal: hit.normal, point: hit.point, target };
         }
       }
@@ -724,22 +851,34 @@ export class PhysicsWorld2D implements ContextResource {
         break;
       }
       const fraction = nearest.distance / length;
-      position = { x: position.x + travel.x * fraction + nearest.normal.x * 0.000001,
-        y: position.y + travel.y * fraction + nearest.normal.y * 0.000001 };
+      position = {
+        x: position.x + travel.x * fraction + nearest.normal.x * 0.000001,
+        y: position.y + travel.y * fraction + nearest.normal.y * 0.000001,
+      };
       normals.push(nearest.normal);
       const remainder = { x: travel.x * (1 - fraction), y: travel.y * (1 - fraction) };
       const toward = remainder.x * nearest.normal.x + remainder.y * nearest.normal.y;
-      travel = toward < 0 ? { x: remainder.x - toward * nearest.normal.x,
-        y: remainder.y - toward * nearest.normal.y } : remainder;
+      travel =
+        toward < 0
+          ? { x: remainder.x - toward * nearest.normal.x, y: remainder.y - toward * nearest.normal.y }
+          : remainder;
     }
     // Keep the fourth resolved contact position; the caller discards unresolved velocity.
-    return normals.length === 0 ? null : {
-      position, normals, exhausted: normals.length === 4 && Math.hypot(travel.x, travel.y) > 0.0000001,
-    };
+    return normals.length === 0
+      ? null
+      : {
+          position,
+          normals,
+          exhausted: normals.length === 4 && Math.hypot(travel.x, travel.y) > 0.0000001,
+        };
   }
 
-  private sweepDynamicBody(body: PhysicsBody2D, start: Vector2DLike, travel: Vector2DLike,
-    active: PhysicsBody2D[]): SurfaceSweepHit | null {
+  private sweepDynamicBody(
+    body: PhysicsBody2D,
+    start: Vector2DLike,
+    travel: Vector2DLike,
+    active: PhysicsBody2D[],
+  ): SurfaceSweepHit | null {
     let nearest: SurfaceSweepHit | null = null;
     for (let index = 0; index < active.length; index++) {
       const target = active[index];
@@ -747,18 +886,30 @@ export class PhysicsWorld2D implements ContextResource {
       const sweep = sweepAgainstStatic(body.shape, start, travel, target);
       if (sweep === null) continue;
       const oneWay = target.oneWay;
-      if (oneWay !== null && !oneWaySweepAllows(body.shape, start, travel, target, oneWay.normal, oneWay.tolerance || 0)) continue;
+      if (
+        oneWay !== null &&
+        !oneWaySweepAllows(body.shape, start, travel, target, oneWay.normal, oneWay.tolerance || 0)
+      )
+        continue;
       const time = sweep.distance / Math.hypot(travel.x, travel.y);
-      if (nearest === null || time < nearest.time - 0.0000001 ||
-          (Math.abs(time - nearest.time) <= 0.0000001 && target.id < nearest.target.id)) {
+      if (
+        nearest === null ||
+        time < nearest.time - 0.0000001 ||
+        (Math.abs(time - nearest.time) <= 0.0000001 && target.id < nearest.target.id)
+      ) {
         nearest = { time, normal: sweep.normal, point: sweep.point, target };
       }
     }
     return nearest;
   }
 
-  private collectSweptSensorContacts(body: PhysicsBody2D, start: Vector2DLike, travel: Vector2DLike,
-    active: PhysicsBody2D[], contacts: MutableContact[]): void {
+  private collectSweptSensorContacts(
+    body: PhysicsBody2D,
+    start: Vector2DLike,
+    travel: Vector2DLike,
+    active: PhysicsBody2D[],
+    contacts: MutableContact[],
+  ): void {
     const speed = Math.hypot(travel.x, travel.y);
     if (speed <= 0.0000001) return;
     for (let index = 0; index < active.length; index++) {
@@ -767,8 +918,11 @@ export class PhysicsWorld2D implements ContextResource {
       const sweep = sweepAgainstStatic(body.shape, start, travel, target);
       if (sweep === null) continue;
       const oneWay = target.oneWay;
-      if (oneWay !== null && !oneWaySweepAllows(body.shape, start, travel, target,
-        oneWay.normal, oneWay.tolerance || 0)) continue;
+      if (
+        oneWay !== null &&
+        !oneWaySweepAllows(body.shape, start, travel, target, oneWay.normal, oneWay.tolerance || 0)
+      )
+        continue;
       const bodyA = body.id < target.id ? body : target;
       const bodyB = body.id < target.id ? target : body;
       if (this.findContact(contacts, bodyA, bodyB) !== null) continue;
@@ -809,7 +963,10 @@ export class PhysicsWorld2D implements ContextResource {
       const y = range.minY + yOffset;
       for (let xOffset = 0; xOffset < range.columns; xOffset++) {
         const key = gridCellKey(range.minX + xOffset, y);
-        if (!seen.has(key)) { seen.set(key, true); cells.push(key); }
+        if (!seen.has(key)) {
+          seen.set(key, true);
+          cells.push(key);
+        }
       }
     }
     return { cells, oversized: false };
@@ -818,8 +975,12 @@ export class PhysicsWorld2D implements ContextResource {
   private updateBodyMembership(body: PhysicsBody2D): void {
     const previous = this.bodyMemberships.get(body.id);
     const next = this.cellKeys(bodyBounds(body));
-    if (previous !== undefined && previous.oversized === next.oversized &&
-        (next.oversized || sameCellKeys(previous.cells, next.cells))) return;
+    if (
+      previous !== undefined &&
+      previous.oversized === next.oversized &&
+      (next.oversized || sameCellKeys(previous.cells, next.cells))
+    )
+      return;
 
     if (previous !== undefined) {
       if (previous.oversized) this.removeOversizedBody(body);
@@ -901,8 +1062,12 @@ export class PhysicsWorld2D implements ContextResource {
     return result;
   }
 
-  private addCandidatePair(a: PhysicsBody2D, b: PhysicsBody2D, seen: Map<string, boolean>,
-    result: CandidatePair[]): void {
+  private addCandidatePair(
+    a: PhysicsBody2D,
+    b: PhysicsBody2D,
+    seen: Map<string, boolean>,
+    result: CandidatePair[],
+  ): void {
     const bodyA = a.id < b.id ? a : b;
     const bodyB = a.id < b.id ? b : a;
     const key = bodyA.id + ':' + bodyB.id;
@@ -956,8 +1121,9 @@ export class PhysicsWorld2D implements ContextResource {
   }
 
   private isQueryable(body: PhysicsBody2D, mask: number, includeSensors: boolean): boolean {
-    return body._isUsable() && (body.layer & mask) !== 0 && (includeSensors || !body.isSensor) &&
-      body._syncFromTransform();
+    return (
+      body._isUsable() && (body.layer & mask) !== 0 && (includeSensors || !body.isSensor) && body._syncFromTransform()
+    );
   }
 }
 
@@ -981,41 +1147,56 @@ function shapeOf(value: ShapePose | PhysicsBody2D): PhysicsShape2D {
 
 function verticesOf(shape: PhysicsShape2D, position: Vector2DLike): Vector2DLike[] {
   if (shape.type === 'box') {
-    const x = shape.width * 0.5, y = shape.height * 0.5;
-    return [{ x: position.x - x, y: position.y - y }, { x: position.x + x, y: position.y - y },
-      { x: position.x + x, y: position.y + y }, { x: position.x - x, y: position.y + y }];
+    const x = shape.width * 0.5,
+      y = shape.height * 0.5;
+    return [
+      { x: position.x - x, y: position.y - y },
+      { x: position.x + x, y: position.y - y },
+      { x: position.x + x, y: position.y + y },
+      { x: position.x - x, y: position.y + y },
+    ];
   }
-  if (shape.type === 'segment') return [
-    { x: position.x + shape.start.x, y: position.y + shape.start.y },
-    { x: position.x + shape.end.x, y: position.y + shape.end.y },
-  ];
+  if (shape.type === 'segment')
+    return [
+      { x: position.x + shape.start.x, y: position.y + shape.start.y },
+      { x: position.x + shape.end.x, y: position.y + shape.end.y },
+    ];
   if (shape.type === 'convex') {
     const result: Vector2DLike[] = [];
-    for (let index = 0; index < shape.vertices.length; index++) result.push({
-      x: position.x + shape.vertices[index].x, y: position.y + shape.vertices[index].y,
-    });
+    for (let index = 0; index < shape.vertices.length; index++)
+      result.push({
+        x: position.x + shape.vertices[index].x,
+        y: position.y + shape.vertices[index].y,
+      });
     return result;
   }
   return [];
 }
 
 function closestOnSegment(point: Vector2DLike, a: Vector2DLike, b: Vector2DLike): Vector2DLike {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   const fraction = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy), 0, 1);
   return { x: a.x + dx * fraction, y: a.y + dy * fraction };
 }
 
 function polygonCenter(points: Vector2DLike[]): Vector2DLike {
-  let x = 0, y = 0;
-  for (let index = 0; index < points.length; index++) { x += points[index].x; y += points[index].y; }
+  let x = 0,
+    y = 0;
+  for (let index = 0; index < points.length; index++) {
+    x += points[index].x;
+    y += points[index].y;
+  }
   return { x: x / points.length, y: y / points.length };
 }
 
 function project(points: Vector2DLike[], axis: Vector2DLike): { min: number; max: number } {
-  let min = Infinity, max = -Infinity;
+  let min = Infinity,
+    max = -Infinity;
   for (let index = 0; index < points.length; index++) {
     const value = points[index].x * axis.x + points[index].y * axis.y;
-    min = Math.min(min, value); max = Math.max(max, value);
+    min = Math.min(min, value);
+    max = Math.max(max, value);
   }
   return { min, max };
 }
@@ -1024,54 +1205,80 @@ function axesOf(points: Vector2DLike[], segment: boolean): Vector2DLike[] {
   const axes: Vector2DLike[] = [];
   const count = segment ? 1 : points.length;
   for (let index = 0; index < count; index++) {
-    const a = points[index], b = points[(index + 1) % points.length];
-    const dx = b.x - a.x, dy = b.y - a.y;
+    const a = points[index],
+      b = points[(index + 1) % points.length];
+    const dx = b.x - a.x,
+      dy = b.y - a.y;
     const length = Math.hypot(dx, dy);
     axes.push({ x: -dy / length, y: dx / length });
   }
   if (segment) {
-    const dx = points[1].x - points[0].x, dy = points[1].y - points[0].y;
+    const dx = points[1].x - points[0].x,
+      dy = points[1].y - points[0].y;
     const length = Math.hypot(dx, dy);
     axes.push({ x: dx / length, y: dy / length });
   }
   return axes;
 }
 
-function collideCircleSurface(circle: Vector2DLike, radius: number, surface: Vector2DLike[],
-  segment: boolean): ContactGeometry | null {
-  let closest = surface[0], nearestSq = Infinity;
+function collideCircleSurface(
+  circle: Vector2DLike,
+  radius: number,
+  surface: Vector2DLike[],
+  segment: boolean,
+): ContactGeometry | null {
+  let closest = surface[0],
+    nearestSq = Infinity;
   const edges = segment ? 1 : surface.length;
   let inside = !segment;
   let winding = 0;
   if (!segment) {
     for (let index = 0; index < surface.length; index++) {
-      const a = surface[index], b = surface[(index + 1) % surface.length];
+      const a = surface[index],
+        b = surface[(index + 1) % surface.length];
       winding += a.x * b.y - a.y * b.x;
     }
   }
   for (let index = 0; index < edges; index++) {
-    const a = surface[index], b = surface[(index + 1) % surface.length];
+    const a = surface[index],
+      b = surface[(index + 1) % surface.length];
     const point = closestOnSegment(circle, a, b);
-    const dx = point.x - circle.x, dy = point.y - circle.y;
+    const dx = point.x - circle.x,
+      dy = point.y - circle.y;
     const sq = dx * dx + dy * dy;
-    if (sq < nearestSq) { nearestSq = sq; closest = point; }
+    if (sq < nearestSq) {
+      nearestSq = sq;
+      closest = point;
+    }
     const cross = (b.x - a.x) * (circle.y - a.y) - (b.y - a.y) * (circle.x - a.x);
     if (cross * winding < -0.0000001) inside = false;
   }
   const distance = Math.sqrt(nearestSq);
   if (!inside && distance > radius) return null;
-  let nx = closest.x - circle.x, ny = closest.y - circle.y;
-  if (inside) { nx = -nx; ny = -ny; }
+  let nx = closest.x - circle.x,
+    ny = closest.y - circle.y;
+  if (inside) {
+    nx = -nx;
+    ny = -ny;
+  }
   if (distance <= 0.0000001) {
     const edge = { x: surface[1].x - surface[0].x, y: surface[1].y - surface[0].y };
     const length = Math.hypot(edge.x, edge.y);
-    nx = edge.y / length; ny = -edge.x / length;
-  } else { nx /= distance; ny /= distance; }
+    nx = edge.y / length;
+    ny = -edge.x / length;
+  } else {
+    nx /= distance;
+    ny /= distance;
+  }
   return { normal: { x: nx, y: ny }, point: closest, penetration: inside ? radius + distance : radius - distance };
 }
 
-function collideBoxSurface(box: Vector2DLike, shape: { type: 'box'; width: number; height: number },
-  surface: Vector2DLike[], segment: boolean): ContactGeometry | null {
+function collideBoxSurface(
+  box: Vector2DLike,
+  shape: { type: 'box'; width: number; height: number },
+  surface: Vector2DLike[],
+  segment: boolean,
+): ContactGeometry | null {
   const moving = verticesOf(shape, box);
   const axes = axesOf(surface, segment);
   axes.push({ x: 1, y: 0 });
@@ -1081,15 +1288,22 @@ function collideBoxSurface(box: Vector2DLike, shape: { type: 'box'; width: numbe
   const center = polygonCenter(surface);
   for (let index = 0; index < axes.length; index++) {
     const axis = axes[index];
-    const a = project(moving, axis), b = project(surface, axis);
+    const a = project(moving, axis),
+      b = project(surface, axis);
     const pushNegative = a.max - b.min;
     const pushPositive = b.max - a.min;
     const overlap = Math.min(pushNegative, pushPositive);
     if (overlap < -0.0000001) return null;
     if (overlap < minimum) {
       minimum = overlap;
-      const sign = pushNegative < pushPositive ? 1 : pushNegative > pushPositive ? -1 :
-        (center.x - box.x) * axis.x + (center.y - box.y) * axis.y >= 0 ? 1 : -1;
+      const sign =
+        pushNegative < pushPositive
+          ? 1
+          : pushNegative > pushPositive
+            ? -1
+            : (center.x - box.x) * axis.x + (center.y - box.y) * axis.y >= 0
+              ? 1
+              : -1;
       best = { x: axis.x * sign, y: axis.y * sign };
     }
   }
@@ -1098,16 +1312,25 @@ function collideBoxSurface(box: Vector2DLike, shape: { type: 'box'; width: numbe
   const edgeCount = segment ? 1 : surface.length;
   for (let index = 0; index < edgeCount; index++) {
     const candidate = closestOnSegment(box, surface[index], surface[(index + 1) % surface.length]);
-    const dx = candidate.x - box.x, dy = candidate.y - box.y;
+    const dx = candidate.x - box.x,
+      dy = candidate.y - box.y;
     const distanceSq = dx * dx + dy * dy;
-    if (distanceSq < nearestSq) { nearestSq = distanceSq; point = candidate; }
+    if (distanceSq < nearestSq) {
+      nearestSq = distanceSq;
+      point = candidate;
+    }
   }
   return { normal: best, point, penetration: Math.max(0, minimum) };
 }
 
 function reverseContact(contact: ContactGeometry | null): ContactGeometry | null {
-  return contact === null ? null : { normal: { x: -contact.normal.x, y: -contact.normal.y },
-    point: contact.point, penetration: contact.penetration };
+  return contact === null
+    ? null
+    : {
+        normal: { x: -contact.normal.x, y: -contact.normal.y },
+        point: contact.point,
+        penetration: contact.penetration,
+      };
 }
 
 function shapeExtent(shape: PhysicsShape2D, normal: Vector2DLike): number {
@@ -1116,8 +1339,14 @@ function shapeExtent(shape: PhysicsShape2D, normal: Vector2DLike): number {
   return 0;
 }
 
-function oneWaySweepAllows(shape: PhysicsShape2D, start: Vector2DLike, travel: Vector2DLike,
-  target: PhysicsBody2D, normal: Vector2DLike, tolerance: number): boolean {
+function oneWaySweepAllows(
+  shape: PhysicsShape2D,
+  start: Vector2DLike,
+  travel: Vector2DLike,
+  target: PhysicsBody2D,
+  normal: Vector2DLike,
+  tolerance: number,
+): boolean {
   if (travel.x * normal.x + travel.y * normal.y >= -0.0000001) return false;
   const targetShape = target.shape;
   const vertices = verticesOf(targetShape, target.position);
@@ -1131,8 +1360,12 @@ function oneWaySweepAllows(shape: PhysicsShape2D, start: Vector2DLike, travel: V
   return start.x * normal.x + start.y * normal.y - shapeExtent(shape, normal) >= plane - tolerance - 0.0000001;
 }
 
-function oneWayAllows(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeometry,
-  previous: Map<number, Vector2DLike>): boolean {
+function oneWayAllows(
+  a: PhysicsBody2D,
+  b: PhysicsBody2D,
+  contact: ContactGeometry,
+  previous: Map<number, Vector2DLike>,
+): boolean {
   const surface = a.oneWay !== null ? a : b.oneWay !== null ? b : null;
   if (surface === null) return true;
   const moving = surface === a ? b : a;
@@ -1146,8 +1379,13 @@ function oneWayAllows(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeomet
   return outward.x * config.normal.x + outward.y * config.normal.y > 0.5;
 }
 
-function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: number,
-  surface: Vector2DLike[], segment: boolean): (AxisSweepHit & { point: Vector2DLike }) | null {
+function sweepCircleSurface(
+  start: Vector2DLike,
+  travel: Vector2DLike,
+  radius: number,
+  surface: Vector2DLike[],
+  segment: boolean,
+): (AxisSweepHit & { point: Vector2DLike }) | null {
   const speed = Math.hypot(travel.x, travel.y);
   if (speed <= 0.0000001) return null;
   const initialContact = collideCircleSurface(start, radius, surface, segment);
@@ -1160,17 +1398,21 @@ function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: n
     };
   }
   let winding = 0;
-  if (!segment) for (let index = 0; index < surface.length; index++) {
-    const a = surface[index], b = surface[(index + 1) % surface.length];
-    winding += a.x * b.y - a.y * b.x;
-  }
+  if (!segment)
+    for (let index = 0; index < surface.length; index++) {
+      const a = surface[index],
+        b = surface[(index + 1) % surface.length];
+      winding += a.x * b.y - a.y * b.x;
+    }
   let nearestTime = Infinity;
   let nearestNormal: Vector2DLike = { x: 0, y: 0 };
   let nearestPoint: Vector2DLike = { x: 0, y: 0 };
   const edges = segment ? 1 : surface.length;
   for (let index = 0; index < edges; index++) {
-    const a = surface[index], b = surface[(index + 1) % surface.length];
-    const dx = b.x - a.x, dy = b.y - a.y;
+    const a = surface[index],
+      b = surface[(index + 1) % surface.length];
+    const dx = b.x - a.x,
+      dy = b.y - a.y;
     const length = Math.hypot(dx, dy);
     const tangent = { x: dx / length, y: dy / length };
     const baseNormal = { x: -tangent.y, y: tangent.x };
@@ -1193,7 +1435,8 @@ function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: n
   }
   for (let index = 0; index < surface.length; index++) {
     const vertex = surface[index];
-    const ox = start.x - vertex.x, oy = start.y - vertex.y;
+    const ox = start.x - vertex.x,
+      oy = start.y - vertex.y;
     const b = 2 * (ox * travel.x + oy * travel.y);
     const a = speed * speed;
     const c = ox * ox + oy * oy - radius * radius;
@@ -1211,15 +1454,21 @@ function sweepCircleSurface(start: Vector2DLike, travel: Vector2DLike, radius: n
   return finite(nearestTime) ? { distance: nearestTime * speed, normal: nearestNormal, point: nearestPoint } : null;
 }
 
-function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: Vector2DLike,
-  target: PhysicsBody2D): (AxisSweepHit & { point: Vector2DLike }) | null {
+function sweepAgainstStatic(
+  shape: PhysicsShape2D,
+  start: Vector2DLike,
+  travel: Vector2DLike,
+  target: PhysicsBody2D,
+): (AxisSweepHit & { point: Vector2DLike }) | null {
   if (shape.type !== 'box' && shape.type !== 'circle') return null;
   const initialContact = collide({ shape, position: start }, target);
   if (initialContact !== null) {
     if (travel.x * initialContact.normal.x + travel.y * initialContact.normal.y <= 0.0000001) return null;
-    return { distance: 0,
+    return {
+      distance: 0,
       normal: { x: -initialContact.normal.x, y: -initialContact.normal.y },
-      point: copyVec(initialContact.point) };
+      point: copyVec(initialContact.point),
+    };
   }
   const targetShape = target.shape;
   if (targetShape.type === 'circle') {
@@ -1230,25 +1479,35 @@ function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: 
       const relativeHit = sweepCircleSurface(relativeStart, relativeTravel, targetShape.radius, box, false);
       if (relativeHit === null) return null;
       const normal = { x: -relativeHit.normal.x, y: -relativeHit.normal.y };
-      return { distance: relativeHit.distance, normal,
-        point: { x: target.position.x + normal.x * targetShape.radius,
-          y: target.position.y + normal.y * targetShape.radius } };
+      return {
+        distance: relativeHit.distance,
+        normal,
+        point: {
+          x: target.position.x + normal.x * targetShape.radius,
+          y: target.position.y + normal.y * targetShape.radius,
+        },
+      };
     }
     const center = target.position;
     const radius = shape.radius + targetShape.radius;
-    const ox = start.x - center.x, oy = start.y - center.y;
+    const ox = start.x - center.x,
+      oy = start.y - center.y;
     const a = travel.x * travel.x + travel.y * travel.y;
     const b = 2 * (ox * travel.x + oy * travel.y);
     const c = ox * ox + oy * oy - radius * radius;
     if (a <= 0.0000001) return null;
     if (c <= 0) {
       const distance = Math.hypot(ox, oy);
-      const normal = distance > 0.0000001
-        ? { x: ox / distance, y: oy / distance }
-        : { x: -travel.x / Math.sqrt(a), y: -travel.y / Math.sqrt(a) };
+      const normal =
+        distance > 0.0000001
+          ? { x: ox / distance, y: oy / distance }
+          : { x: -travel.x / Math.sqrt(a), y: -travel.y / Math.sqrt(a) };
       if (travel.x * normal.x + travel.y * normal.y >= -0.0000001) return null;
-      return { distance: 0, normal,
-        point: { x: center.x + normal.x * targetShape.radius, y: center.y + normal.y * targetShape.radius } };
+      return {
+        distance: 0,
+        normal,
+        point: { x: center.x + normal.x * targetShape.radius, y: center.y + normal.y * targetShape.radius },
+      };
     }
     const discriminant = b * b - 4 * a * c;
     if (discriminant < 0) return null;
@@ -1256,16 +1515,22 @@ function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: 
     if (time < 0 || time > 1) return null;
     const hitCenter = { x: start.x + travel.x * time, y: start.y + travel.y * time };
     const normal = { x: (hitCenter.x - center.x) / radius, y: (hitCenter.y - center.y) / radius };
-    return { distance: Math.sqrt(a) * time, normal,
-      point: { x: center.x + normal.x * targetShape.radius, y: center.y + normal.y * targetShape.radius } };
+    return {
+      distance: Math.sqrt(a) * time,
+      normal,
+      point: { x: center.x + normal.x * targetShape.radius, y: center.y + normal.y * targetShape.radius },
+    };
   }
   const surface = verticesOf(targetShape, target.position);
-  if (shape.type === 'circle') return sweepCircleSurface(start, travel, shape.radius, surface, targetShape.type === 'segment');
+  if (shape.type === 'circle')
+    return sweepCircleSurface(start, travel, shape.radius, surface, targetShape.type === 'segment');
   const axes = axesOf(surface, targetShape.type === 'segment');
   if (shape.type === 'box') {
-    axes.push({ x: 1, y: 0 }); axes.push({ x: 0, y: 1 });
+    axes.push({ x: 1, y: 0 });
+    axes.push({ x: 0, y: 1 });
   }
-  let enter = 0, exit = 1;
+  let enter = 0,
+    exit = 1;
   let normal: Vector2DLike = { x: 0, y: 0 };
   const speed = Math.hypot(travel.x, travel.y);
   if (speed <= 0.0000001) return null;
@@ -1281,9 +1546,9 @@ function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: 
     }
     const first = (span.min - radius - center) / velocity;
     const second = (span.max + radius - center) / velocity;
-    const near = Math.min(first, second), far = Math.max(first, second);
-    if (near > enter || (normal.x === 0 && normal.y === 0 &&
-        Math.abs(near - enter) <= 0.0000001 && near >= 0)) {
+    const near = Math.min(first, second),
+      far = Math.max(first, second);
+    if (near > enter || (normal.x === 0 && normal.y === 0 && Math.abs(near - enter) <= 0.0000001 && near >= 0)) {
       enter = near;
       normal = velocity > 0 ? { x: -axis.x, y: -axis.y } : { x: axis.x, y: axis.y };
     }
@@ -1292,8 +1557,10 @@ function sweepAgainstStatic(shape: PhysicsShape2D, start: Vector2DLike, travel: 
   }
   if (enter < 0 || enter > 1 || (normal.x === 0 && normal.y === 0)) return null;
   const center = { x: start.x + travel.x * enter, y: start.y + travel.y * enter };
-  const point = { x: center.x - normal.x * shapeExtent(shape, normal),
-    y: center.y - normal.y * shapeExtent(shape, normal) };
+  const point = {
+    x: center.x - normal.x * shapeExtent(shape, normal),
+    y: center.y - normal.y * shapeExtent(shape, normal),
+  };
   return { distance: enter * speed, normal, point };
 }
 
@@ -1304,13 +1571,16 @@ function collide(a: ShapePose | PhysicsBody2D, b: ShapePose | PhysicsBody2D): Co
   const bShape = shapeOf(b);
   if (aShape.type === 'segment' || aShape.type === 'convex') {
     const surface = verticesOf(aShape, aPosition);
-    if (bShape.type === 'circle') return reverseContact(collideCircleSurface(bPosition, bShape.radius, surface, aShape.type === 'segment'));
-    if (bShape.type === 'box') return reverseContact(collideBoxSurface(bPosition, bShape, surface, aShape.type === 'segment'));
+    if (bShape.type === 'circle')
+      return reverseContact(collideCircleSurface(bPosition, bShape.radius, surface, aShape.type === 'segment'));
+    if (bShape.type === 'box')
+      return reverseContact(collideBoxSurface(bPosition, bShape, surface, aShape.type === 'segment'));
     return null;
   }
   if (bShape.type === 'segment' || bShape.type === 'convex') {
     const surface = verticesOf(bShape, bPosition);
-    if (aShape.type === 'circle') return collideCircleSurface(aPosition, aShape.radius, surface, bShape.type === 'segment');
+    if (aShape.type === 'circle')
+      return collideCircleSurface(aPosition, aShape.radius, surface, bShape.type === 'segment');
     if (aShape.type === 'box') return collideBoxSurface(aPosition, aShape, surface, bShape.type === 'segment');
     return null;
   }
@@ -1324,8 +1594,10 @@ function collide(a: ShapePose | PhysicsBody2D, b: ShapePose | PhysicsBody2D): Co
     const normal = distance > 0.0000001 ? { x: dx / distance, y: dy / distance } : { x: 1, y: 0 };
     return {
       normal,
-      point: { x: aPosition.x + normal.x * (aShape.radius - (sum - distance) * 0.5),
-        y: aPosition.y + normal.y * (aShape.radius - (sum - distance) * 0.5) },
+      point: {
+        x: aPosition.x + normal.x * (aShape.radius - (sum - distance) * 0.5),
+        y: aPosition.y + normal.y * (aShape.radius - (sum - distance) * 0.5),
+      },
       penetration: sum - distance,
     };
   }
@@ -1342,31 +1614,58 @@ function collide(a: ShapePose | PhysicsBody2D, b: ShapePose | PhysicsBody2D): Co
     if (overlapX < overlapY) {
       return {
         normal: { x: dx < 0 ? -1 : 1, y: 0 },
-        point: { x: (aPosition.x + bPosition.x) * 0.5,
-          y: clamp((aPosition.y + bPosition.y) * 0.5, Math.max(aPosition.y - halfAY, bPosition.y - halfBY),
-            Math.min(aPosition.y + halfAY, bPosition.y + halfBY)) },
+        point: {
+          x: (aPosition.x + bPosition.x) * 0.5,
+          y: clamp(
+            (aPosition.y + bPosition.y) * 0.5,
+            Math.max(aPosition.y - halfAY, bPosition.y - halfBY),
+            Math.min(aPosition.y + halfAY, bPosition.y + halfBY),
+          ),
+        },
         penetration: overlapX,
       };
     }
     return {
       normal: { x: 0, y: dy < 0 ? -1 : 1 },
-      point: { x: clamp((aPosition.x + bPosition.x) * 0.5, Math.max(aPosition.x - halfAX, bPosition.x - halfBX),
-        Math.min(aPosition.x + halfAX, bPosition.x + halfBX)), y: (aPosition.y + bPosition.y) * 0.5 },
+      point: {
+        x: clamp(
+          (aPosition.x + bPosition.x) * 0.5,
+          Math.max(aPosition.x - halfAX, bPosition.x - halfBX),
+          Math.min(aPosition.x + halfAX, bPosition.x + halfBX),
+        ),
+        y: (aPosition.y + bPosition.y) * 0.5,
+      },
       penetration: overlapY,
     };
   }
-  if (aShape.type === 'circle') return collideCircleBox(aPosition, aShape.radius, bPosition, bShape as { type: 'box'; width: number; height: number });
-  const reversed = collideCircleBox(bPosition, (bShape as { type: 'circle'; radius: number }).radius,
-    aPosition, aShape as { type: 'box'; width: number; height: number });
-  return reversed === null ? null : {
-    normal: { x: -reversed.normal.x, y: -reversed.normal.y },
-    point: copyVec(reversed.point),
-    penetration: reversed.penetration,
-  };
+  if (aShape.type === 'circle')
+    return collideCircleBox(
+      aPosition,
+      aShape.radius,
+      bPosition,
+      bShape as { type: 'box'; width: number; height: number },
+    );
+  const reversed = collideCircleBox(
+    bPosition,
+    (bShape as { type: 'circle'; radius: number }).radius,
+    aPosition,
+    aShape as { type: 'box'; width: number; height: number },
+  );
+  return reversed === null
+    ? null
+    : {
+        normal: { x: -reversed.normal.x, y: -reversed.normal.y },
+        point: copyVec(reversed.point),
+        penetration: reversed.penetration,
+      };
 }
 
-function collideCircleBox(circle: Vector2DLike, radius: number, box: Vector2DLike,
-  shape: { type: 'box'; width: number; height: number }): ContactGeometry | null {
+function collideCircleBox(
+  circle: Vector2DLike,
+  radius: number,
+  box: Vector2DLike,
+  shape: { type: 'box'; width: number; height: number },
+): ContactGeometry | null {
   const halfX = shape.width * 0.5;
   const halfY = shape.height * 0.5;
   const closestX = clamp(circle.x, box.x - halfX, box.x + halfX);
@@ -1384,18 +1683,31 @@ function collideCircleBox(circle: Vector2DLike, radius: number, box: Vector2DLik
     };
   }
 
-  const distances = [circle.x - (box.x - halfX), (box.x + halfX) - circle.x,
-    circle.y - (box.y - halfY), (box.y + halfY) - circle.y];
+  const distances = [
+    circle.x - (box.x - halfX),
+    box.x + halfX - circle.x,
+    circle.y - (box.y - halfY),
+    box.y + halfY - circle.y,
+  ];
   let face = 0;
   for (let index = 1; index < distances.length; index++) {
     if (distances[index] < distances[face]) face = index;
   }
   let normal: Vector2DLike = { x: 0, y: 0 };
   let point: Vector2DLike = { x: circle.x, y: circle.y };
-  if (face === 0) { normal = { x: 1, y: 0 }; point.x = box.x - halfX; }
-  else if (face === 1) { normal = { x: -1, y: 0 }; point.x = box.x + halfX; }
-  else if (face === 2) { normal = { x: 0, y: 1 }; point.y = box.y - halfY; }
-  else { normal = { x: 0, y: -1 }; point.y = box.y + halfY; }
+  if (face === 0) {
+    normal = { x: 1, y: 0 };
+    point.x = box.x - halfX;
+  } else if (face === 1) {
+    normal = { x: -1, y: 0 };
+    point.x = box.x + halfX;
+  } else if (face === 2) {
+    normal = { x: 0, y: 1 };
+    point.y = box.y - halfY;
+  } else {
+    normal = { x: 0, y: -1 };
+    point.y = box.y + halfY;
+  }
   return { normal, point, penetration: radius + distances[face] };
 }
 
@@ -1405,7 +1717,7 @@ function resolveContact(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeom
   const inverseSum = inverseA + inverseB;
   if (inverseSum <= 0) return;
 
-  const correctionMagnitude = Math.max(contact.penetration - 0.001, 0) * 0.8 / inverseSum;
+  const correctionMagnitude = (Math.max(contact.penetration - 0.001, 0) * 0.8) / inverseSum;
   a._moveBy(-contact.normal.x * correctionMagnitude * inverseA, -contact.normal.y * correctionMagnitude * inverseA);
   b._moveBy(contact.normal.x * correctionMagnitude * inverseB, contact.normal.y * correctionMagnitude * inverseB);
 
@@ -1416,7 +1728,7 @@ function resolveContact(a: PhysicsBody2D, b: PhysicsBody2D, contact: ContactGeom
   const alongNormal = relativeX * contact.normal.x + relativeY * contact.normal.y;
   if (alongNormal > 0) return;
   const restitution = Math.min(a.restitution, b.restitution);
-  const impulseMagnitude = -(1 + restitution) * alongNormal / inverseSum;
+  const impulseMagnitude = (-(1 + restitution) * alongNormal) / inverseSum;
   const impulseX = contact.normal.x * impulseMagnitude;
   const impulseY = contact.normal.y * impulseMagnitude;
   a._addVelocity(-impulseX * inverseA, -impulseY * inverseA);
@@ -1447,7 +1759,8 @@ function containsPoint(body: PhysicsBody2D, point: Vector2DLike): boolean {
     const vertices = verticesOf(shape, position);
     let sign = 0;
     for (let index = 0; index < vertices.length; index++) {
-      const a = vertices[index], b = vertices[(index + 1) % vertices.length];
+      const a = vertices[index],
+        b = vertices[(index + 1) % vertices.length];
       const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
       if (Math.abs(cross) <= 0.0000001) continue;
       if (sign !== 0 && cross * sign < 0) return false;
@@ -1460,12 +1773,15 @@ function containsPoint(body: PhysicsBody2D, point: Vector2DLike): boolean {
     const dy = point.y - position.y;
     return dx * dx + dy * dy <= shape.radius * shape.radius;
   }
-  return Math.abs(point.x - position.x) <= shape.width * 0.5 &&
-    Math.abs(point.y - position.y) <= shape.height * 0.5;
+  return Math.abs(point.x - position.x) <= shape.width * 0.5 && Math.abs(point.y - position.y) <= shape.height * 0.5;
 }
 
-function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: number, body: PhysicsBody2D):
-  { point: Vector2DLike; normal: Vector2DLike; distance: number } | null {
+function rayShape(
+  origin: Vector2DLike,
+  direction: Vector2DLike,
+  maxDistance: number,
+  body: PhysicsBody2D,
+): { point: Vector2DLike; normal: Vector2DLike; distance: number } | null {
   const position = body.position;
   const shape = body.shape;
   if (shape.type === 'segment' || shape.type === 'convex') {
@@ -1474,7 +1790,8 @@ function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: nu
     const startsInside = shape.type === 'convex' && containsPoint(body, origin);
     let nearest: { point: Vector2DLike; normal: Vector2DLike; distance: number } | null = null;
     for (let index = 0; index < count; index++) {
-      const a = points[index], b = points[(index + 1) % points.length];
+      const a = points[index],
+        b = points[(index + 1) % points.length];
       const edge = { x: b.x - a.x, y: b.y - a.y };
       const denominator = direction.x * edge.y - direction.y * edge.x;
       if (Math.abs(denominator) <= 0.0000001) continue;
@@ -1486,9 +1803,12 @@ function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: nu
       let normal = { x: -edge.y / length, y: edge.x / length };
       const alongDirection = normal.x * direction.x + normal.y * direction.y;
       if (startsInside ? alongDirection < 0 : alongDirection > 0) normal = { x: -normal.x, y: -normal.y };
-      if (nearest === null || distance < nearest.distance) nearest = {
-        point: { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance }, normal, distance,
-      };
+      if (nearest === null || distance < nearest.distance)
+        nearest = {
+          point: { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance },
+          normal,
+          distance,
+        };
     }
     return nearest;
   }
@@ -1504,7 +1824,11 @@ function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: nu
     if (distance < 0 || distance > maxDistance) return null;
     const point = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance };
     const normalLength = shape.radius;
-    return { point, normal: { x: (point.x - position.x) / normalLength, y: (point.y - position.y) / normalLength }, distance };
+    return {
+      point,
+      normal: { x: (point.x - position.x) / normalLength, y: (point.y - position.y) / normalLength },
+      distance,
+    };
   }
 
   let near = -Infinity;
@@ -1515,7 +1839,13 @@ function rayShape(origin: Vector2DLike, direction: Vector2DLike, maxDistance: nu
   const halfY = shape.height * 0.5;
   const axes = [
     { origin: origin.x, direction: direction.x, minimum: position.x - halfX, maximum: position.x + halfX, xAxis: true },
-    { origin: origin.y, direction: direction.y, minimum: position.y - halfY, maximum: position.y + halfY, xAxis: false },
+    {
+      origin: origin.y,
+      direction: direction.y,
+      minimum: position.y - halfY,
+      maximum: position.y + halfY,
+      xAxis: false,
+    },
   ];
   for (let index = 0; index < axes.length; index++) {
     const axis = axes[index];

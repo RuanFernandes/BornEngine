@@ -15,7 +15,10 @@ export class SceneVfx {
   private effects: SceneEffect[] = [];
   private disposed = false;
 
-  constructor(private readonly game: Game, private readonly scene: Scene) {}
+  constructor(
+    private readonly game: Game,
+    private readonly scene: Scene,
+  ) {}
 
   /** Creates an owned 3D particle pool, updated automatically with the Scene. */
   createParticleSystem(capacity: number, config: ParticleConfig = {}): ParticleSystem | null {

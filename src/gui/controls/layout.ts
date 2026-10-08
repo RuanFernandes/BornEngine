@@ -26,14 +26,38 @@ export class GuiWindow extends GuiPanel {
     this.syncCommand();
   }
 
-  getTitle(): string { return this.title; }
-  setTitle(title: string): this { this.title = title; this.syncCommand(); return this; }
-  setMovable(enabled: boolean): this { this.movable = enabled; this.syncCommand(); return this; }
-  isMovable(): boolean { return this.movable; }
-  setResizable(enabled: boolean): this { this.resizable = enabled; this.syncCommand(); return this; }
-  isResizable(): boolean { return this.resizable; }
-  setClosable(enabled: boolean): this { this.closable = enabled; this.syncCommand(); return this; }
-  isClosable(): boolean { return this.closable; }
+  getTitle(): string {
+    return this.title;
+  }
+  setTitle(title: string): this {
+    this.title = title;
+    this.syncCommand();
+    return this;
+  }
+  setMovable(enabled: boolean): this {
+    this.movable = enabled;
+    this.syncCommand();
+    return this;
+  }
+  isMovable(): boolean {
+    return this.movable;
+  }
+  setResizable(enabled: boolean): this {
+    this.resizable = enabled;
+    this.syncCommand();
+    return this;
+  }
+  isResizable(): boolean {
+    return this.resizable;
+  }
+  setClosable(enabled: boolean): this {
+    this.closable = enabled;
+    this.syncCommand();
+    return this;
+  }
+  isClosable(): boolean {
+    return this.closable;
+  }
 
   override _getContentInsets(): { left: number; top: number; right: number; bottom: number } {
     const insets = super._getContentInsets();
@@ -47,7 +71,9 @@ export class GuiWindow extends GuiPanel {
   }
 
   /** @internal Captures visibility revision for native close responses. */
-  _captureValueRevision(): number { return this.visibilityRevision; }
+  _captureValueRevision(): number {
+    return this.visibilityRevision;
+  }
 
   /** @internal Applies a native close action without overriding a newer user choice. */
   _applyNativeValue(value: number | boolean, commandRevision: number): void {
@@ -89,7 +115,9 @@ export class GuiScroll extends GuiPanel {
     return this;
   }
 
-  getHorizontalScrollBarMode(): GuiScrollBarMode { return this.horizontalMode; }
+  getHorizontalScrollBarMode(): GuiScrollBarMode {
+    return this.horizontalMode;
+  }
 
   setVerticalScrollBarMode(mode: GuiScrollBarMode): this {
     this.assertMode(mode);
@@ -98,7 +126,9 @@ export class GuiScroll extends GuiPanel {
     return this;
   }
 
-  getVerticalScrollBarMode(): GuiScrollBarMode { return this.verticalMode; }
+  getVerticalScrollBarMode(): GuiScrollBarMode {
+    return this.verticalMode;
+  }
 
   setScrollBarThickness(pixels: number): this {
     this.scrollBarThickness = validateGuiDimension(pixels, 'scroll bar thickness');
@@ -106,7 +136,9 @@ export class GuiScroll extends GuiPanel {
     return this;
   }
 
-  getScrollBarThickness(): number { return this.scrollBarThickness; }
+  getScrollBarThickness(): number {
+    return this.scrollBarThickness;
+  }
 
   private assertMode(mode: GuiScrollBarMode): void {
     if (mode !== 'alwaysOn' && mode !== 'alwaysOff' && mode !== 'dynamic') {
@@ -115,7 +147,11 @@ export class GuiScroll extends GuiPanel {
   }
 
   private syncCommand(): void {
-    this._guiCommandValues = [scrollModeValue(this.horizontalMode), scrollModeValue(this.verticalMode), this.scrollBarThickness];
+    this._guiCommandValues = [
+      scrollModeValue(this.horizontalMode),
+      scrollModeValue(this.verticalMode),
+      this.scrollBarThickness,
+    ];
   }
 }
 
@@ -128,9 +164,17 @@ export class GuiBitmapBorder extends GuiPanel {
     this.syncCommand();
   }
 
-  setTiled(enabled: boolean): this { this.tiled = enabled; this.syncCommand(); return this; }
-  isTiled(): boolean { return this.tiled; }
-  private syncCommand(): void { this._guiCommandValues = [this.tiled ? 1 : 0]; }
+  setTiled(enabled: boolean): this {
+    this.tiled = enabled;
+    this.syncCommand();
+    return this;
+  }
+  isTiled(): boolean {
+    return this.tiled;
+  }
+  private syncCommand(): void {
+    this._guiCommandValues = [this.tiled ? 1 : 0];
+  }
 }
 
 export class GuiStretch extends GuiPanel {
@@ -154,7 +198,9 @@ export class GuiStretch extends GuiPanel {
     return this;
   }
 
-  getClientSize(): GuiSize { return { ...this.clientSize }; }
+  getClientSize(): GuiSize {
+    return { ...this.clientSize };
+  }
 
   override _getContentInsets(): { left: number; top: number; right: number; bottom: number } {
     return { left: 0, top: 0, right: 0, bottom: 0 };
@@ -197,7 +243,9 @@ export class GuiStretch extends GuiPanel {
     };
   }
 
-  private syncCommand(): void { this._guiCommandValues = [this.clientSize.width, this.clientSize.height]; }
+  private syncCommand(): void {
+    this._guiCommandValues = [this.clientSize.width, this.clientSize.height];
+  }
 }
 
 export class GuiFrameSet extends GuiPanel {
@@ -229,8 +277,12 @@ export class GuiFrameSet extends GuiPanel {
     return this;
   }
 
-  getGridSize(): { columns: number; rows: number } { return { columns: this.columns, rows: this.rows }; }
-  getSplitterWidth(): number { return this.splitterWidth; }
+  getGridSize(): { columns: number; rows: number } {
+    return { columns: this.columns, rows: this.rows };
+  }
+  getSplitterWidth(): number {
+    return this.splitterWidth;
+  }
 
   override addControl(control: GUI): GUI {
     const attached = super.addControl(control);

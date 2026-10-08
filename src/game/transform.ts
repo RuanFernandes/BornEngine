@@ -1,10 +1,5 @@
 import { Mat4, Quat, Vec3 } from '../core/types';
-import {
-  mat4Multiply,
-  quatMultiply,
-  quatNormalize,
-  quatToMat4,
-} from '../math/internal';
+import { mat4Multiply, quatMultiply, quatNormalize, quatToMat4 } from '../math/internal';
 
 export interface TransformOptions {
   position?: Vec3;
@@ -46,9 +41,7 @@ function normalizeVector(value: Vec3): Vec3 {
 }
 
 function perpendicularTo(value: Vec3): Vec3 {
-  const basis = Math.abs(value.x) < 0.8
-    ? { x: 1, y: 0, z: 0 }
-    : { x: 0, y: 1, z: 0 };
+  const basis = Math.abs(value.x) < 0.8 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
   const projection = dot(value, basis);
   return normalizeVector({
     x: basis.x - value.x * projection,
@@ -110,16 +103,25 @@ function rotationFromAxes(xAxis: Vec3, yAxis: Vec3, zAxis: Vec3): Quat {
 
 /** @internal Inverts an affine transform, returning null for singular input. */
 export function invertTransformMatrix(matrix: Mat4): Mat4 | null {
-  if (Math.abs(matrix[3]) > 0.00001 || Math.abs(matrix[7]) > 0.00001 ||
-      Math.abs(matrix[11]) > 0.00001 || Math.abs(matrix[15] - 1) > 0.00001) {
+  if (
+    Math.abs(matrix[3]) > 0.00001 ||
+    Math.abs(matrix[7]) > 0.00001 ||
+    Math.abs(matrix[11]) > 0.00001 ||
+    Math.abs(matrix[15] - 1) > 0.00001
+  ) {
     return null;
   }
 
-  const a = matrix[0], b = matrix[4], c = matrix[8];
-  const d = matrix[1], e = matrix[5], f = matrix[9];
-  const g = matrix[2], h = matrix[6], i = matrix[10];
-  const determinant = a * (e * i - f * h) - b * (d * i - f * g) +
-    c * (d * h - e * g);
+  const a = matrix[0],
+    b = matrix[4],
+    c = matrix[8];
+  const d = matrix[1],
+    e = matrix[5],
+    f = matrix[9];
+  const g = matrix[2],
+    h = matrix[6],
+    i = matrix[10];
+  const determinant = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
   if (Math.abs(determinant) < 0.0000000001) return null;
 
   const inverseDeterminant = 1 / determinant;
@@ -132,12 +134,23 @@ export function invertTransformMatrix(matrix: Mat4): Mat4 | null {
   const i20 = (d * h - e * g) * inverseDeterminant;
   const i21 = (b * g - a * h) * inverseDeterminant;
   const i22 = (a * e - b * d) * inverseDeterminant;
-  const tx = matrix[12], ty = matrix[13], tz = matrix[14];
+  const tx = matrix[12],
+    ty = matrix[13],
+    tz = matrix[14];
 
   return [
-    i00, i10, i20, 0,
-    i01, i11, i21, 0,
-    i02, i12, i22, 0,
+    i00,
+    i10,
+    i20,
+    0,
+    i01,
+    i11,
+    i21,
+    0,
+    i02,
+    i12,
+    i22,
+    0,
     -(i00 * tx + i01 * ty + i02 * tz),
     -(i10 * tx + i11 * ty + i12 * tz),
     -(i20 * tx + i21 * ty + i22 * tz),
@@ -148,23 +161,24 @@ export function invertTransformMatrix(matrix: Mat4): Mat4 | null {
 /** @internal Decomposes an affine matrix when it can be represented as TRS. */
 export function decomposeTransformMatrix(matrix: Mat4): TransformTRS | null {
   const epsilon = 0.00001;
-  if (Math.abs(matrix[3]) > epsilon || Math.abs(matrix[7]) > epsilon ||
-      Math.abs(matrix[11]) > epsilon || Math.abs(matrix[15] - 1) > epsilon) {
+  if (
+    Math.abs(matrix[3]) > epsilon ||
+    Math.abs(matrix[7]) > epsilon ||
+    Math.abs(matrix[11]) > epsilon ||
+    Math.abs(matrix[15] - 1) > epsilon
+  ) {
     return null;
   }
 
   let scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1] + matrix[2] * matrix[2]);
   const scaleY = Math.sqrt(matrix[4] * matrix[4] + matrix[5] * matrix[5] + matrix[6] * matrix[6]);
   const scaleZ = Math.sqrt(matrix[8] * matrix[8] + matrix[9] * matrix[9] + matrix[10] * matrix[10]);
-  let xAxis: Vec3 | null = scaleX > epsilon
-    ? { x: matrix[0] / scaleX, y: matrix[1] / scaleX, z: matrix[2] / scaleX }
-    : null;
-  let yAxis: Vec3 | null = scaleY > epsilon
-    ? { x: matrix[4] / scaleY, y: matrix[5] / scaleY, z: matrix[6] / scaleY }
-    : null;
-  let zAxis: Vec3 | null = scaleZ > epsilon
-    ? { x: matrix[8] / scaleZ, y: matrix[9] / scaleZ, z: matrix[10] / scaleZ }
-    : null;
+  let xAxis: Vec3 | null =
+    scaleX > epsilon ? { x: matrix[0] / scaleX, y: matrix[1] / scaleX, z: matrix[2] / scaleX } : null;
+  let yAxis: Vec3 | null =
+    scaleY > epsilon ? { x: matrix[4] / scaleY, y: matrix[5] / scaleY, z: matrix[6] / scaleY } : null;
+  let zAxis: Vec3 | null =
+    scaleZ > epsilon ? { x: matrix[8] / scaleZ, y: matrix[9] / scaleZ, z: matrix[10] / scaleZ } : null;
 
   if (xAxis !== null && yAxis !== null && Math.abs(dot(xAxis, yAxis)) > epsilon) return null;
   if (xAxis !== null && zAxis !== null && Math.abs(dot(xAxis, zAxis)) > epsilon) return null;

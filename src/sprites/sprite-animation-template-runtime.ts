@@ -13,11 +13,12 @@ import type {
   ResolvedSpriteAnimationTemplateLayer,
   SpriteAnimationTemplateDiagnostic,
 } from './sprite-animation-template';
-import {
-  validateSpriteAnimationTemplate,
-  validateSpriteAnimationTemplateBinding,
-} from './sprite-animation-template';
-import type { SpriteAnimationLoop, SpriteAnimationPlaybackClip, SpriteAnimationPlaybackFrame } from './sprite-animation';
+import { validateSpriteAnimationTemplate, validateSpriteAnimationTemplateBinding } from './sprite-animation-template';
+import type {
+  SpriteAnimationLoop,
+  SpriteAnimationPlaybackClip,
+  SpriteAnimationPlaybackFrame,
+} from './sprite-animation';
 import type { SpriteAnimationTarget } from './sprite-animation-target';
 import type { Texture } from '../textures/texture';
 
@@ -60,11 +61,15 @@ export class SpriteAnimationTemplateBoundClip implements SpriteAnimationPlayback
     this.fps = clip.fps;
     this.loop = clip.loop;
     this.canvasSize = Object.freeze({ width: clip.canvasSize.width, height: clip.canvasSize.height });
-    this.frames = Object.freeze(frames.map((frame) => Object.freeze({
-      duration: frame.duration,
-      markers: Object.freeze(frame.markers.slice()),
-      layers: Object.freeze(frame.layers.map((layer) => Object.freeze({ ...layer }))),
-    })));
+    this.frames = Object.freeze(
+      frames.map((frame) =>
+        Object.freeze({
+          duration: frame.duration,
+          markers: Object.freeze(frame.markers.slice()),
+          layers: Object.freeze(frame.layers.map((layer) => Object.freeze({ ...layer }))),
+        }),
+      ),
+    );
     let duration = 0;
     for (let index = 0; index < this.frames.length; index++) duration += this.frames[index].duration;
     this.duration = duration;
@@ -131,15 +136,21 @@ export class SpriteAnimationTemplateAsset {
     return this.diagnosticsValue.length === 0 ? null : this.diagnosticsValue[0].message;
   }
 
-  get diagnostics(): readonly SpriteAnimationTemplateDiagnostic[] { return this.diagnosticsValue; }
+  get diagnostics(): readonly SpriteAnimationTemplateDiagnostic[] {
+    return this.diagnosticsValue;
+  }
 
-  get definition(): ResolvedSpriteAnimationTemplate | null { return this.value; }
+  get definition(): ResolvedSpriteAnimationTemplate | null {
+    return this.value;
+  }
 
   bind(images: Readonly<Record<string, Texture>>): SpriteAnimationTemplateBindingResult {
     const template = this.value;
     if (template === null) return bindingFailure(this.diagnosticsValue.slice());
     if (images === null || images === undefined || typeof images !== 'object' || Array.isArray(images)) {
-      return bindingFailure([{ path: '/images', code: 'binding.images', message: 'Image bindings must be an object keyed by parameter ID.' }]);
+      return bindingFailure([
+        { path: '/images', code: 'binding.images', message: 'Image bindings must be an object keyed by parameter ID.' },
+      ]);
     }
 
     const diagnostics: SpriteAnimationTemplateDiagnostic[] = [];
@@ -155,10 +166,19 @@ export class SpriteAnimationTemplateAsset {
       const id = keys[index];
       if (!declared.has(id)) continue;
       const texture = images[id];
-      if (texture === null || texture === undefined || typeof texture !== 'object' ||
-          texture.isLoaded !== true || !isPositiveInteger(texture.width) || !isPositiveInteger(texture.height)) {
-        diagnostics.push({ path: `/images/${escapePointer(id)}`, code: 'binding.texture',
-          message: `Image parameter "${id}" must be a loaded texture with positive integer dimensions.` });
+      if (
+        texture === null ||
+        texture === undefined ||
+        typeof texture !== 'object' ||
+        texture.isLoaded !== true ||
+        !isPositiveInteger(texture.width) ||
+        !isPositiveInteger(texture.height)
+      ) {
+        diagnostics.push({
+          path: `/images/${escapePointer(id)}`,
+          code: 'binding.texture',
+          message: `Image parameter "${id}" must be a loaded texture with positive integer dimensions.`,
+        });
         imageSizes[id] = { width: 0, height: 0 };
         continue;
       }
@@ -166,7 +186,10 @@ export class SpriteAnimationTemplateAsset {
       imageSizes[id] = { width: texture.width, height: texture.height };
     }
 
-    const bindingCheck = validateSpriteAnimationTemplateBinding(template, imageSizesWithUnknownKeys(images, imageSizes));
+    const bindingCheck = validateSpriteAnimationTemplateBinding(
+      template,
+      imageSizesWithUnknownKeys(images, imageSizes),
+    );
     if (!bindingCheck.ok) diagnostics.push(...bindingCheck.diagnostics);
 
     const boundIds = Object.keys(texturesById);
@@ -175,8 +198,11 @@ export class SpriteAnimationTemplateAsset {
       for (let index = 1; index < boundIds.length; index++) {
         const next = texturesById[boundIds[index]];
         if (typeof first._belongsToSameGame !== 'function' || !first._belongsToSameGame(next)) {
-          diagnostics.push({ path: `/images/${escapePointer(boundIds[index])}`, code: 'binding.game',
-            message: 'All textures in one animation binding must belong to the same Game.' });
+          diagnostics.push({
+            path: `/images/${escapePointer(boundIds[index])}`,
+            code: 'binding.game',
+            message: 'All textures in one animation binding must belong to the same Game.',
+          });
         }
       }
     }
@@ -207,7 +233,9 @@ export class SpriteAnimationTemplateAsset {
       if (definitions.length === 0) continue;
       const sheet = new SpriteSheet(texture, { frames: definitions });
       if (sheet.error !== null) {
-        return bindingFailure([{ path: `/images/${escapePointer(parameter.id)}`, code: 'binding.sheet', message: sheet.error }]);
+        return bindingFailure([
+          { path: `/images/${escapePointer(parameter.id)}`, code: 'binding.sheet', message: sheet.error },
+        ]);
       }
       sheets.push(sheet);
       for (let clipIndex = 0; clipIndex < template.clips.length; clipIndex++) {
@@ -219,8 +247,13 @@ export class SpriteAnimationTemplateAsset {
             if (layer.parameter !== parameter.id) continue;
             const frameObject = sheet.getFrame(layerFrameName(clipIndex, frameIndex, layerIndex));
             if (frameObject === null) {
-              return bindingFailure([{ path: `/clips/${clipIndex}/frames/${frameIndex}/layers/${layerIndex}`, code: 'binding.frame',
-                message: 'Could not construct a SpriteFrame for the bound animation layer.' }]);
+              return bindingFailure([
+                {
+                  path: `/clips/${clipIndex}/frames/${frameIndex}/layers/${layerIndex}`,
+                  code: 'binding.frame',
+                  message: 'Could not construct a SpriteFrame for the bound animation layer.',
+                },
+              ]);
             }
             framesByKey.set(layerFrameKey(clipIndex, frameIndex, layerIndex), frameObject);
           }
@@ -311,7 +344,14 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
   }
 
   setSize(size: Vector2DLike): boolean {
-    if (size === null || size === undefined || !isFiniteNumber(size.x) || !isFiniteNumber(size.y) || size.x < 0 || size.y < 0) {
+    if (
+      size === null ||
+      size === undefined ||
+      !isFiniteNumber(size.x) ||
+      !isFiniteNumber(size.y) ||
+      size.x < 0 ||
+      size.y < 0
+    ) {
       this.error = 'SpriteAnimationTemplateRenderer size must be finite and non-negative.';
       return false;
     }
@@ -384,10 +424,21 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
 
   render(renderer: Renderer): void {
     const owner = this.gameObject;
-    if (!this.visible || this.error !== null || this.current === null || owner === null || owner.scene === null ||
-        !this.isActiveAndEnabled || !this.animation._canAttachTo(owner.scene.context) ||
-        !isFiniteNumber(this.size.x) || !isFiniteNumber(this.size.y) || this.size.x <= 0 || this.size.y <= 0 ||
-        !validColor(this.tint)) return;
+    if (
+      !this.visible ||
+      this.error !== null ||
+      this.current === null ||
+      owner === null ||
+      owner.scene === null ||
+      !this.isActiveAndEnabled ||
+      !this.animation._canAttachTo(owner.scene.context) ||
+      !isFiniteNumber(this.size.x) ||
+      !isFiniteNumber(this.size.y) ||
+      this.size.x <= 0 ||
+      this.size.y <= 0 ||
+      !validColor(this.tint)
+    )
+      return;
     if (this.fading !== null && this.fadeDuration > 0) {
       const progress = Math.max(0, Math.min(1, this.fadeElapsed / this.fadeDuration));
       this.drawSelected(renderer, this.fading, 1 - progress);
@@ -408,7 +459,7 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
     const parallax = getParallaxOffset(owner, renderer.activeCamera2D);
     const worldScale = transform.worldScale;
     const worldRotation = rotationZDegrees(transform.worldRotation);
-    const radians = worldRotation * Math.PI / 180;
+    const radians = (worldRotation * Math.PI) / 180;
     const cosine = Math.cos(radians);
     const sine = Math.sin(radians);
     const canvasScaleX = this.size.x / clip.canvasSize.width;
@@ -423,7 +474,8 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
       const anchorY = worldPosition.y + parallax.y + localOffsetX * sine + localOffsetY * cosine;
       const signedScaleX = canvasScaleX * worldScale.x * layer.transform.stretch.x * layer.transform.zoom;
       const signedScaleY = canvasScaleY * worldScale.y * layer.transform.stretch.y * layer.transform.zoom;
-      if (!isFiniteNumber(signedScaleX) || !isFiniteNumber(signedScaleY) || signedScaleX === 0 || signedScaleY === 0) continue;
+      if (!isFiniteNumber(signedScaleX) || !isFiniteNumber(signedScaleY) || signedScaleX === 0 || signedScaleY === 0)
+        continue;
       const flipX = signedScaleX < 0;
       const flipY = signedScaleY < 0;
       const source: Rect = {
@@ -462,7 +514,9 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
   }
 }
 
-function bindingFailure(diagnostics: readonly SpriteAnimationTemplateDiagnostic[]): SpriteAnimationTemplateBindingFailure {
+function bindingFailure(
+  diagnostics: readonly SpriteAnimationTemplateDiagnostic[],
+): SpriteAnimationTemplateBindingFailure {
   return { ok: false, value: null, diagnostics };
 }
 
@@ -508,9 +562,14 @@ function copyColor(value: Color): Color {
 }
 
 function validColor(value: Color): boolean {
-  return value !== null && value !== undefined &&
-    isFiniteNumber(value.r) && isFiniteNumber(value.g) &&
-    isFiniteNumber(value.b) && isFiniteNumber(value.a);
+  return (
+    value !== null &&
+    value !== undefined &&
+    isFiniteNumber(value.r) &&
+    isFiniteNumber(value.g) &&
+    isFiniteNumber(value.b) &&
+    isFiniteNumber(value.a)
+  );
 }
 
 function firstBoundClip(animation: SpriteAnimationTemplateBoundAnimation): SpriteAnimationTemplateBoundClip | null {
@@ -521,19 +580,17 @@ function firstBoundClip(animation: SpriteAnimationTemplateBoundAnimation): Sprit
 function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number }): number {
   const sin = 2 * (rotation.w * rotation.z + rotation.x * rotation.y);
   const cos = 1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z);
-  return Math.atan2(sin, cos) * 180 / Math.PI;
+  return (Math.atan2(sin, cos) * 180) / Math.PI;
 }
 
 function updateRotatedBounds(destination: Rect, origin: Vector2DLike, rotation: number, bounds: Rect): void {
-  const radians = rotation * Math.PI / 180;
+  const radians = (rotation * Math.PI) / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   const pivotX = destination.x + origin.x;
   const pivotY = destination.y + origin.y;
-  const centerX = pivotX + (destination.width * 0.5 - origin.x) * cosine -
-    (destination.height * 0.5 - origin.y) * sine;
-  const centerY = pivotY + (destination.width * 0.5 - origin.x) * sine +
-    (destination.height * 0.5 - origin.y) * cosine;
+  const centerX = pivotX + (destination.width * 0.5 - origin.x) * cosine - (destination.height * 0.5 - origin.y) * sine;
+  const centerY = pivotY + (destination.width * 0.5 - origin.x) * sine + (destination.height * 0.5 - origin.y) * cosine;
   const halfWidth = (Math.abs(cosine) * destination.width + Math.abs(sine) * destination.height) * 0.5;
   const halfHeight = (Math.abs(sine) * destination.width + Math.abs(cosine) * destination.height) * 0.5;
   bounds.x = centerX - halfWidth;

@@ -34,5 +34,5 @@ export const GuiEventField = {
   Modifiers: 10,
 } as const;
 
-export type GuiOpcodeCode = typeof GuiOpcode[keyof typeof GuiOpcode];
-export type GuiEventFieldCode = typeof GuiEventField[keyof typeof GuiEventField];
+export type GuiOpcodeCode = (typeof GuiOpcode)[keyof typeof GuiOpcode];
+export type GuiEventFieldCode = (typeof GuiEventField)[keyof typeof GuiEventField];

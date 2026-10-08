@@ -1,6 +1,25 @@
 import { Color, Camera2D, Camera3D } from './types';
 
-export type { Color, Vector2DLike, Vec3, Vec4, Rect, Camera2D, Camera3D, Texture, Font, Sound, Music, Quat, Ray, BoundingBox, Model, Mat4, RayHit, FrustumPlanes } from './types';
+export type {
+  Color,
+  Vector2DLike,
+  Vec3,
+  Vec4,
+  Rect,
+  Camera2D,
+  Camera3D,
+  Texture,
+  Font,
+  Sound,
+  Music,
+  Quat,
+  Ray,
+  BoundingBox,
+  Model,
+  Mat4,
+  RayHit,
+  FrustumPlanes,
+} from './types';
 // GH #53 — `Color` is deliberately NOT re-exported from './colors' any more.
 // `Color` is the RGBA TYPE (`./types`, re-exported above); './colors' exports a
 // palette MAP that also happened to be called `Color`, so the name arrived at
@@ -28,7 +47,14 @@ declare function bloom_end_drawing(): void;
 declare function bloom_take_screenshot(path: number): void;
 declare function bloom_clear_background(r: number, g: number, b: number, a: number): void;
 declare function bloom_set_env_clear_from_hdr(path: number): void;
-declare function bloom_set_fog(r: number, g: number, b: number, density: number, height_ref: number, height_falloff: number): void;
+declare function bloom_set_fog(
+  r: number,
+  g: number,
+  b: number,
+  density: number,
+  height_ref: number,
+  height_falloff: number,
+): void;
 declare function bloom_set_chromatic_aberration(strength: number): void;
 declare function bloom_set_vignette(strength: number, softness: number): void;
 declare function bloom_set_film_grain(strength: number): void;
@@ -72,7 +98,12 @@ declare function bloom_clear_all_post_passes(): void;
 declare function bloom_set_ssao_intensity(intensity: number): void;
 declare function bloom_set_ssao_radius(worldRadius: number): void;
 declare function bloom_set_wind(dirX: number, dirZ: number, amplitude: number, frequency: number): void;
-declare function bloom_set_cloud_shadows(strength: number, deckHeight: number, featureScale: number, driftSpeed: number): void;
+declare function bloom_set_cloud_shadows(
+  strength: number,
+  deckHeight: number,
+  featureScale: number,
+  driftSpeed: number,
+): void;
 declare function bloom_set_ssr_enabled(on: number): void;
 declare function bloom_set_motion_blur_enabled(on: number): void;
 declare function bloom_set_sss_enabled(on: number): void;
@@ -118,12 +149,35 @@ declare function bloom_is_mouse_button_released(btn: number): number;
 // Camera FFI
 declare function bloom_begin_mode_2d(ox: number, oy: number, tx: number, ty: number, rot: number, zoom: number): void;
 declare function bloom_begin_mode_2d_viewport(
-  ox: number, oy: number, tx: number, ty: number, rot: number, zoom: number,
-  scaleX: number, scaleY: number, originX: number, originY: number,
-  clipX: number, clipY: number, clipWidth: number, clipHeight: number,
+  ox: number,
+  oy: number,
+  tx: number,
+  ty: number,
+  rot: number,
+  zoom: number,
+  scaleX: number,
+  scaleY: number,
+  originX: number,
+  originY: number,
+  clipX: number,
+  clipY: number,
+  clipWidth: number,
+  clipHeight: number,
 ): void;
 declare function bloom_end_mode_2d(): void;
-declare function bloom_begin_mode_3d(px: number, py: number, pz: number, tx: number, ty: number, tz: number, ux: number, uy: number, uz: number, fovy: number, proj: number): void;
+declare function bloom_begin_mode_3d(
+  px: number,
+  py: number,
+  pz: number,
+  tx: number,
+  ty: number,
+  tz: number,
+  ux: number,
+  uy: number,
+  uz: number,
+  fovy: number,
+  proj: number,
+): void;
 declare function bloom_end_mode_3d(): void;
 
 // Gamepad FFI
@@ -293,7 +347,14 @@ export function setEnvClearFromHdr(path: string): void {
 // (or until called again with 0 / disabled values).
 
 /** Height-based exponential fog. Density 0 = off. */
-export function setFog(r: number, g: number, b: number, density: number, heightRef: number, heightFalloff: number): void {
+export function setFog(
+  r: number,
+  g: number,
+  b: number,
+  density: number,
+  heightRef: number,
+  heightFalloff: number,
+): void {
   bloom_set_fog(r, g, b, density, heightRef, heightFalloff);
 }
 
@@ -385,13 +446,17 @@ export function setRenderScale(scale: number): void {
 export function setOutputScale(scale: number): void {
   bloom_set_output_scale(Math.min(1.0, Math.max(0.25, scale)));
 }
-export function getOutputScale(): number { return bloom_get_output_scale(); }
-export function getRenderScale(): number { return bloom_get_render_scale(); }
+export function getOutputScale(): number {
+  return bloom_get_output_scale();
+}
+export function getRenderScale(): number {
+  return bloom_get_render_scale();
+}
 
 /** Upscale filter when render_scale < 1 and TAA is off. "bilinear" = cheap/soft, "catmull-rom" = sharper (default). */
-export type UpscaleMode = "bilinear" | "catmull-rom";
+export type UpscaleMode = 'bilinear' | 'catmull-rom';
 export function setUpscaleMode(mode: UpscaleMode): void {
-  bloom_set_upscale_mode(mode === "catmull-rom" ? 1 : 0);
+  bloom_set_upscale_mode(mode === 'catmull-rom' ? 1 : 0);
 }
 
 /**
@@ -404,8 +469,12 @@ export function setCasStrength(strength: number): void {
 }
 
 /** Physical-pixel size of the GPU surface (HiDPI-aware on macOS today). */
-export function getPhysicalWidth(): number { return bloom_get_physical_width(); }
-export function getPhysicalHeight(): number { return bloom_get_physical_height(); }
+export function getPhysicalWidth(): number {
+  return bloom_get_physical_width();
+}
+export function getPhysicalHeight(): number {
+  return bloom_get_physical_height();
+}
 
 /**
  * Dynamic resolution scaling. When enabled, the engine self-tunes
@@ -607,7 +676,7 @@ export function clearPostPass(): void {
 /// or -1 if the shader failed to compile (existing stack untouched).
 export function addPostPass(wgslSource: string): number {
   const r = bloom_add_post_pass(wgslSource as any);
-  return r > 0 ? (r - 1) : -1;
+  return r > 0 ? r - 1 : -1;
 }
 
 /// EN-017 V2 — wipe the entire post-pass stack. The composite
@@ -643,12 +712,7 @@ export function setWind(dirX: number, dirZ: number, amplitude: number, frequency
 /// Drift direction comes from `setWind`, so the deck travels the way the foliage
 /// beneath it is leaning.
 /// (No default parameter values: Perry 0.5.x silently drops the call.)
-export function setCloudShadows(
-  strength: number,
-  deckHeight: number,
-  featureScale: number,
-  driftSpeed: number,
-): void {
+export function setCloudShadows(strength: number, deckHeight: number, featureScale: number, driftSpeed: number): void {
   bloom_set_cloud_shadows(strength, deckHeight, featureScale, driftSpeed);
 }
 
@@ -735,10 +799,10 @@ export function setMaterialParams(handle: number, params: number[]): void {
  * Intended for an in-game overlay — games call it at draw time and
  * render one `drawText` per entry.
  */
-export function getProfilerOverlay(): { label: string, cpuUs: number, gpuUs: number }[] {
+export function getProfilerOverlay(): { label: string; cpuUs: number; gpuUs: number }[] {
   // EN-020: per-row numeric FFI — do NOT reintroduce a packed-text +
   // split()/parseFloat() path here (Perry runtime overread, crashes).
-  const out: { label: string, cpuUs: number, gpuUs: number }[] = [];
+  const out: { label: string; cpuUs: number; gpuUs: number }[] = [];
   const n = bloom_profiler_row_count();
   for (let i = 0; i < n; i++) {
     out.push({
@@ -755,9 +819,9 @@ export function getProfilerOverlay(): { label: string, cpuUs: number, gpuUs: num
  * Useful for an overlay bar-chart of frame-time variance. GPU time
  * is 0 when the device lacks TIMESTAMP_QUERY.
  */
-export function getProfilerFrameHistory(): { cpuUs: number, gpuUs: number }[] {
+export function getProfilerFrameHistory(): { cpuUs: number; gpuUs: number }[] {
   // EN-020: numeric FFI — see getProfilerOverlay.
-  const out: { cpuUs: number, gpuUs: number }[] = [];
+  const out: { cpuUs: number; gpuUs: number }[] = [];
   const n = bloom_profiler_hist_count();
   for (let i = 0; i < n; i++) {
     out.push({
@@ -885,29 +949,69 @@ export function beginMode2DViewport(
   clip: { x: number; y: number; width: number; height: number },
 ): void {
   beginMode2DViewportRaw(
-    camera.offset.x, camera.offset.y, camera.target.x, camera.target.y,
-    camera.rotation, camera.zoom, scaleX, scaleY, originX, originY,
-    clip.x, clip.y, clip.width, clip.height,
+    camera.offset.x,
+    camera.offset.y,
+    camera.target.x,
+    camera.target.y,
+    camera.rotation,
+    camera.zoom,
+    scaleX,
+    scaleY,
+    originX,
+    originY,
+    clip.x,
+    clip.y,
+    clip.width,
+    clip.height,
   );
 }
 
 // Keep object-property reads out of the native FFI argument expression. This
 // mirrors beginMode2DRaw for aarch64 Android's f64 argument lowering.
 export function beginMode2DViewportRaw(
-  offsetX: number, offsetY: number, targetX: number, targetY: number,
-  rotation: number, zoom: number, scaleX: number, scaleY: number,
-  originX: number, originY: number,
-  clipX: number, clipY: number, clipWidth: number, clipHeight: number,
+  offsetX: number,
+  offsetY: number,
+  targetX: number,
+  targetY: number,
+  rotation: number,
+  zoom: number,
+  scaleX: number,
+  scaleY: number,
+  originX: number,
+  originY: number,
+  clipX: number,
+  clipY: number,
+  clipWidth: number,
+  clipHeight: number,
 ): void {
   bloom_begin_mode_2d_viewport(
-    offsetX, offsetY, targetX, targetY, rotation, zoom,
-    scaleX, scaleY, originX, originY, clipX, clipY, clipWidth, clipHeight,
+    offsetX,
+    offsetY,
+    targetX,
+    targetY,
+    rotation,
+    zoom,
+    scaleX,
+    scaleY,
+    originX,
+    originY,
+    clipX,
+    clipY,
+    clipWidth,
+    clipHeight,
   );
 }
 
 // Raw variant: takes primitives directly. Workaround for aarch64 Android
 // Perry miscompilation where obj.field reads feeding f64 FFI args arrive as NaN.
-export function beginMode2DRaw(offsetX: number, offsetY: number, targetX: number, targetY: number, rotation: number, zoom: number): void {
+export function beginMode2DRaw(
+  offsetX: number,
+  offsetY: number,
+  targetX: number,
+  targetY: number,
+  rotation: number,
+  zoom: number,
+): void {
   bloom_begin_mode_2d(offsetX, offsetY, targetX, targetY, rotation, zoom);
 }
 
@@ -918,12 +1022,19 @@ export function endMode2D(): void {
 // Camera 3D
 
 export function beginMode3D(camera: Camera3D): void {
-  const proj = camera.projection === "orthographic" ? 1 : 0;
+  const proj = camera.projection === 'orthographic' ? 1 : 0;
   bloom_begin_mode_3d(
-    camera.position.x, camera.position.y, camera.position.z,
-    camera.target.x, camera.target.y, camera.target.z,
-    camera.up.x, camera.up.y, camera.up.z,
-    camera.fovy, proj,
+    camera.position.x,
+    camera.position.y,
+    camera.position.z,
+    camera.target.x,
+    camera.target.y,
+    camera.target.z,
+    camera.up.x,
+    camera.up.y,
+    camera.up.z,
+    camera.fovy,
+    proj,
   );
 }
 
@@ -1130,22 +1241,47 @@ export function readFile(path: string): string {
 
 // Input injection
 
-export function injectKeyDown(key: number): void { bloom_inject_key_down(key); }
-export function injectKeyUp(key: number): void { bloom_inject_key_up(key); }
-export function injectGamepadAxis(axis: number, value: number): void { bloom_inject_gamepad_axis(axis, value); }
-export function injectGamepadButtonDown(button: number): void { bloom_inject_gamepad_button_down(button); }
-export function injectGamepadButtonUp(button: number): void { bloom_inject_gamepad_button_up(button); }
+export function injectKeyDown(key: number): void {
+  bloom_inject_key_down(key);
+}
+export function injectKeyUp(key: number): void {
+  bloom_inject_key_up(key);
+}
+export function injectGamepadAxis(axis: number, value: number): void {
+  bloom_inject_gamepad_axis(axis, value);
+}
+export function injectGamepadButtonDown(button: number): void {
+  bloom_inject_gamepad_button_down(button);
+}
+export function injectGamepadButtonUp(button: number): void {
+  bloom_inject_gamepad_button_up(button);
+}
 
 // Platform detection
 
-export const Platform = { UNKNOWN: 0, MACOS: 1, IOS: 2, WINDOWS: 3, LINUX: 4, ANDROID: 5, TVOS: 6, WEB: 7, WATCHOS: 8, VISIONOS: 9 } as const;
+export const Platform = {
+  UNKNOWN: 0,
+  MACOS: 1,
+  IOS: 2,
+  WINDOWS: 3,
+  LINUX: 4,
+  ANDROID: 5,
+  TVOS: 6,
+  WEB: 7,
+  WATCHOS: 8,
+  VISIONOS: 9,
+} as const;
 
-export function getPlatform(): number { return bloom_get_platform(); }
+export function getPlatform(): number {
+  return bloom_get_platform();
+}
 
 /// User's preferred OS language as a packed 2-letter code (`c0 * 256 + c1`,
 /// ASCII of the lowercased ISO-639 primary subtag, e.g. "en" = 101*256+110).
 /// Script subtags are dropped (zh-Hans -> "zh"); callers map to their variant.
-export function getLanguage(): number { return bloom_get_language(); }
+export function getLanguage(): number {
+  return bloom_get_language();
+}
 
 export function isMobile(): boolean {
   const p = bloom_get_platform();
@@ -1205,8 +1341,8 @@ export function runGame(update: (dt: number) => void, shouldContinue?: () => boo
 // Pure TS camera helpers
 
 export function getScreenToWorld2D(position: { x: number; y: number }, camera: Camera2D): { x: number; y: number } {
-  const cos = Math.cos(camera.rotation * Math.PI / 180);
-  const sin = Math.sin(camera.rotation * Math.PI / 180);
+  const cos = Math.cos((camera.rotation * Math.PI) / 180);
+  const sin = Math.sin((camera.rotation * Math.PI) / 180);
   const dx = (position.x - camera.offset.x) / camera.zoom;
   const dy = (position.y - camera.offset.y) / camera.zoom;
   return {
@@ -1216,8 +1352,8 @@ export function getScreenToWorld2D(position: { x: number; y: number }, camera: C
 }
 
 export function getWorldToScreen2D(position: { x: number; y: number }, camera: Camera2D): { x: number; y: number } {
-  const cos = Math.cos(camera.rotation * Math.PI / 180);
-  const sin = Math.sin(camera.rotation * Math.PI / 180);
+  const cos = Math.cos((camera.rotation * Math.PI) / 180);
+  const sin = Math.sin((camera.rotation * Math.PI) / 180);
   const dx = position.x - camera.target.x;
   const dy = position.y - camera.target.y;
   return {
@@ -1225,7 +1361,6 @@ export function getWorldToScreen2D(position: { x: number; y: number }, camera: C
     y: (sin * dx + cos * dy) * camera.zoom + camera.offset.y,
   };
 }
-
 
 /// Launch another program, fire and forget. Returns its pid, or 0 on failure.
 ///

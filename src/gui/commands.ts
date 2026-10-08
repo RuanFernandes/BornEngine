@@ -33,7 +33,7 @@ export const GuiControlKind = {
   DrawingPanel: 27,
 } as const;
 
-export type GuiControlKindCode = typeof GuiControlKind[keyof typeof GuiControlKind];
+export type GuiControlKindCode = (typeof GuiControlKind)[keyof typeof GuiControlKind];
 
 export interface GuiControlItemCommand {
   id: string | number;

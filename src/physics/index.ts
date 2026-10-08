@@ -1,8 +1,18 @@
 export { PhysicsWorld } from './physics-world';
 export type { PhysicsWorldOptions, PhysicsStepHooks, PhysicsRayHit, PhysicsContact } from './physics-world';
-export { Collider, BoxCollider, SphereCollider, CapsuleCollider, CylinderCollider,
-  ConvexHullCollider, MeshCollider, HeightfieldCollider, CompoundCollider,
-  ScaledCollider, OffsetCollider } from './collider';
+export {
+  Collider,
+  BoxCollider,
+  SphereCollider,
+  CapsuleCollider,
+  CylinderCollider,
+  ConvexHullCollider,
+  MeshCollider,
+  HeightfieldCollider,
+  CompoundCollider,
+  ScaledCollider,
+  OffsetCollider,
+} from './collider';
 export type { PhysicsTransform, CompoundColliderChild } from './collider';
 export { PhysicsBody, RigidBody } from './rigid-body';
 export type { RigidBodyOptions } from './rigid-body';

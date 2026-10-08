@@ -20,7 +20,11 @@ export class Material implements ContextResource {
     return new Material(game, source, kind);
   }
 
-  private constructor(game: Game, readonly source: string, readonly kind: MaterialKind = 'opaque') {
+  private constructor(
+    game: Game,
+    readonly source: string,
+    readonly kind: MaterialKind = 'opaque',
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed || source.length === 0) {
@@ -38,8 +42,12 @@ export class Material implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   setParameters(values: number[]): boolean {
     if (!this.isLoaded) return false;
@@ -61,8 +69,14 @@ export class Material implements ContextResource {
 
   setFoliage(transmission: Color, amount: number, wrapFactor: number): boolean {
     if (!this.isLoaded) return false;
-    operations.setMaterialFoliage(this.handleValue, transmission.r / 255, transmission.g / 255,
-      transmission.b / 255, amount, wrapFactor);
+    operations.setMaterialFoliage(
+      this.handleValue,
+      transmission.r / 255,
+      transmission.g / 255,
+      transmission.b / 255,
+      amount,
+      wrapFactor,
+    );
     return true;
   }
 

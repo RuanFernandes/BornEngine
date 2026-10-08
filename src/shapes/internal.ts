@@ -1,17 +1,90 @@
 import { Color, Rect, Vector2DLike } from '../core/types';
 
 // FFI declarations
-declare function bloom_draw_line(x1: number, y1: number, x2: number, y2: number, thickness: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_rect(x: number, y: number, w: number, h: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_rect_lines(x: number, y: number, w: number, h: number, thickness: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_circle(cx: number, cy: number, radius: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_circle_lines(cx: number, cy: number, radius: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_triangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_poly(cx: number, cy: number, sides: number, radius: number, rotation: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_line(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  thickness: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_rect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_rect_lines(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  thickness: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_circle(
+  cx: number,
+  cy: number,
+  radius: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_circle_lines(
+  cx: number,
+  cy: number,
+  radius: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_triangle(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_poly(
+  cx: number,
+  cy: number,
+  sides: number,
+  radius: number,
+  rotation: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 
 // Drawing functions
 
-export function drawLine(startX: number, startY: number, endX: number, endY: number, thickness: number, color: Color): void {
+export function drawLine(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  thickness: number,
+  color: Color,
+): void {
   bloom_draw_line(startX, startY, endX, endY, thickness, color.r, color.g, color.b, color.a);
 }
 
@@ -23,7 +96,14 @@ export function drawRectRec(rec: Rect, color: Color): void {
   bloom_draw_rect(rec.x, rec.y, rec.width, rec.height, color.r, color.g, color.b, color.a);
 }
 
-export function drawRectLines(x: number, y: number, width: number, height: number, thickness: number, color: Color): void {
+export function drawRectLines(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  thickness: number,
+  color: Color,
+): void {
   bloom_draw_rect_lines(x, y, width, height, thickness, color.r, color.g, color.b, color.a);
 }
 
@@ -35,22 +115,42 @@ export function drawCircleLines(centerX: number, centerY: number, radius: number
   bloom_draw_circle_lines(centerX, centerY, radius, color.r, color.g, color.b, color.a);
 }
 
-export function drawTriangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, color: Color): void {
+export function drawTriangle(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  color: Color,
+): void {
   bloom_draw_triangle(x1, y1, x2, y2, x3, y3, color.r, color.g, color.b, color.a);
 }
 
-export function drawPoly(centerX: number, centerY: number, sides: number, radius: number, rotation: number, color: Color): void {
+export function drawPoly(
+  centerX: number,
+  centerY: number,
+  sides: number,
+  radius: number,
+  rotation: number,
+  color: Color,
+): void {
   bloom_draw_poly(centerX, centerY, sides, radius, rotation, color.r, color.g, color.b, color.a);
 }
 
 // Bezier curve drawing (pure TS — subdivides cubic bezier into line segments)
 
 export function drawBezier(
-  startX: number, startY: number,
-  cp1X: number, cp1Y: number,
-  cp2X: number, cp2Y: number,
-  endX: number, endY: number,
-  thickness: number, color: Color,
+  startX: number,
+  startY: number,
+  cp1X: number,
+  cp1Y: number,
+  cp2X: number,
+  cp2Y: number,
+  endX: number,
+  endY: number,
+  thickness: number,
+  color: Color,
 ): void {
   const segments = 24;
   let prevX = startX;
@@ -77,7 +177,12 @@ export function checkCollisionRecs(rec1: Rect, rec2: Rect): boolean {
   );
 }
 
-export function checkCollisionCircles(center1: Vector2DLike, radius1: number, center2: Vector2DLike, radius2: number): boolean {
+export function checkCollisionCircles(
+  center1: Vector2DLike,
+  radius1: number,
+  center2: Vector2DLike,
+  radius2: number,
+): boolean {
   const dx = center2.x - center1.x;
   const dy = center2.y - center1.y;
   const distSq = dx * dx + dy * dy;
@@ -90,22 +195,17 @@ export function checkCollisionCircleRec(center: Vector2DLike, radius: number, re
   const closestY = Math.max(rec.y, Math.min(center.y, rec.y + rec.height));
   const dx = center.x - closestX;
   const dy = center.y - closestY;
-  return (dx * dx + dy * dy) <= radius * radius;
+  return dx * dx + dy * dy <= radius * radius;
 }
 
 export function checkCollisionPointRec(point: Vector2DLike, rec: Rect): boolean {
-  return (
-    point.x >= rec.x &&
-    point.x <= rec.x + rec.width &&
-    point.y >= rec.y &&
-    point.y <= rec.y + rec.height
-  );
+  return point.x >= rec.x && point.x <= rec.x + rec.width && point.y >= rec.y && point.y <= rec.y + rec.height;
 }
 
 export function checkCollisionPointCircle(point: Vector2DLike, center: Vector2DLike, radius: number): boolean {
   const dx = point.x - center.x;
   const dy = point.y - center.y;
-  return (dx * dx + dy * dy) <= radius * radius;
+  return dx * dx + dy * dy <= radius * radius;
 }
 
 export function getCollisionRec(rec1: Rect, rec2: Rect): Rect {

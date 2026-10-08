@@ -24,14 +24,14 @@ export type Mat4Lit = number[];
 
 // Top-level world document. One `*.world.json` file holds exactly one of these.
 export interface WorldDocument {
-  schemaVersion: number;            // Must equal WORLD_SCHEMA_VERSION on save.
-  name: string;                     // Human-readable display name.
-  id: string;                       // Stable slug, e.g. "garden_main".
-  bounds: Bounds;                   // Axis-aligned bounding box in world space.
+  schemaVersion: number; // Must equal WORLD_SCHEMA_VERSION on save.
+  name: string; // Human-readable display name.
+  id: string; // Stable slug, e.g. "garden_main".
+  bounds: Bounds; // Axis-aligned bounding box in world space.
   environment: EnvironmentData;
-  terrain: TerrainData | null;      // null for games that don't use terrain.
+  terrain: TerrainData | null; // null for games that don't use terrain.
   entities: EntityData[];
-  lights: LightData[];              // Point lights. Sun/ambient live in `environment`.
+  lights: LightData[]; // Point lights. Sun/ambient live in `environment`.
   water: WaterVolume[];
   rivers: RiverSpline[];
   metadata: Record<string, string>; // Game-specific extensibility (e.g. "gameId").
@@ -45,13 +45,13 @@ export interface WorldDocument {
 // which is why they are schema rather than `userData`: a spawner or a wave plan
 // means nothing without the game, but a light means the same thing everywhere.
 export interface LightData {
-  id: string;                 // Stable within the world file, e.g. "light_0001".
-  name: string;               // Display name.
-  kind: "point";
+  id: string; // Stable within the world file, e.g. "light_0001".
+  name: string; // Display name.
+  kind: 'point';
   position: Vec3Lit;
-  color: Vec3Lit;             // 0..1 RGB (the runtime API takes 0-255; loader converts).
+  color: Vec3Lit; // 0..1 RGB (the runtime API takes 0-255; loader converts).
   intensity: number;
-  range: number;              // World units; beyond this the light contributes nothing.
+  range: number; // World units; beyond this the light contributes nothing.
 }
 
 export interface Bounds {
@@ -61,14 +61,14 @@ export interface Bounds {
 
 // Sky, lighting, and atmospheric settings applied when the world is loaded.
 export interface EnvironmentData {
-  skyColor: Vec3Lit;          // 0..1 RGB, used as clear color.
-  ambientColor: Vec3Lit;      // 0..1 RGB.
-  ambientIntensity: number;   // 0..1.
-  sunDirection: Vec3Lit;      // Unit vector pointing from the sun.
-  sunColor: Vec3Lit;          // 0..1 RGB.
+  skyColor: Vec3Lit; // 0..1 RGB, used as clear color.
+  ambientColor: Vec3Lit; // 0..1 RGB.
+  ambientIntensity: number; // 0..1.
+  sunDirection: Vec3Lit; // Unit vector pointing from the sun.
+  sunColor: Vec3Lit; // 0..1 RGB.
   sunIntensity: number;
-  fogStart: number;           // World-space distance where fog begins.
-  fogEnd: number;             // World-space distance of full fog.
+  fogStart: number; // World-space distance where fog begins.
+  fogEnd: number; // World-space distance of full fog.
   fogColor: Vec3Lit;
   shadowsEnabled: boolean;
 }
@@ -77,51 +77,51 @@ export interface EnvironmentData {
 // Runtime consumers build a mesh via `buildHeightmapMesh` in `./terrain.ts`
 // and sample via `sampleHeight` (bilinear).
 export interface TerrainData {
-  width: number;              // Grid cells along X (e.g. 128).
-  depth: number;              // Grid cells along Z.
-  cellSize: number;           // World units per cell, e.g. 1.0.
-  origin: Vec3Lit;            // World-space position of the (0,0) corner.
-  heights: number[];          // Length == width*depth, row-major, z*width + x.
-  layers: TerrainLayer[];     // Splat texture layers; empty array if unused.
+  width: number; // Grid cells along X (e.g. 128).
+  depth: number; // Grid cells along Z.
+  cellSize: number; // World units per cell, e.g. 1.0.
+  origin: Vec3Lit; // World-space position of the (0,0) corner.
+  heights: number[]; // Length == width*depth, row-major, z*width + x.
+  layers: TerrainLayer[]; // Splat texture layers; empty array if unused.
 }
 
 export interface TerrainLayer {
-  id: string;                 // "grass", "dirt", "rock".
-  textureRef: string;         // Relative asset path.
-  weights: number[];          // Length == width*depth, 0..1 per cell.
-  tileScale: number;          // UV tiling factor.
+  id: string; // "grass", "dirt", "rock".
+  textureRef: string; // Relative asset path.
+  weights: number[]; // Length == width*depth, 0..1 per cell.
+  tileScale: number; // UV tiling factor.
 }
 
 // A placed instance in the world. Exactly one of `modelRef` / `prefabRef` is
 // non-null; the other is null. The editor enforces this invariant.
 export interface EntityData {
-  id: string;                 // Stable within the world file, e.g. "ent_0001".
-  name: string;               // Display name; defaults to model basename.
-  modelRef: string | null;    // Relative path, e.g. "models/tree_oak.glb".
-  prefabRef: string | null;   // Prefab id, e.g. "small_house".
+  id: string; // Stable within the world file, e.g. "ent_0001".
+  name: string; // Display name; defaults to model basename.
+  modelRef: string | null; // Relative path, e.g. "models/tree_oak.glb".
+  prefabRef: string | null; // Prefab id, e.g. "small_house".
   transform: TransformData;
-  tint: Vec4Lit | null;       // Optional per-instance RGBA color override.
-  tags: string[];             // Game-defined, e.g. "climbable", "zone_marker".
-  userData: Record<string, string>;  // Arbitrary game-specific key/value data.
+  tint: Vec4Lit | null; // Optional per-instance RGBA color override.
+  tags: string[]; // Game-defined, e.g. "climbable", "zone_marker".
+  userData: Record<string, string>; // Arbitrary game-specific key/value data.
 }
 
 // Transform expressed as TRS with Euler rotation for diffable JSON.
 // The loader converts Euler -> quaternion / matrix as needed.
 export interface TransformData {
   position: Vec3Lit;
-  rotation: Vec3Lit;          // Euler radians, XYZ order.
-  scale: Vec3Lit;             // Uniform scale is [s, s, s].
+  rotation: Vec3Lit; // Euler radians, XYZ order.
+  scale: Vec3Lit; // Uniform scale is [s, s, s].
 }
 
 // Axis-aligned water volume with a wave-animated surface.
 // M1 supports only `kind: "box"`; future: "mesh" for arbitrary shapes.
 export interface WaterVolume {
   id: string;
-  kind: "box";
+  kind: 'box';
   center: Vec3Lit;
-  size: Vec3Lit;              // Full extents (not half-extents).
-  surfaceHeight: number;      // World Y of the water surface.
-  color: Vec4Lit;             // RGBA tint.
+  size: Vec3Lit; // Full extents (not half-extents).
+  surfaceHeight: number; // World Y of the water surface.
+  color: Vec4Lit; // RGBA tint.
   waveAmplitude: number;
   waveSpeed: number;
 }
@@ -129,9 +129,9 @@ export interface WaterVolume {
 // Catmull-Rom spline river with per-point width.
 export interface RiverSpline {
   id: string;
-  controlPoints: Vec3Lit[];   // At least 2 points.
-  widths: number[];           // Same length as controlPoints.
-  depth: number;              // Below the surface.
+  controlPoints: Vec3Lit[]; // At least 2 points.
+  widths: number[]; // Same length as controlPoints.
+  depth: number; // Below the surface.
   flowSpeed: number;
   color: Vec4Lit;
 }
@@ -142,18 +142,18 @@ export interface RiverSpline {
 // Each child references either a raw .glb model or another prefab (nested).
 // Cycles are detected at load time and rejected.
 export interface PrefabData {
-  schemaVersion: number;      // Must equal WORLD_SCHEMA_VERSION.
-  id: string;                 // Stable slug, e.g. "small_house".
-  name: string;               // Display name.
+  schemaVersion: number; // Must equal WORLD_SCHEMA_VERSION.
+  id: string; // Stable slug, e.g. "small_house".
+  name: string; // Display name.
   children: PrefabChild[];
-  bounds: Bounds;             // Cached AABB of the expanded prefab for previews.
+  bounds: Bounds; // Cached AABB of the expanded prefab for previews.
 }
 
 // One child of a prefab. Exactly one of `modelRef` / `prefabRef` is non-null.
 export interface PrefabChild {
-  id: string;                 // Local id within the prefab, e.g. "wall_0".
+  id: string; // Local id within the prefab, e.g. "wall_0".
   modelRef: string | null;
-  prefabRef: string | null;   // Reference to another prefab (nested).
+  prefabRef: string | null; // Reference to another prefab (nested).
   transform: TransformData;
   tint: Vec4Lit | null;
   tags: string[];

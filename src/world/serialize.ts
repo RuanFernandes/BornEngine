@@ -33,9 +33,19 @@
 // and the writer change together, or validation fails.
 
 import {
-  WorldDocument, PrefabData, PrefabChild, EntityData, LightData,
-  WaterVolume, RiverSpline, TerrainData, TerrainLayer, EnvironmentData,
-  TransformData, Vec3Lit, Vec4Lit,
+  WorldDocument,
+  PrefabData,
+  PrefabChild,
+  EntityData,
+  LightData,
+  WaterVolume,
+  RiverSpline,
+  TerrainData,
+  TerrainLayer,
+  EnvironmentData,
+  TransformData,
+  Vec3Lit,
+  Vec4Lit,
 } from './types';
 
 // --- primitives --------------------------------------------------------------
@@ -68,7 +78,7 @@ function str(s: string): string {
 /// Numbers. NaN and Infinity are not JSON; emitting them produces a file that will
 /// not parse, so they become 0 rather than a document nobody can open.
 function num(n: number): string {
-  if (n !== n) return '0';                       // NaN
+  if (n !== n) return '0'; // NaN
   if (n === Infinity || n === -Infinity) return '0';
   // Integers stay integers — `1` not `1.0` — so a hand-written world file and a
   // round-tripped one look the same in a diff.
@@ -133,11 +143,23 @@ function record(r: Record<string, string>, depth: number): string {
 // --- schema ------------------------------------------------------------------
 
 function transform(t: TransformData, d: number): string {
-  return '{\n'
-    + ind(d + 1) + '"position": ' + vec3(t.position) + ',\n'
-    + ind(d + 1) + '"rotation": ' + vec3(t.rotation) + ',\n'
-    + ind(d + 1) + '"scale": ' + vec3(t.scale) + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"position": ' +
+    vec3(t.position) +
+    ',\n' +
+    ind(d + 1) +
+    '"rotation": ' +
+    vec3(t.rotation) +
+    ',\n' +
+    ind(d + 1) +
+    '"scale": ' +
+    vec3(t.scale) +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function entity(e: EntityData, d: number): string {
@@ -154,28 +176,79 @@ function entity(e: EntityData, d: number): string {
 }
 
 function light(l: LightData, d: number): string {
-  return '{\n'
-    + ind(d + 1) + '"id": ' + str(l.id) + ',\n'
-    + ind(d + 1) + '"name": ' + str(l.name) + ',\n'
-    + ind(d + 1) + '"kind": ' + str(l.kind) + ',\n'
-    + ind(d + 1) + '"position": ' + vec3(l.position) + ',\n'
-    + ind(d + 1) + '"color": ' + vec3(l.color) + ',\n'
-    + ind(d + 1) + '"intensity": ' + num(l.intensity) + ',\n'
-    + ind(d + 1) + '"range": ' + num(l.range) + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"id": ' +
+    str(l.id) +
+    ',\n' +
+    ind(d + 1) +
+    '"name": ' +
+    str(l.name) +
+    ',\n' +
+    ind(d + 1) +
+    '"kind": ' +
+    str(l.kind) +
+    ',\n' +
+    ind(d + 1) +
+    '"position": ' +
+    vec3(l.position) +
+    ',\n' +
+    ind(d + 1) +
+    '"color": ' +
+    vec3(l.color) +
+    ',\n' +
+    ind(d + 1) +
+    '"intensity": ' +
+    num(l.intensity) +
+    ',\n' +
+    ind(d + 1) +
+    '"range": ' +
+    num(l.range) +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function water(w: WaterVolume, d: number): string {
-  return '{\n'
-    + ind(d + 1) + '"id": ' + str(w.id) + ',\n'
-    + ind(d + 1) + '"kind": ' + str(w.kind) + ',\n'
-    + ind(d + 1) + '"center": ' + vec3(w.center) + ',\n'
-    + ind(d + 1) + '"size": ' + vec3(w.size) + ',\n'
-    + ind(d + 1) + '"surfaceHeight": ' + num(w.surfaceHeight) + ',\n'
-    + ind(d + 1) + '"color": ' + vec4(w.color) + ',\n'
-    + ind(d + 1) + '"waveAmplitude": ' + num(w.waveAmplitude) + ',\n'
-    + ind(d + 1) + '"waveSpeed": ' + num(w.waveSpeed) + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"id": ' +
+    str(w.id) +
+    ',\n' +
+    ind(d + 1) +
+    '"kind": ' +
+    str(w.kind) +
+    ',\n' +
+    ind(d + 1) +
+    '"center": ' +
+    vec3(w.center) +
+    ',\n' +
+    ind(d + 1) +
+    '"size": ' +
+    vec3(w.size) +
+    ',\n' +
+    ind(d + 1) +
+    '"surfaceHeight": ' +
+    num(w.surfaceHeight) +
+    ',\n' +
+    ind(d + 1) +
+    '"color": ' +
+    vec4(w.color) +
+    ',\n' +
+    ind(d + 1) +
+    '"waveAmplitude": ' +
+    num(w.waveAmplitude) +
+    ',\n' +
+    ind(d + 1) +
+    '"waveSpeed": ' +
+    num(w.waveSpeed) +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function river(r: RiverSpline, d: number): string {
@@ -185,23 +258,59 @@ function river(r: RiverSpline, d: number): string {
     pts = pts + vec3(r.controlPoints[i]);
   }
   pts = pts + ']';
-  return '{\n'
-    + ind(d + 1) + '"id": ' + str(r.id) + ',\n'
-    + ind(d + 1) + '"controlPoints": ' + pts + ',\n'
-    + ind(d + 1) + '"widths": ' + nums(r.widths) + ',\n'
-    + ind(d + 1) + '"depth": ' + num(r.depth) + ',\n'
-    + ind(d + 1) + '"flowSpeed": ' + num(r.flowSpeed) + ',\n'
-    + ind(d + 1) + '"color": ' + vec4(r.color) + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"id": ' +
+    str(r.id) +
+    ',\n' +
+    ind(d + 1) +
+    '"controlPoints": ' +
+    pts +
+    ',\n' +
+    ind(d + 1) +
+    '"widths": ' +
+    nums(r.widths) +
+    ',\n' +
+    ind(d + 1) +
+    '"depth": ' +
+    num(r.depth) +
+    ',\n' +
+    ind(d + 1) +
+    '"flowSpeed": ' +
+    num(r.flowSpeed) +
+    ',\n' +
+    ind(d + 1) +
+    '"color": ' +
+    vec4(r.color) +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function terrainLayer(l: TerrainLayer, d: number): string {
-  return '{\n'
-    + ind(d + 1) + '"id": ' + str(l.id) + ',\n'
-    + ind(d + 1) + '"textureRef": ' + str(l.textureRef) + ',\n'
-    + ind(d + 1) + '"weights": ' + nums(l.weights) + ',\n'
-    + ind(d + 1) + '"tileScale": ' + num(l.tileScale) + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"id": ' +
+    str(l.id) +
+    ',\n' +
+    ind(d + 1) +
+    '"textureRef": ' +
+    str(l.textureRef) +
+    ',\n' +
+    ind(d + 1) +
+    '"weights": ' +
+    nums(l.weights) +
+    ',\n' +
+    ind(d + 1) +
+    '"tileScale": ' +
+    num(l.tileScale) +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function terrain(t: TerrainData, d: number): string {
@@ -215,29 +324,83 @@ function terrain(t: TerrainData, d: number): string {
     }
     layers = layers + ind(d + 1) + ']';
   }
-  return '{\n'
-    + ind(d + 1) + '"width": ' + num(t.width) + ',\n'
-    + ind(d + 1) + '"depth": ' + num(t.depth) + ',\n'
-    + ind(d + 1) + '"cellSize": ' + num(t.cellSize) + ',\n'
-    + ind(d + 1) + '"origin": ' + vec3(t.origin) + ',\n'
-    + ind(d + 1) + '"heights": ' + nums(t.heights) + ',\n'
-    + ind(d + 1) + '"layers": ' + layers + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"width": ' +
+    num(t.width) +
+    ',\n' +
+    ind(d + 1) +
+    '"depth": ' +
+    num(t.depth) +
+    ',\n' +
+    ind(d + 1) +
+    '"cellSize": ' +
+    num(t.cellSize) +
+    ',\n' +
+    ind(d + 1) +
+    '"origin": ' +
+    vec3(t.origin) +
+    ',\n' +
+    ind(d + 1) +
+    '"heights": ' +
+    nums(t.heights) +
+    ',\n' +
+    ind(d + 1) +
+    '"layers": ' +
+    layers +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function environment(e: EnvironmentData, d: number): string {
-  return '{\n'
-    + ind(d + 1) + '"skyColor": ' + vec3(e.skyColor) + ',\n'
-    + ind(d + 1) + '"ambientColor": ' + vec3(e.ambientColor) + ',\n'
-    + ind(d + 1) + '"ambientIntensity": ' + num(e.ambientIntensity) + ',\n'
-    + ind(d + 1) + '"sunDirection": ' + vec3(e.sunDirection) + ',\n'
-    + ind(d + 1) + '"sunColor": ' + vec3(e.sunColor) + ',\n'
-    + ind(d + 1) + '"sunIntensity": ' + num(e.sunIntensity) + ',\n'
-    + ind(d + 1) + '"fogStart": ' + num(e.fogStart) + ',\n'
-    + ind(d + 1) + '"fogEnd": ' + num(e.fogEnd) + ',\n'
-    + ind(d + 1) + '"fogColor": ' + vec3(e.fogColor) + ',\n'
-    + ind(d + 1) + '"shadowsEnabled": ' + bool(e.shadowsEnabled) + '\n'
-    + ind(d) + '}';
+  return (
+    '{\n' +
+    ind(d + 1) +
+    '"skyColor": ' +
+    vec3(e.skyColor) +
+    ',\n' +
+    ind(d + 1) +
+    '"ambientColor": ' +
+    vec3(e.ambientColor) +
+    ',\n' +
+    ind(d + 1) +
+    '"ambientIntensity": ' +
+    num(e.ambientIntensity) +
+    ',\n' +
+    ind(d + 1) +
+    '"sunDirection": ' +
+    vec3(e.sunDirection) +
+    ',\n' +
+    ind(d + 1) +
+    '"sunColor": ' +
+    vec3(e.sunColor) +
+    ',\n' +
+    ind(d + 1) +
+    '"sunIntensity": ' +
+    num(e.sunIntensity) +
+    ',\n' +
+    ind(d + 1) +
+    '"fogStart": ' +
+    num(e.fogStart) +
+    ',\n' +
+    ind(d + 1) +
+    '"fogEnd": ' +
+    num(e.fogEnd) +
+    ',\n' +
+    ind(d + 1) +
+    '"fogColor": ' +
+    vec3(e.fogColor) +
+    ',\n' +
+    ind(d + 1) +
+    '"shadowsEnabled": ' +
+    bool(e.shadowsEnabled) +
+    '\n' +
+    ind(d) +
+    '}'
+  );
 }
 
 function arr<T>(items: T[], d: number, fn: (x: T, d: number) => string): string {
@@ -258,10 +421,20 @@ export function serializeWorld(w: WorldDocument): string {
   s = s + ind(1) + '"schemaVersion": ' + num(w.schemaVersion) + ',\n';
   s = s + ind(1) + '"name": ' + str(w.name) + ',\n';
   s = s + ind(1) + '"id": ' + str(w.id) + ',\n';
-  s = s + ind(1) + '"bounds": {\n'
-        + ind(2) + '"min": ' + vec3(w.bounds.min) + ',\n'
-        + ind(2) + '"max": ' + vec3(w.bounds.max) + '\n'
-        + ind(1) + '},\n';
+  s =
+    s +
+    ind(1) +
+    '"bounds": {\n' +
+    ind(2) +
+    '"min": ' +
+    vec3(w.bounds.min) +
+    ',\n' +
+    ind(2) +
+    '"max": ' +
+    vec3(w.bounds.max) +
+    '\n' +
+    ind(1) +
+    '},\n';
   s = s + ind(1) + '"environment": ' + environment(w.environment, 1) + ',\n';
   s = s + ind(1) + '"terrain": ' + (w.terrain === null ? 'null' : terrain(w.terrain, 1)) + ',\n';
   s = s + ind(1) + '"entities": ' + arr(w.entities, 1, entity) + ',\n';
@@ -293,9 +466,19 @@ export function serializePrefab(p: PrefabData): string {
   s = s + ind(1) + '"id": ' + str(p.id) + ',\n';
   s = s + ind(1) + '"name": ' + str(p.name) + ',\n';
   s = s + ind(1) + '"children": ' + arr(p.children, 1, prefabChild) + ',\n';
-  s = s + ind(1) + '"bounds": {\n'
-        + ind(2) + '"min": ' + vec3(p.bounds.min) + ',\n'
-        + ind(2) + '"max": ' + vec3(p.bounds.max) + '\n'
-        + ind(1) + '}\n';
+  s =
+    s +
+    ind(1) +
+    '"bounds": {\n' +
+    ind(2) +
+    '"min": ' +
+    vec3(p.bounds.min) +
+    ',\n' +
+    ind(2) +
+    '"max": ' +
+    vec3(p.bounds.max) +
+    '\n' +
+    ind(1) +
+    '}\n';
   return s + '}\n';
 }

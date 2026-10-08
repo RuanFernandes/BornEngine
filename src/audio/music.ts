@@ -23,9 +23,7 @@ export class StagedMusic implements ContextResource {
 
   static stageMany(game: Game, paths: string[]): StagedMusic[] {
     const context = getGameContext(game);
-    const handles = !context.isReady || context.isDisposed
-      ? []
-      : operations.stageSounds(paths);
+    const handles = !context.isReady || context.isDisposed ? [] : operations.stageSounds(paths);
     const staged: StagedMusic[] = [];
     for (let index = 0; index < paths.length; index++) {
       staged.push(new StagedMusic(game, paths[index], handles[index] || 0));
@@ -33,10 +31,16 @@ export class StagedMusic implements ContextResource {
     return staged;
   }
 
-  get isReady(): boolean { return !this.consumed && this.handleValue !== 0 && this.context.isReady; }
-  commit(): Music { return Music._create(this.game, this); }
+  get isReady(): boolean {
+    return !this.consumed && this.handleValue !== 0 && this.context.isReady;
+  }
+  commit(): Music {
+    return Music._create(this.game, this);
+  }
 
-  private get context(): GameContext { return getGameContext(this.game); }
+  private get context(): GameContext {
+    return getGameContext(this.game);
+  }
 
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (source as any).takeForCommit(context) from the Music constructor
   private takeForCommit(context: GameContext): number {
@@ -66,9 +70,14 @@ export class Music implements ContextResource {
   private readonly context: GameContext;
 
   /** @internal Audio resources are created by AudioSystem or an asset scope. */
-  static _create(game: Game, source: string | StagedMusic): Music { return new Music(game, source); }
+  static _create(game: Game, source: string | StagedMusic): Music {
+    return new Music(game, source);
+  }
 
-  private constructor(private readonly game: Game, source: string | StagedMusic) {
+  private constructor(
+    private readonly game: Game,
+    source: string | StagedMusic,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
@@ -98,14 +107,36 @@ export class Music implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
-  get isPlaying(): boolean { return this.isLoaded && operations.isMusicPlayingRaw(this.handleValue); }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get isPlaying(): boolean {
+    return this.isLoaded && operations.isMusicPlayingRaw(this.handleValue);
+  }
 
-  play(): boolean { if (!this.isLoaded) return false; operations.playMusicRaw(this.handleValue); return true; }
-  stop(): boolean { if (!this.isLoaded) return false; operations.stopMusicRaw(this.handleValue); return true; }
-  update(): boolean { if (!this.isLoaded) return false; operations.updateMusicStreamRaw(this.handleValue); return true; }
-  setVolume(volume: number): boolean { if (!this.isLoaded) return false; operations.setMusicVolumeRaw(this.handleValue, volume); return true; }
+  play(): boolean {
+    if (!this.isLoaded) return false;
+    operations.playMusicRaw(this.handleValue);
+    return true;
+  }
+  stop(): boolean {
+    if (!this.isLoaded) return false;
+    operations.stopMusicRaw(this.handleValue);
+    return true;
+  }
+  update(): boolean {
+    if (!this.isLoaded) return false;
+    operations.updateMusicStreamRaw(this.handleValue);
+    return true;
+  }
+  setVolume(volume: number): boolean {
+    if (!this.isLoaded) return false;
+    operations.setMusicVolumeRaw(this.handleValue, volume);
+    return true;
+  }
 
   dispose(): void {
     if (this.disposed) return;

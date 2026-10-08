@@ -19,17 +19,31 @@ export abstract class GuiArray extends GUI {
   protected items: GuiArrayItem[] = [];
   private selectionRevision = 0;
 
-  protected constructor(options: GUIControlOptions = {}, kind: GuiControlKindCode = GuiControlKind.Control, profile = 'default') {
+  protected constructor(
+    options: GUIControlOptions = {},
+    kind: GuiControlKindCode = GuiControlKind.Control,
+    profile = 'default',
+  ) {
     super(options);
     this._guiCommandKind = kind;
     this.setProfile(GUIProfiles.get(profile));
   }
 
-  getItems(): readonly GuiArrayItem[] { return this.items.map((item) => ({ ...item })); }
-  getItemCount(): number { return this.items.length; }
-  _captureValueRevision(): number { return this.selectionRevision; }
-  protected _matchesNativeSelectionRevision(revision: number): boolean { return revision === this.selectionRevision; }
-  protected _markNativeSelectionRevision(): void { this.selectionRevision++; }
+  getItems(): readonly GuiArrayItem[] {
+    return this.items.map((item) => ({ ...item }));
+  }
+  getItemCount(): number {
+    return this.items.length;
+  }
+  _captureValueRevision(): number {
+    return this.selectionRevision;
+  }
+  protected _matchesNativeSelectionRevision(revision: number): boolean {
+    return revision === this.selectionRevision;
+  }
+  protected _markNativeSelectionRevision(): void {
+    this.selectionRevision++;
+  }
 
   protected insertItem(label: string, id: GuiItemId): void {
     this.validateId(id);
@@ -85,7 +99,9 @@ export class GuiPopUpMenu extends GuiArray {
     return this;
   }
 
-  getSelected(): GuiItemId | null { return this.selectedId; }
+  getSelected(): GuiItemId | null {
+    return this.selectedId;
+  }
   getSelectedText(): string | null {
     const index = this.selectedId === null ? -1 : this.findItem(this.selectedId);
     return index < 0 ? null : this.items[index].label;
@@ -128,10 +144,14 @@ export class GuiPopUpEdit extends GuiPopUpMenu {
     return this;
   }
 
-  getText(): string { return this.text; }
+  getText(): string {
+    return this.text;
+  }
 
   /** @internal Captures the text revision associated with an emitted command. */
-  _captureTextRevision(): number { return this.textRevision; }
+  _captureTextRevision(): number {
+    return this.textRevision;
+  }
 
   /** @internal Applies native edits without overwriting newer TypeScript text. */
   _applyNativeText(text: string, commandRevision: number): boolean {
@@ -197,7 +217,12 @@ export class GuiTreeView extends GuiArray {
       parentPath = parentPath.length === 0 ? label : `${parentPath}/${label}`;
       let node = siblings.find((item) => item.label === label) ?? null;
       if (node === null) {
-        node = { id: index === parts.length - 1 ? (value ?? parentPath) : parentPath, label, path: parentPath, children: [] };
+        node = {
+          id: index === parts.length - 1 ? (value ?? parentPath) : parentPath,
+          label,
+          path: parentPath,
+          children: [],
+        };
         if (index === parts.length - 1 && value !== undefined) node.value = value;
         siblings.push(node);
       } else if (index === parts.length - 1 && value !== undefined) {
@@ -219,9 +244,15 @@ export class GuiTreeView extends GuiArray {
     return this;
   }
 
-  getSelected(): GuiTreeNode | null { return this.selectedNode; }
-  getSelectedPath(): string | null { return this.selectedNode?.path ?? null; }
-  getRootNodes(): readonly GuiTreeNode[] { return this.rootNodes.slice(); }
+  getSelected(): GuiTreeNode | null {
+    return this.selectedNode;
+  }
+  getSelectedPath(): string | null {
+    return this.selectedNode?.path ?? null;
+  }
+  getRootNodes(): readonly GuiTreeNode[] {
+    return this.rootNodes.slice();
+  }
 
   setSelectedPath(path: string | null): this {
     if (path === null) this.selectedNode = null;
@@ -243,10 +274,16 @@ export class GuiTreeView extends GuiArray {
   private syncTreeCommand(): void {
     const flattened: { node: GuiTreeNode; depth: number }[] = [];
     const visit = (nodes: readonly GuiTreeNode[], depth: number): void => {
-      for (const node of nodes) { flattened.push({ node, depth }); visit(node.children, depth + 1); }
+      for (const node of nodes) {
+        flattened.push({ node, depth });
+        visit(node.children, depth + 1);
+      }
     };
     visit(this.rootNodes, 0);
-    this._guiCommandValues = [flattened.length, this.selectedNode === null ? -1 : flattened.findIndex((entry) => entry.node === this.selectedNode)];
+    this._guiCommandValues = [
+      flattened.length,
+      this.selectedNode === null ? -1 : flattened.findIndex((entry) => entry.node === this.selectedNode),
+    ];
     this._guiCommandText = this.selectedNode?.path ?? '';
     this._guiCommandItems = flattened.map(({ node, depth }) => ({ id: node.id, label: node.label, depth }));
     this._markNativeSelectionRevision();
@@ -255,7 +292,12 @@ export class GuiTreeView extends GuiArray {
   _applyNativeSelectionIndex(index: number, commandRevision = this._captureValueRevision()): void {
     if (!this._matchesNativeSelectionRevision(commandRevision)) return;
     const flattened: GuiTreeNode[] = [];
-    const visit = (nodes: readonly GuiTreeNode[]): void => { for (const node of nodes) { flattened.push(node); visit(node.children); } };
+    const visit = (nodes: readonly GuiTreeNode[]): void => {
+      for (const node of nodes) {
+        flattened.push(node);
+        visit(node.children);
+      }
+    };
     visit(this.rootNodes);
     const selected = Number.isInteger(index) ? flattened[index] : undefined;
     if (selected !== undefined && selected !== this.selectedNode) {
@@ -303,8 +345,12 @@ export class GuiTextList extends GuiArray {
     return this;
   }
 
-  getSelected(): GuiItemId | null { return this.selectedId; }
-  getRowCount(): number { return this.items.length; }
+  getSelected(): GuiItemId | null {
+    return this.selectedId;
+  }
+  getRowCount(): number {
+    return this.items.length;
+  }
   getSelectedText(): string | null {
     const index = this.selectedId === null ? -1 : this.findItem(this.selectedId);
     return index < 0 ? null : this.items[index].label;
@@ -363,8 +409,12 @@ export class GuiTab extends GuiArray {
     return this;
   }
 
-  getSelected(): GuiItemId | null { return this.selectedId; }
-  getTab(id: GuiItemId): GuiPanel | null { return this.pages.get(id) ?? null; }
+  getSelected(): GuiItemId | null {
+    return this.selectedId;
+  }
+  getTab(id: GuiItemId): GuiPanel | null {
+    return this.pages.get(id) ?? null;
+  }
 
   override _getContentInsets(): { left: number; top: number; right: number; bottom: number } {
     return { left: 0, top: 0, right: 0, bottom: 0 };
@@ -452,7 +502,9 @@ export class GuiContextMenu extends GuiMenu {
     return this.openAt(x, y, button);
   }
 
-  isOpen(): boolean { return this.isVisible(); }
+  isOpen(): boolean {
+    return this.isVisible();
+  }
 
   override activateItem(id: GuiItemId): boolean {
     if (!this.isOpen()) return false;

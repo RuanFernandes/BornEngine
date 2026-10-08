@@ -29,8 +29,14 @@ export type EncodedWorld2DTileGrid =
   | EncodedWorld2DPackedTileGrid;
 
 function safeInteger(value: unknown): value is number {
-  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity &&
-    Math.floor(value) === value && Math.abs(value) <= MAX_SAFE_INTEGER_VALUE;
+  return (
+    typeof value === 'number' &&
+    value === value &&
+    value !== Infinity &&
+    value !== -Infinity &&
+    Math.floor(value) === value &&
+    Math.abs(value) <= MAX_SAFE_INTEGER_VALUE
+  );
 }
 
 function fail(path: string, code: string, message: string): never {
@@ -123,12 +129,20 @@ function optionValue(options: World2DSerializeOptions | undefined): World2DSeria
 
 function packedByteCount(palette: unknown, cellCount: number): number {
   if (!Array.isArray(palette)) fail('/data/palette', 'invalid_tile_palette', 'Packed tile grids need a palette array.');
-  if (palette.length > cellCount || (cellCount === 0 && palette.length !== 0) || (cellCount > 0 && palette.length === 0)) {
-    fail('/data/palette', 'invalid_tile_palette', 'Palette size must match a nonempty grid and cannot exceed its cell count.');
+  if (
+    palette.length > cellCount ||
+    (cellCount === 0 && palette.length !== 0) ||
+    (cellCount > 0 && palette.length === 0)
+  ) {
+    fail(
+      '/data/palette',
+      'invalid_tile_palette',
+      'Palette size must match a nonempty grid and cannot exceed its cell count.',
+    );
   }
   let bits = 1;
   while (Math.pow(2, bits) < palette.length) bits++;
-  return Math.ceil(cellCount * bits / 8);
+  return Math.ceil((cellCount * bits) / 8);
 }
 
 /** Measures the complete canonical minified JSON envelope of one supported grid candidate. */
@@ -151,25 +165,26 @@ export function tileGridEncodedSize(grid: EncodedWorld2DTileGrid): number {
       return '{"encoding":"sparse","values":'.length + numberListSize(values) + 1;
     }
     if (!safeInteger(value.base)) fail('/data/base', 'invalid_tile_code', 'Sparse base must be a safe integer.');
-    return '{"encoding":"sparse","base":'.length + ('' + value.base).length +
-      ',"values":'.length + numberListSize(values) + 1;
+    return (
+      '{"encoding":"sparse","base":'.length +
+      ('' + value.base).length +
+      ',"values":'.length +
+      numberListSize(values) +
+      1
+    );
   }
   if (value.encoding === 'bits' || value.encoding === 'lz') {
     const palette = requireCodes(value.palette, '/data/palette', MAX_WORLD2D_TILE_CELLS);
-    if (typeof value.values !== 'string') fail('/data/values', 'invalid_tile_grid', 'Packed grid values must be Base64 text.');
-    const prefix = value.encoding === 'bits'
-      ? '{"encoding":"bits","palette":'
-      : '{"encoding":"lz","palette":';
+    if (typeof value.values !== 'string')
+      fail('/data/values', 'invalid_tile_grid', 'Packed grid values must be Base64 text.');
+    const prefix = value.encoding === 'bits' ? '{"encoding":"bits","palette":' : '{"encoding":"lz","palette":';
     return prefix.length + numberListSize(palette) + ',"values":"'.length + value.values.length + '"}'.length;
   }
   fail('/data/encoding', 'unknown_tile_grid_encoding', 'Tile grid encoding is unsupported.');
 }
 
 /** Encodes flat row-major codes, selecting the smallest complete minified JSON candidate. */
-export function encodeWorld2DTileGrid(
-  inputCodes: number[],
-  options?: World2DSerializeOptions,
-): EncodedWorld2DTileGrid {
+export function encodeWorld2DTileGrid(inputCodes: number[], options?: World2DSerializeOptions): EncodedWorld2DTileGrid {
   const codes = requireCodes(inputCodes, '/data', MAX_WORLD2D_TILE_CELLS);
   const normalizedOptions = optionValue(options);
   const dense = denseCopy(codes);
@@ -197,14 +212,19 @@ export function encodeWorld2DTileGrid(
 
 function cellCountValue(value: unknown): number {
   if (!safeInteger(value) || value < 0 || value > MAX_WORLD2D_TILE_CELLS) {
-    fail('/size', 'invalid_tile_grid_size', 'Tile grid cell count must be an integer from zero through the supported limit.');
+    fail(
+      '/size',
+      'invalid_tile_grid_size',
+      'Tile grid cell count must be an integer from zero through the supported limit.',
+    );
   }
   return value;
 }
 
 function decodeDense(input: unknown[], cellCount: number): number[] {
   const codes = requireCodes(input, '/data', MAX_WORLD2D_TILE_CELLS);
-  if (codes.length !== cellCount) fail('/data', 'tile_grid_size_mismatch', 'Dense tile grid length does not match its dimensions.');
+  if (codes.length !== cellCount)
+    fail('/data', 'tile_grid_size_mismatch', 'Dense tile grid length does not match its dimensions.');
   return denseCopy(codes);
 }
 
@@ -217,10 +237,12 @@ function decodeRle(input: any, cellCount: number): number[] {
   for (let index = 0; index < values.length; index += 2) {
     const count = values[index];
     if (count <= 0) fail('/data/values/' + index, 'invalid_rle_count', 'RLE counts must be positive safe integers.');
-    if (count > cellCount - total) fail('/data/values', 'tile_grid_size_mismatch', 'RLE expands beyond the declared grid size.');
+    if (count > cellCount - total)
+      fail('/data/values', 'tile_grid_size_mismatch', 'RLE expands beyond the declared grid size.');
     total += count;
   }
-  if (total !== cellCount) fail('/data/values', 'tile_grid_size_mismatch', 'RLE output does not match the declared grid size.');
+  if (total !== cellCount)
+    fail('/data/values', 'tile_grid_size_mismatch', 'RLE output does not match the declared grid size.');
 
   const output: number[] = new Array(cellCount);
   let cursor = 0;
@@ -234,8 +256,10 @@ function decodeRle(input: any, cellCount: number): number[] {
 
 function decodeSparse(input: any, cellCount: number): number[] {
   const values = requireCodes(input.values, '/data/values', MAX_WORLD2D_TILE_CELLS * 2);
-  if (values.length % 2 !== 0) fail('/data/values', 'invalid_sparse_payload', 'Sparse values must contain gap/code pairs.');
-  if (values.length / 2 > cellCount) fail('/data/values', 'invalid_sparse_payload', 'Sparse has more overrides than grid cells.');
+  if (values.length % 2 !== 0)
+    fail('/data/values', 'invalid_sparse_payload', 'Sparse values must contain gap/code pairs.');
+  if (values.length / 2 > cellCount)
+    fail('/data/values', 'invalid_sparse_payload', 'Sparse has more overrides than grid cells.');
   const base = input.base === undefined ? 0 : input.base;
   if (!safeInteger(base)) fail('/data/base', 'invalid_tile_code', 'Sparse base must be a safe integer.');
 
@@ -244,7 +268,12 @@ function decodeSparse(input: any, cellCount: number): number[] {
     const gap = values[index];
     if (gap < 0) fail('/data/values/' + index, 'invalid_sparse_gap', 'Sparse gaps must be non-negative safe integers.');
     const position = previous + gap + 1;
-    if (position >= cellCount) fail('/data/values/' + index, 'sparse_position_out_of_bounds', 'Sparse override is outside the declared grid size.');
+    if (position >= cellCount)
+      fail(
+        '/data/values/' + index,
+        'sparse_position_out_of_bounds',
+        'Sparse override is outside the declared grid size.',
+      );
     previous = position;
   }
 

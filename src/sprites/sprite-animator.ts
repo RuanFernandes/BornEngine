@@ -11,7 +11,12 @@ export type SpriteNumberComparison = 'eq' | 'gt' | 'gte' | 'lt' | 'lte';
 export type SpriteTransitionCondition =
   | { readonly type: 'callback'; readonly test: (animator: SpriteAnimator) => boolean }
   | { readonly type: 'bool'; readonly name: string; readonly value: boolean }
-  | { readonly type: 'number'; readonly name: string; readonly operator: SpriteNumberComparison; readonly value: number }
+  | {
+      readonly type: 'number';
+      readonly name: string;
+      readonly operator: SpriteNumberComparison;
+      readonly value: number;
+    }
   | { readonly type: 'trigger'; readonly name: string };
 
 export interface SpriteAnimationTransition {
@@ -71,9 +76,15 @@ function validCondition(condition: SpriteTransitionCondition): boolean {
   if (condition.type === 'callback') return typeof condition.test === 'function';
   if (condition.type === 'bool') return isValidName(condition.name) && typeof condition.value === 'boolean';
   if (condition.type === 'number') {
-    return isValidName(condition.name) && isFiniteNumber(condition.value) &&
-      (condition.operator === 'eq' || condition.operator === 'gt' || condition.operator === 'gte' ||
-        condition.operator === 'lt' || condition.operator === 'lte');
+    return (
+      isValidName(condition.name) &&
+      isFiniteNumber(condition.value) &&
+      (condition.operator === 'eq' ||
+        condition.operator === 'gt' ||
+        condition.operator === 'gte' ||
+        condition.operator === 'lt' ||
+        condition.operator === 'lte')
+    );
   }
   if (condition.type === 'trigger') return isValidName(condition.name);
   return false;
@@ -112,16 +123,19 @@ export class SpriteAnimator extends GameComponent {
 
   constructor(renderer: SpriteRenderer | SpriteAnimationTemplateRenderer, options: SpriteAnimatorOptions) {
     super();
-    const settings: SpriteAnimatorOptions = options === null || options === undefined
-      ? { clips: {} }
-      : options;
+    const settings: SpriteAnimatorOptions = options === null || options === undefined ? { clips: {} } : options;
     this.animationTarget = renderer;
 
-    if (renderer === null || renderer === undefined || renderer.error !== null ||
-        (renderer instanceof SpriteRenderer && renderer.frame === null)) {
-      this.animationError = renderer === null || renderer === undefined
-        ? 'SpriteAnimator requires a SpriteRenderer.'
-        : renderer.error || 'SpriteAnimator requires a valid animation target.';
+    if (
+      renderer === null ||
+      renderer === undefined ||
+      renderer.error !== null ||
+      (renderer instanceof SpriteRenderer && renderer.frame === null)
+    ) {
+      this.animationError =
+        renderer === null || renderer === undefined
+          ? 'SpriteAnimator requires a SpriteRenderer.'
+          : renderer.error || 'SpriteAnimator requires a valid animation target.';
       return;
     }
     if (settings.clips === null || settings.clips === undefined || typeof settings.clips !== 'object') {
@@ -137,9 +151,15 @@ export class SpriteAnimator extends GameComponent {
     for (let index = 0; index < names.length; index++) {
       const name = names[index];
       const clip = settings.clips[name];
-      if (!isValidName(name) || clip === null || clip === undefined ||
-          (!(clip instanceof SpriteAnimation) && !(clip instanceof SpriteAnimationTemplateBoundClip)) ||
-          !isArray(clip.frames) || clip.error !== null || clip.frames.length === 0) {
+      if (
+        !isValidName(name) ||
+        clip === null ||
+        clip === undefined ||
+        (!(clip instanceof SpriteAnimation) && !(clip instanceof SpriteAnimationTemplateBoundClip)) ||
+        !isArray(clip.frames) ||
+        clip.error !== null ||
+        clip.frames.length === 0
+      ) {
         this.animationError = 'SpriteAnimator received an invalid clip: ' + name;
         this.clipNames = [];
         this.clips = [];
@@ -162,9 +182,14 @@ export class SpriteAnimator extends GameComponent {
       }
       for (let index = 0; index < settings.states.length; index++) {
         const state = settings.states[index];
-        if (state === null || state === undefined || !isValidName(state.name) ||
-            !isValidName(state.clip) || this.findClip(state.clip) === null ||
-            this.findState(state.name) !== null) {
+        if (
+          state === null ||
+          state === undefined ||
+          !isValidName(state.name) ||
+          !isValidName(state.clip) ||
+          this.findClip(state.clip) === null ||
+          this.findState(state.name) !== null
+        ) {
           this.animationError = 'SpriteAnimator state definitions must have unique names and valid clips.';
           this.states = [];
           return;
@@ -177,8 +202,12 @@ export class SpriteAnimator extends GameComponent {
         }
         for (let transitionIndex = 0; transitionIndex < transitions.length; transitionIndex++) {
           const transition = transitions[transitionIndex];
-          if (transition === null || transition === undefined || !isValidName(transition.to) ||
-              !isNonNegative(transition.fade === undefined ? 0 : transition.fade)) {
+          if (
+            transition === null ||
+            transition === undefined ||
+            !isValidName(transition.to) ||
+            !isNonNegative(transition.fade === undefined ? 0 : transition.fade)
+          ) {
             this.animationError = 'SpriteAnimator transitions require a valid destination and fade.';
             this.states = [];
             return;
@@ -203,7 +232,8 @@ export class SpriteAnimator extends GameComponent {
         const transitions = this.states[stateIndex].transitions;
         for (let transitionIndex = 0; transitionIndex < transitions.length; transitionIndex++) {
           if (this.findState(transitions[transitionIndex].to) === null) {
-            this.animationError = 'SpriteAnimator transition targets an unknown state: ' + transitions[transitionIndex].to;
+            this.animationError =
+              'SpriteAnimator transition targets an unknown state: ' + transitions[transitionIndex].to;
             this.states = [];
             return;
           }
@@ -221,18 +251,34 @@ export class SpriteAnimator extends GameComponent {
     }
   }
 
-  get error(): string | null { return this.animationError; }
-  get currentClip(): string | null { return this.currentClipNameValue; }
+  get error(): string | null {
+    return this.animationError;
+  }
+  get currentClip(): string | null {
+    return this.currentClipNameValue;
+  }
   get currentAnimation(): SpriteAnimation | null {
     return this.currentAnimationValue instanceof SpriteAnimation ? this.currentAnimationValue : null;
   }
   /** Current concrete or template clip. Use currentAnimation for the original concrete-only API. */
-  get currentClipData(): SpriteAnimationPlaybackClip | null { return this.currentAnimationValue; }
-  get currentState(): string | null { return this.currentStateValue; }
-  get currentFrameIndex(): number { return this.frameIndexValue; }
-  get isPlaying(): boolean { return this.playingValue; }
-  get isPaused(): boolean { return this.pausedValue; }
-  get speed(): number { return this.speedValue; }
+  get currentClipData(): SpriteAnimationPlaybackClip | null {
+    return this.currentAnimationValue;
+  }
+  get currentState(): string | null {
+    return this.currentStateValue;
+  }
+  get currentFrameIndex(): number {
+    return this.frameIndexValue;
+  }
+  get isPlaying(): boolean {
+    return this.playingValue;
+  }
+  get isPaused(): boolean {
+    return this.pausedValue;
+  }
+  get speed(): number {
+    return this.speedValue;
+  }
 
   get currentTime(): number {
     const animation = this.currentAnimationValue;
@@ -252,9 +298,7 @@ export class SpriteAnimator extends GameComponent {
   get normalizedTime(): number {
     const animation = this.currentAnimationValue;
     if (animation === null || animation.duration <= 0) return 0;
-    const duration = animation.loop === 'ping-pong'
-      ? this.pingPongCycleDuration(animation)
-      : animation.duration;
+    const duration = animation.loop === 'ping-pong' ? this.pingPongCycleDuration(animation) : animation.duration;
     if (duration <= 0) return 0;
     const time = this.currentTime / duration;
     return Math.max(0, Math.min(1, time));
@@ -613,8 +657,9 @@ export class SpriteAnimator extends GameComponent {
 
   private pingPongCycleDuration(animation: SpriteAnimationPlaybackClip): number {
     if (animation.frames.length <= 1) return animation.duration;
-    return animation.duration * 2 - animation.frames[0].duration -
-      animation.frames[animation.frames.length - 1].duration;
+    return (
+      animation.duration * 2 - animation.frames[0].duration - animation.frames[animation.frames.length - 1].duration
+    );
   }
 
   private evaluateTransitions(): void {
@@ -633,7 +678,8 @@ export class SpriteAnimator extends GameComponent {
       if (!matched) continue;
 
       const target = this.findState(transition.to);
-      if (target === null || !this.startState(target, transition.fade === undefined ? 0 : transition.fade, true)) return;
+      if (target === null || !this.startState(target, transition.fade === undefined ? 0 : transition.fade, true))
+        return;
       for (let conditionIndex = 0; conditionIndex < conditions.length; conditionIndex++) {
         const condition = conditions[conditionIndex];
         if (condition.type === 'trigger') this.resetTrigger(condition.name);

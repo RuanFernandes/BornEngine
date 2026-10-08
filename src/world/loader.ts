@@ -29,31 +29,13 @@ import {
   disableShadows,
   addDirectionalLight,
 } from '../scene/internal';
-import {
-  mat4Identity,
-  mat4Translate,
-  mat4RotateX,
-  mat4RotateY,
-  mat4RotateZ,
-  mat4Scale,
-} from '../math/internal';
+import { mat4Identity, mat4Translate, mat4RotateX, mat4RotateY, mat4RotateZ, mat4Scale } from '../math/internal';
 import { Mat4, Vec3 } from '../core/types';
 import { spawnWaterVolume, spawnRiver } from './render';
-import {
-  WORLD_SCHEMA_VERSION,
-  WorldDocument,
-  EntityData,
-  TransformData,
-  Vec3Lit,
-  Vec4Lit,
-} from './types';
+import { WORLD_SCHEMA_VERSION, WorldDocument, EntityData, TransformData, Vec3Lit, Vec4Lit } from './types';
 import { migrateWorldData } from './version';
 import { validateWorld, formatValidationErrors, listUnknownWorldFields } from './validate';
-import {
-  PrefabRegistry,
-  PrefabLeaf,
-  expandPrefab,
-} from './prefab';
+import { PrefabRegistry, PrefabLeaf, expandPrefab } from './prefab';
 import { buildHeightmapMesh } from './terrain';
 
 // Context passed to `instantiateWorld`. The caller is responsible for loading
@@ -133,9 +115,13 @@ export function loadWorld(path: string): WorldDocument {
   const unknown = listUnknownWorldFields(migrated);
   for (let i = 0; i < unknown.length; i++) {
     console.error(
-      'loadWorld: WARNING: ' + path + ' contains unknown field "' + unknown[i] +
-      '" — not part of schema v' + WORLD_SCHEMA_VERSION +
-      '; it will be DROPPED if this file is saved. Extensions belong in metadata/userData/tags.',
+      'loadWorld: WARNING: ' +
+        path +
+        ' contains unknown field "' +
+        unknown[i] +
+        '" — not part of schema v' +
+        WORLD_SCHEMA_VERSION +
+        '; it will be DROPPED if this file is saved. Extensions belong in metadata/userData/tags.',
     );
   }
 
@@ -199,9 +185,7 @@ export function instantiateWorld(world: WorldDocument, ctx: InstantiateContext):
     result.riverHandles.push(handle);
     if (handle !== 0) result.ownedNodeHandles.push(handle);
     if (handle === 0) {
-      result.warnings.push(
-        'river "' + river.id + '" failed to spawn (needs at least 2 control points)',
-      );
+      result.warnings.push('river "' + river.id + '" failed to spawn (needs at least 2 control points)');
     }
   }
 
@@ -277,7 +261,11 @@ function spawnPrefabEntity(
 ): SceneNodeHandle {
   if (!ctx.prefabRegistry) {
     warnings.push(
-      'entity ' + entity.id + ' references prefab "' + entity.prefabRef + '" but no PrefabRegistry was provided — skipped',
+      'entity ' +
+        entity.id +
+        ' references prefab "' +
+        entity.prefabRef +
+        '" but no PrefabRegistry was provided — skipped',
     );
     return 0;
   }
@@ -315,9 +303,7 @@ function spawnPrefabEntity(
     const leaf = leaves[i];
     const modelHandle = ctx.getModelHandle(leaf.modelRef);
     if (modelHandle === 0) {
-      warnings.push(
-        'prefab leaf ' + leaf.sourcePath + ' references unknown model "' + leaf.modelRef + '" — skipped',
-      );
+      warnings.push('prefab leaf ' + leaf.sourcePath + ' references unknown model "' + leaf.modelRef + '" — skipped');
       continue;
     }
     const leafNode = createSceneNode();
@@ -342,7 +328,9 @@ function applyEnvironment(world: WorldDocument): void {
   // Primary directional light (sun). Additional lights can be added by the
   // game/editor through `addDirectionalLight` / `addPointLight` directly.
   addDirectionalLight(
-    env.sunDirection[0], env.sunDirection[1], env.sunDirection[2],
+    env.sunDirection[0],
+    env.sunDirection[1],
+    env.sunDirection[2],
     env.sunColor[0] * env.sunIntensity,
     env.sunColor[1] * env.sunIntensity,
     env.sunColor[2] * env.sunIntensity,

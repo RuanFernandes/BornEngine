@@ -64,13 +64,24 @@ function isArray(value: any): boolean {
 }
 
 function validRange(value: ParticleRange, allowZero: boolean): boolean {
-  return value !== null && value !== undefined && isFiniteNumber(value.min) && isFiniteNumber(value.max) &&
-    (allowZero ? value.min >= 0 : value.min > 0) && value.max >= value.min;
+  return (
+    value !== null &&
+    value !== undefined &&
+    isFiniteNumber(value.min) &&
+    isFiniteNumber(value.max) &&
+    (allowZero ? value.min >= 0 : value.min > 0) &&
+    value.max >= value.min
+  );
 }
 
 function validOrderedRange(value: ParticleRange): boolean {
-  return value !== null && value !== undefined && isFiniteNumber(value.min) && isFiniteNumber(value.max) &&
-    value.max >= value.min;
+  return (
+    value !== null &&
+    value !== undefined &&
+    isFiniteNumber(value.min) &&
+    isFiniteNumber(value.max) &&
+    value.max >= value.min
+  );
 }
 
 function validVector(value: Vector2DLike): boolean {
@@ -78,9 +89,22 @@ function validVector(value: Vector2DLike): boolean {
 }
 
 function validColor(value: Color): boolean {
-  return value !== null && value !== undefined && isFiniteNumber(value.r) && isFiniteNumber(value.g) &&
-    isFiniteNumber(value.b) && isFiniteNumber(value.a) && value.r >= 0 && value.r <= 255 &&
-    value.g >= 0 && value.g <= 255 && value.b >= 0 && value.b <= 255 && value.a >= 0 && value.a <= 255;
+  return (
+    value !== null &&
+    value !== undefined &&
+    isFiniteNumber(value.r) &&
+    isFiniteNumber(value.g) &&
+    isFiniteNumber(value.b) &&
+    isFiniteNumber(value.a) &&
+    value.r >= 0 &&
+    value.r <= 255 &&
+    value.g >= 0 &&
+    value.g <= 255 &&
+    value.b >= 0 &&
+    value.b <= 255 &&
+    value.a >= 0 &&
+    value.a <= 255
+  );
 }
 
 function validTransform(position: Vector2DLike, scale: Vector2DLike, rotation: number): boolean {
@@ -106,13 +130,10 @@ export class ParticleEmitter2D extends GameComponent {
 
   constructor(options: ParticleEmitter2DOptions) {
     super();
-    const settings: ParticleEmitter2DOptions = options === null || options === undefined
-      ? { frames: [] }
-      : options;
+    const settings: ParticleEmitter2DOptions = options === null || options === undefined ? { frames: [] } : options;
     const requestedCapacity = settings.capacity === undefined ? 256 : settings.capacity;
-    this.capacity = isFiniteNumber(requestedCapacity) && Math.floor(requestedCapacity) === requestedCapacity
-      ? requestedCapacity
-      : 0;
+    this.capacity =
+      isFiniteNumber(requestedCapacity) && Math.floor(requestedCapacity) === requestedCapacity ? requestedCapacity : 0;
 
     if (this.capacity < 1 || this.capacity > MAX_PARTICLE_CAPACITY) {
       this.error = 'ParticleEmitter2D capacity must be an integer from 1 to 100000.';
@@ -124,16 +145,27 @@ export class ParticleEmitter2D extends GameComponent {
     }
 
     const firstFrame = settings.frames[0];
-    if (firstFrame === null || firstFrame === undefined || firstFrame.sheet === null || firstFrame.sheet === undefined ||
-        firstFrame.sheet.error !== null || firstFrame.sheet.texture === null || !firstFrame.sheet.texture.isLoaded) {
+    if (
+      firstFrame === null ||
+      firstFrame === undefined ||
+      firstFrame.sheet === null ||
+      firstFrame.sheet === undefined ||
+      firstFrame.sheet.error !== null ||
+      firstFrame.sheet.texture === null ||
+      !firstFrame.sheet.texture.isLoaded
+    ) {
       this.error = 'ParticleEmitter2D frames must belong to a loaded SpriteSheet.';
       return;
     }
     this.textureValue = firstFrame.sheet.texture;
     for (let index = 0; index < settings.frames.length; index++) {
       const frame = settings.frames[index];
-      if (frame === null || frame === undefined || frame.sheet !== firstFrame.sheet ||
-          frame.sheet.texture !== this.textureValue) {
+      if (
+        frame === null ||
+        frame === undefined ||
+        frame.sheet !== firstFrame.sheet ||
+        frame.sheet.texture !== this.textureValue
+      ) {
         this.error = 'ParticleEmitter2D frames must come from the same SpriteSheet.';
         this.textureValue = null;
         return;
@@ -143,9 +175,8 @@ export class ParticleEmitter2D extends GameComponent {
 
     const values = this.configurationValues(settings);
     if (values === null) return;
-    this.initialDirection = settings.direction === undefined
-      ? { x: 0, y: -1 }
-      : { x: settings.direction.x, y: settings.direction.y };
+    this.initialDirection =
+      settings.direction === undefined ? { x: 0, y: -1 } : { x: settings.direction.x, y: settings.direction.y };
     this.handleValue = this.textureValue._createParticleEmitter2D(this.capacity);
     if (this.handleValue === 0) {
       this.error = 'ParticleEmitter2D could not allocate its native pool.';
@@ -197,7 +228,11 @@ export class ParticleEmitter2D extends GameComponent {
     const transform = this.readTransform();
     if (transform === null) return false;
     spriteOperations.emitParticleBurst2D(
-      this.handleValue, Math.min(Math.floor(count), this.capacity), position, direction, transform,
+      this.handleValue,
+      Math.min(Math.floor(count), this.capacity),
+      position,
+      direction,
+      transform,
     );
     this.error = null;
     return true;
@@ -224,7 +259,9 @@ export class ParticleEmitter2D extends GameComponent {
     this.textureValue = null;
   }
 
-  onDestroy(): void { this.dispose(); }
+  onDestroy(): void {
+    this.dispose();
+  }
 
   update(deltaTime: number): void {
     if (!this.isLoaded || !this.isActiveAndEnabled || !isFiniteNumber(deltaTime) || deltaTime < 0) return;
@@ -251,9 +288,12 @@ export class ParticleEmitter2D extends GameComponent {
 
   private readTransform(): spriteOperations.ParticleTransformData | null {
     const owner = this.gameObject;
-    if (owner === null) return {
-      position: { x: 0, y: 0 }, rotation: 0, scale: { x: 1, y: 1 },
-    };
+    if (owner === null)
+      return {
+        position: { x: 0, y: 0 },
+        rotation: 0,
+        scale: { x: 1, y: 1 },
+      };
     const transform = owner.transform;
     const position = transform.worldPosition;
     const scale = transform.worldScale;
@@ -281,17 +321,32 @@ export class ParticleEmitter2D extends GameComponent {
     const space = settings.space === undefined ? 'local' : settings.space;
     const frameRate = settings.frameRate === undefined ? 0 : settings.frameRate;
 
-    if (!isFiniteNumber(rate) || rate < 0 || !validRange(lifetime, false) || !validRange(speed, true) ||
-        !validRange(startSize, true) || !validRange(endSize, true) || !validVector(acceleration) ||
-        !isFiniteNumber(drag) || drag < 0 || !validColor(startColor) || !validColor(endColor) ||
-        !validOrderedRange(spin) ||
-        !validVector(direction) || (space !== 'local' && space !== 'world') ||
-        !isFiniteNumber(frameRate) || frameRate < 0) {
+    if (
+      !isFiniteNumber(rate) ||
+      rate < 0 ||
+      !validRange(lifetime, false) ||
+      !validRange(speed, true) ||
+      !validRange(startSize, true) ||
+      !validRange(endSize, true) ||
+      !validVector(acceleration) ||
+      !isFiniteNumber(drag) ||
+      drag < 0 ||
+      !validColor(startColor) ||
+      !validColor(endColor) ||
+      !validOrderedRange(spin) ||
+      !validVector(direction) ||
+      (space !== 'local' && space !== 'world') ||
+      !isFiniteNumber(frameRate) ||
+      frameRate < 0
+    ) {
       this.error = 'ParticleEmitter2D configuration contains an invalid range or value.';
       return null;
     }
-    if (shape === null || shape === undefined ||
-        (shape.type !== 'point' && shape.type !== 'circle' && shape.type !== 'box' && shape.type !== 'cone')) {
+    if (
+      shape === null ||
+      shape === undefined ||
+      (shape.type !== 'point' && shape.type !== 'circle' && shape.type !== 'box' && shape.type !== 'cone')
+    ) {
       this.error = 'ParticleEmitter2D shape must be point, circle, box, or cone.';
       return null;
     }
@@ -324,14 +379,37 @@ export class ParticleEmitter2D extends GameComponent {
     }
 
     const values: number[] = [
-      rate, shapeKind, shapeWidth, shapeHeight, angle,
-      lifetime.min, lifetime.max, speed.min, speed.max,
-      startSize.min, startSize.max, endSize.min, endSize.max,
-      acceleration.x, acceleration.y, drag,
-      startColor.r, startColor.g, startColor.b, startColor.a,
-      endColor.r, endColor.g, endColor.b, endColor.a,
-      spin.min, spin.max, direction.x, direction.y,
-      space === 'local' ? 0 : 1, frameRate, this.frameValues.length,
+      rate,
+      shapeKind,
+      shapeWidth,
+      shapeHeight,
+      angle,
+      lifetime.min,
+      lifetime.max,
+      speed.min,
+      speed.max,
+      startSize.min,
+      startSize.max,
+      endSize.min,
+      endSize.max,
+      acceleration.x,
+      acceleration.y,
+      drag,
+      startColor.r,
+      startColor.g,
+      startColor.b,
+      startColor.a,
+      endColor.r,
+      endColor.g,
+      endColor.b,
+      endColor.a,
+      spin.min,
+      spin.max,
+      direction.x,
+      direction.y,
+      space === 'local' ? 0 : 1,
+      frameRate,
+      this.frameValues.length,
     ];
     for (let index = 0; index < this.frameValues.length; index++) {
       const source = this.frameValues[index].source;

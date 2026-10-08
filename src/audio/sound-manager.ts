@@ -49,14 +49,12 @@ function finiteNumber(value: number): boolean {
 
 function validVolumeRange(range: [number, number] | undefined): boolean {
   if (range === undefined) return true;
-  return finiteNumber(range[0]) && finiteNumber(range[1]) &&
-    range[0] >= 0 && range[0] <= range[1];
+  return finiteNumber(range[0]) && finiteNumber(range[1]) && range[0] >= 0 && range[0] <= range[1];
 }
 
 function validPitchRange(range: [number, number] | undefined): boolean {
   if (range === undefined) return true;
-  return finiteNumber(range[0]) && finiteNumber(range[1]) &&
-    range[0] >= 0.25 && range[0] <= range[1] && range[1] <= 4;
+  return finiteNumber(range[0]) && finiteNumber(range[1]) && range[0] >= 0.25 && range[0] <= range[1] && range[1] <= 4;
 }
 
 function validBus(bus: number): boolean {
@@ -94,21 +92,32 @@ export class SoundManager {
     const reverbSend = options.reverbSend === undefined ? 0 : options.reverbSend;
     const lowpassHz = options.lowpassHz === undefined ? 0 : options.lowpassHz;
     const cooldownSeconds = options.cooldownSeconds === undefined ? 0 : options.cooldownSeconds;
-    if (!finiteNumber(volume) || volume < 0 || !finiteNumber(cooldownSeconds) ||
-        cooldownSeconds < 0 || !validVolumeRange(options.volumeRange) ||
-        !validPitchRange(options.pitchRange) || !validBus(bus) ||
-        !finiteNumber(reverbSend) || reverbSend < 0 || reverbSend > 1 ||
-        !finiteNumber(lowpassHz) || lowpassHz < 0) return null;
+    if (
+      !finiteNumber(volume) ||
+      volume < 0 ||
+      !finiteNumber(cooldownSeconds) ||
+      cooldownSeconds < 0 ||
+      !validVolumeRange(options.volumeRange) ||
+      !validPitchRange(options.pitchRange) ||
+      !validBus(bus) ||
+      !finiteNumber(reverbSend) ||
+      reverbSend < 0 ||
+      reverbSend > 1 ||
+      !finiteNumber(lowpassHz) ||
+      lowpassHz < 0
+    )
+      return null;
 
     const sound = this.audio.loadSound(path);
-    if (!sound.isLoaded) { sound.dispose(); return null; }
+    if (!sound.isLoaded) {
+      sound.dispose();
+      return null;
+    }
 
-    const volumeRange: [number, number] = options.volumeRange === undefined
-      ? [1, 1]
-      : [options.volumeRange[0], options.volumeRange[1]];
-    const pitchRange: [number, number] = options.pitchRange === undefined
-      ? [1, 1]
-      : [options.pitchRange[0], options.pitchRange[1]];
+    const volumeRange: [number, number] =
+      options.volumeRange === undefined ? [1, 1] : [options.volumeRange[0], options.volumeRange[1]];
+    const pitchRange: [number, number] =
+      options.pitchRange === undefined ? [1, 1] : [options.pitchRange[0], options.pitchRange[1]];
     sound.setVolume(volume);
     sound.setBus(bus);
     sound.setReverbSend(reverbSend);
@@ -138,7 +147,10 @@ export class SoundManager {
     if (!finiteNumber(volume) || volume < 0) return null;
 
     const music = this.audio.loadMusic(path);
-    if (!music.isLoaded) { music.dispose(); return null; }
+    if (!music.isLoaded) {
+      music.dispose();
+      return null;
+    }
     music.setVolume(volume);
     this.musics.push({ name, path, music });
     return music;

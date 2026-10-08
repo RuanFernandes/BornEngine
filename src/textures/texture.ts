@@ -23,10 +23,15 @@ export class Texture implements ContextDrawable {
   private readonly context: GameContext;
 
   /** @internal Resource construction is routed through an asset scope. */
-  static _create(game: Game, source: TextureSource): Texture { return new Texture(game, source); }
+  static _create(game: Game, source: TextureSource): Texture {
+    return new Texture(game, source);
+  }
 
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: game is kept as a retained field of the Perry-compiled class; dropping it would change instance shape and Game reference lifetime
-  private constructor(private readonly game: Game, source: TextureSource) {
+  private constructor(
+    private readonly game: Game,
+    source: TextureSource,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     let loaded: { handle: number; width: number; height: number } | null = null;
@@ -80,10 +85,17 @@ export class Texture implements ContextDrawable {
   }
 
   get isLoaded(): boolean {
-    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0 &&
-      (this.renderTextureSource === null || this.renderTextureSource.isLoaded);
+    return (
+      this.context.isReady &&
+      !this.context.isDisposed &&
+      !this.disposed &&
+      this.handleValue !== 0 &&
+      (this.renderTextureSource === null || this.renderTextureSource.isLoaded)
+    );
   }
-  get isDisposed(): boolean { return this.disposed; }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   /** @internal True when both loaded textures belong to the same Game context. */
   _belongsToSameGame(other: Texture): boolean {
@@ -111,25 +123,55 @@ export class Texture implements ContextDrawable {
    * The destination is the unrotated top-left rectangle; origin is a local pivot measured from that corner.
    */
   drawRegion(source: Rect, destination: Rect, origin: Vector2DLike, rotation: number, tint: Color): boolean {
-    if (!this.isLoaded || !this.context.owns(this) ||
-        source === null || source === undefined || destination === null || destination === undefined ||
-        origin === null || origin === undefined || tint === null || tint === undefined ||
-        !isFiniteNumber(source.x) || !isFiniteNumber(source.y) ||
-        !isFiniteNumber(source.width) || !isFiniteNumber(source.height) ||
-        !isTextureSourceRegionInBounds(source, this.width, this.height) ||
-        !isFiniteNumber(destination.x) || !isFiniteNumber(destination.y) ||
-        !isFiniteNumber(destination.width) || !isFiniteNumber(destination.height) ||
-        destination.width <= 0 || destination.height <= 0 ||
-        !isFiniteNumber(origin.x) || !isFiniteNumber(origin.y) || !isFiniteNumber(rotation) ||
-        !isFiniteNumber(tint.r) || !isFiniteNumber(tint.g) ||
-        !isFiniteNumber(tint.b) || !isFiniteNumber(tint.a)) return false;
+    if (
+      !this.isLoaded ||
+      !this.context.owns(this) ||
+      source === null ||
+      source === undefined ||
+      destination === null ||
+      destination === undefined ||
+      origin === null ||
+      origin === undefined ||
+      tint === null ||
+      tint === undefined ||
+      !isFiniteNumber(source.x) ||
+      !isFiniteNumber(source.y) ||
+      !isFiniteNumber(source.width) ||
+      !isFiniteNumber(source.height) ||
+      !isTextureSourceRegionInBounds(source, this.width, this.height) ||
+      !isFiniteNumber(destination.x) ||
+      !isFiniteNumber(destination.y) ||
+      !isFiniteNumber(destination.width) ||
+      !isFiniteNumber(destination.height) ||
+      destination.width <= 0 ||
+      destination.height <= 0 ||
+      !isFiniteNumber(origin.x) ||
+      !isFiniteNumber(origin.y) ||
+      !isFiniteNumber(rotation) ||
+      !isFiniteNumber(tint.r) ||
+      !isFiniteNumber(tint.g) ||
+      !isFiniteNumber(tint.b) ||
+      !isFiniteNumber(tint.a)
+    )
+      return false;
 
     operations.drawTextureProRaw(
       this.handleValue,
-      source.x, source.y, source.width, source.height,
-      destination.x, destination.y, destination.width, destination.height,
-      origin.x, origin.y, rotation,
-      tint.r, tint.g, tint.b, tint.a,
+      source.x,
+      source.y,
+      source.width,
+      source.height,
+      destination.x,
+      destination.y,
+      destination.width,
+      destination.height,
+      origin.x,
+      origin.y,
+      rotation,
+      tint.r,
+      tint.g,
+      tint.b,
+      tint.a,
     );
     return true;
   }

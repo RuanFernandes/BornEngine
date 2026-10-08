@@ -45,7 +45,9 @@ export class SceneNodeComponent extends GameComponent {
     return this;
   }
 
-  _canAttachTo(context: GameContext): boolean { return context.owns(this.node); }
+  _canAttachTo(context: GameContext): boolean {
+    return context.owns(this.node);
+  }
 
   _syncRuntimeAfterPhase(): void {
     const owner: GameObject | null = this.gameObject;

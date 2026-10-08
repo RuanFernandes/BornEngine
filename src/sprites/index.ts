@@ -1,5 +1,11 @@
 export { SpriteSheet } from './sprite-sheet';
-export type { SpriteFrame, SpriteFrameDefinition, SpriteFrameTrim, SpriteFrameTrimDefinition, SpriteSheetOptions } from './sprite-sheet';
+export type {
+  SpriteFrame,
+  SpriteFrameDefinition,
+  SpriteFrameTrim,
+  SpriteFrameTrimDefinition,
+  SpriteSheetOptions,
+} from './sprite-sheet';
 export { SpriteRenderer } from './sprite-renderer';
 export type { SpriteRendererOptions } from './sprite-renderer';
 export { SpriteAnimation } from './sprite-animation';

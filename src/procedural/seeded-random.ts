@@ -34,8 +34,7 @@ export class SeededRandom {
    * every result is min because no representable value lies between them.
    */
   range(min: number, max: number): number {
-    if (!isFiniteNumber(min) || !isFiniteNumber(max) || max < min ||
-      !isFiniteNumber(max - min)) {
+    if (!isFiniteNumber(min) || !isFiniteNumber(max) || max < min || !isFiniteNumber(max - min)) {
       throw new Error('SeededRandom range requires finite, ordered bounds');
     }
     if (min === max) return min;
@@ -45,9 +44,14 @@ export class SeededRandom {
 
   /** Returns a deterministic integer in the inclusive range [min, max]. */
   integer(min: number, max: number): number {
-    if (!isInteger(min) || !isInteger(max) || max < min ||
-      max - min > MAX_SAFE_INTEGER || Math.abs(min) > MAX_SAFE_INTEGER ||
-      Math.abs(max) > MAX_SAFE_INTEGER) {
+    if (
+      !isInteger(min) ||
+      !isInteger(max) ||
+      max < min ||
+      max - min > MAX_SAFE_INTEGER ||
+      Math.abs(min) > MAX_SAFE_INTEGER ||
+      Math.abs(max) > MAX_SAFE_INTEGER
+    ) {
       throw new Error('SeededRandom integer requires ordered safe-integer bounds');
     }
     return min + Math.floor(this.next() * (max - min + 1));

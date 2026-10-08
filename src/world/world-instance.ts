@@ -40,8 +40,10 @@ export class WorldInstance implements ContextResource {
     this.worldDocument = data.document;
     this.warnings = [];
     if (!this.context.isReady || this.context.isDisposed || this.worldDocument === null) {
-      this.error = this.worldDocument === null ? 'WorldData must be loaded before instantiation.' :
-        'The Game must be ready before instantiating world data.';
+      this.error =
+        this.worldDocument === null
+          ? 'WorldData must be loaded before instantiation.'
+          : 'The Game must be ready before instantiating world data.';
       return;
     }
 
@@ -52,9 +54,7 @@ export class WorldInstance implements ContextResource {
         if (model === null || (model as any).context !== this.context || !model.isLoaded) return 0;
         return (model as any).handleValue || 0;
       },
-      prefabRegistry: options.prefabs === undefined || options.prefabs === null
-        ? null
-        : options.prefabs._registry(),
+      prefabRegistry: options.prefabs === undefined || options.prefabs === null ? null : options.prefabs._registry(),
     });
     this.warnings.push.apply(this.warnings, result.warnings);
 
@@ -89,11 +89,21 @@ export class WorldInstance implements ContextResource {
     this.error = null;
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.worldDocument !== null && this.context.isReady; }
-  get entityNodes(): WorldEntityNode[] { return this.entities.slice(); }
-  get terrain(): SceneNode | null { return this.terrainNode; }
-  get water(): SceneNode[] { return this.waterNodes.slice(); }
-  get rivers(): SceneNode[] { return this.riverNodes.slice(); }
+  get isLoaded(): boolean {
+    return !this.disposed && this.worldDocument !== null && this.context.isReady;
+  }
+  get entityNodes(): WorldEntityNode[] {
+    return this.entities.slice();
+  }
+  get terrain(): SceneNode | null {
+    return this.terrainNode;
+  }
+  get water(): SceneNode[] {
+    return this.waterNodes.slice();
+  }
+  get rivers(): SceneNode[] {
+    return this.riverNodes.slice();
+  }
 
   getEntityNode(id: string): SceneNode | null {
     for (let index = 0; index < this.entities.length; index++) {
@@ -108,7 +118,9 @@ export class WorldInstance implements ContextResource {
     return true;
   }
 
-  _belongsToContext(context: GameContext): boolean { return this.context === context; }
+  _belongsToContext(context: GameContext): boolean {
+    return this.context === context;
+  }
 
   dispose(): void {
     if (this.disposed) return;

@@ -27,7 +27,9 @@ export class AudioEmitter2D extends GameComponent {
     this.rolloff = options.rolloff === undefined ? 1 : options.rolloff;
   }
 
-  get isPlaying(): boolean { return this.voice !== null && this.voice.isActive; }
+  get isPlaying(): boolean {
+    return this.voice !== null && this.voice.isActive;
+  }
 
   _canAttachTo(context: GameContext): boolean {
     return this.sound._belongsToContext(context) && this.listener._belongsToContext(context);
@@ -40,12 +42,15 @@ export class AudioEmitter2D extends GameComponent {
     const owner: GameObject | null = this.gameObject;
     if (owner === null || owner.destroyed) return false;
     const position: Vec3 = owner.transform.worldPosition;
-    this.voice = this.sound.play3D({ x: position.x, y: 0, z: position.y }, {
-      looping: this.looping,
-      refDist: this.refDist,
-      maxDist: this.maxDist,
-      rolloff: this.rolloff,
-    });
+    this.voice = this.sound.play3D(
+      { x: position.x, y: 0, z: position.y },
+      {
+        looping: this.looping,
+        refDist: this.refDist,
+        maxDist: this.maxDist,
+        rolloff: this.rolloff,
+      },
+    );
     return this.voice !== null && this.voice.isActive;
   }
 
@@ -71,5 +76,7 @@ export class AudioEmitter2D extends GameComponent {
     this.voice.setPosition({ x: position.x, y: 0, z: position.y });
   }
 
-  onDestroy(): void { this.stop(); }
+  onDestroy(): void {
+    this.stop();
+  }
 }

@@ -12,7 +12,12 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
   private maximum = 1;
   private revision = 0;
 
-  constructor(options: GUIControlOptions = {}, initialValue: TValue, kind: GuiControlKindCode = GuiControlKind.Control, profile = 'default') {
+  constructor(
+    options: GUIControlOptions = {},
+    initialValue: TValue,
+    kind: GuiControlKindCode = GuiControlKind.Control,
+    profile = 'default',
+  ) {
     super(options);
     this.value = initialValue;
     this._guiCommandKind = kind;
@@ -20,7 +25,9 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
     this.syncCommand();
   }
 
-  getValue(): TValue { return this.value; }
+  getValue(): TValue {
+    return this.value;
+  }
 
   setValue(value: TValue): this {
     if (typeof value === 'number') {
@@ -48,10 +55,14 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
     return this;
   }
 
-  getRange(): { minimum: number; maximum: number } { return { minimum: this.minimum, maximum: this.maximum }; }
+  getRange(): { minimum: number; maximum: number } {
+    return { minimum: this.minimum, maximum: this.maximum };
+  }
 
   /** @internal Captures the value revision associated with an emitted command. */
-  _captureValueRevision(): number { return this.revision; }
+  _captureValueRevision(): number {
+    return this.revision;
+  }
 
   /** @internal Applies a native response only if TypeScript has not since changed the value. */
   _applyNativeValue(value: TValue, commandRevision: number): void {
@@ -63,7 +74,11 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
   }
 
   private syncCommand(): void {
-    this._guiCommandValues = [typeof this.value === 'boolean' ? (this.value ? 1 : 0) : this.value, this.minimum, this.maximum];
+    this._guiCommandValues = [
+      typeof this.value === 'boolean' ? (this.value ? 1 : 0) : this.value,
+      this.minimum,
+      this.maximum,
+    ];
   }
 
   private _dispatchValueChange(): void {

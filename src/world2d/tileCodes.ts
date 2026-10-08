@@ -25,8 +25,14 @@ interface TileRange {
 }
 
 function safeInteger(value: unknown): value is number {
-  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity &&
-    Math.floor(value) === value && Math.abs(value) <= MAX_SAFE_INTEGER_VALUE;
+  return (
+    typeof value === 'number' &&
+    value === value &&
+    value !== Infinity &&
+    value !== -Infinity &&
+    Math.floor(value) === value &&
+    Math.abs(value) <= MAX_SAFE_INTEGER_VALUE
+  );
 }
 
 function fail(path: string, code: string, message: string): never {
@@ -50,8 +56,13 @@ export function createWorld2DTileCodebook(tilesets: World2DTilesetData[]): World
   for (let index = 0; index < tilesets.length; index++) {
     const tileset: any = tilesets[index];
     const path = '/tilesets/' + index;
-    if (tileset === null || typeof tileset !== 'object' || Array.isArray(tileset) ||
-        typeof tileset.id !== 'string' || tileset.id.length === 0) {
+    if (
+      tileset === null ||
+      typeof tileset !== 'object' ||
+      Array.isArray(tileset) ||
+      typeof tileset.id !== 'string' ||
+      tileset.id.length === 0
+    ) {
       fail(path, 'invalid_tileset_range', 'Tilesets need a non-empty ID to create tile-code ranges.');
     }
     if (!safeInteger(tileset.tileCount) || tileset.tileCount <= 0) {
@@ -84,9 +95,17 @@ export function createWorld2DTileCodebook(tilesets: World2DTilesetData[]): World
       }
       if (range === null) fail('/cell/tilesetId', 'unknown_tileset', 'Tile cell refers to an unknown tileset.');
       if (!safeInteger(cell.tileId) || cell.tileId < 0 || cell.tileId >= range.tileCount) {
-        fail('/cell/tileId', 'tile_id_out_of_range', 'Tile ID must be a zero-based safe integer in the referenced tileset.');
+        fail(
+          '/cell/tileId',
+          'tile_id_out_of_range',
+          'Tile ID must be a zero-based safe integer in the referenced tileset.',
+        );
       }
-      if (typeof cell.flipX !== 'boolean' || typeof cell.flipY !== 'boolean' || typeof cell.flipDiagonal !== 'boolean') {
+      if (
+        typeof cell.flipX !== 'boolean' ||
+        typeof cell.flipY !== 'boolean' ||
+        typeof cell.flipDiagonal !== 'boolean'
+      ) {
         fail('/cell', 'invalid_tile_flip', 'Tile flip fields must be booleans.');
       }
       const globalCode = range.firstCode + cell.tileId;
@@ -110,7 +129,8 @@ export function createWorld2DTileCodebook(tilesets: World2DTilesetData[]): World
         mask = packed % 8;
         if (mask === 0) fail('/data', 'invalid_tile_code', 'Negative tile codes must include at least one flip flag.');
         globalCode = (packed - mask) / 8;
-        if (globalCode <= 0) fail('/data', 'invalid_tile_code', 'Negative tile codes must refer to a positive tile range.');
+        if (globalCode <= 0)
+          fail('/data', 'invalid_tile_code', 'Negative tile codes must refer to a positive tile range.');
       }
 
       const range = findRange(ranges, globalCode);

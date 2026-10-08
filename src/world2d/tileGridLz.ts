@@ -16,13 +16,23 @@ function fail(path: string, code: string, message: string): never {
 }
 
 function safeInteger(value: unknown): value is number {
-  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity &&
-    Math.floor(value) === value && Math.abs(value) <= MAX_SAFE_INTEGER_VALUE;
+  return (
+    typeof value === 'number' &&
+    value === value &&
+    value !== Infinity &&
+    value !== -Infinity &&
+    Math.floor(value) === value &&
+    Math.abs(value) <= MAX_SAFE_INTEGER_VALUE
+  );
 }
 
 function checkedByteCount(value: unknown): number {
   if (!safeInteger(value) || value < 0 || value > MAX_WORLD2D_TILE_BYTES) {
-    fail('/data/values', 'invalid_lz_output_size', 'LZ output size must be an integer within the supported tile-grid byte limit.');
+    fail(
+      '/data/values',
+      'invalid_lz_output_size',
+      'LZ output size must be an integer within the supported tile-grid byte limit.',
+    );
   }
   return value;
 }
@@ -81,7 +91,11 @@ function addCandidate(candidates: Record<string, PositionList>, bytes: number[],
   compactPositions(list);
 }
 
-function findMatch(bytes: number[], candidates: Record<string, PositionList>, position: number): { distance: number; length: number } {
+function findMatch(
+  bytes: number[],
+  candidates: Record<string, PositionList>,
+  position: number,
+): { distance: number; length: number } {
   const remaining = bytes.length - position;
   if (remaining < 4) return { distance: 0, length: 0 };
   const list = candidates['' + hash(bytes, position)];
@@ -158,7 +172,8 @@ export function decompressTileGridBytes(inputBytes: number[], expectedByteCount:
 
   while (output.length < expected) {
     if (controlBit === 8) {
-      if (inputPosition >= bytes.length) fail('/data/values', 'truncated_lz_payload', 'LZ payload ended before producing the expected bytes.');
+      if (inputPosition >= bytes.length)
+        fail('/data/values', 'truncated_lz_payload', 'LZ payload ended before producing the expected bytes.');
       control = bytes[inputPosition++];
       controlBit = 0;
     }
@@ -166,25 +181,29 @@ export function decompressTileGridBytes(inputBytes: number[], expectedByteCount:
     controlBit++;
 
     if (!isReference) {
-      if (inputPosition >= bytes.length) fail('/data/values', 'truncated_lz_payload', 'LZ literal is missing its byte.');
+      if (inputPosition >= bytes.length)
+        fail('/data/values', 'truncated_lz_payload', 'LZ literal is missing its byte.');
       output.push(bytes[inputPosition++]);
       continue;
     }
 
-    if (inputPosition + 2 >= bytes.length) fail('/data/values', 'truncated_lz_payload', 'LZ reference is missing its distance or length.');
+    if (inputPosition + 2 >= bytes.length)
+      fail('/data/values', 'truncated_lz_payload', 'LZ reference is missing its distance or length.');
     const distance = bytes[inputPosition] + bytes[inputPosition + 1] * 256;
     const length = bytes[inputPosition + 2] + 3;
     inputPosition += 3;
     if (distance === 0 || distance > MAX_LZ_DISTANCE || distance > output.length) {
       fail('/data/values', 'invalid_lz_distance', 'LZ reference distance must point inside the decoded output window.');
     }
-    if (length > expected - output.length) fail('/data/values', 'lz_output_size_mismatch', 'LZ reference expands beyond the expected byte count.');
+    if (length > expected - output.length)
+      fail('/data/values', 'lz_output_size_mismatch', 'LZ reference expands beyond the expected byte count.');
     for (let copied = 0; copied < length; copied++) output.push(output[output.length - distance]);
   }
 
   if (controlBit < 8 && Math.floor(control / Math.pow(2, controlBit)) !== 0) {
     fail('/data/values', 'nonzero_lz_control_padding', 'Unused LZ control bits must be zero.');
   }
-  if (inputPosition !== bytes.length) fail('/data/values', 'trailing_lz_bytes', 'LZ payload contains bytes after the expected output.');
+  if (inputPosition !== bytes.length)
+    fail('/data/values', 'trailing_lz_bytes', 'LZ payload contains bytes after the expected output.');
   return output;
 }

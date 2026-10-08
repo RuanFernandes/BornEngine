@@ -6,15 +6,40 @@ import type { DatabaseMigration } from './migrations';
 import { validateMigrations } from './migrations';
 
 /** Stable wire status numbers; backend implementations must use these exact values. */
-export type DatabaseStatus = 'ok' | 'invalid_namespace' | 'invalid_schema' | 'invalid_query' |
-  'invalid_data' | 'not_open' | 'closed' | 'not_found' | 'busy' | 'unsupported' |
-  'storage_error' | 'quota_exceeded' | 'migration_error' | 'corrupt_data' |
-  'unsupported_version' | 'constraint_error';
+export type DatabaseStatus =
+  | 'ok'
+  | 'invalid_namespace'
+  | 'invalid_schema'
+  | 'invalid_query'
+  | 'invalid_data'
+  | 'not_open'
+  | 'closed'
+  | 'not_found'
+  | 'busy'
+  | 'unsupported'
+  | 'storage_error'
+  | 'quota_exceeded'
+  | 'migration_error'
+  | 'corrupt_data'
+  | 'unsupported_version'
+  | 'constraint_error';
 
 const STATUS: DatabaseStatus[] = [
-  'ok', 'invalid_namespace', 'invalid_schema', 'invalid_query', 'invalid_data',
-  'not_open', 'closed', 'not_found', 'busy', 'unsupported', 'storage_error',
-  'quota_exceeded', 'migration_error', 'corrupt_data', 'unsupported_version',
+  'ok',
+  'invalid_namespace',
+  'invalid_schema',
+  'invalid_query',
+  'invalid_data',
+  'not_open',
+  'closed',
+  'not_found',
+  'busy',
+  'unsupported',
+  'storage_error',
+  'quota_exceeded',
+  'migration_error',
+  'corrupt_data',
+  'unsupported_version',
   'constraint_error',
 ];
 
@@ -43,8 +68,13 @@ function normalizeCallbackResult<T>(value: unknown): DatabaseResult<T> {
   const candidate = value as { ok?: unknown; status?: unknown; value?: unknown };
   if (!Object.prototype.hasOwnProperty.call(candidate, 'value')) return result('storage_error');
   if (candidate.ok === true && candidate.status === 'ok') return result('ok', candidate.value as T);
-  if (candidate.ok === false && typeof candidate.status === 'string' && candidate.status !== 'ok' &&
-      STATUS.indexOf(candidate.status as DatabaseStatus) >= 0 && candidate.value === null) {
+  if (
+    candidate.ok === false &&
+    typeof candidate.status === 'string' &&
+    candidate.status !== 'ok' &&
+    STATUS.indexOf(candidate.status as DatabaseStatus) >= 0 &&
+    candidate.value === null
+  ) {
     return result(candidate.status as DatabaseFailureStatus);
   }
   return result('storage_error');
@@ -103,29 +133,42 @@ const OP_IMPORT = 12;
 
 function writeValue(value: unknown, depth = 0): boolean {
   if (depth > 32) return false;
-  if (value === null || value === undefined) { bloom_database_scratch_push_f64(0); return true; }
+  if (value === null || value === undefined) {
+    bloom_database_scratch_push_f64(0);
+    return true;
+  }
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return false;
-    bloom_database_scratch_push_f64(1); bloom_database_scratch_push_f64(value); return true;
+    bloom_database_scratch_push_f64(1);
+    bloom_database_scratch_push_f64(value);
+    return true;
   }
   if (typeof value === 'string') {
-    bloom_database_scratch_push_f64(2); bloom_database_scratch_push_string(value); return true;
+    bloom_database_scratch_push_f64(2);
+    bloom_database_scratch_push_string(value);
+    return true;
   }
-  if (typeof value === 'boolean') { bloom_database_scratch_push_f64(value ? 4 : 3); return true; }
+  if (typeof value === 'boolean') {
+    bloom_database_scratch_push_f64(value ? 4 : 3);
+    return true;
+  }
   if (value instanceof Uint8Array) {
-    bloom_database_scratch_push_f64(5); bloom_database_scratch_push_f64(value.length);
+    bloom_database_scratch_push_f64(5);
+    bloom_database_scratch_push_f64(value.length);
     for (let i = 0; i < value.length; i++) bloom_database_scratch_push_byte(value[i]);
     return true;
   }
   if (Array.isArray(value)) {
-    bloom_database_scratch_push_f64(6); bloom_database_scratch_push_f64(value.length);
+    bloom_database_scratch_push_f64(6);
+    bloom_database_scratch_push_f64(value.length);
     for (let i = 0; i < value.length; i++) if (!writeValue(value[i], depth + 1)) return false;
     return true;
   }
   if (typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);
-  bloom_database_scratch_push_f64(7); bloom_database_scratch_push_f64(keys.length);
+  bloom_database_scratch_push_f64(7);
+  bloom_database_scratch_push_f64(keys.length);
   for (let i = 0; i < keys.length; i++) {
     bloom_database_scratch_push_string(keys[i]);
     if (!writeValue(record[keys[i]], depth + 1)) return false;
@@ -155,8 +198,8 @@ function readRowValue(ticket: number, index: number, descriptor: ColumnDescripto
   if (kind === 0) {
     return { valid: !(descriptor.options.notNull || descriptor.options.primaryKey), value: null };
   }
-  const expectedKind = descriptor.kind === 'text' ? 2 : descriptor.kind === 'blob' ? 5 :
-    descriptor.kind === 'boolean' ? -1 : 1;
+  const expectedKind =
+    descriptor.kind === 'text' ? 2 : descriptor.kind === 'blob' ? 5 : descriptor.kind === 'boolean' ? -1 : 1;
   if (descriptor.kind === 'boolean' ? kind !== 3 && kind !== 4 : kind !== expectedKind) {
     return { valid: false, value: null };
   }
@@ -164,13 +207,19 @@ function readRowValue(ticket: number, index: number, descriptor: ColumnDescripto
   return { valid: validColumnValue(descriptor.kind, value), value };
 }
 
-interface WireResponse { status: DatabaseStatus; ticket: number; rows: number; count: number; }
+interface WireResponse {
+  status: DatabaseStatus;
+  ticket: number;
+  rows: number;
+  count: number;
+}
 
 async function send(op: number, handle: number, args: unknown[]): Promise<WireResponse> {
   let ticket = 0;
   try {
     bloom_database_scratch_reset();
-    for (let i = 0; i < args.length; i++) if (!writeValue(args[i])) return { status: 'invalid_data', ticket: 0, rows: 0, count: 0 };
+    for (let i = 0; i < args.length; i++)
+      if (!writeValue(args[i])) return { status: 'invalid_data', ticket: 0, rows: 0, count: 0 };
     ticket = bloom_database_submit(op, handle, args.length);
     if (!Number.isSafeInteger(ticket) || ticket <= 0) return { status: 'unsupported', ticket: 0, rows: 0, count: 0 };
     let poll = bloom_database_poll(ticket);
@@ -204,7 +253,7 @@ export class GameDatabase<S extends DatabaseSchema> {
   private opening = false;
 
   constructor(options: GameDatabaseOptions<S>) {
-    const config = options || {} as GameDatabaseOptions<S>;
+    const config = options || ({} as GameDatabaseOptions<S>);
     this.appId = config.appId;
     this.name = config.name;
     this.schema = config.schema;
@@ -212,12 +261,18 @@ export class GameDatabase<S extends DatabaseSchema> {
     this.inMemory = config.inMemory === true;
   }
 
-  get state(): DatabaseState { return this.lifecycle; }
+  get state(): DatabaseState {
+    return this.lifecycle;
+  }
 
   private async request(op: number, handle: number, args: unknown[]): Promise<WireResponse> {
     const response = await send(op, handle, args);
-    if (this.lifecycle === 'open' && handle > 0 && handle === this.handle &&
-        (response.status === 'closed' || op === OP_CLOSE)) {
+    if (
+      this.lifecycle === 'open' &&
+      handle > 0 &&
+      handle === this.handle &&
+      (response.status === 'closed' || op === OP_CLOSE)
+    ) {
       this.handle = 0;
       this.lifecycle = 'closed';
       this.activeTransactionToken = null;
@@ -238,13 +293,25 @@ export class GameDatabase<S extends DatabaseSchema> {
     if (groups === null) return result('invalid_schema');
     this.opening = true;
     const opened = await send(OP_OPEN, 0, [this.appId, this.name, this.inMemory, this.schema]);
-    if (opened.status !== 'ok') { release(opened); this.opening = false; return result(opened.status); }
-    if (opened.count !== 2) { release(opened); this.opening = false; return result('corrupt_data'); }
+    if (opened.status !== 'ok') {
+      release(opened);
+      this.opening = false;
+      return result(opened.status);
+    }
+    if (opened.count !== 2) {
+      release(opened);
+      this.opening = false;
+      return result('corrupt_data');
+    }
     this.handle = Number(readValue(opened.ticket, 0));
     const currentVersion = Number(readValue(opened.ticket, 1));
     release(opened);
     if (!Number.isSafeInteger(this.handle) || this.handle <= 0 || !Number.isSafeInteger(currentVersion)) {
-      if (this.handle > 0) { const closed = await this.request(OP_CLOSE, this.handle, []); release(closed); this.handle = 0; }
+      if (this.handle > 0) {
+        const closed = await this.request(OP_CLOSE, this.handle, []);
+        release(closed);
+        this.handle = 0;
+      }
       this.opening = false;
       return result('storage_error');
     }
@@ -280,7 +347,10 @@ export class GameDatabase<S extends DatabaseSchema> {
     const response = await this.request(OP_CLOSE, this.handle, []);
     const status = response.status;
     release(response);
-    if (status === 'ok') { this.handle = 0; this.lifecycle = 'closed'; }
+    if (status === 'ok') {
+      this.handle = 0;
+      this.lifecycle = 'closed';
+    }
     return result(status);
   }
 
@@ -291,45 +361,72 @@ export class GameDatabase<S extends DatabaseSchema> {
     return 'ok';
   }
 
-  async insert<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>): Promise<DatabaseResult<number>> {
+  async insert<T extends Extract<keyof S, string>>(
+    table: T,
+    values: DatabaseInsert<S, T>,
+  ): Promise<DatabaseResult<number>> {
     return this.insertInternal(table, values);
   }
 
   /** @internal Transaction operations must provide the active transaction token. */
-  async insertInternal<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>, transactionToken: object | null = null): Promise<DatabaseResult<number>> {
+  async insertInternal<T extends Extract<keyof S, string>>(
+    table: T,
+    values: DatabaseInsert<S, T>,
+    transactionToken: object | null = null,
+  ): Promise<DatabaseResult<number>> {
     const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateValues(this.schema, table, values as Record<string, unknown>, true)) return result('invalid_data');
     const response = await this.request(OP_INSERT, this.handle, [table, values]);
     const value = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
-    const output = result<number>(response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
-      Number.isSafeInteger(value) ? value as number : null);
+    const output = result<number>(
+      response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
+      Number.isSafeInteger(value) ? (value as number) : null,
+    );
     release(response);
     return output;
   }
 
-  async select<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>> = {}): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
+  async select<T extends Extract<keyof S, string>>(
+    table: T,
+    options: DatabaseSelect<DatabaseRow<S, T>> = {},
+  ): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
     return this.selectInternal(table, options);
   }
 
   /** @internal Transaction operations must provide the active transaction token. */
-  async selectInternal<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>>, transactionToken: object | null = null): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
+  async selectInternal<T extends Extract<keyof S, string>>(
+    table: T,
+    options: DatabaseSelect<DatabaseRow<S, T>>,
+    transactionToken: object | null = null,
+  ): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
     const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateSelect(this.schema, table, options)) return result('invalid_query');
     const names = Object.keys(this.schema[table].columns);
     const response = await this.request(OP_SELECT, this.handle, [table, options, names]);
-    if (response.status !== 'ok') { release(response); return result(response.status); }
-    if (!Number.isSafeInteger(response.rows) || response.rows < 0 ||
-        !Number.isSafeInteger(response.count) || response.count !== response.rows * names.length) {
-      release(response); return result('corrupt_data');
+    if (response.status !== 'ok') {
+      release(response);
+      return result(response.status);
+    }
+    if (
+      !Number.isSafeInteger(response.rows) ||
+      response.rows < 0 ||
+      !Number.isSafeInteger(response.count) ||
+      response.count !== response.rows * names.length
+    ) {
+      release(response);
+      return result('corrupt_data');
     }
     const rows: DatabaseRow<S, T>[] = [];
     for (let i = 0; i < response.rows; i++) {
       const row: Record<string, unknown> = {};
       for (let j = 0; j < names.length; j++) {
         const cell = readRowValue(response.ticket, i * names.length + j, this.schema[table].columns[names[j]]);
-        if (!cell.valid) { release(response); return result('corrupt_data'); }
+        if (!cell.valid) {
+          release(response);
+          return result('corrupt_data');
+        }
         row[names[j]] = cell.value;
       }
       rows.push(row as DatabaseRow<S, T>);
@@ -338,7 +435,10 @@ export class GameDatabase<S extends DatabaseSchema> {
     return result('ok', rows);
   }
 
-  async findByPrimaryKey<T extends Extract<keyof S, string>>(table: T, key: string | number): Promise<DatabaseResult<DatabaseRow<S, T> | null>> {
+  async findByPrimaryKey<T extends Extract<keyof S, string>>(
+    table: T,
+    key: string | number,
+  ): Promise<DatabaseResult<DatabaseRow<S, T> | null>> {
     const state = this.ready();
     if (state !== 'ok') return result(state);
     const descriptor = Object.prototype.hasOwnProperty.call(this.schema, table) ? this.schema[table] : undefined;
@@ -346,46 +446,76 @@ export class GameDatabase<S extends DatabaseSchema> {
     let primary = '';
     for (const name in descriptor.columns) if (descriptor.columns[name].options.primaryKey) primary = name;
     if (!primary) return result('invalid_schema');
-    const selected = await this.select(table, { where: { [primary]: { eq: key } }, limit: 1 } as DatabaseSelect<DatabaseRow<S, T>>);
-    return selected.ok ? result('ok', selected.value && selected.value.length ? selected.value[0] : null) : result(selected.status);
+    const selected = await this.select(table, { where: { [primary]: { eq: key } }, limit: 1 } as DatabaseSelect<
+      DatabaseRow<S, T>
+    >);
+    return selected.ok
+      ? result('ok', selected.value && selected.value.length ? selected.value[0] : null)
+      : result(selected.status);
   }
 
-  async update<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
+  async update<T extends Extract<keyof S, string>>(
+    table: T,
+    values: DatabaseUpdate<S, T>,
+    where: DatabaseFilter<DatabaseRow<S, T>>,
+  ): Promise<DatabaseResult<number>> {
     return this.updateInternal(table, values, where);
   }
 
   /** @internal Transaction operations must provide the active transaction token. */
-  async updateInternal<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>, transactionToken: object | null = null): Promise<DatabaseResult<number>> {
+  async updateInternal<T extends Extract<keyof S, string>>(
+    table: T,
+    values: DatabaseUpdate<S, T>,
+    where: DatabaseFilter<DatabaseRow<S, T>>,
+    transactionToken: object | null = null,
+  ): Promise<DatabaseResult<number>> {
     const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
-    if (!validateValues(this.schema, table, values as Record<string, unknown>, false) || Object.keys(values).length === 0) return result('invalid_data');
+    if (
+      !validateValues(this.schema, table, values as Record<string, unknown>, false) ||
+      Object.keys(values).length === 0
+    )
+      return result('invalid_data');
     if (!validateFilter(this.schema, table, where)) return result('invalid_query');
     const response = await this.request(OP_UPDATE, this.handle, [table, values, where]);
     const value = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
-    const output = result<number>(response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
-      Number.isSafeInteger(value) ? value as number : null);
+    const output = result<number>(
+      response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
+      Number.isSafeInteger(value) ? (value as number) : null,
+    );
     release(response);
     return output;
   }
 
-  async delete<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
+  async delete<T extends Extract<keyof S, string>>(
+    table: T,
+    where: DatabaseFilter<DatabaseRow<S, T>>,
+  ): Promise<DatabaseResult<number>> {
     return this.deleteInternal(table, where);
   }
 
   /** @internal Transaction operations must provide the active transaction token. */
-  async deleteInternal<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>, transactionToken: object | null = null): Promise<DatabaseResult<number>> {
+  async deleteInternal<T extends Extract<keyof S, string>>(
+    table: T,
+    where: DatabaseFilter<DatabaseRow<S, T>>,
+    transactionToken: object | null = null,
+  ): Promise<DatabaseResult<number>> {
     const state = this.ready(transactionToken);
     if (state !== 'ok') return result(state);
     if (!validateFilter(this.schema, table, where)) return result('invalid_query');
     const response = await this.request(OP_DELETE, this.handle, [table, where]);
     const value = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
-    const output = result<number>(response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
-      Number.isSafeInteger(value) ? value as number : null);
+    const output = result<number>(
+      response.status === 'ok' && !Number.isSafeInteger(value) ? 'corrupt_data' : response.status,
+      Number.isSafeInteger(value) ? (value as number) : null,
+    );
     release(response);
     return output;
   }
 
-  async transaction<T>(callback: (tx: DatabaseTransaction<S>) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>> {
+  async transaction<T>(
+    callback: (tx: DatabaseTransaction<S>) => Promise<DatabaseResult<T>>,
+  ): Promise<DatabaseResult<T>> {
     const state = this.ready();
     if (state !== 'ok') return result(state);
     const transactionToken = {};
@@ -399,7 +529,11 @@ export class GameDatabase<S extends DatabaseSchema> {
       if (!this.ownsTransaction(transactionToken, transactionHandle)) return result('closed');
       const tx = new DatabaseTransaction(this, transactionToken);
       let value: DatabaseResult<T>;
-      try { value = normalizeCallbackResult<T>(await callback(tx)); } catch (_error) { value = result('storage_error'); }
+      try {
+        value = normalizeCallbackResult<T>(await callback(tx));
+      } catch (_error) {
+        value = result('storage_error');
+      }
       if (!value.ok || tx.failed) {
         const failure = tx.failed || value.status;
         if (!this.ownsTransaction(transactionToken, transactionHandle)) return result(failure);
@@ -417,7 +551,8 @@ export class GameDatabase<S extends DatabaseSchema> {
       const committed = await this.request(OP_COMMIT, transactionHandle, []);
       const commitStatus = committed.status;
       release(committed);
-      if (commitStatus === 'ok') return this.ownsTransaction(transactionToken, transactionHandle) ? value : result('closed');
+      if (commitStatus === 'ok')
+        return this.ownsTransaction(transactionToken, transactionHandle) ? value : result('closed');
       if (!this.ownsTransaction(transactionToken, transactionHandle)) return result(commitStatus);
       const rolled = await this.request(OP_ROLLBACK, transactionHandle, []);
       const rollbackStatus = rolled.status;
@@ -449,7 +584,10 @@ export class GameDatabase<S extends DatabaseSchema> {
     if (state !== 'ok') return result(state);
     const response = await this.request(OP_EXPORT, this.handle, []);
     const bytes = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
-    const output = bytes instanceof Uint8Array ? result('ok', bytes) : result<Uint8Array>(response.status === 'ok' ? 'corrupt_data' : response.status);
+    const output =
+      bytes instanceof Uint8Array
+        ? result('ok', bytes)
+        : result<Uint8Array>(response.status === 'ok' ? 'corrupt_data' : response.status);
     release(response);
     return output;
   }
@@ -469,21 +607,37 @@ export class GameDatabase<S extends DatabaseSchema> {
 
 export class DatabaseTransaction<S extends DatabaseSchema> {
   failed: DatabaseStatus | null = null;
-  constructor(private readonly database: GameDatabase<S>, private readonly token: object) {}
+  constructor(
+    private readonly database: GameDatabase<S>,
+    private readonly token: object,
+  ) {}
   private observe<T>(value: DatabaseResult<T>): DatabaseResult<T> {
     if (!value.ok && this.failed === null) this.failed = value.status;
     return value;
   }
-  async insert<T extends Extract<keyof S, string>>(table: T, values: DatabaseInsert<S, T>): Promise<DatabaseResult<number>> {
+  async insert<T extends Extract<keyof S, string>>(
+    table: T,
+    values: DatabaseInsert<S, T>,
+  ): Promise<DatabaseResult<number>> {
     return this.observe(await this.database.insertInternal(table, values, this.token));
   }
-  async select<T extends Extract<keyof S, string>>(table: T, options: DatabaseSelect<DatabaseRow<S, T>> = {}): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
+  async select<T extends Extract<keyof S, string>>(
+    table: T,
+    options: DatabaseSelect<DatabaseRow<S, T>> = {},
+  ): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
     return this.observe(await this.database.selectInternal(table, options, this.token));
   }
-  async update<T extends Extract<keyof S, string>>(table: T, values: DatabaseUpdate<S, T>, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
+  async update<T extends Extract<keyof S, string>>(
+    table: T,
+    values: DatabaseUpdate<S, T>,
+    where: DatabaseFilter<DatabaseRow<S, T>>,
+  ): Promise<DatabaseResult<number>> {
     return this.observe(await this.database.updateInternal(table, values, where, this.token));
   }
-  async delete<T extends Extract<keyof S, string>>(table: T, where: DatabaseFilter<DatabaseRow<S, T>>): Promise<DatabaseResult<number>> {
+  async delete<T extends Extract<keyof S, string>>(
+    table: T,
+    where: DatabaseFilter<DatabaseRow<S, T>>,
+  ): Promise<DatabaseResult<number>> {
     return this.observe(await this.database.deleteInternal(table, where, this.token));
   }
 }
