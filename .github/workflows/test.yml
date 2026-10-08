@@ -125,6 +125,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: dtolnay/rust-toolchain@stable
       - name: validate-ffi
         run: node tools/validate-ffi.js
@@ -180,9 +183,9 @@ jobs:
         run: cargo clippy --release --no-deps -- -D warnings
 
   # ---------------------------------------------------------------------------
-  # TypeScript correctness: typecheck, Biome lint, unit tests, TypeScript
-  # harnesses (entries marked ci:true need native libs and run in build-linux),
-  # and static example validation.
+  # TypeScript correctness. Steps: typecheck, lint, format:check,
+  # typecheck:tests, test:unit, test:tools, the harness runner (entries marked
+  # ci:true need native libs and run in build-linux), and examples:check:static.
   # ---------------------------------------------------------------------------
   ts-checks:
     runs-on: ubuntu-latest
@@ -200,6 +203,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Typecheck tests
+        run: npm run typecheck:tests
 
       - name: Lint
         run: npm run lint
@@ -362,7 +368,17 @@ jobs:
           echo "PERRY_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
 
       - name: Run TypeScript harnesses including native-library ones
-        run: node tools/run-ts-harnesses.mjs --include-ci
+        run: |
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "Mesa lavapipe Vulkan ICD was not installed."
+            exit 1
+          fi
+          xvfb-run -a env \
+            BLOOM_HEADLESS=1 \
+            WGPU_BACKEND=vulkan \
+            VK_ICD_FILENAMES="$lvp_icd" \
+            node tools/run-ts-harnesses.mjs --include-ci
 
       - name: Install native TypeScript smoke dependencies
         run: |
