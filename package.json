@@ -3,6 +3,7 @@
   "version": "0.16.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
+    "test": "npm run typecheck && npm run lint && npm run test:unit && npm run test:harnesses && npm run test:runtime && npm run test:scripting && npm run examples:check:static",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
     "lint": "biome lint src types",
