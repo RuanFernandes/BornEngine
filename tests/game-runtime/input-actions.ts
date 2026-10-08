@@ -1,5 +1,6 @@
 import './native-link';
 import { Game } from '../../src/core/game';
+import { beginDrawing, endDrawing } from '../../src/core/internal';
 
 declare const process: { exit(code: number): never };
 
@@ -11,6 +12,17 @@ function expect(value: boolean, label: string): void {
 }
 
 const game = new Game();
+
+// Injected keys are staged natively and applied by the next beginDrawing(), so
+// a frame must run between an injection and any read. This mirrors the frame
+// order of Game.runFrame: beginDrawing, input.update (advances every action
+// map), endDrawing.
+function stepFrame(): void {
+  beginDrawing();
+  game.input.update();
+  endDrawing();
+}
+
 const map = game.input.createActionMap();
 const jumpKey = 71;
 const secondJumpKey = 72;
@@ -18,38 +30,58 @@ const horizontalLeft = 73;
 const verticalUp = 74;
 
 expect(map.bindAction('jump', { kind: 'key', key: jumpKey }), 'bind a valid action');
+stepFrame();
+expect(!map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
+  'a freshly bound idle action reports the neutral state');
 game.input.injectKeyDown(jumpKey);
-map.update();
+stepFrame();
 expect(map.isDown('jump') && map.wasPressed('jump') && !map.wasReleased('jump'),
   'a key press produces one pressed edge');
-map.update();
+stepFrame();
 expect(map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
   'a held key stays down without repeating its pressed edge');
 game.input.injectKeyUp(jumpKey);
-map.update();
+stepFrame();
 expect(!map.isDown('jump') && !map.wasPressed('jump') && map.wasReleased('jump'),
   'a key release produces one released edge');
-map.update();
+stepFrame();
 expect(!map.wasReleased('jump'), 'the released edge clears on the next update');
 
 game.input.injectKeyDown(secondJumpKey);
-map.update();
+stepFrame();
 expect(!map.isDown('jump'), 'an unbound held key does not activate an action');
 expect(map.bindAction('jump', { kind: 'key', key: secondJumpKey }),
   'append a second binding to an action');
-map.update();
+stepFrame();
 expect(map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
   'rebinding adopts a key already held as the new baseline');
 game.input.injectKeyDown(jumpKey);
-map.update();
+stepFrame();
 expect(map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
   'adding another held binding does not add an edge');
 game.input.injectKeyUp(secondJumpKey);
-map.update();
+stepFrame();
+expect(map.isDown('jump') && !map.wasReleased('jump'),
+  'releasing one of two bindings held through a rebind does not release the action');
+game.input.injectKeyUp(jumpKey);
+stepFrame();
+expect(!map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
+  'releasing controls held through a rebind stays quiet');
+
+game.input.injectKeyDown(jumpKey);
+stepFrame();
+expect(map.isDown('jump') && map.wasPressed('jump') && !map.wasReleased('jump'),
+  'the first press after returning to neutral produces a pressed edge');
+game.input.injectKeyDown(secondJumpKey);
+stepFrame();
+expect(map.isDown('jump') && !map.wasPressed('jump') && !map.wasReleased('jump'),
+  'pressing a second overlapping binding does not add an edge');
+game.input.injectKeyUp(jumpKey);
+stepFrame();
 expect(map.isDown('jump') && !map.wasReleased('jump'),
   'releasing one of two held bindings does not release the action');
-game.input.injectKeyUp(jumpKey);
-map.update();
+game.input.injectKeyUp(secondJumpKey);
+stepFrame();
 expect(!map.isDown('jump') && map.wasReleased('jump'),
   'releasing the last overlapping binding releases the action');
 
@@ -60,7 +92,7 @@ expect(move.bindAxis('vertical', { negative: [{ kind: 'key', key: verticalUp }] 
   'bind vertical axis');
 game.input.injectKeyDown(horizontalLeft);
 game.input.injectKeyDown(verticalUp);
-move.update();
+stepFrame();
 const diagonal = move.readVector2('horizontal', 'vertical');
 expect(diagonal.x === -1 && diagonal.y === -1,
   'readVector2 preserves unnormalized diagonal values');
@@ -79,6 +111,7 @@ expect(!map.unbindAction('missing') && !map.unbindAxis('missing'),
 
 game.input.injectKeyUp(horizontalLeft);
 game.input.injectKeyUp(verticalUp);
+stepFrame();
 map.clear();
 move.clear();
 console.log('InputActionMap public fixture passed');
