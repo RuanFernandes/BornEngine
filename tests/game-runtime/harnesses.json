@@ -53,8 +53,7 @@
   },
   {
     "file": "world2d-format.ts",
-    "runner": "perry",
-    "disabled": "Perry 0.5.1520 SIGSEGV at runtime; passes under Perry 0.5.1022 (5/5). Remove this marker once a fixed Perry pin is adopted."
+    "runner": "perry"
   },
   {
     "file": "adapters.ts",
