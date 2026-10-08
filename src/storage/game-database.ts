@@ -607,10 +607,12 @@ export class GameDatabase<S extends DatabaseSchema> {
 
 export class DatabaseTransaction<S extends DatabaseSchema> {
   failed: DatabaseStatus | null = null;
-  constructor(
-    private readonly database: GameDatabase<S>,
-    private readonly token: object,
-  ) {}
+  private readonly database: GameDatabase<S>;
+  private readonly token: object;
+  constructor(database: GameDatabase<S>, token: object) {
+    this.database = database;
+    this.token = token;
+  }
   private observe<T>(value: DatabaseResult<T>): DatabaseResult<T> {
     if (!value.ok && this.failed === null) this.failed = value.status;
     return value;
