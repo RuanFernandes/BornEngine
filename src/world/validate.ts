@@ -13,7 +13,6 @@ import {
   TerrainData,
   TransformData,
   Vec3Lit,
-  Vec4Lit,
 } from './types';
 
 export interface ValidationResult {

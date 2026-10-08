@@ -570,7 +570,7 @@ export class Room<TState = any> {
   private _normalizeMessageType(type: string): string | number {
     if (type.length > 1 && type.charAt(0) === 'i') {
       const numeric = parseInt(type.slice(1), 10);
-      if (!isNaN(numeric)) return numeric;
+      if (!Number.isNaN(numeric)) return numeric;
     }
     return type;
   }

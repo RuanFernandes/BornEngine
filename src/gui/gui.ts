@@ -1,5 +1,5 @@
 import { addGuiPoints, centeredCoordinate, clampGuiSize, subtractGuiPoints, validateGuiCoordinate, validateGuiDimension } from './layout';
-import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
+import { GUIEvent, GUIEventType } from './events';
 import { GuiControlKind, intersectGuiRects, type GuiClipCommand, type GuiControlCommand, type GuiControlItemCommand, type GuiDrawingPayload } from './commands';
 import { GUIProfiles, GuiProfile } from './profile';
 import { allocateGUIId, type GUIControlOptions, type GuiCursor, type GuiPoint, type GuiRect, type GuiSize } from './types';

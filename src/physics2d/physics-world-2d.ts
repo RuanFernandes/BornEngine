@@ -8,7 +8,6 @@ import type {
   PhysicsBodyContact2D,
   PhysicsBody2DOptions,
   PhysicsContact2D,
-  PhysicsContactPhase2D,
   PhysicsShape2D,
 } from './physics-body-2d';
 

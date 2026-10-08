@@ -42,11 +42,13 @@ export class SceneNode implements ContextResource {
   }
 
   /** @internal Wraps a node created by the world loader without exposing its identity. */
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (SceneNode as any).adoptNative(...) from src/scene/ownership.ts
   private static adoptNative(owner: Game, handle: number, name = ''): SceneNode {
     return new SceneNode(owner, { name }, handle);
   }
 
   /** @internal Restores a parent relationship already established by native operations. */
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (SceneNode as any).adoptParentLink(...) from src/scene/ownership.ts
   private static adoptParentLink(child: SceneNode, parent: SceneNode): void {
     if (child.parentValue !== null) child.parentValue.removeChild(child);
     child.parentValue = parent;
@@ -183,6 +185,7 @@ export class SceneNode implements ContextResource {
   getUserData(): number { return this.isLoaded ? operations.getSceneNodeUserData(this.handleValue) : 0; }
 
   /** @internal Used to map a native pick result back to a class instance. */
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (node as any).matchesNativeHandle(...) from src/scene/ownership.ts
   private matchesNativeHandle(handle: number): boolean { return this.isLoaded && this.handleValue === handle; }
 
   dispose(): void {

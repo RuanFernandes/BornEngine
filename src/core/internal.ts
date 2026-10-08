@@ -933,10 +933,12 @@ export function endMode3D(): void {
 
 // Gamepad — spec-compliant signatures with gamepad ID
 
+// biome-ignore lint/correctness/noUnusedFunctionParameters: id is part of the public gamepad signature and callers pass it positionally
 export function isGamepadAvailable(id?: number): boolean {
   return bloom_is_gamepad_available() !== 0;
 }
 
+// biome-ignore lint/correctness/noUnusedFunctionParameters: id is part of the public gamepad signature and callers pass it positionally
 export function getGamepadAxisValue(id: number, axis: number): number {
   return bloom_get_gamepad_axis(axis);
 }

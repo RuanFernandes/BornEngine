@@ -19,7 +19,7 @@ interface SearchEntry {
 
 const ORTHOGONAL_NEIGHBORS: number[][] = [[-1, 0], [0, -1], [1, 0], [0, 1]];
 const DIAGONAL_NEIGHBORS: number[][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
-const DIAGONAL_COST = 1.4142135623730951;
+const DIAGONAL_COST = Math.SQRT2;
 
 function comesBefore(a: SearchEntry, b: SearchEntry): boolean {
   if (a.score !== b.score) return a.score < b.score;

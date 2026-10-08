@@ -1,6 +1,5 @@
 import type { Color } from '../core/types';
 import type { Texture } from '../textures';
-import type { GameContext } from '../core/context';
 import { UiOpcode, type UiBackendId } from './opcodes';
 import type { UiApi, UiId, UiResponse } from './types';
 

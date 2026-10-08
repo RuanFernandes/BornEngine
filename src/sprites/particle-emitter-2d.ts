@@ -83,10 +83,6 @@ function validColor(value: Color): boolean {
     value.g >= 0 && value.g <= 255 && value.b >= 0 && value.b <= 255 && value.a >= 0 && value.a <= 255;
 }
 
-function copyColor(value: Color): Color {
-  return { r: value.r, g: value.g, b: value.b, a: value.a };
-}
-
 function validTransform(position: Vector2DLike, scale: Vector2DLike, rotation: number): boolean {
   return validVector(position) && validVector(scale) && isFiniteNumber(rotation);
 }

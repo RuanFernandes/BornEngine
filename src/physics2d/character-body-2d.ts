@@ -111,8 +111,11 @@ export class CharacterBody2D extends GameComponent {
         resolvedVelocity.x -= toward * normal.x;
         resolvedVelocity.y -= toward * normal.y;
       }
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: 0.70710678 is a truncated 45-degree normal threshold; Math.SQRT1_2 would change the cutoff
       if (normal.y < -0.70710678) this.onFloorValue = true;
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: 0.70710678 is a truncated 45-degree normal threshold; Math.SQRT1_2 would change the cutoff
       else if (normal.y > 0.70710678) this.onCeilingValue = true;
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: 0.70710678 is a truncated 45-degree normal threshold; Math.SQRT1_2 would change the cutoff
       if (Math.abs(normal.x) > 0.70710678) this.onWallValue = true;
       this.contactNormalsValue.push(copyVec(normal));
     }

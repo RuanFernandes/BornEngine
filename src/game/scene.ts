@@ -1,6 +1,5 @@
 import { GameObject } from './game-object';
 import { GameScene } from './game-scene';
-import type { GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Camera2D } from '../core/types';

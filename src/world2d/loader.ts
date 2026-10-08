@@ -7,7 +7,6 @@ import { SpriteRenderer } from '../sprites/sprite-renderer';
 import type { SpriteFrame } from '../sprites/sprite-sheet';
 import { Tilemap } from '../tilemap/tilemap';
 import { migrateWorld2D } from './migrate';
-import { validateWorld2D } from './validate';
 import type {
   World2DComponentDescriptor,
   World2DDocument,
@@ -22,7 +21,6 @@ import type {
   World2DTileDefinition,
   World2DTileLayer,
   World2DTilesetData,
-  WorldTileCell,
 } from './types';
 
 export interface World2DComponentFactoryContext {
@@ -337,9 +335,8 @@ export class World2DLoader {
     try {
       for (let layerIndex = 0; layerIndex < document.layers.length; layerIndex++) {
         const layer = document.layers[layerIndex];
-        const layerPath = '/layers/' + layerIndex;
         if (layer.type === 'tilemap') {
-          this.buildTileLayer(document, layer, layerIndex, documentRoot, frameResolution.frames,
+          this.buildTileLayer(document, layer, layerIndex, frameResolution.frames,
             roots, instances, diagnostics);
         } else {
           this.buildObjectLayer(document, layer, layerIndex, scene, documentRoot,
@@ -376,7 +373,6 @@ export class World2DLoader {
     document: World2DDocument,
     layer: World2DTileLayer,
     layerIndex: number,
-    documentRoot: string,
     frames: ResolvedFrame[],
     roots: GameObject[],
     instances: World2DLoadInstance[],

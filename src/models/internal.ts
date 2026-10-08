@@ -1,5 +1,5 @@
 import { spawn, parallelMap } from 'perry/thread';
-import { Color, Model, Vec3, Mat4, BoundingBox } from '../core/types';
+import { Color, Model, Vec3, BoundingBox } from '../core/types';
 
 // FFI declarations
 declare function bloom_load_model(path: number): number;
@@ -110,9 +110,9 @@ function parseOBJ(text: string): { vertices: number[]; indices: number[] } | nul
           faceIndices.push(vertexMap.get(key)!);
         } else {
           const segs = key.split('/');
-          const pi = parseInt(segs[0]) - 1;
-          const ti = segs.length > 1 && segs[1] !== '' ? parseInt(segs[1]) - 1 : -1;
-          const ni = segs.length > 2 ? parseInt(segs[2]) - 1 : -1;
+          const pi = parseInt(segs[0], 10) - 1;
+          const ti = segs.length > 1 && segs[1] !== '' ? parseInt(segs[1], 10) - 1 : -1;
+          const ni = segs.length > 2 ? parseInt(segs[2], 10) - 1 : -1;
 
           const pos = pi >= 0 && pi < positions.length ? positions[pi] : [0, 0, 0];
           const norm = ni >= 0 && ni < normals.length ? normals[ni] : [0, 1, 0];
@@ -291,6 +291,7 @@ export interface DrawCubeOpts {
   rotationY?: number;
 }
 
+// biome-ignore lint/correctness/noUnusedFunctionParameters: opts.rotationY is accepted for API compatibility until native support exists
 export function drawCube(position: Vec3, width: number, height: number, depth: number, color: Color, opts?: DrawCubeOpts): void {
   // Note: rotationY is accepted for API compatibility but applied only when native support exists
   bloom_draw_cube(position.x, position.y, position.z, width, height, depth, color.r, color.g, color.b, color.a);
@@ -308,6 +309,7 @@ export function drawSphereWires(position: Vec3, radius: number, color: Color): v
   bloom_draw_sphere_wires(position.x, position.y, position.z, radius, color.r, color.g, color.b, color.a);
 }
 
+// biome-ignore lint/correctness/noUnusedFunctionParameters: slices is accepted for API compatibility until native support exists
 export function drawCylinder(position: Vec3, radiusTop: number, radiusBottom: number, height: number, color: Color, slices?: number): void {
   bloom_draw_cylinder(position.x, position.y, position.z, radiusTop, radiusBottom, height, color.r, color.g, color.b, color.a);
 }

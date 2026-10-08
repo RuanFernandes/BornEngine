@@ -25,6 +25,7 @@ export class Texture implements ContextDrawable {
   /** @internal Resource construction is routed through an asset scope. */
   static _create(game: Game, source: TextureSource): Texture { return new Texture(game, source); }
 
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: game is kept as a retained field of the Perry-compiled class; dropping it would change instance shape and Game reference lifetime
   private constructor(private readonly game: Game, source: TextureSource) {
     this.context = getGameContext(game);
     const context = this.context;

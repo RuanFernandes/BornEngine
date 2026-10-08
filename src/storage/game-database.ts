@@ -2,7 +2,7 @@ import type { ColumnDescriptor, DatabaseSchema, DatabaseRow, DatabaseInsert, Dat
 import { validColumnValue, validNamespace, validateSchema } from './schema';
 import type { DatabaseFilter, DatabaseSelect } from './query';
 import { validateFilter, validateSelect, validateValues } from './query';
-import type { DatabaseMigration, MigrationStep } from './migrations';
+import type { DatabaseMigration } from './migrations';
 import { validateMigrations } from './migrations';
 
 /** Stable wire status numbers; backend implementations must use these exact values. */

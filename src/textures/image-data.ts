@@ -2,7 +2,6 @@ import type { Game } from '../core/game';
 import { GameContext, getGameContext } from '../core/context';
 import * as operations from './internal';
 import type { Rect } from '../core/types';
-import { Texture } from './texture';
 
 /** CPU-side image data that can be transformed before creating a GPU texture. */
 export class ImageData {

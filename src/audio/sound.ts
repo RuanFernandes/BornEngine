@@ -62,6 +62,7 @@ export class StagedSound implements ContextResource {
 
   private get context(): GameContext { return getGameContext(this.game); }
 
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (source as any).takeForCommit(context) from the Sound constructor
   private takeForCommit(context: GameContext): number {
     if (this.consumed || context !== this.context || !context.isReady) return 0;
     const handle = this.handleValue;

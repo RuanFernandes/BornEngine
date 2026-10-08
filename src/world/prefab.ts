@@ -25,7 +25,6 @@ import { Mat4, Vec3 } from '../core/types';
 import {
   WORLD_SCHEMA_VERSION,
   PrefabData,
-  PrefabChild,
   TransformData,
   Vec4Lit,
 } from './types';
@@ -54,6 +53,7 @@ export function createPrefabRegistry(): PrefabRegistry {
   const byId = new Map<string, PrefabData>();
   return {
     byId: byId,
+    // biome-ignore lint/complexity/useArrowFunction: function expression kept as written to avoid altering Perry closure codegen in the registry object literal
     getPrefab: function(id: string): PrefabData | null {
       const found = byId.get(id);
       return found ? found : null;
