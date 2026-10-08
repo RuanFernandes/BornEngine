@@ -24,6 +24,7 @@ function exportedFrom(source, modulePath) {
 
 const physicsIndex = readSource('src/physics/index.ts');
 const rootIndex = readSource('src/index.ts');
+const sceneIndex = readSource('src/scene/index.ts');
 
 test('physics index exports Collider as a value from ./collider', () => {
   const valueExports = exportStatements(physicsIndex)
@@ -41,4 +42,11 @@ test('physics index exports PhysicsBody as a value from ./rigid-body', () => {
 
 test('root index does not export PbrMaterial from ./models', () => {
   assert.ok(!exportedFrom(rootIndex, './models').includes('PbrMaterial'));
+});
+
+test('scene index exports PbrMaterial as a type from ./internal', () => {
+  const typeExports = exportStatements(sceneIndex)
+    .filter((statement) => statement.isType && statement.from === './internal')
+    .flatMap((statement) => statement.names);
+  assert.ok(typeExports.includes('PbrMaterial'));
 });
