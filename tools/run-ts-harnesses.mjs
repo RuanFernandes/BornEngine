@@ -55,12 +55,18 @@ function commandFor(entry, filePath) {
   return ['perry', ['run', '--local', filePath]];
 }
 
+function envFor(entry) {
+  if (entry.runner === 'perry') return { ...process.env, PERRY_ALLOW_PERRY_FEATURES: '1' };
+  return process.env;
+}
+
 function runEntry(entry, manifestDir) {
   const filePath = resolve(manifestDir, entry.file);
   if (!existsSync(filePath)) return { ok: false, output: `file not found: ${filePath}` };
   const [command, args] = commandFor(entry, filePath);
   const result = spawnSync(command, args, {
     cwd: REPO_ROOT,
+    env: envFor(entry),
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });

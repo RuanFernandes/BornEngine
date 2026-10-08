@@ -207,3 +207,49 @@ test('rejects an unknown runner value in the manifest', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+const FAKE_PERRY = '#!/bin/sh\n[ "$PERRY_ALLOW_PERRY_FEATURES" = "1" ] || exit 3\n[ "$HARNESS_PROBE" = "kept" ] || exit 4\n';
+
+test('perry entries run with PERRY_ALLOW_PERRY_FEATURES=1 and the rest of the environment', { skip: process.platform === 'win32' }, () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'native.ts': PASSING },
+    [{ file: 'native.ts', runner: 'perry' }],
+  );
+  writeFileSync(join(dir, 'perry'), FAKE_PERRY, { mode: 0o755 });
+  try {
+    const result = spawnSync(process.execPath, [runnerPath, '--manifest', manifestPath], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH}`,
+        PERRY_ALLOW_PERRY_FEATURES: '0',
+        HARNESS_PROBE: 'kept',
+      },
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /PASS native\.ts/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('node entries do not receive PERRY_ALLOW_PERRY_FEATURES', () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'plain.ts': 'if (process.env.PERRY_ALLOW_PERRY_FEATURES !== undefined) process.exit(1);\n' },
+    [{ file: 'plain.ts', runner: 'node' }],
+  );
+  try {
+    const env = { ...process.env };
+    delete env.PERRY_ALLOW_PERRY_FEATURES;
+    const result = spawnSync(process.execPath, [runnerPath, '--manifest', manifestPath], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /PASS plain\.ts/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
