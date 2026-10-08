@@ -693,8 +693,8 @@ export class PhysicsWorld2D implements ContextResource {
   private sweepKinematicSurfaces(body: PhysicsBody2D, width: number, height: number,
     start: Vector2DLike, delta: Vector2DLike):
     { position: Vector2DLike; normals: Vector2DLike[]; exhausted: boolean } | null {
-    let position = copyVec(start);
-    let travel = copyVec(delta);
+    let position: Vector2DLike = copyVec(start);
+    let travel: Vector2DLike = copyVec(delta);
     const normals: Vector2DLike[] = [];
     const shape: PhysicsShape2D = { type: 'box', width, height };
     for (let iteration = 0; iteration < 4; iteration++) {
