@@ -204,7 +204,8 @@ export class PhysicsWorld implements ContextResource {
   /** @internal */ _disposeBodiesUsing(collider: Collider): void {
     const vehicles = this.vehicles.slice();
     for (let index = vehicles.length - 1; index >= 0; index--) {
-      if (vehicles[index].chassis !== null && vehicles[index].chassis.collider === collider) {
+      const chassis = vehicles[index].chassis;
+      if (chassis !== null && chassis.collider === collider) {
         vehicles[index].dispose();
       }
     }
