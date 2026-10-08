@@ -96,7 +96,7 @@ export class GameObject {
   onDestroy(): void {}
 
   addChild<T extends GameObject>(child: T, options: ParentOptions = {}): T | null {
-    if (this.destroyed || child.destroyed || child === this) return null;
+    if (this.destroyed || child.destroyed || (child as GameObject) === this) return null;
     if (child.parentObject === this) return child;
 
     let ancestor: GameObject | null = this;
