@@ -207,6 +207,9 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Harness runner tests
+        run: npm run test:tools
+
       - name: TypeScript harnesses
         run: node tools/run-ts-harnesses.mjs
 

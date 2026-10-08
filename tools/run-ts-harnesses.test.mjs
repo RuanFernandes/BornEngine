@@ -143,6 +143,24 @@ test('disabled entries print SKIP with the reason, are not run, and do not affec
   }
 });
 
+test('disabled takes precedence over ci, with or without --include-ci', () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'both.ts': FAILING },
+    [{ file: 'both.ts', runner: 'node', ci: true, disabled: 'known crash' }],
+  );
+  try {
+    for (const args of [[], ['--include-ci']]) {
+      const result = runRunner(manifestPath, ...args);
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+      assert.match(result.stdout, /SKIP both\.ts: known crash/);
+      assert.doesNotMatch(result.stdout, /\(ci\)/);
+      assert.doesNotMatch(result.stdout, /(PASS|FAIL) both\.ts/);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a failing harness still fails the run when another entry is disabled', () => {
   const { dir, manifestPath } = createFixtureDir(
     { 'bad.ts': FAILING, 'off.ts': FAILING },
