@@ -326,12 +326,12 @@ export function drawRay(origin: Vec3, direction: Vec3, color: Color): void {
 
 export function genMeshCube(width: number, height: number, depth: number): Model {
   const handle = bloom_gen_mesh_cube(width, height, depth);
-  return makeModel(handle, 1, 1);
+  return makeModel(handle);
 }
 
 export function genMeshHeightmap(imageHandle: number, sizeX: number, sizeY: number, sizeZ: number): Model {
   const handle = bloom_gen_mesh_heightmap(imageHandle, sizeX, sizeY, sizeZ);
-  return makeModel(handle, 1, 1);
+  return makeModel(handle);
 }
 
 export function loadShader(wgslSource: string): number {
@@ -948,7 +948,7 @@ function uploadMeshScratch(
   for (let i = 0; i < vfloats; i++) bloom_mesh_scratch_push_f32(vertices[i]);
   for (let i = 0; i < indexCount; i++) bloom_mesh_scratch_push_u32(indices[i]);
   const handle = bloom_create_mesh_scratch(vertexCount, indexCount);
-  return makeModel(handle, 1, 1);
+  return makeModel(handle);
 }
 
 export function createMesh(vertices: number[], indices: number[]): Model {
@@ -1037,7 +1037,7 @@ export async function loadModelAsync(path: string): Promise<Model> {
         parsed.indices as any,
         parsed.indices.length,
       );
-      return makeModel(handle, 1, 1);
+      return makeModel(handle);
     }
     return makeModel(0);
   }
