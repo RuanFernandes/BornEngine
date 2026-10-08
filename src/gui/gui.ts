@@ -364,7 +364,7 @@ export class GUI {
     return this._profile ?? GUIProfiles.get('default');
   }
   setProfile(profile: GuiProfile | null): this {
-    if (profile !== null && !(profile instanceof GuiProfile))
+    if (profile !== null && !(typeof profile === 'object' && profile instanceof GuiProfile))
       throw new TypeError('setProfile expects a GuiProfile or null.');
     this._profile = profile;
     return this;
@@ -689,7 +689,8 @@ export class GUI {
   }
 
   private assertCanAttach(control: GUI): void {
-    if (!(control instanceof GUI)) throw new TypeError('Only GUI controls can be attached.');
+    if (!(typeof control === 'object' && control !== null && control instanceof GUI))
+      throw new TypeError('Only GUI controls can be attached.');
     if (this._destroyed || control._destroyed) throw new Error('Destroyed GUI controls cannot be attached.');
     for (let ancestor: GUI | null = this; ancestor !== null; ancestor = ancestor._parent) {
       if (ancestor === control) throw new Error('Attaching this control would create a GUI cycle.');

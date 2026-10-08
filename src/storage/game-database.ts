@@ -152,7 +152,7 @@ function writeValue(value: unknown, depth = 0): boolean {
     bloom_database_scratch_push_f64(value ? 4 : 3);
     return true;
   }
-  if (value instanceof Uint8Array) {
+  if (typeof value === 'object' && value instanceof Uint8Array) {
     bloom_database_scratch_push_f64(5);
     bloom_database_scratch_push_f64(value.length);
     for (let i = 0; i < value.length; i++) bloom_database_scratch_push_byte(value[i]);
@@ -585,7 +585,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     const response = await this.request(OP_EXPORT, this.handle, []);
     const bytes = response.status === 'ok' && response.count === 1 ? readValue(response.ticket, 0) : null;
     const output =
-      bytes instanceof Uint8Array
+      typeof bytes === 'object' && bytes !== null && bytes instanceof Uint8Array
         ? result('ok', bytes)
         : result<Uint8Array>(response.status === 'ok' ? 'corrupt_data' : response.status);
     release(response);
@@ -595,7 +595,8 @@ export class GameDatabase<S extends DatabaseSchema> {
   async import(bytes: Uint8Array): Promise<DatabaseResult<void>> {
     const state = this.ready();
     if (state !== 'ok') return result(state);
-    if (!(bytes instanceof Uint8Array) || bytes.length < 100) return result('invalid_data');
+    if (!(typeof bytes === 'object' && bytes !== null && bytes instanceof Uint8Array) || bytes.length < 100)
+      return result('invalid_data');
     const header = 'SQLite format 3\u0000';
     for (let i = 0; i < header.length; i++) if (bytes[i] !== header.charCodeAt(i)) return result('corrupt_data');
     const response = await this.request(OP_IMPORT, this.handle, [bytes]);

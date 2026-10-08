@@ -166,7 +166,7 @@ export function validateSchema(schema: DatabaseSchema): boolean {
 }
 
 export function validColumnValue(kind: ColumnKind, value: unknown): boolean {
-  if (kind === 'blob') return value instanceof Uint8Array;
+  if (kind === 'blob') return typeof value === 'object' && value !== null && value instanceof Uint8Array;
   if (kind === 'text') return typeof value === 'string';
   if (kind === 'boolean') return typeof value === 'boolean';
   if (typeof value !== 'number' || !Number.isFinite(value)) return false;

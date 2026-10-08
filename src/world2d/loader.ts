@@ -630,7 +630,7 @@ export class World2DLoader {
         },
       };
       const result = factory(cloneJsonValue(descriptor.data) as Record<string, World2DJsonValue>, context);
-      if (result instanceof GameComponent) return result;
+      if (typeof result === 'object' && result !== null && result instanceof GameComponent) return result;
       if (isDiagnostic(result)) {
         diagnostics.push({
           path: result.path.length > 0 ? result.path : componentPath,

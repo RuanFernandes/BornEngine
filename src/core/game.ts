@@ -408,7 +408,8 @@ export class Game {
   private recordRunError(error: unknown): void {
     const context = getGameContext(this);
     if (context.error !== null) return;
-    context.error = error instanceof Error ? error.message : String(error);
+    context.error =
+      typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error);
   }
 
   private disposeInternal(): void {

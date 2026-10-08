@@ -130,7 +130,7 @@ export class SpriteAnimator extends GameComponent {
       renderer === null ||
       renderer === undefined ||
       renderer.error !== null ||
-      (renderer instanceof SpriteRenderer && renderer.frame === null)
+      (typeof renderer === 'object' && renderer instanceof SpriteRenderer && renderer.frame === null)
     ) {
       this.animationError =
         renderer === null || renderer === undefined
@@ -155,6 +155,7 @@ export class SpriteAnimator extends GameComponent {
         !isValidName(name) ||
         clip === null ||
         clip === undefined ||
+        typeof clip !== 'object' ||
         (!(clip instanceof SpriteAnimation) && !(clip instanceof SpriteAnimationTemplateBoundClip)) ||
         !isArray(clip.frames) ||
         clip.error !== null ||

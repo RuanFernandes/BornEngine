@@ -167,7 +167,8 @@ export class GUIProfiles {
 
   static register(name: string, profile: GuiProfile): void {
     if (name.trim().length === 0) throw new Error('GUI profile names cannot be empty.');
-    if (!(profile instanceof GuiProfile)) throw new TypeError('GUIProfiles.register expects a GuiProfile.');
+    if (!(typeof profile === 'object' && profile !== null && profile instanceof GuiProfile))
+      throw new TypeError('GUIProfiles.register expects a GuiProfile.');
     if (this.profiles.has(name)) throw new Error(`GUI profile already registered: ${name}`);
     this.profiles.set(name, profile);
   }

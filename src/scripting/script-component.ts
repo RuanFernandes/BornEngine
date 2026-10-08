@@ -172,7 +172,7 @@ export class ScriptComponent extends GameComponent {
       this.statusValue = 'ready';
       this.memoryUsedValue = scriptOperations.scriptVmMemoryUsed(handle);
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : String(error));
+      this.fail(typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error));
       if (handle > 0) scriptOperations.destroyScriptVm(handle);
       this.handleValue = 0;
     }
@@ -250,7 +250,7 @@ export class ScriptComponent extends GameComponent {
     try {
       callback();
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : String(error));
+      this.fail(typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error));
     }
     this.lastCallbackMsValue = Math.max(0, Date.now() - start);
     if (this.handleValue !== 0) this.memoryUsedValue = scriptOperations.scriptVmMemoryUsed(this.handleValue);
@@ -322,7 +322,9 @@ export class ScriptComponent extends GameComponent {
           this.applyCommands();
         }
       } catch (error) {
-        this.fail(error instanceof Error ? error.message : String(error));
+        this.fail(
+          typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error),
+        );
       } finally {
         scriptOperations.destroyScriptVm(handle);
         this.handleValue = 0;

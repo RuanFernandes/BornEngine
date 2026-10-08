@@ -86,6 +86,11 @@
     "ci": true
   },
   {
+    "file": "instanceof-primitives.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
     "file": "perry-compat.ts",
     "runner": "perry",
     "ci": true

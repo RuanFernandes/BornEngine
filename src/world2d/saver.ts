@@ -80,7 +80,7 @@ function emitJson(value: any, depth: number, readable: boolean, sortObjects: boo
   if (typeof value === 'string') return quote(value);
   if (typeof value === 'number') return number(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (value instanceof ReadableTileGrid) return emitReadableGrid(value, depth);
+  if (typeof value === 'object' && value instanceof ReadableTileGrid) return emitReadableGrid(value, depth);
   if (Array.isArray(value)) {
     if (value.length === 0) return '[]';
     if (!readable) return '[' + value.map((item) => emitJson(item, depth + 1, false, sortObjects)).join(',') + ']';

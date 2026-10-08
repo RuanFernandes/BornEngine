@@ -184,7 +184,7 @@ export class Matrix4 {
 }
 
 function unwrapMatrix(value: Matrix4 | Mat4): Mat4 {
-  return value instanceof Matrix4 ? value.elements : value;
+  return typeof value === 'object' && value !== null && value instanceof Matrix4 ? value.elements : value;
 }
 
 export class Mathf {

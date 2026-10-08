@@ -142,7 +142,9 @@ export class GameContext {
       try {
         pending[index].dispose();
       } catch (error) {
-        if (this.error === null) this.error = error instanceof Error ? error.message : String(error);
+        if (this.error === null)
+          this.error =
+            typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error);
       }
     }
   }
