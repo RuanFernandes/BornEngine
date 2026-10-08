@@ -50,9 +50,16 @@ Run from the repository root unless a command changes directory. Install each pa
 
 ```bash
 node tools/validate-ffi.js
+npm run typecheck
+npm run lint
+npm run format:check
+npm run test:unit
+npm run test:harnesses
+npm run test:tools
 npm run test:runtime
 npm run test:scripting
 npm run examples:check:static
+npm test
 npm run examples:check
 cargo test --release --manifest-path native/shared/Cargo.toml
 cargo clippy --release --no-deps --manifest-path native/shared/Cargo.toml -- -D warnings
@@ -63,5 +70,9 @@ npm test --prefix webpage
 npm run build --prefix webpage
 npm run validate:dist --prefix webpage
 ```
+
+Node `>=22.18` is required (`engines` in `package.json`). Perry is installed from `devDependencies` (`@perryts/perry`), so `npm install` provides the pinned compiler. `npm test` is the aggregate: `typecheck`, `lint`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, `test:scripting`, then `examples:check:static`. `format:check` (Biome, configured in `biome.jsonc`) is not part of `npm test`; CI runs it separately. `typecheck` covers `src/` and `types/` only.
+
+`test:harnesses` runs `tests/game-runtime/harnesses.json` through `tools/run-ts-harnesses.mjs`. Entries marked `"ci": true` are skipped locally and run in CI with `--include-ci`. Entries with a `"disabled"` reason are reported as `SKIP` and counted as disabled. `world2d-format.ts` is disabled under Perry 0.5.1520 (runtime SIGSEGV); remove its marker when the Perry pin moves to a fixed version.
 
 `npm run examples:check` invokes Perry compilation for example entrypoints and runs the multiplayer server tests; it is substantially heavier than `examples:check:static`. Web builds require `wasm-pack` and the WASM Rust target. Graphical/native smoke tests require a suitable display and GPU backend. CI requirements and target-specific build commands live in `.github/workflows/test.yml`.

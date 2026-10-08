@@ -63,6 +63,30 @@ Check the platform-specific guide and Cargo feature list before describing a cap
 
 Run commands from the engine repository root. Select checks based on the changed surface; the full native and cross-platform workflows require additional platform tools and can take substantially longer.
 
+### Toolchain
+
+Node `>=22.18` is required (`engines` in `package.json`). Perry comes from `devDependencies` (`@perryts/perry`); `npm install` provides the pinned compiler, so no global Perry install is needed.
+
+### TypeScript correctness
+
+```sh
+npm run typecheck
+npm run lint
+npm run format:check
+npm run test:unit
+npm run test:harnesses
+npm run test:tools
+npm test
+```
+
+- `typecheck` runs `tsc -p tsconfig.json` over `src/` and `types/`.
+- `lint` and `format:check` run Biome (`biome.jsonc`) over `src` and `types`.
+- `test:unit` runs `tests/*.test.mjs` with the Node test runner.
+- `test:harnesses` runs the TypeScript harnesses listed in `tests/game-runtime/harnesses.json` through `tools/run-ts-harnesses.mjs`, each with the `node` or `perry` runner named in its entry. Entries with `"ci": true` are skipped locally and run in CI with `--include-ci`. Entries with a `"disabled"` reason are reported as `SKIP` and counted as disabled. `world2d-format.ts` is disabled under Perry 0.5.1520 (runtime SIGSEGV); remove its marker when the Perry pin moves to a fixed version.
+- `test:tools` tests the harness runner itself.
+
+`npm test` is the aggregate: `typecheck`, `lint`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, `test:scripting`, then `examples:check:static`. `format:check` is not part of `npm test`; CI runs it separately.
+
 ### TypeScript runtime and examples
 
 ```sh
