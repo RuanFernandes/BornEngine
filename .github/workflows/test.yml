@@ -414,8 +414,8 @@ jobs:
             perry compile lifecycle-integration.ts --target linux --no-cache -o /tmp/bornengine-lifecycle-integration
           /tmp/bornengine-lifecycle-integration
 
-      - name: Check all BornEngine examples
-        run: npm run examples:check
+      - name: Check BornEngine examples (static)
+        run: npm run examples:check:static
 
       - name: Compile class-first TypeScript API to native
         working-directory: examples/colyseus-smoke

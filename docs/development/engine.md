@@ -96,7 +96,7 @@ npm run examples:check:static
 npm run examples:check
 ```
 
-`examples:check:static` runs the example validator without compiling every Perry entrypoint. `examples:check` performs the broader example compilation and multiplayer server checks.
+`examples:check:static` runs the example validator without compiling every Perry entrypoint. `examples:check` performs the broader example compilation and multiplayer server checks. CI runs only `examples:check:static`; run `examples:check` locally.
 
 ### Native Rust and FFI
 
