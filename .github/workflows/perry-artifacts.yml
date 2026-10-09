@@ -1,0 +1,160 @@
+name: Perry artifacts
+
+# Builds the Perry compiler at the commit pinned in perry.source.json, once per
+# platform BornEngine ships. Each archive holds the compiler and its runtime
+# libraries in one `perry/` directory, is smoke-tested by compiling and running
+# a hello-world from the extracted copy, and is uploaded as a workflow artifact.
+# release.yml attaches the archives to the GitHub Release; they can also be
+# built by hand from the Actions tab.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Perry ${{ matrix.asset }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            asset: linux-x86_64
+            archive: tar.gz
+          - runner: macos-14
+            asset: macos-aarch64
+            archive: tar.gz
+          - runner: macos-15-intel
+            asset: macos-x86_64
+            archive: tar.gz
+          - runner: windows-latest
+            asset: windows-x86_64
+            archive: zip
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup Perry
+        uses: ./.github/actions/setup-perry
+
+      - name: Stage and archive (unix)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          perry_dir="$(dirname "$PERRY_BIN")"
+          stage="$RUNNER_TEMP/stage/perry"
+          rm -rf "$stage" && mkdir -p "$stage" dist
+          cp "$PERRY_BIN" "$stage/"
+          libs=0
+          for lib in libperry_runtime.a libperry_stdlib.a; do
+            if [ -f "$perry_dir/$lib" ]; then cp "$perry_dir/$lib" "$stage/"; libs=$((libs + 1)); fi
+          done
+          if [ "$libs" -ne 2 ]; then
+            echo "::error::expected libperry_runtime.a and libperry_stdlib.a next to $PERRY_BIN"
+            exit 1
+          fi
+          node -p 'require("./perry.source.json").commit' > "$stage/PERRY_COMMIT"
+          tar -czf "dist/perry-$ASSET.tar.gz" -C "$RUNNER_TEMP/stage" perry
+          ls -la dist
+
+      - name: Stage and archive (windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $perryDir = Split-Path -Parent $env:PERRY_BIN
+          $stageRoot = Join-Path $env:RUNNER_TEMP 'stage'
+          $stage = Join-Path $stageRoot 'perry'
+          Remove-Item -Recurse -Force $stageRoot -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $stage, 'dist' | Out-Null
+          Copy-Item $env:PERRY_BIN $stage
+          $copied = 0
+          foreach ($lib in 'perry_runtime.lib', 'perry_stdlib.lib') {
+            $source = Join-Path $perryDir $lib
+            if (Test-Path $source) { Copy-Item $source $stage; $copied++ }
+          }
+          if ($copied -ne 2) { throw "expected perry_runtime.lib and perry_stdlib.lib next to $env:PERRY_BIN" }
+          node -p 'require("./perry.source.json").commit' | Set-Content -Encoding ascii (Join-Path $stage 'PERRY_COMMIT')
+          & "$env:SystemRoot\System32\tar.exe" -a -c -f "dist\perry-$env:ASSET.zip" -C $stageRoot perry
+          if ($LASTEXITCODE -ne 0) { throw "tar failed with $LASTEXITCODE" }
+          Get-ChildItem dist
+
+      - name: Smoke test archive (unix)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          verify="$RUNNER_TEMP/verify"
+          rm -rf "$verify" && mkdir -p "$verify"
+          tar -xzf "dist/perry-$ASSET.tar.gz" -C "$verify"
+          compiler="$verify/perry/perry"
+          "$compiler" --version
+          printf 'console.log("perry archive ok");\n' > "$verify/hello.ts"
+          cd "$verify"
+          "$compiler" compile hello.ts -o hello-out
+          test "$(./hello-out)" = "perry archive ok"
+
+      - name: Smoke test archive (windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $verify = Join-Path $env:RUNNER_TEMP 'verify'
+          Remove-Item -Recurse -Force $verify -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $verify | Out-Null
+          & "$env:SystemRoot\System32\tar.exe" -xf "dist\perry-$env:ASSET.zip" -C $verify
+          if ($LASTEXITCODE -ne 0) { throw "tar extract failed with $LASTEXITCODE" }
+          $compiler = Join-Path $verify 'perry\perry.exe'
+          & $compiler --version
+          if ($LASTEXITCODE -ne 0) { throw "perry --version failed with $LASTEXITCODE" }
+          Set-Content -Encoding ascii -Path (Join-Path $verify 'hello.ts') -Value 'console.log("perry archive ok");'
+          Push-Location $verify
+          try {
+            & $compiler compile hello.ts -o hello-out.exe
+            if ($LASTEXITCODE -ne 0) { throw "perry compile failed with $LASTEXITCODE" }
+            $output = & .\hello-out.exe
+            if ($output -ne 'perry archive ok') { throw "unexpected output: $output" }
+          } finally {
+            Pop-Location
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: perry-${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  checksums:
+    name: Perry SHA-256 sums
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: perry-*
+          merge-multiple: true
+          path: dist
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: sha256sum perry-*.tar.gz perry-*.zip > perry-SHA256SUMS.txt && cat perry-SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: perry-SHA256SUMS
+          path: dist/perry-SHA256SUMS.txt
+          if-no-files-found: error

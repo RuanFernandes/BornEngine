@@ -18,6 +18,8 @@ name: Release
 # Job order:
 #   await-tests          — gate on Tests workflow passing for the tag SHA
 #   github-release       — create/keep the GH Release object
+#   perry                — build Perry archives for every platform (perry-artifacts.yml)
+#                          and attach them in github-release
 #   build-jolt-prebuilt  — matrix: build libJolt + libbloom_jolt for every
 #                          (os, arch) variant on its native runner
 #   publish-jolt-prebuilt — assemble the artifacts into npm/jolt-prebuilt/lib/
@@ -113,7 +115,7 @@ jobs:
   # creates one with auto-generated notes.
   # ---------------------------------------------------------------------------
   github-release:
-    needs: await-tests
+    needs: [await-tests, perry]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -147,6 +149,19 @@ jobs:
             --title "$TAG" \
             --generate-notes
 
+      - name: Download Perry archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: perry-*
+          merge-multiple: true
+          path: perry-dist
+
+      - name: Attach Perry archives to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: gh release upload "$TAG" perry-dist/* --clobber
+
       - name: Verify package.json version matches tag
         env:
           VERSION: ${{ steps.tag.outputs.version }}
@@ -159,6 +174,14 @@ jobs:
           else
             echo "OK  package.json version matches tag ($VERSION)"
           fi
+
+  # ---------------------------------------------------------------------------
+  # Perry compiler archives for every platform, built from the commit pinned in
+  # perry.source.json. github-release attaches them to the GitHub Release.
+  # ---------------------------------------------------------------------------
+  perry:
+    needs: await-tests
+    uses: ./.github/workflows/perry-artifacts.yml
 
   # ---------------------------------------------------------------------------
   # Build the JoltPhysics + bloom_jolt static libraries for every (os, arch)
