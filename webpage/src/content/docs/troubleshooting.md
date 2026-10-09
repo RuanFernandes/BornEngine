@@ -15,7 +15,7 @@ Fix the first failing check and run it again. Game projects need Perry, a packag
 
 ## Common failures
 
-- **Perry not found:** install Perry and ensure `perry` is on `PATH`.
+- **Perry not found:** run `bornengine perry install`, or put `perry` on `PATH`, then run `bornengine doctor`.
 - **Package manager missing:** install the manager selected by the project.
 - **Linux link errors:** install `pkg-config`, X11/XI headers, and ALSA headers.
 - **Missing Perry runtime archive:** follow Perry's diagnostic to install or build the matching runtime.

@@ -37,7 +37,7 @@ The npm package ships the TypeScript API and the engine's Rust sources. Platform
 
 You'll also need:
 
-- **Perry** — the TypeScript AOT compiler that turns your game into a native binary or WASM module. It also drives the engine's native build.
+- **Perry** — the TypeScript AOT compiler that turns your game into a native binary or WASM module. It also drives the engine's native build. Install it with `bornengine perry install` (see the [BornEngine CLI](https://github.com/RuanFernandes/bornengine-cli)); the CLI downloads a SHA-256-verified build from the latest BornEngine release. Engine contributors build the pinned compiler with `npm run perry:setup`.
 - **Rust toolchain** ([rustup.rs](https://rustup.rs)) — Perry invokes Cargo to compile the engine's platform crate the first time you build for each target.
 - For web builds only: [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) (`cargo install wasm-pack`).
 

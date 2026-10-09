@@ -37,6 +37,7 @@ export const navigation: NavigationGroup[] = [
       { title: 'Native build cache', href: '/docs/cli/cache/' },
       { title: 'Asset audit', href: '/docs/cli/assets/' },
       { title: 'Diagnostics', href: '/docs/cli/diagnostics/' },
+      { title: 'Perry compiler', href: '/docs/cli/perry/' },
       { title: 'Engine versions', href: '/docs/cli/engine/' },
       { title: 'Configuration', href: '/docs/cli/configuration/' },
       { title: 'Import maps', href: '/docs/cli/import/' },

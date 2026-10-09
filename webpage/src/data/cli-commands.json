@@ -295,5 +295,49 @@
     "options": ["-v, --verbose (repeatable)"],
     "behavior": "Lists configuration keys and values to make project setup easier to inspect.",
     "related": ["/docs/cli/configuration/", "/docs/cli/diagnostics/"]
+  },
+  {
+    "id": "perry/install",
+    "group": "perry",
+    "title": "Install Perry",
+    "summary": "Download the Perry compiler for this host from a BornEngine release.",
+    "synopsis": "bornengine perry install [--release <tag>]",
+    "examples": ["bornengine perry install", "bornengine perry install --release v0.16.1"],
+    "options": ["--release <tag> (defaults to the latest release)", "-v, --verbose (repeatable)"],
+    "behavior": "Downloads the archive for this platform, verifies its SHA-256 checksum, and extracts it into a directory for that release under the user data directory. The installed release becomes current.",
+    "related": ["/docs/cli/perry/", "/docs/getting-started/installation/"]
+  },
+  {
+    "id": "perry/path",
+    "group": "perry",
+    "title": "Show the Perry compiler",
+    "summary": "Print the Perry compiler that builds will run.",
+    "synopsis": "bornengine perry path",
+    "examples": ["bornengine perry path"],
+    "options": ["-v, --verbose (repeatable)"],
+    "behavior": "Prints the path from BORNENGINE_PERRY when set, otherwise the current managed install, otherwise perry from PATH.",
+    "related": ["/docs/cli/perry/", "/docs/cli/diagnostics/"]
+  },
+  {
+    "id": "perry/list",
+    "group": "perry",
+    "title": "List installed Perry compilers",
+    "summary": "Show the Perry releases installed by bornengine perry install.",
+    "synopsis": "bornengine perry list",
+    "examples": ["bornengine perry list"],
+    "options": ["-v, --verbose (repeatable)"],
+    "behavior": "Lists managed installs and marks the current one. A perry binary found only on PATH is not listed.",
+    "related": ["/docs/cli/perry/"]
+  },
+  {
+    "id": "perry/clean",
+    "group": "perry",
+    "title": "Remove old Perry compilers",
+    "summary": "Delete managed Perry installs other than the current one, plus interrupted downloads.",
+    "synopsis": "bornengine perry clean [--dry-run]",
+    "examples": ["bornengine perry clean --dry-run", "bornengine perry clean"],
+    "options": ["--dry-run (list what would be removed without deleting)", "-v, --verbose (repeatable)"],
+    "behavior": "Keeps the current install and removes other managed releases and partial downloads. BORNENGINE_PERRY and perry on PATH are never touched.",
+    "related": ["/docs/cli/perry/"]
   }
 ]

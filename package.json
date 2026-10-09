@@ -1,6 +1,6 @@
 {
   "name": "@bornengine/engine",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
     "test": "npm run typecheck && npm run lint && npm run test:unit && npm run test:harnesses && npm run test:tools && npm run test:runtime && npm run test:scripting && npm run examples:check:static",
@@ -12,10 +12,11 @@
     "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
     "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --experimental-vm-modules --disable-warning=ExperimentalWarning tests/game-runtime/scripted-actor-package-harness.cjs",
     "test:harnesses": "node tools/run-ts-harnesses.mjs",
-    "test:tools": "node --test tools/run-ts-harnesses.test.mjs",
+    "test:tools": "node --test tools/run-ts-harnesses.test.mjs tools/perry.test.mjs",
     "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
     "examples:check:static": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs --static",
-    "test:examples-validator": "node --test tools/validate-examples.test.mjs"
+    "test:examples-validator": "node --test tools/validate-examples.test.mjs",
+    "perry:setup": "node tools/perry.mjs setup"
   },
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -110,8 +111,7 @@
   "devDependencies": {
     "@bornengine/engine": "file:.",
     "@biomejs/biome": "2.5.15",
-    "typescript": "5.9.3",
-    "@perryts/perry": "0.5.1520"
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=22.18"

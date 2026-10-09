@@ -14,6 +14,7 @@ order: 20
 - [Native build cache](cache/) — inspect or warm the shared Rust artifact cache.
 - [Asset audit](assets/) — validate references, media headers, budgets, JSON reports, and deterministic packs.
 - [Diagnostics](diagnostics/) — `clean`, `doctor`, `info`, and `version`.
+- [Perry compiler](perry/) — `perry install`, `path`, `list`, and `clean`.
 - [Engine versions](engine/) — inspect and change the BornEngine dependency used by a project.
 - [Import maps](import/) — convert supported Tiled maps to BornEngine World2D JSON.
 - [Configuration](configuration/) — `config set|get|list`; the page also explains the top-level CLI update check.
