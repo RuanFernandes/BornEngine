@@ -8,7 +8,7 @@ name = "bloom_tvos"
 crate-type = ["staticlib"]
 
 [features]
-default = ["mp3", "jolt", "models3d", "image-extras"]
+default = ["mp3", "jolt", "models3d", "image-extras", "multiplayer", "dialogs"]
 mp3 = ["bloom-shared/mp3"]
 jolt = ["bloom-shared/jolt"]
 # EN-014 — see native/shared/Cargo.toml. Default-on for direct Cargo builds;
@@ -16,6 +16,8 @@ jolt = ["bloom-shared/jolt"]
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras", "image/hdr"]
 sqlite = ["bloom-shared/sqlite"]
+multiplayer = ["bloom-shared/multiplayer"]
+dialogs = []
 scripting = ["bloom-shared/scripting"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]

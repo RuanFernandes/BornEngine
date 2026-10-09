@@ -8,7 +8,7 @@ name = "bloom_linux"
 crate-type = ["staticlib"]
 
 [features]
-default = ["mp3", "jolt", "models3d", "image-extras"]
+default = ["mp3", "jolt", "models3d", "image-extras", "multiplayer", "dialogs"]
 mp3 = ["bloom-shared/mp3"]
 jolt = ["bloom-shared/jolt"]
 # EN-014 — see native/shared/Cargo.toml. Default-on for direct Cargo builds;
@@ -16,6 +16,8 @@ jolt = ["bloom-shared/jolt"]
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras", "image/hdr", "image/jpeg", "image/bmp", "image/tga"]
 sqlite = ["bloom-shared/sqlite"]
+multiplayer = ["bloom-shared/multiplayer"]
+dialogs = ["dep:rfd"]
 scripting = ["bloom-shared/scripting"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
@@ -28,7 +30,7 @@ raw-window-handle = "0.6"
 wgpu = "29"
 libc = "0.2"
 arboard = "3"
-rfd = "0.15"
+rfd = { version = "0.15", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 x11 = "2"

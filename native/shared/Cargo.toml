@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["mp3", "jolt", "hot-reload", "models3d", "image-extras"]
+default = ["mp3", "jolt", "hot-reload", "models3d", "image-extras", "multiplayer"]
 mp3 = ["dep:minimp3"]
 jolt = []
 sqlite = ["dep:rusqlite"]
+# Links the bundled Colyseus native SDK (see build.rs). Without it the FFI
+# surface stays and reports that multiplayer is not compiled in.
+multiplayer = []
 scripting = ["dep:rquickjs"]
 # EN-008 — gate the `notify` filesystem watcher behind a compile-time
 # feature. Default-on for the dev workflow; ship game binaries with

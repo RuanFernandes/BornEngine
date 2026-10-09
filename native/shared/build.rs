@@ -11,9 +11,12 @@ fn main() {
     // Always re-run when these change.
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_JOLT");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_MULTIPLAYER");
     println!("cargo:rustc-check-cfg=cfg(colyseus_native_sdk)");
 
-    link_colyseus_sdk();
+    if std::env::var_os("CARGO_FEATURE_MULTIPLAYER").is_some() {
+        link_colyseus_sdk();
+    }
 
     if std::env::var_os("CARGO_FEATURE_JOLT").is_none() {
         return;

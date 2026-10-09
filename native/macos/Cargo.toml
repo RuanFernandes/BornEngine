@@ -11,7 +11,7 @@ crate-type = ["staticlib"]
 # Direct Cargo builds include all engine features. BornEngine CLI profiles
 # disable unused native features for builds started with `bornengine build`,
 # `run`, or `dev`.
-default = ["mp3", "jolt", "models3d", "image-extras"]
+default = ["mp3", "jolt", "models3d", "image-extras", "multiplayer", "dialogs"]
 mp3 = ["bloom-shared/mp3"]
 jolt = ["bloom-shared/jolt"]
 # EN-014 — glTF/DDS model loading + ModelManager (and this crate's
@@ -21,6 +21,8 @@ models3d = ["bloom-shared/models3d"]
 # env-map decode (bloom_set_env_clear_from_hdr).
 image-extras = ["bloom-shared/image-extras", "image/hdr"]
 sqlite = ["bloom-shared/sqlite"]
+multiplayer = ["bloom-shared/multiplayer"]
+dialogs = ["dep:rfd"]
 scripting = ["bloom-shared/scripting"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
@@ -44,5 +46,5 @@ objc2-quartz-core = { version = "0.3", features = ["CAMetalLayer"] }
 raw-window-handle = "0.6"
 wgpu = "29"
 libc = "0.2"
-rfd = "0.15"
+rfd = { version = "0.15", optional = true }
 arboard = "3"

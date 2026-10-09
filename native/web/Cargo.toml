@@ -10,13 +10,15 @@ crate-type = ["cdylib"]
 # Mirror native/macos: direct Cargo builds include all engine features. The
 # published Web target uses a prebuilt WASM package, so BornEngine CLI native
 # profiles do not change that artifact.
-default = ["jolt", "models3d", "image-extras"]
+default = ["jolt", "models3d", "image-extras", "multiplayer", "dialogs"]
 # Retained for shared profile naming; MP3 decoding is unsupported in WASM.
 mp3 = []
 jolt = ["bloom-shared/jolt"]
 models3d = ["bloom-shared/models3d"]
 image-extras = ["bloom-shared/image-extras"]
 scripting = ["bloom-shared/scripting"]
+multiplayer = ["bloom-shared/multiplayer"]
+dialogs = []
 
 [package.metadata.wasm-pack.profile.dev]
 wasm-opt = false

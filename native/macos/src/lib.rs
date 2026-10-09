@@ -1017,17 +1017,26 @@ pub extern "C" fn bloom_get_clipboard_text() -> *const u8 {
 /// String pointer arguments must be valid Perry FFI values for this call.
 /// Heap strings must have a readable header and claimed payload.
 pub unsafe extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
-    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
-    let filter = unsafe { str_from_header(filter_ptr) };
-    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
-    let title = unsafe { str_from_header(title_ptr) };
-    let mut dialog = rfd::FileDialog::new().set_title(title);
-    if !filter.is_empty() {
-        dialog = dialog.add_filter("Files", &[filter.as_str()]);
+    #[cfg(not(feature = "dialogs"))]
+    {
+        let _ = (filter_ptr, title_ptr);
+        bloom_shared::ffi::feature_off_warn_once("bloom_open_file_dialog", "dialogs");
+        return alloc_perry_string("");
     }
-    match dialog.pick_file() {
-        Some(path) => alloc_perry_string(&path.to_string_lossy()),
-        None => alloc_perry_string(""),
+    #[cfg(feature = "dialogs")]
+    {
+        // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+        let filter = unsafe { str_from_header(filter_ptr) };
+        // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+        let title = unsafe { str_from_header(title_ptr) };
+        let mut dialog = rfd::FileDialog::new().set_title(title);
+        if !filter.is_empty() {
+            dialog = dialog.add_filter("Files", &[filter.as_str()]);
+        }
+        match dialog.pick_file() {
+            Some(path) => alloc_perry_string(&path.to_string_lossy()),
+            None => alloc_perry_string(""),
+        }
     }
 }
 
@@ -1036,16 +1045,25 @@ pub unsafe extern "C" fn bloom_open_file_dialog(filter_ptr: *const u8, title_ptr
 /// String pointer arguments must be valid Perry FFI values for this call.
 /// Heap strings must have a readable header and claimed payload.
 pub unsafe extern "C" fn bloom_save_file_dialog(default_name_ptr: *const u8, title_ptr: *const u8) -> *const u8 {
-    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
-    let default_name = unsafe { str_from_header(default_name_ptr) };
-    // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
-    let title = unsafe { str_from_header(title_ptr) };
-    let dialog = rfd::FileDialog::new()
-        .set_title(title)
-        .set_file_name(default_name);
-    match dialog.save_file() {
-        Some(path) => alloc_perry_string(&path.to_string_lossy()),
-        None => alloc_perry_string(""),
+    #[cfg(not(feature = "dialogs"))]
+    {
+        let _ = (default_name_ptr, title_ptr);
+        bloom_shared::ffi::feature_off_warn_once("bloom_save_file_dialog", "dialogs");
+        return alloc_perry_string("");
+    }
+    #[cfg(feature = "dialogs")]
+    {
+        // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+        let default_name = unsafe { str_from_header(default_name_ptr) };
+        // SAFETY: Perry supplies this string pointer for the duration of the FFI call.
+        let title = unsafe { str_from_header(title_ptr) };
+        let dialog = rfd::FileDialog::new()
+            .set_title(title)
+            .set_file_name(default_name);
+        match dialog.save_file() {
+            Some(path) => alloc_perry_string(&path.to_string_lossy()),
+            None => alloc_perry_string(""),
+        }
     }
 }
 

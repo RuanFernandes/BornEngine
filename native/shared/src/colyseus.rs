@@ -3,6 +3,10 @@
 //! The SDK is kept in polled mode so all room callbacks are copied into a
 //! queue on the game's polling thread and delivered to Perry from TypeScript.
 
+// Without the SDK archive (`multiplayer` off, or an unsupported target) only the
+// FFI fallbacks are live and the bridge types below are intentionally unused.
+#![cfg_attr(not(colyseus_native_sdk), allow(dead_code, unused_imports))]
+
 use std::collections::{HashMap, VecDeque};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
@@ -974,9 +978,11 @@ fn room_error(room: u64, message: String) {
 
 #[cfg(not(colyseus_native_sdk))]
 fn unsupported() {
-    push_event(
-        serde_json::json!({"kind":"clientError","message":"The Colyseus Native SDK is currently bundled for Linux x86_64 GNU only."}),
-    );
+    #[cfg(feature = "multiplayer")]
+    let message = "The Colyseus Native SDK is currently bundled for Linux x86_64 GNU only.";
+    #[cfg(not(feature = "multiplayer"))]
+    let message = "Colyseus support is not compiled into this build. Enable the `multiplayer` native feature (bornengine.native_features in perry.toml).";
+    push_event(serde_json::json!({"kind":"clientError","message":message}));
 }
 
 #[cfg(colyseus_native_sdk)]
