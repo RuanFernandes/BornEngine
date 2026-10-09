@@ -42,6 +42,7 @@ Platform support varies by subsystem. QuickJS scripting is compiled on Linux and
 - Keep FFI calls within Perry's supported argument count. For larger or variable payloads, use a bounded scratch protocol with reset, push, and submit operations; see `src/storage/game-database.ts` and `native/shared/src/database/ffi.rs`. Avoid passing TypeScript arrays as raw native pointers.
 - Use the Perry string ABI in `native/shared/src/string_header.rs`. Incoming native string pointers require the safety contract documented there; returned strings use its allocator. Do not build string headers by hand.
 - Avoid parsing packed numeric strings on a per-frame FFI path. Use numeric return values or a typed scratch protocol. Perry-specific workarounds already used in `src/core/internal.ts` and `src/models/internal.ts` should be checked before changing those paths.
+- Engine modules must not run observable code at top level. `package.json` declares `"sideEffects": false`, so Perry prunes re-exported modules no importer uses; an effect that only runs on module load would disappear. Put setup in functions, constructors, or lazy initializers. `npm run check:side-effects` (`tools/check-side-effects.mjs`) enforces this; a reviewed exception goes in its `ALLOWLIST` with a reason.
 - Keep recoverable errors in `error`, status, or result values on Perry-compiled paths. Check resource ownership and disposal when adding a new class or native handle.
 
 ## Verified commands
@@ -52,6 +53,7 @@ Run from the repository root unless a command changes directory. Install each pa
 node tools/validate-ffi.js
 npm run typecheck
 npm run lint
+npm run check:side-effects
 npm run format:check
 npm run test:unit
 npm run test:harnesses
@@ -71,7 +73,7 @@ npm run build --prefix webpage
 npm run validate:dist --prefix webpage
 ```
 
-Node `>=22.18` is required (`engines` in `package.json`). Perry is built from the commit pinned in `perry.source.json` (not npm): run `npm run perry:setup` after `npm install`. It needs LLVM 22 with `LLVM_SYS_221_PREFIX` set (steps in `.github/actions/setup-llvm22/action.yml`). `PERRY_BIN` overrides the binary. `npm test` is the aggregate: `typecheck`, `lint`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, `test:scripting`, then `examples:check:static`. `format:check` (Biome, configured in `biome.jsonc`) is not part of `npm test`; CI runs it separately. `typecheck` covers `src/` and `types/` only.
+Node `>=22.18` is required (`engines` in `package.json`). Perry is built from the commit pinned in `perry.source.json` (not npm): run `npm run perry:setup` after `npm install`. It needs LLVM 22 with `LLVM_SYS_221_PREFIX` set (steps in `.github/actions/setup-llvm22/action.yml`). `PERRY_BIN` overrides the binary. `npm test` is the aggregate: `typecheck`, `lint`, `check:side-effects`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, `test:scripting`, then `examples:check:static`. `format:check` (Biome, configured in `biome.jsonc`) is not part of `npm test`; CI runs it separately. `typecheck` covers `src/` and `types/` only.
 
 `test:harnesses` runs `tests/game-runtime/harnesses.json` through `tools/run-ts-harnesses.mjs`. Entries marked `"ci": true` are skipped locally and run in CI with `--include-ci`. Entries with a `"disabled"` reason are reported as `SKIP` and counted as disabled. Perry releases before the commit that fixed #10479 (4a8aeb30e) segfault when `instanceof` receives an inline short string (1-5 characters), so test `null`/`typeof` primitives before any `instanceof` check on `any`/`unknown` values.
 
