@@ -4,12 +4,14 @@ name: Perry artifacts
 # platform BornEngine ships. Each archive holds the compiler and its runtime
 # libraries in one `perry/` directory, is smoke-tested by compiling and running
 # a hello-world from the extracted copy, and is uploaded as a workflow artifact.
-# release.yml attaches the archives to the GitHub Release; they can also be
-# built by hand from the Actions tab.
+# release.yml attaches the archives to the GitHub Release. Pushing a `perry-*`
+# tag or running the workflow by hand builds them without a BornEngine release.
 
 on:
   workflow_call:
   workflow_dispatch:
+  push:
+    tags: ['perry-*']
 
 permissions:
   contents: read
