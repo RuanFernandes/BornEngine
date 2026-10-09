@@ -217,12 +217,38 @@ test('perry entries run with PERRY_ALLOW_PERRY_FEATURES=1 and the rest of the en
   );
   writeFileSync(join(dir, 'perry'), FAKE_PERRY, { mode: 0o755 });
   try {
+    const env = {
+      ...process.env,
+      PATH: `${dir}:${process.env.PATH}`,
+      PERRY_ALLOW_PERRY_FEATURES: '0',
+      HARNESS_PROBE: 'kept',
+    };
+    delete env.PERRY_BIN;
+    const result = spawnSync(process.execPath, [runnerPath, '--manifest', manifestPath], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /PASS native\.ts/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('PERRY_BIN selects the compiler for perry entries', { skip: process.platform === 'win32' }, () => {
+  const { dir, manifestPath } = createFixtureDir(
+    { 'native.ts': PASSING },
+    [{ file: 'native.ts', runner: 'perry' }],
+  );
+  writeFileSync(join(dir, 'custom-perry'), FAKE_PERRY, { mode: 0o755 });
+  try {
     const result = spawnSync(process.execPath, [runnerPath, '--manifest', manifestPath], {
       cwd: repoRoot,
       encoding: 'utf8',
       env: {
         ...process.env,
-        PATH: `${dir}:${process.env.PATH}`,
+        PERRY_BIN: join(dir, 'custom-perry'),
         PERRY_ALLOW_PERRY_FEATURES: '0',
         HARNESS_PROBE: 'kept',
       },
