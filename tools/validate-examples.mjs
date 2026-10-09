@@ -31,7 +31,6 @@ export const EXAMPLE_ENTRYPOINTS = [
   'examples/renderer-test/main.ts',
   'examples/scene-graph/interactive.ts',
   'examples/scene-graph/main.ts',
-  'examples/scene-graph/r3f-bridge.ts',
   'examples/scene-graph/room.ts',
   'examples/scene-graph/shadows.ts',
   'examples/scripted-actor/main.ts',

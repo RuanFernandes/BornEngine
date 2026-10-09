@@ -44,7 +44,7 @@ Use the entrypoint listed below instead of `main.ts` for the scene-graph program
 | [`kart-racer`](./kart-racer/) | A 3D kart and vehicle controls | `main.ts` |
 | [`pbr-spheres`](./pbr-spheres/) | Physically based materials and lighting | `main.ts` |
 | [`renderer-test`](./renderer-test/) | Low-level renderer regression and screenshot checks | `main.ts` |
-| [`scene-graph`](./scene-graph/) | Scene nodes, rooms, shadows, interaction, and the Perry R3F bridge | `main.ts`, `interactive.ts`, `room.ts`, `shadows.ts`, `r3f-bridge.ts` |
+| [`scene-graph`](./scene-graph/) | Scene nodes, rooms, shadows, and interaction | `main.ts`, `interactive.ts`, `room.ts`, `shadows.ts` |
 | [`sponza`](./sponza/) | Loading and navigating the Sponza scene | `main.ts` |
 | [`test-gltf-watch`](./test-gltf-watch/) | glTF asset reload and rendering checks | `main.ts` |
 | [`test-scene-watch`](./test-scene-watch/) | Scene reload and rendering checks | `main.ts` |
