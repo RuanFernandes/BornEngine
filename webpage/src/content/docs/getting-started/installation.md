@@ -24,8 +24,10 @@ Install the CLI from its companion repository:
 
 ```sh
 cargo install --git https://github.com/RuanFernandes/bornengine-cli
-npm install -g @perryts/perry
+bornengine perry install
 ```
+
+`bornengine perry install` downloads the Perry compiler for your platform from the latest BornEngine release, checks its SHA-256, and stores it under your user data directory. Use `--release <tag>` to pick another release, and `bornengine perry path` to see which compiler builds run.
 
 BornEngine projects default to pnpm, but npm and Yarn are supported:
 

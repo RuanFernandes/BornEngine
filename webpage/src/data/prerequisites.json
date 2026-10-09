@@ -77,9 +77,9 @@
       "scope": "Native, Apple, Android, and Web targets",
       "docsUrl": "https://docs.perryts.com/getting-started/installation.html",
       "docsLabel": "Perry installation guide",
-      "verify": "perry --version",
-      "install": "npm install -g @perryts/perry",
-      "notes": "Keep the perry executable on PATH so the BornEngine CLI can invoke it."
+      "verify": "bornengine perry path",
+      "install": "bornengine perry install",
+      "notes": "The BornEngine CLI downloads a Perry build that matches its release. Set BORNENGINE_PERRY to use another binary."
     },
     {
       "id": "wasm-pack",
