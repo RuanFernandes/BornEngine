@@ -123,6 +123,7 @@ jobs:
           & "$env:SystemRoot\System32\tar.exe" -xf "dist\perry-$env:ASSET.zip" -C $verify
           if ($LASTEXITCODE -ne 0) { throw "tar extract failed with $LASTEXITCODE" }
           $compiler = Join-Path $verify 'perry\perry.exe'
+          $env:PERRY_RUNTIME_DIR = Join-Path $verify 'perry'
           & $compiler --version
           if ($LASTEXITCODE -ne 0) { throw "perry --version failed with $LASTEXITCODE" }
           Set-Content -Encoding ascii -Path (Join-Path $verify 'hello.ts') -Value 'console.log("perry archive ok");'
