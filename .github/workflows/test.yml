@@ -201,6 +201,9 @@ jobs:
           npm install
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
+      - name: Setup Perry
+        uses: ./.github/actions/setup-perry
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -349,23 +352,14 @@ jobs:
       - name: Test embedded scripting component contract
         run: npm run test:scripting
 
-      - name: Install Perry
-        run: |
-          npm install
-          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Perry
+        uses: ./.github/actions/setup-perry
 
       - name: Test Game, asset scopes, and scene disposal contracts
         run: npm run test:runtime
-
-      - name: Prepare Perry runtime libraries
-        run: |
-          perry_package="$PWD/node_modules/@perryts/perry"
-          runtime_package="$(node -e 'const path = require("path"); const manifest = require.resolve("@perryts/perry-linux-x64/package.json", { paths: [process.argv[1]] }); process.stdout.write(path.join(path.dirname(manifest), "lib"));' "$perry_package")"
-          runtime_dir="$RUNNER_TEMP/perry-runtime"
-          mkdir -p "$runtime_dir"
-          zstd -d "$runtime_package/libperry_runtime.a.zst" -o "$runtime_dir/libperry_runtime.a"
-          zstd -d "$runtime_package/libperry_stdlib.a.zst" -o "$runtime_dir/libperry_stdlib.a"
-          echo "PERRY_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
 
       - name: Generate audio harness fixture
         run: python3 tests/game-runtime/make-tone.py

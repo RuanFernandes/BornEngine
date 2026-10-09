@@ -1,0 +1,298 @@
+name: Setup LLVM 22
+description: >
+  Provision the LLVM 22 development libraries that `llvm-inprocess` links
+  against, and export LLVM_SYS_221_PREFIX. Every job that compiles Rust needs
+  this now that the feature is on by default.
+
+# One definition, not 44 inline recipes. The three platforms need three
+# different sources and only one of them is obvious:
+#
+#   macOS   brew's llvm formula.
+#   Linux   apt.llvm.org. The distro's `llvm-dev` is whatever the release
+#           froze on (Ubuntu 24.04 ships 18), so the LLVM project's own
+#           repository is the only way to get a pinned 22.
+#   Windows the official `clang+llvm-*-pc-windows-msvc` tarball. NOT
+#           chocolatey: its `llvm` package is the clang *toolchain* — no
+#           llvm-config.exe and none of the static libraries llvm-sys links
+#           against — and it has no 22.x pin at all.
+#
+# Every arm asserts the major version. llvm-sys 221 requires LLVM 22
+# specifically, and a runner image moving its formula on must fail loudly
+# here rather than build something subtly different several steps later.
+inputs:
+  version:
+    description: LLVM major.minor.patch used by the Windows tarball
+    required: false
+    default: "22.1.8"
+
+runs:
+  using: composite
+  steps:
+    - name: LLVM 22 (macOS, brew)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -euo pipefail
+        brew install llvm@22 2>/dev/null || brew install llvm
+        PREFIX="$(brew --prefix llvm@22 2>/dev/null || brew --prefix llvm)"
+        "$PREFIX/bin/llvm-config" --version | grep -q '^22\.' \
+          || { echo "::error::brew LLVM is not 22.x ($("$PREFIX/bin/llvm-config" --version))"; exit 1; }
+        echo "LLVM_SYS_221_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+
+    - name: LLVM 22 (Linux, apt.llvm.org)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        set -euo pipefail
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+          | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+        . /etc/os-release
+        echo "deb http://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-22 main" \
+          | sudo tee /etc/apt/sources.list.d/llvm22.list >/dev/null
+        # Only OUR source needs to be fresh. `apt-get update` exits non-zero if
+        # ANY configured source fails, and GitHub's runner image ships
+        # third-party lists we do not use — dl.google.com's chrome-stable repo
+        # served a "Hash Sum mismatch" on 2026-09-09 and took out 22 jobs of
+        # run 34383689667 across cargo-test, gap-suite, gc-stress, lint, check,
+        # warnings and security-audit, none of which want Chrome.
+        #
+        # So: drop the third-party lists we never install from, retry the
+        # update (transient mirror errors are common), and verify by REACHING
+        # FOR WHAT WE CAME FOR rather than by the exit code — if llvm-toolchain
+        # is resolvable, the update did its job whatever else was noisy.
+        # Match by CONTENT: the ubuntu24/20260907.300 image moved these to
+        # deb822 `.sources` files, so the old `.list` names removed nothing.
+        if _bad=$(sudo grep -rlE 'dl\.google\.com|packages\.microsoft\.com' /etc/apt/sources.list.d/ 2>/dev/null); then
+          printf '%s\n' "$_bad" | sudo xargs -r rm -f
+        fi
+        update_ok=0
+        for attempt in 1 2 3; do
+          if sudo apt-get update -qq -o Acquire::Retries=3; then update_ok=1; break; fi
+          echo "  apt-get update attempt $attempt failed; retrying"
+          sleep $(( attempt * 5 ))
+        done
+        if [ "$update_ok" -ne 1 ]; then
+          # Not fatal by itself: what matters is whether OUR packages resolve.
+          echo "::warning::apt-get update reported errors; checking whether llvm-22 is resolvable anyway"
+          apt-cache policy llvm-22-dev | sed 's/^/    /'
+          apt-cache policy llvm-22-dev | grep -qE 'Candidate: [0-9]' \
+            || { echo "::error::apt-get update failed AND llvm-22-dev is unresolvable"; exit 1; }
+          echo "  llvm-22-dev resolves — continuing"
+        fi
+        # `clang-22` is NOT implied by `llvm-22-dev`: apt ships opt and clang as
+        # separate packages, so installing only the dev libraries leaves
+        # /usr/lib/llvm-22/bin/opt with no clang beside it. That is exactly what
+        # ubuntu-24.04-arm hits. Anything needing a MATCHED opt+clang pair — the
+        # RS4GC arm in gc-native-roots.yml — then finds a half-populated bin dir
+        # and either fails outright or falls back to hand-rolled discovery and
+        # picks up the distro's LLVM 18. Install the pair here, once, so every
+        # workflow gets a version-matched toolchain from one place.
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+          llvm-22-dev libpolly-22-dev libzstd-dev clang-22
+        llvm-config-22 --version | grep -q '^22\.' \
+          || { echo "::error::apt LLVM is not 22.x"; exit 1; }
+        PREFIX="$(llvm-config-22 --prefix)"
+        # Co-locate clang with opt. apt installs the versioned binary at
+        # /usr/bin/clang-22, but consumers resolve a toolchain by DIRECTORY —
+        # PERRY_LLVM_OPT and PERRY_LLVM_CLANG must come from the same bin dir or
+        # opt and clang can skew across majors — so it has to sit under $PREFIX.
+        if [ ! -x "$PREFIX/bin/clang" ] && [ -x /usr/bin/clang-22 ]; then
+          sudo ln -sf /usr/bin/clang-22 "$PREFIX/bin/clang"
+        fi
+        # Assert the pair, not just llvm-config. A green setup step that leaves
+        # a mismatched clang is the failure this whole action exists to prevent.
+        "$PREFIX/bin/clang" --version | grep -q 'version 22\.' \
+          || { echo "::error::clang under $PREFIX is not 22.x"; exit 1; }
+        echo "LLVM_SYS_221_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+
+    - name: LLVM 22 (Windows, official MSVC tarball)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      # `inputs.version` arrives through the environment, NOT through `${{ }}`
+      # interpolated into the script body. A template expansion is substituted
+      # as raw text before pwsh ever parses the line, so an input containing a
+      # quote plus a statement separator executes as code with the runner's
+      # privileges; reading `$env:` is a plain string load with no such step.
+      # Caught by zizmor's `template-injection` audit at High confidence.
+      env:
+        LLVM_VERSION: ${{ inputs.version }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $ver = $env:LLVM_VERSION
+        $llvmArch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -eq "Arm64") { "aarch64" } else { "x86_64" }
+        $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$ver/clang+llvm-$ver-$llvmArch-pc-windows-msvc.tar.xz"
+        Write-Host "downloading $url"
+        # #8468: bound the transfer. A composite-action step cannot carry its
+        # own timeout, and curl's retry timers have proven insufficient when a
+        # Windows runner wedges inside the native process. Run curl as a child
+        # and enforce a six-minute wall-clock ceiling around the whole retry
+        # sequence; healthy hosted-runner setup finishes in under 80 seconds.
+        $archive = "$env:RUNNER_TEMP\llvm.tar.xz"
+        $curlArgs = @(
+          "-sSL", "--retry", "2", "--retry-all-errors", "--retry-delay", "10",
+          "--connect-timeout", "30", "--max-time", "120", "--retry-max-time", "300",
+          "-o", "`"$archive`"", $url
+        )
+        $curl = Start-Process -FilePath "curl.exe" -ArgumentList $curlArgs -NoNewWindow -PassThru
+        if (-not $curl.WaitForExit(360000)) {
+          Stop-Process -Id $curl.Id -Force -ErrorAction SilentlyContinue
+          Write-Error "::error::LLVM download exceeded the 6-minute hard limit: $url"
+          exit 1
+        }
+        if ($curl.ExitCode -ne 0) {
+          Write-Error "::error::LLVM download failed (curl exit $($curl.ExitCode)): $url"
+          exit 1
+        }
+        $bytes = (Get-Item $archive).Length
+        Write-Host "downloaded $bytes bytes"
+        if ($bytes -lt 100MB) {
+          Write-Error "::error::LLVM archive is implausibly small ($bytes bytes) — truncated transfer or an error page, not a tarball"
+          exit 1
+        }
+        New-Item -ItemType Directory -Force -Path C:\llvm | Out-Null
+        $tarOk = $false
+        if ($env:PERRY_FORCE_WINDOWS_LLVM_FALLBACK -eq "1") {
+          Write-Host "diagnostic override: skipping tar.exe and exercising the 7-Zip fallback"
+        } else {
+          # A hosted Windows runner has twice left tar.exe alive indefinitely
+          # after this 800 MiB download completed. Healthy extractions take
+          # 47-74 seconds, so two minutes leaves margin without sacrificing five
+          # runner-minutes every time the native extractor wedges.
+          Write-Host "extracting LLVM with tar.exe (2-minute hard limit)"
+          $tarArgs = @("-xf", "`"$archive`"", "-C", "C:\llvm", "--strip-components=1")
+          $tar = Start-Process -FilePath "tar.exe" -ArgumentList $tarArgs -NoNewWindow -PassThru
+          if (-not $tar.WaitForExit(120000)) {
+            Stop-Process -Id $tar.Id -Force -ErrorAction SilentlyContinue
+            $tar.WaitForExit()
+            Write-Warning "tar.exe exceeded the 2-minute hard limit; falling back to 7-Zip"
+          } elseif ($tar.ExitCode -ne 0) {
+            Write-Warning "tar.exe failed with exit $($tar.ExitCode); falling back to 7-Zip"
+          } else {
+            $tarOk = $true
+          }
+        }
+
+        if (-not $tarOk) {
+          # Windows 2022 hosted runners ship 7-Zip. Stream the xz payload into a
+          # second 7z process so fallback does not require a multi-gigabyte
+          # intermediate .tar file. Run the pipeline through a bounded child
+          # cmd process: PowerShell's object pipeline is not binary-safe.
+          $sevenZipCommand = Get-Command 7z.exe -ErrorAction SilentlyContinue
+          $sevenZip = if ($sevenZipCommand) {
+            $sevenZipCommand.Path
+          } else {
+            Join-Path $env:ProgramFiles "7-Zip\7z.exe"
+          }
+          if (-not (Test-Path -LiteralPath $sevenZip)) {
+            Write-Error "::error::tar.exe failed and 7z.exe is unavailable at $sevenZip"
+            exit 1
+          }
+
+          Remove-Item -LiteralPath C:\llvm -Recurse -Force
+          New-Item -ItemType Directory -Force -Path C:\llvm | Out-Null
+          $stage = Join-Path $env:RUNNER_TEMP "llvm-7zip-stage"
+          Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          $extractScript = Join-Path $env:RUNNER_TEMP "extract-llvm.cmd"
+          $extractLines = @(
+            "@echo off",
+            "`"$sevenZip`" x `"$archive`" -so | `"$sevenZip`" x -si -ttar `"-o$stage`" -y",
+            "exit /b %errorlevel%"
+          )
+          Set-Content -LiteralPath $extractScript -Encoding ascii -Value $extractLines
+          Write-Host "extracting LLVM with 7-Zip (5-minute hard limit)"
+          $extractArgs = @("/d", "/c", "`"$extractScript`"")
+          $extract = Start-Process -FilePath "cmd.exe" -ArgumentList $extractArgs -NoNewWindow -PassThru
+          if (-not $extract.WaitForExit(300000)) {
+            & taskkill.exe /PID $extract.Id /T /F 2>$null | Out-Null
+            Write-Error "::error::7-Zip LLVM extraction exceeded the 5-minute hard limit"
+            exit 1
+          }
+          if ($extract.ExitCode -ne 0) {
+            Write-Error "::error::7-Zip LLVM extraction failed (exit $($extract.ExitCode))"
+            exit 1
+          }
+
+          $root = Join-Path $stage "clang+llvm-$ver-$llvmArch-pc-windows-msvc"
+          if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+            Write-Error "::error::7-Zip extraction did not produce the expected LLVM root: $root"
+            exit 1
+          }
+          Get-ChildItem -LiteralPath $root -Force | Move-Item -Destination C:\llvm -Force
+          Remove-Item -LiteralPath $stage -Recurse -Force
+        }
+        $v = & "C:\llvm\bin\llvm-config.exe" --version
+        if (-not $v.StartsWith("22.")) { Write-Error "LLVM is not 22.x ($v)"; exit 1 }
+
+        # ── libxml2: the release links one it does not ship ─────────────────
+        #
+        # LLVM's own Windows release script (llvm/utils/release/
+        # build_llvm_release.bat) builds a STATIC libxml2 into a scratch
+        # directory and points cmake at it:
+        #
+        #     -DLLVM_ENABLE_LIBXML2=FORCE_ON
+        #     -DLIBXML2_LIBRARIES=%libxmldir%/lib/libxml2s.lib
+        #
+        # %libxmldir% is never installed, so the published tarball carries the
+        # dependency but not the library. `llvm-config --system-libs
+        # --link-static` duly reports `xml2s.lib`; llvm-sys forwards every
+        # system lib verbatim (build.rs `get_system_libraries`, emitted as
+        # cargo:rustc-link-lib) and there is no env knob to filter one out —
+        # LLVM_SYS_221_* offers PREFIX, IGNORE_BLOCKLIST, STRICT_VERSIONING,
+        # NO_CLEAN_CFLAGS, USE_DEBUG_MSVCRT and FFI_WORKAROUND, and nothing
+        # else. So `xml2s.lib` lands on the link.exe command line and every
+        # Windows job that links perry.exe dies with
+        #
+        #     LINK : fatal error LNK1181: cannot open input file 'xml2s.lib'
+        #
+        # before the linker ever resolves a symbol. This became fatal when
+        # #7353 made the in-process LLVM backend the default and statically
+        # linked; it is not specific to any one workflow (test.yml's
+        # windows-build and gc-native-roots.yml's PE arm fail identically).
+        #
+        # It is a NAME dependency, not a symbol dependency. Inside LLVM,
+        # libxml2 is reachable only from LLVMWindowsManifest
+        # (WindowsManifestMerger.cpp), which serves lld-link and llvm-mt; the
+        # LLVM-C surface inkwell drives never touches it, and rustc bundles
+        # the LLVM component archives into libllvm_sys.rlib where link.exe
+        # pulls members lazily. Satisfying the input with an empty archive is
+        # therefore sufficient — and if that ever stops being true the link
+        # fails LOUDLY with LNK2019 unresolved externals rather than quietly
+        # dropping manifest support.
+        #
+        # Both conditions are checked, so this self-deletes: when a future
+        # release either stops reporting libxml2 or starts shipping the
+        # library, the block becomes a no-op instead of fabricating over it.
+        $sysLibs = (& "C:\llvm\bin\llvm-config.exe" --system-libs --link-static) -join ' '
+        $libDir = ((& "C:\llvm\bin\llvm-config.exe" --libdir) -join '').Trim()
+        $xml2 = Join-Path $libDir 'xml2s.lib'
+        if (($sysLibs -match 'xml2s\.lib') -and -not (Test-Path -LiteralPath $xml2)) {
+          Write-Host "llvm-config reports xml2s.lib but $libDir does not ship it; synthesizing an empty archive"
+          foreach ($tool in @("C:\llvm\bin\clang-cl.exe", "C:\llvm\bin\llvm-lib.exe")) {
+            if (-not (Test-Path -LiteralPath $tool)) {
+              Write-Error "$tool missing from the LLVM tarball — cannot synthesize xml2s.lib"; exit 1
+            }
+          }
+          # One exported symbol, never referenced: it keeps the archive's
+          # symbol table non-empty so neither llvm-lib nor link.exe has to
+          # cope with a degenerate zero-member library.
+          $stubC = Join-Path $env:RUNNER_TEMP 'xml2s_stub.c'
+          $stubObj = Join-Path $env:RUNNER_TEMP 'xml2s_stub.obj'
+          Set-Content -LiteralPath $stubC -Encoding ascii -Value 'int perry_xml2s_stub(void) { return 0; }'
+          & "C:\llvm\bin\clang-cl.exe" /nologo /c $stubC "/Fo$stubObj"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $stubObj)) {
+            Write-Error "failed to compile the xml2s.lib stub object"; exit 1
+          }
+          & "C:\llvm\bin\llvm-lib.exe" "/OUT:$xml2" $stubObj
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $xml2)) {
+            Write-Error "failed to archive $xml2"; exit 1
+          }
+          Write-Host "wrote $xml2"
+        }
+
+        "LLVM_SYS_221_PREFIX=C:\llvm" | Out-File -FilePath $env:GITHUB_ENV -Append
+        # Windows links LLVM-C dynamically to avoid the release archive's
+        # /MT CRT and bundled-rpmalloc collision with Rust's /MD binaries.
+        # Put the matching DLL beside every later cargo test/build process.
+        "C:\llvm\bin" | Out-File -FilePath $env:GITHUB_PATH -Append

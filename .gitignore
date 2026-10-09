@@ -97,3 +97,6 @@ examples/**/main.app
 # DXC runtime DLLs (local, for the PT golden tests on Windows)
 native/shared/dxcompiler.dll
 native/shared/dxil.dll
+
+# Perry compiler checkout and build output (tools/perry.mjs)
+.perry-src/

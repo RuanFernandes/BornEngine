@@ -1,0 +1,42 @@
+name: Setup Perry
+description: >
+  Provide the Perry compiler built from the commit pinned in perry.source.json.
+  Restores the built compiler from cache; on a miss, installs LLVM 22 and
+  builds it with tools/perry.mjs. Puts `perry` on PATH and exports PERRY_BIN.
+
+runs:
+  using: composite
+  steps:
+    - name: Read pinned Perry commit
+      id: pin
+      shell: bash
+      run: echo "commit=$(node -p 'require("./perry.source.json").commit')" >> "$GITHUB_OUTPUT"
+
+    - name: Restore built Perry
+      id: perry-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          .perry-src/built-commit
+          .perry-src/perry/target/release/perry
+          .perry-src/perry/target/release/libperry_runtime.a
+          .perry-src/perry/target/release/libperry_stdlib.a
+        key: perry-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.commit }}
+
+    - name: Install LLVM 22
+      if: steps.perry-cache.outputs.cache-hit != 'true'
+      uses: ./.github/actions/setup-llvm22
+
+    - name: Build Perry
+      if: steps.perry-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-C linker-features=-lld"
+      run: node tools/perry.mjs setup
+
+    - name: Expose Perry on PATH
+      shell: bash
+      run: |
+        perry_bin="$(node tools/perry.mjs path)"
+        echo "PERRY_BIN=$perry_bin" >> "$GITHUB_ENV"
+        echo "$(dirname "$perry_bin")" >> "$GITHUB_PATH"

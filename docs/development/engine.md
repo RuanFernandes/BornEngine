@@ -65,7 +65,7 @@ Run commands from the engine repository root. Select checks based on the changed
 
 ### Toolchain
 
-Node `>=22.18` is required (`engines` in `package.json`). Perry comes from `devDependencies` (`@perryts/perry`); `npm install` provides the pinned compiler, so no global Perry install is needed.
+Node `>=22.18` is required (`engines` in `package.json`). Perry is built from the commit pinned in `perry.source.json`, not installed from npm. Run `npm run perry:setup` after `npm install`; it needs LLVM 22 with `LLVM_SYS_221_PREFIX` set and rustup. Set `PERRY_BIN` to use another binary.
 
 ### TypeScript correctness
 

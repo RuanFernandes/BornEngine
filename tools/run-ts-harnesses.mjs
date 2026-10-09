@@ -52,7 +52,7 @@ function commandFor(entry, filePath) {
       ],
     ];
   }
-  return ['perry', ['run', '--local', filePath]];
+  return [process.env.PERRY_BIN || 'perry', ['run', '--local', filePath]];
 }
 
 function envFor(entry) {
