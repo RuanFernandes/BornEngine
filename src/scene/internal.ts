@@ -33,20 +33,35 @@ declare function bloom_scene_set_transform(handle: number, matrix: number): void
 // wrappers actually call.
 declare function bloom_scene_set_transform16(
   handle: number,
-  m0: number, m1: number, m2: number, m3: number,
-  m4: number, m5: number, m6: number, m7: number,
-  m8: number, m9: number, m10: number, m11: number,
-  m12: number, m13: number, m14: number, m15: number,
+  m0: number,
+  m1: number,
+  m2: number,
+  m3: number,
+  m4: number,
+  m5: number,
+  m6: number,
+  m7: number,
+  m8: number,
+  m9: number,
+  m10: number,
+  m11: number,
+  m12: number,
+  m13: number,
+  m14: number,
+  m15: number,
 ): void;
-declare function bloom_scene_update_geometry_scratch(
-  handle: number,
-  vertexCount: number,
-  indexCount: number,
-): void;
+declare function bloom_scene_update_geometry_scratch(handle: number, vertexCount: number, indexCount: number): void;
 declare function bloom_mesh_scratch_reset(): void;
 declare function bloom_mesh_scratch_push_f32(v: number): void;
 declare function bloom_mesh_scratch_push_u32(v: number): void;
-declare function bloom_scene_set_trs(handle: number, px: number, py: number, pz: number, yaw: number, scale: number): void;
+declare function bloom_scene_set_trs(
+  handle: number,
+  px: number,
+  py: number,
+  pz: number,
+  yaw: number,
+  scale: number,
+): void;
 declare function bloom_scene_update_geometry(
   handle: number,
   vertices: number,
@@ -81,13 +96,22 @@ declare function bloom_unregister_frame_callback(id: number): void;
 
 // Multiple lights
 declare function bloom_add_directional_light(
-  dx: number, dy: number, dz: number,
-  r: number, g: number, b: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  r: number,
+  g: number,
+  b: number,
   intensity: number,
 ): void;
 declare function bloom_add_point_light(
-  x: number, y: number, z: number, range: number,
-  r: number, g: number, b: number,
+  x: number,
+  y: number,
+  z: number,
+  range: number,
+  r: number,
+  g: number,
+  b: number,
   intensity: number,
 ): void;
 
@@ -129,7 +153,15 @@ declare function bloom_pick_all_handle(index: number): number;
 declare function bloom_pick_all_distance(index: number): number;
 
 // Q8: water material
-declare function bloom_scene_set_material_water(handle: number, waveAmp: number, waveSpeed: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_scene_set_material_water(
+  handle: number,
+  waveAmp: number,
+  waveSpeed: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 
 // Q4: transform read-back
 declare function bloom_scene_get_transform(handle: number, index: number): number;
@@ -144,16 +176,15 @@ declare function bloom_scene_get_bounds_max_z(handle: number): number;
 declare function bloom_scene_set_user_data(handle: number, data: number): void;
 declare function bloom_scene_get_user_data(handle: number): number;
 
-declare function bloom_scene_extrude_polygon(
-  handle: number,
-  polygon: number,
-  pointCount: number,
-  depth: number,
-): void;
+declare function bloom_scene_extrude_polygon(handle: number, polygon: number, pointCount: number, depth: number): void;
 declare function bloom_scene_subtract_box(
   handle: number,
-  minX: number, minY: number, minZ: number,
-  maxX: number, maxY: number, maxZ: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
 ): void;
 
 // ============================================================
@@ -249,10 +280,22 @@ export function setSceneNodeParent(handle: SceneNodeHandle, parent: SceneNodeHan
 export function setSceneNodeTransform(handle: SceneNodeHandle, matrix: number[]): void {
   bloom_scene_set_transform16(
     handle,
-    matrix[0], matrix[1], matrix[2], matrix[3],
-    matrix[4], matrix[5], matrix[6], matrix[7],
-    matrix[8], matrix[9], matrix[10], matrix[11],
-    matrix[12], matrix[13], matrix[14], matrix[15],
+    matrix[0],
+    matrix[1],
+    matrix[2],
+    matrix[3],
+    matrix[4],
+    matrix[5],
+    matrix[6],
+    matrix[7],
+    matrix[8],
+    matrix[9],
+    matrix[10],
+    matrix[11],
+    matrix[12],
+    matrix[13],
+    matrix[14],
+    matrix[15],
   );
 }
 
@@ -263,7 +306,9 @@ export function setSceneNodeTransform(handle: SceneNodeHandle, matrix: number[])
  */
 export function setSceneNodeTrs(
   handle: SceneNodeHandle,
-  x: number, y: number, z: number,
+  x: number,
+  y: number,
+  z: number,
   yaw: number = 0,
   scale: number = 1,
 ): void {
@@ -282,11 +327,7 @@ export function setSceneNodeTrs(
  * pointer param. Cost is linear in the mesh size, so this is for
  * edit-time re-meshing (terrain sculpting), not per-frame streaming.
  */
-export function updateSceneNodeGeometry(
-  handle: SceneNodeHandle,
-  vertices: number[],
-  indices: number[],
-): void {
+export function updateSceneNodeGeometry(handle: SceneNodeHandle, vertices: number[], indices: number[]): void {
   const vertexCount = Math.floor(vertices.length / 12);
   const indexCount = indices.length;
   if (vertexCount === 0 || indexCount === 0) return;
@@ -328,10 +369,21 @@ export function setSceneNodeColor(handle: SceneNodeHandle, r: number, g: number,
  * geometry. Vertex layout matches updateSceneNodeGeometry (12 floats).
  */
 export function setSceneNodeLod(
-  handle: SceneNodeHandle, lodIndex: number,
-  vertices: number[], indices: number[], maxCoverage: number,
+  handle: SceneNodeHandle,
+  lodIndex: number,
+  vertices: number[],
+  indices: number[],
+  maxCoverage: number,
 ): void {
-  bloom_scene_set_lod(handle, lodIndex, vertices as any, vertices.length / 12, indices as any, indices.length, maxCoverage);
+  bloom_scene_set_lod(
+    handle,
+    lodIndex,
+    vertices as any,
+    vertices.length / 12,
+    indices as any,
+    indices.length,
+    maxCoverage,
+  );
 }
 
 /**
@@ -340,8 +392,11 @@ export function setSceneNodeLod(
  * separate meshes (or models) and attach each with its threshold.
  */
 export function attachModelLodToNode(
-  node: SceneNodeHandle, model: { handle: number }, meshIndex: number,
-  lodIndex: number, maxCoverage: number,
+  node: SceneNodeHandle,
+  model: { handle: number },
+  meshIndex: number,
+  lodIndex: number,
+  maxCoverage: number,
 ): void {
   bloom_scene_attach_model_lod(node, model.handle, meshIndex, lodIndex, maxCoverage);
 }
@@ -402,8 +457,12 @@ export function unregisterFrameCallback(id: number): void {
  * exceed 1.0 via intensity). Direction need not be normalized.
  */
 export function addDirectionalLight(
-  dx: number, dy: number, dz: number,
-  r: number, g: number, b: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  r: number,
+  g: number,
+  b: number,
   intensity: number,
 ): void {
   bloom_add_directional_light(dx, dy, dz, r, g, b, intensity);
@@ -502,11 +561,7 @@ export function setOutlineThickness(thickness: number): void {
  * @param modelHandle — loaded model handle (from loadModel())
  * @param meshIndex — which mesh in the model (0 for single-mesh models)
  */
-export function attachModelToNode(
-  nodeHandle: SceneNodeHandle,
-  modelHandle: number,
-  meshIndex: number = 0,
-): void {
+export function attachModelToNode(nodeHandle: SceneNodeHandle, modelHandle: number, meshIndex: number = 0): void {
   bloom_scene_attach_model(nodeHandle, modelHandle, meshIndex);
 }
 
@@ -522,7 +577,9 @@ export function attachModelToNode(
  * Used for zone labels, dimension references, interactive controls.
  */
 export function projectToScreen(
-  worldX: number, worldY: number, worldZ: number,
+  worldX: number,
+  worldY: number,
+  worldZ: number,
 ): { x: number; y: number; visible: boolean } {
   const sx = bloom_project_to_screen(worldX, worldY, worldZ);
   const sy = bloom_project_screen_y();
@@ -588,11 +645,7 @@ export function pickScene(screenX: number, screenY: number): PickHit {
  * The polygon is a flat array of 2D points: [x0, z0, x1, z1, ...].
  * Extrusion goes from Y=0 to Y=depth.
  */
-export function extrudePolygon(
-  handle: SceneNodeHandle,
-  polygon: number[],
-  depth: number,
-): void {
+export function extrudePolygon(handle: SceneNodeHandle, polygon: number[], depth: number): void {
   bloom_scene_extrude_polygon(handle, polygon as any, polygon.length / 2, depth);
 }
 
@@ -602,8 +655,12 @@ export function extrudePolygon(
  */
 export function subtractBox(
   handle: SceneNodeHandle,
-  minX: number, minY: number, minZ: number,
-  maxX: number, maxY: number, maxZ: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
 ): void {
   bloom_scene_subtract_box(handle, minX, minY, minZ, maxX, maxY, maxZ);
 }
@@ -632,7 +689,10 @@ export function getSceneNodeTransform(handle: SceneNodeHandle): number[] {
  * Return the cached AABB of a scene node's geometry in local space.
  * Recomputed automatically when geometry is updated via updateSceneNodeGeometry.
  */
-export function getSceneNodeBounds(handle: SceneNodeHandle): { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } } {
+export function getSceneNodeBounds(handle: SceneNodeHandle): {
+  min: { x: number; y: number; z: number };
+  max: { x: number; y: number; z: number };
+} {
   return {
     min: {
       x: bloom_scene_get_bounds_min_x(handle),
@@ -672,7 +732,11 @@ export function getSceneNodeUserData(handle: SceneNodeHandle): number {
  * distance (closest first). Used by editors for Alt-click cycling through
  * occluded objects. Returns an array of { handle, distance }.
  */
-export function pickSceneAll(screenX: number, screenY: number, maxResults: number = 8): { handle: number; distance: number }[] {
+export function pickSceneAll(
+  screenX: number,
+  screenY: number,
+  maxResults: number = 8,
+): { handle: number; distance: number }[] {
   const count = bloom_scene_pick_all(screenX, screenY, maxResults);
   const results: { handle: number; distance: number }[] = [];
   for (let i = 0; i < count; i++) {
@@ -699,15 +763,24 @@ export function pickSceneAll(screenX: number, screenY: number, maxResults: numbe
  */
 export function setSceneNodeWaterMaterial(
   handle: SceneNodeHandle,
-  waveAmplitude: number, waveSpeed: number,
-  r: number, g: number, b: number, a: number,
+  waveAmplitude: number,
+  waveSpeed: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
 ): void {
   bloom_scene_set_material_water(handle, waveAmplitude, waveSpeed, r / 255, g / 255, b / 255, a / 255);
 }
 
 export function addPointLight(
-  x: number, y: number, z: number, range: number,
-  r: number, g: number, b: number,
+  x: number,
+  y: number,
+  z: number,
+  range: number,
+  r: number,
+  g: number,
+  b: number,
   intensity: number,
 ): void {
   bloom_add_point_light(x, y, z, range, r, g, b, intensity);

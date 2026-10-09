@@ -84,9 +84,7 @@ export interface World2DSpriteRendererData {
   tint?: { r: number; g: number; b: number; a: number };
 }
 
-export type World2DPhysicsShape =
-  | { type: 'box'; width: number; height: number }
-  | { type: 'circle'; radius: number };
+export type World2DPhysicsShape = { type: 'box'; width: number; height: number } | { type: 'circle'; radius: number };
 
 export interface World2DPhysicsBodyData {
   type: 'static' | 'dynamic' | 'kinematic';

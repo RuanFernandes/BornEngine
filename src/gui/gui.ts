@@ -1,8 +1,29 @@
-import { addGuiPoints, centeredCoordinate, clampGuiSize, subtractGuiPoints, validateGuiCoordinate, validateGuiDimension } from './layout';
-import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
-import { GuiControlKind, intersectGuiRects, type GuiClipCommand, type GuiControlCommand, type GuiControlItemCommand, type GuiDrawingPayload } from './commands';
+import {
+  addGuiPoints,
+  centeredCoordinate,
+  clampGuiSize,
+  subtractGuiPoints,
+  validateGuiCoordinate,
+  validateGuiDimension,
+} from './layout';
+import { GUIEvent, GUIEventType } from './events';
+import {
+  GuiControlKind,
+  intersectGuiRects,
+  type GuiClipCommand,
+  type GuiControlCommand,
+  type GuiControlItemCommand,
+  type GuiDrawingPayload,
+} from './commands';
 import { GUIProfiles, GuiProfile } from './profile';
-import { allocateGUIId, type GUIControlOptions, type GuiCursor, type GuiPoint, type GuiRect, type GuiSize } from './types';
+import {
+  allocateGUIId,
+  type GUIControlOptions,
+  type GuiCursor,
+  type GuiPoint,
+  type GuiRect,
+  type GuiSize,
+} from './types';
 import type { GUIManager } from './manager';
 
 export class GUI {
@@ -52,10 +73,16 @@ export class GUI {
     this._clipToBounds = options.clipToBounds ?? false;
   }
 
-  get parent(): GUI | null { return this._parent; }
+  get parent(): GUI | null {
+    return this._parent;
+  }
 
-  getControls(): readonly GUI[] { return this._controls.slice(); }
-  getParent(): GUI | null { return this._parent; }
+  getControls(): readonly GUI[] {
+    return this._controls.slice();
+  }
+  getParent(): GUI | null {
+    return this._parent;
+  }
 
   getRoot(): GUI {
     let root: GUI = this;
@@ -63,7 +90,9 @@ export class GUI {
     return root;
   }
 
-  getX(): number { return this._x; }
+  getX(): number {
+    return this._x;
+  }
   setX(x: number): this {
     validateGuiCoordinate(x, 'x');
     this._centerHorizontal = false;
@@ -71,7 +100,9 @@ export class GUI {
     return this;
   }
 
-  getY(): number { return this._y; }
+  getY(): number {
+    return this._y;
+  }
   setY(y: number): this {
     validateGuiCoordinate(y, 'y');
     this._centerVertical = false;
@@ -79,21 +110,27 @@ export class GUI {
     return this;
   }
 
-  getWidth(): number { return this._width; }
+  getWidth(): number {
+    return this._width;
+  }
   setWidth(width: number): this {
     this.applyGeometry(this._x, this._y, width, this._height);
     this.reflowOwnCenter();
     return this;
   }
 
-  getHeight(): number { return this._height; }
+  getHeight(): number {
+    return this._height;
+  }
   setHeight(height: number): this {
     this.applyGeometry(this._x, this._y, this._width, height);
     this.reflowOwnCenter();
     return this;
   }
 
-  getPosition(): GuiPoint { return { x: this._x, y: this._y }; }
+  getPosition(): GuiPoint {
+    return { x: this._x, y: this._y };
+  }
   setPosition(x: number, y: number): this {
     validateGuiCoordinate(x, 'x');
     validateGuiCoordinate(y, 'y');
@@ -103,7 +140,9 @@ export class GUI {
     return this;
   }
 
-  getSize(): GuiSize { return { width: this._width, height: this._height }; }
+  getSize(): GuiSize {
+    return { width: this._width, height: this._height };
+  }
   setSize(width: number, height: number): this {
     this.applyGeometry(this._x, this._y, width, height);
     this.reflowOwnCenter();
@@ -170,19 +209,29 @@ export class GUI {
   }
 
   /** @internal Maps a child point through this control's layout transform. */
-  _transformChildPoint(point: GuiPoint): GuiPoint { return { ...point }; }
+  _transformChildPoint(point: GuiPoint): GuiPoint {
+    return { ...point };
+  }
 
   /** @internal Reverses this control's child layout transform. */
-  _inverseTransformChildPoint(point: GuiPoint): GuiPoint { return { ...point }; }
+  _inverseTransformChildPoint(point: GuiPoint): GuiPoint {
+    return { ...point };
+  }
 
   /** @internal Maps a child size through this control's layout transform. */
-  _transformChildSize(size: GuiSize): GuiSize { return { ...size }; }
+  _transformChildSize(size: GuiSize): GuiSize {
+    return { ...size };
+  }
 
   /** @internal Reverses a child size through this control's layout transform. */
-  _inverseTransformChildSize(size: GuiSize): GuiSize { return { ...size }; }
+  _inverseTransformChildSize(size: GuiSize): GuiSize {
+    return { ...size };
+  }
 
   /** @internal Virtual dimensions available to centered child controls. */
-  _getChildLayoutSize(): GuiSize { return this.getSize(); }
+  _getChildLayoutSize(): GuiSize {
+    return this.getSize();
+  }
 
   private localToGlobalSize(size: GuiSize): GuiSize {
     let mapped = { ...size };
@@ -228,7 +277,9 @@ export class GUI {
     for (const control of this._controls.slice()) this.removeControl(control);
   }
 
-  isVisible(): boolean { return this._visible; }
+  isVisible(): boolean {
+    return this._visible;
+  }
   setVisible(value: boolean): this {
     if (this._visible === value) return this;
     this._visible = value;
@@ -243,7 +294,9 @@ export class GUI {
     return this;
   }
 
-  isActive(): boolean { return this._active; }
+  isActive(): boolean {
+    return this._active;
+  }
   setActive(value: boolean): this {
     if (this._active === value) return this;
     this._active = value;
@@ -256,15 +309,31 @@ export class GUI {
     return this;
   }
 
-  show(): this { return this.setVisible(true); }
-  hide(): this { return this.setVisible(false); }
+  show(): this {
+    return this.setVisible(true);
+  }
+  hide(): this {
+    return this.setVisible(false);
+  }
 
-  setClipChildren(value: boolean): this { this._clipChildren = value; return this; }
-  getClipChildren(): boolean { return this._clipChildren; }
-  setClipToBounds(value: boolean): this { this._clipToBounds = value; return this; }
-  getClipToBounds(): boolean { return this._clipToBounds; }
+  setClipChildren(value: boolean): this {
+    this._clipChildren = value;
+    return this;
+  }
+  getClipChildren(): boolean {
+    return this._clipChildren;
+  }
+  setClipToBounds(value: boolean): this {
+    this._clipToBounds = value;
+    return this;
+  }
+  getClipToBounds(): boolean {
+    return this._clipToBounds;
+  }
 
-  getMinimumSize(): GuiSize { return { ...this._minimumSize }; }
+  getMinimumSize(): GuiSize {
+    return { ...this._minimumSize };
+  }
   setMinimumSize(width: number, height: number): this {
     const minimum = {
       width: validateGuiDimension(width, 'minimum width'),
@@ -276,14 +345,27 @@ export class GUI {
     return this;
   }
 
-  getHint(): string { return this._hint; }
-  setHint(text: string): this { this._hint = text; return this; }
-  getCursor(): GuiCursor { return this._cursor; }
-  setCursor(cursor: GuiCursor): this { this._cursor = cursor; return this; }
+  getHint(): string {
+    return this._hint;
+  }
+  setHint(text: string): this {
+    this._hint = text;
+    return this;
+  }
+  getCursor(): GuiCursor {
+    return this._cursor;
+  }
+  setCursor(cursor: GuiCursor): this {
+    this._cursor = cursor;
+    return this;
+  }
 
-  getProfile(): GuiProfile { return this._profile ?? GUIProfiles.get('default'); }
+  getProfile(): GuiProfile {
+    return this._profile ?? GUIProfiles.get('default');
+  }
   setProfile(profile: GuiProfile | null): this {
-    if (profile !== null && !(profile instanceof GuiProfile)) throw new TypeError('setProfile expects a GuiProfile or null.');
+    if (profile !== null && !(typeof profile === 'object' && profile instanceof GuiProfile))
+      throw new TypeError('setProfile expects a GuiProfile or null.');
     this._profile = profile;
     return this;
   }
@@ -307,12 +389,8 @@ export class GUI {
     const origin = this.localToGlobal({ x: 0, y: 0 });
     const size = this.localToGlobalSize({ width: this._width, height: this._height });
     const rect: GuiRect = { x: origin.x, y: origin.y, width: size.width, height: size.height };
-    const ownClip = this._clipToBounds
-      ? (clip === null ? rect : intersectGuiRects(clip, rect))
-      : clip;
-    const ownClipStack = this._clipToBounds
-      ? [...clipStack, { ownerId: this.id, rect: { ...rect } }]
-      : clipStack;
+    const ownClip = this._clipToBounds ? (clip === null ? rect : intersectGuiRects(clip, rect)) : clip;
+    const ownClipStack = this._clipToBounds ? [...clipStack, { ownerId: this.id, rect: { ...rect } }] : clipStack;
     commands.push({
       kind: this._guiCommandKind,
       id: this.id,
@@ -327,12 +405,8 @@ export class GUI {
       items: this._guiCommandItems.map((item) => ({ ...item })),
       drawings: this._guiCommandDrawings.map((drawing) => ({ ...drawing, values: drawing.values.slice() })),
     });
-    const childClip = this._clipChildren
-      ? (clip === null ? rect : intersectGuiRects(clip, rect))
-      : clip;
-    const childClipStack = this._clipChildren
-      ? [...clipStack, { ownerId: this.id, rect: { ...rect } }]
-      : clipStack;
+    const childClip = this._clipChildren ? (clip === null ? rect : intersectGuiRects(clip, rect)) : clip;
+    const childClipStack = this._clipChildren ? [...clipStack, { ownerId: this.id, rect: { ...rect } }] : clipStack;
     for (const child of this._controls) child._emitCommands(commands, profile, childClip, this.id, childClipStack);
   }
 
@@ -346,7 +420,9 @@ export class GUI {
     return this;
   }
 
-  isFocused(): boolean { return this._focused && this._manager !== null; }
+  isFocused(): boolean {
+    return this._focused && this._manager !== null;
+  }
 
   makeFirstResponder(enabled = true): this {
     this._firstResponder = enabled;
@@ -355,7 +431,9 @@ export class GUI {
     return this;
   }
 
-  isFirstResponder(): boolean { return this._firstResponder && this.isFocused(); }
+  isFirstResponder(): boolean {
+    return this._firstResponder && this.isFocused();
+  }
 
   tabFirst(): this {
     const first = this.findFirstFocusableDescendant();
@@ -410,30 +488,62 @@ export class GUI {
   /** @internal Used by GUIManager to deliver one event at this bubble level. */
   _dispatchGuiEvent(event: GUIEvent): void {
     switch (event.type) {
-      case GUIEventType.Action: this.onAction(event); break;
-      case GUIEventType.Change: this.onChange(event); break;
-      case GUIEventType.Focus: this.onFocus(event); break;
-      case GUIEventType.Blur: this.onBlur(event); break;
-      case GUIEventType.PointerEnter: this.onPointerEnter(event); break;
-      case GUIEventType.PointerLeave: this.onPointerLeave(event); break;
-      case GUIEventType.PointerMove: this.onPointerMove(event); break;
-      case GUIEventType.PointerDown: this.onPointerDown(event); break;
-      case GUIEventType.PointerUp: this.onPointerUp(event); break;
-      case GUIEventType.PointerDrag: this.onPointerDrag(event); break;
-      case GUIEventType.Wheel: this.onWheel(event); break;
-      case GUIEventType.KeyDown: this.onKeyDown(event); break;
-      case GUIEventType.KeyUp: this.onKeyUp(event); break;
+      case GUIEventType.Action:
+        this.onAction(event);
+        break;
+      case GUIEventType.Change:
+        this.onChange(event);
+        break;
+      case GUIEventType.Focus:
+        this.onFocus(event);
+        break;
+      case GUIEventType.Blur:
+        this.onBlur(event);
+        break;
+      case GUIEventType.PointerEnter:
+        this.onPointerEnter(event);
+        break;
+      case GUIEventType.PointerLeave:
+        this.onPointerLeave(event);
+        break;
+      case GUIEventType.PointerMove:
+        this.onPointerMove(event);
+        break;
+      case GUIEventType.PointerDown:
+        this.onPointerDown(event);
+        break;
+      case GUIEventType.PointerUp:
+        this.onPointerUp(event);
+        break;
+      case GUIEventType.PointerDrag:
+        this.onPointerDrag(event);
+        break;
+      case GUIEventType.Wheel:
+        this.onWheel(event);
+        break;
+      case GUIEventType.KeyDown:
+        this.onKeyDown(event);
+        break;
+      case GUIEventType.KeyUp:
+        this.onKeyUp(event);
+        break;
     }
   }
 
   /** @internal Current manager owner, if attached to a game. */
-  _getManager(): GUIManager | null { return this._manager; }
+  _getManager(): GUIManager | null {
+    return this._manager;
+  }
 
   /** @internal Native control kind used by GUIManager routing. */
-  _getGuiCommandKind(): number { return this._guiCommandKind; }
+  _getGuiCommandKind(): number {
+    return this._guiCommandKind;
+  }
 
   /** @internal Optional right-click hook implemented by context-menu controls. */
-  _openContextMenuAt(_x: number, _y: number, _button: number): boolean { return false; }
+  _openContextMenuAt(_x: number, _y: number, _button: number): boolean {
+    return false;
+  }
 
   /** @internal True when this control and its full ancestor chain can receive input. */
   _isInputEligible(): boolean {
@@ -446,10 +556,14 @@ export class GUI {
   }
 
   /** @internal Sets focus as part of a manager-owned focus transition. */
-  _setFocused(value: boolean): void { this._focused = value; }
+  _setFocused(value: boolean): void {
+    this._focused = value;
+  }
 
   /** @internal Allows the manager to set root ownership after validation. */
-  _setManager(manager: GUIManager | null): void { this.assignManagerRecursively(manager); }
+  _setManager(manager: GUIManager | null): void {
+    this.assignManagerRecursively(manager);
+  }
 
   /** @internal Checks subtree identity when focus or ownership changes. */
   _containsControl(control: GUI): boolean {
@@ -476,13 +590,19 @@ export class GUI {
   }
 
   /** @internal Re-resolves center anchors after root ownership or viewport changes. */
-  _reflowFromManager(): void { this.reflowOwnCenter(); }
+  _reflowFromManager(): void {
+    this.reflowOwnCenter();
+  }
 
   /** @internal Captures geometry revision for controls with native geometry. */
-  _captureGeometryRevision(): number { return this.geometryRevision; }
+  _captureGeometryRevision(): number {
+    return this.geometryRevision;
+  }
 
   /** @internal Discards a pending native layout response after parent layout changes. */
-  _invalidateNativeGeometry(): void { this.geometryRevision++; }
+  _invalidateNativeGeometry(): void {
+    this.geometryRevision++;
+  }
 
   /** @internal Content insets used by child coordinates and centering. */
   _getContentInsets(): { left: number; top: number; right: number; bottom: number } {
@@ -491,7 +611,9 @@ export class GUI {
   }
 
   /** @internal Enables native layout readback for window and frame-set children. */
-  _setNativeGeometryManaged(enabled: boolean): void { this.nativeGeometryManaged = enabled; }
+  _setNativeGeometryManaged(enabled: boolean): void {
+    this.nativeGeometryManaged = enabled;
+  }
 
   /** @internal Applies a native layout rectangle if TypeScript geometry is unchanged. */
   _applyNativeGeometry(rect: GuiRect, commandRevision: number): void {
@@ -499,7 +621,10 @@ export class GUI {
     if (![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)) return;
     const parent = this._parent;
     const position = parent?.globalToLocal({ x: rect.x, y: rect.y }) ?? { x: rect.x, y: rect.y };
-    const size = parent?._globalToLocalSize({ width: rect.width, height: rect.height }) ?? { width: rect.width, height: rect.height };
+    const size = parent?._globalToLocalSize({ width: rect.width, height: rect.height }) ?? {
+      width: rect.width,
+      height: rect.height,
+    };
     const insets = parent?._getContentInsets() ?? { left: 0, top: 0, right: 0, bottom: 0 };
     const x = position.x - insets.left;
     const y = position.y - insets.top;
@@ -512,7 +637,9 @@ export class GUI {
   }
 
   /** @internal Executes a handler corresponding to the event type. */
-  _isDestroyed(): boolean { return this._destroyed; }
+  _isDestroyed(): boolean {
+    return this._destroyed;
+  }
 
   private applyGeometry(x: number, y: number, width: number, height: number): void {
     validateGuiCoordinate(x, 'x');
@@ -552,7 +679,9 @@ export class GUI {
   }
 
   /** @internal Reflows this control after a virtual parent layout changes. */
-  _reflowFromParent(): void { this.reflowOwnCenter(); }
+  _reflowFromParent(): void {
+    this.reflowOwnCenter();
+  }
 
   private assignManagerRecursively(manager: GUIManager | null): void {
     this._manager = manager;
@@ -560,20 +689,25 @@ export class GUI {
   }
 
   private assertCanAttach(control: GUI): void {
-    if (!(control instanceof GUI)) throw new TypeError('Only GUI controls can be attached.');
+    if (!(typeof control === 'object' && control !== null && control instanceof GUI))
+      throw new TypeError('Only GUI controls can be attached.');
     if (this._destroyed || control._destroyed) throw new Error('Destroyed GUI controls cannot be attached.');
     for (let ancestor: GUI | null = this; ancestor !== null; ancestor = ancestor._parent) {
       if (ancestor === control) throw new Error('Attaching this control would create a GUI cycle.');
     }
     if (control._parent !== null) throw new Error('GUI control already has a parent.');
     if (control._manager !== null) {
-      throw new Error(control._manager === this._manager
-        ? 'GUI control is already owned by this game; remove it before reparenting.'
-        : 'GUI control is already owned by another game.');
+      throw new Error(
+        control._manager === this._manager
+          ? 'GUI control is already owned by this game; remove it before reparenting.'
+          : 'GUI control is already owned by another game.',
+      );
     }
   }
 
-  private _isLocallyAwake(): boolean { return this._visible && this._active && !this._destroyed; }
+  private _isLocallyAwake(): boolean {
+    return this._visible && this._active && !this._destroyed;
+  }
 
   private reorderControl(control: GUI, toFront: boolean): void {
     const index = this._controls.indexOf(control);

@@ -1,7 +1,12 @@
 /** SQLite column declarations. Identifiers are validated before any backend request. */
 export type ColumnKind = 'integer' | 'real' | 'text' | 'blob' | 'boolean';
-export type ColumnValue<K extends ColumnKind> = K extends 'blob' ? Uint8Array :
-  K extends 'text' ? string : K extends 'boolean' ? boolean : number;
+export type ColumnValue<K extends ColumnKind> = K extends 'blob'
+  ? Uint8Array
+  : K extends 'text'
+    ? string
+    : K extends 'boolean'
+      ? boolean
+      : number;
 
 export interface ColumnOptions<K extends ColumnKind> {
   primaryKey?: boolean;
@@ -42,39 +47,56 @@ export interface TableDescriptor<C extends Record<string, ColumnDescriptor> = Re
 
 export type DatabaseSchema = Record<string, TableDescriptor<any>>;
 
-export function defineTable<C extends Record<string, ColumnDescriptor>>(
-  table: TableDescriptor<C>,
-): TableDescriptor<C> { return table; }
+export function defineTable<C extends Record<string, ColumnDescriptor>>(table: TableDescriptor<C>): TableDescriptor<C> {
+  return table;
+}
 
-export function defineSchema<S extends DatabaseSchema>(schema: S): S { return schema; }
+export function defineSchema<S extends DatabaseSchema>(schema: S): S {
+  return schema;
+}
 
-type InferredColumn<C> = C extends ColumnDescriptor<infer K, infer O>
-  ? ColumnValue<K> | (O extends { notNull: true } | { primaryKey: true } ? never : null)
-  : never;
+type InferredColumn<C> =
+  C extends ColumnDescriptor<infer K, infer O>
+    ? ColumnValue<K> | (O extends { notNull: true } | { primaryKey: true } ? never : null)
+    : never;
 
 export type DatabaseRow<S extends DatabaseSchema, T extends keyof S> = {
   [K in keyof S[T]['columns']]: InferredColumn<S[T]['columns'][K]>;
 };
 
-type OptionalInsertKey<C> = C extends ColumnDescriptor<any, infer O>
-  ? O extends { autoIncrement: true } | { default: unknown } ? true :
-    O extends { notNull: true } | { primaryKey: true } ? false : true
-  : false;
+type OptionalInsertKey<C> =
+  C extends ColumnDescriptor<any, infer O>
+    ? O extends { autoIncrement: true } | { default: unknown }
+      ? true
+      : O extends { notNull: true } | { primaryKey: true }
+        ? false
+        : true
+    : false;
 
-export type DatabaseInsert<S extends DatabaseSchema, T extends keyof S> =
-  { [K in keyof S[T]['columns'] as OptionalInsertKey<S[T]['columns'][K]> extends true ? never : K]: InferredColumn<S[T]['columns'][K]> } &
-  { [K in keyof S[T]['columns'] as OptionalInsertKey<S[T]['columns'][K]> extends true ? K : never]?: InferredColumn<S[T]['columns'][K]> };
+export type DatabaseInsert<S extends DatabaseSchema, T extends keyof S> = {
+  [K in keyof S[T]['columns'] as OptionalInsertKey<S[T]['columns'][K]> extends true ? never : K]: InferredColumn<
+    S[T]['columns'][K]
+  >;
+} & {
+  [K in keyof S[T]['columns'] as OptionalInsertKey<S[T]['columns'][K]> extends true ? K : never]?: InferredColumn<
+    S[T]['columns'][K]
+  >;
+};
 
 export type DatabaseUpdate<S extends DatabaseSchema, T extends keyof S> = Partial<DatabaseRow<S, T>>;
 
 export function validIdentifier(name: string): boolean {
-  return typeof name === 'string' && name.length > 0 && name.length <= 64 &&
-    /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+  return typeof name === 'string' && name.length > 0 && name.length <= 64 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
 }
 
 export function validNamespace(name: string): boolean {
-  return typeof name === 'string' && name.length > 0 && name.length <= 128 &&
-    /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) && name.indexOf('..') < 0;
+  return (
+    typeof name === 'string' &&
+    name.length > 0 &&
+    name.length <= 128 &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) &&
+    name.indexOf('..') < 0
+  );
 }
 
 export function validateSchema(schema: DatabaseSchema): boolean {
@@ -103,23 +125,36 @@ export function validateSchema(schema: DatabaseSchema): boolean {
       }
       for (let i = 0; i < flags.length; i++) {
         const flag = flags[i];
-        if ((options as Record<string, unknown>)[flag] !== undefined &&
-            typeof (options as Record<string, unknown>)[flag] !== 'boolean') return false;
+        if (
+          (options as Record<string, unknown>)[flag] !== undefined &&
+          typeof (options as Record<string, unknown>)[flag] !== 'boolean'
+        )
+          return false;
       }
       if (options.primaryKey) primaryCount++;
       if (options.autoIncrement && (!options.primaryKey || descriptor.kind !== 'integer')) return false;
       if (options.nullable && (options.notNull || options.primaryKey)) return false;
-      if (options.default !== undefined &&
-          (options.default === null ? !!(options.notNull || options.primaryKey) :
-            !validColumnValue(descriptor.kind, options.default))) return false;
+      if (
+        options.default !== undefined &&
+        (options.default === null
+          ? !!(options.notNull || options.primaryKey)
+          : !validColumnValue(descriptor.kind, options.default))
+      )
+        return false;
     }
     if (columnCount === 0 || primaryCount > 1) return false;
     const indexes = table.indexes || [];
     if (!Array.isArray(indexes)) return false;
     for (let i = 0; i < indexes.length; i++) {
       const index = indexes[i];
-      if (!index || !validIdentifier(index.name) || !Array.isArray(index.columns) || index.columns.length === 0 ||
-          (index.unique !== undefined && typeof index.unique !== 'boolean')) return false;
+      if (
+        !index ||
+        !validIdentifier(index.name) ||
+        !Array.isArray(index.columns) ||
+        index.columns.length === 0 ||
+        (index.unique !== undefined && typeof index.unique !== 'boolean')
+      )
+        return false;
       if (indexNames.indexOf(index.name) >= 0 || Object.prototype.hasOwnProperty.call(schema, index.name)) return false;
       indexNames.push(index.name);
       for (let j = 0; j < index.columns.length; j++) {
@@ -131,7 +166,7 @@ export function validateSchema(schema: DatabaseSchema): boolean {
 }
 
 export function validColumnValue(kind: ColumnKind, value: unknown): boolean {
-  if (kind === 'blob') return value instanceof Uint8Array;
+  if (kind === 'blob') return typeof value === 'object' && value !== null && value instanceof Uint8Array;
   if (kind === 'text') return typeof value === 'string';
   if (kind === 'boolean') return typeof value === 'boolean';
   if (typeof value !== 'number' || !Number.isFinite(value)) return false;

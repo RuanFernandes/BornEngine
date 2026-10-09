@@ -3,8 +3,7 @@ import type { PhysicsWorld } from '../physics';
 import type { GameContext } from '../core/context';
 import type { Renderer } from '../core/renderer';
 
-export type GameComponentType<T extends GameComponent> =
-  new (...args: any[]) => T;
+export type GameComponentType<T extends GameComponent> = new (...args: any[]) => T;
 
 export class GameComponent {
   enabled = true;
@@ -21,8 +20,7 @@ export class GameComponent {
   }
 
   get isActiveAndEnabled(): boolean {
-    return this.owner !== null && this.enabled && !this.destroyed &&
-      this.owner.activeInHierarchy;
+    return this.owner !== null && this.enabled && !this.destroyed && this.owner.activeInHierarchy;
   }
 
   get destroyed(): boolean {
@@ -51,7 +49,9 @@ export class GameComponent {
   _syncPhysicsAfterStep(_world: PhysicsWorld): void {}
 
   /** @internal Rejects adapters bound to a different Game runtime. */
-  _canAttachTo(_context: GameContext): boolean { return true; }
+  _canAttachTo(_context: GameContext): boolean {
+    return true;
+  }
 
   /** @internal Assigns the single owning GameObject. */
   _setGameObject(owner: GameObject): boolean {

@@ -1,0 +1,113 @@
+[
+  {
+    "file": "game-database-wire.ts",
+    "runner": "node"
+  },
+  {
+    "file": "input-action-map-state.ts",
+    "runner": "node"
+  },
+  {
+    "file": "perry-override-keyword.ts",
+    "runner": "node"
+  },
+  {
+    "file": "physics2d-broadphase.ts",
+    "runner": "node"
+  },
+  {
+    "file": "physics2d-ccd.ts",
+    "runner": "node"
+  },
+  {
+    "file": "public-game-systems.ts",
+    "runner": "node"
+  },
+  {
+    "file": "renderer-culling.ts",
+    "runner": "node"
+  },
+  {
+    "file": "vector2d.ts",
+    "runner": "node"
+  },
+  {
+    "file": "input-action-map-serialization.ts",
+    "runner": "perry"
+  },
+  {
+    "file": "physics2d-one-way.ts",
+    "runner": "perry"
+  },
+  {
+    "file": "physics2d-slopes.ts",
+    "runner": "perry"
+  },
+  {
+    "file": "scene-render-finally.ts",
+    "runner": "perry"
+  },
+  {
+    "file": "tilemap-chunks.ts",
+    "runner": "perry"
+  },
+  {
+    "file": "world2d-format.ts",
+    "runner": "perry"
+  },
+  {
+    "file": "adapters.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "audio-manager.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "game-database-contract.test.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "game-debug-options.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "game-render-api.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "input-actions.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "instanceof-primitives.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "perry-compat.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "renderer-frame-stats.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "scene-render.ts",
+    "runner": "perry",
+    "ci": true
+  },
+  {
+    "file": "scenes.ts",
+    "runner": "perry",
+    "ci": true
+  }
+]

@@ -81,7 +81,8 @@ export class AssetManager implements ContextResource {
 
   /** Disposes and removes the cached texture registered for this path. */
   releaseTexture(path: string): boolean {
-    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0) return false;
+    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0)
+      return false;
     const texture = this.textures.get(path);
     if (texture === undefined) return false;
     this.removeTextureEntry(path);
@@ -115,7 +116,8 @@ export class AssetManager implements ContextResource {
 
   /** Disposes and removes the cached model registered for this path. */
   releaseModel(path: string): boolean {
-    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0) return false;
+    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0)
+      return false;
     const model = this.models.get(path);
     if (model === undefined) return false;
     this.removeModelEntry(path);
@@ -125,7 +127,8 @@ export class AssetManager implements ContextResource {
 
   /** Disposes and removes a cached sound registered for this path. */
   releaseSound(path: string): boolean {
-    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0) return false;
+    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0)
+      return false;
     const sound = this.sounds.get(path);
     if (sound === undefined) return false;
     this.removeSoundEntry(path);
@@ -135,7 +138,8 @@ export class AssetManager implements ContextResource {
 
   /** Disposes and removes cached music registered for this path. */
   releaseMusic(path: string): boolean {
-    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0) return false;
+    if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0)
+      return false;
     const music = this.music.get(path);
     if (music === undefined) return false;
     this.removeMusicEntry(path);
@@ -274,7 +278,9 @@ export class AssetManager implements ContextResource {
     this.disposeResources();
   }
 
-  get isDisposed(): boolean { return this.disposed; }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   /** Releases all resources and prevents further creation. Safe to call repeatedly. */
   dispose(): void {
@@ -300,25 +306,28 @@ export class AssetManager implements ContextResource {
 
     const generation = this.generation;
     let loading: Promise<Sound | null>;
-    loading = this.game.audio.loadSoundAsync(path).then(
-      (sound) => {
-        if (this.disposed || this.context.isDisposed || generation !== this.generation) {
-          sound.dispose();
-          return null;
-        }
-        const tracked = this.track(sound);
-        if (tracked === null) return null;
-        if (this.context.isReady) {
-          this.sounds.set(path, sound);
-          this.soundPaths.push(path);
-        }
+    loading = this.game.audio
+      .loadSoundAsync(path)
+      .then(
+        (sound) => {
+          if (this.disposed || this.context.isDisposed || generation !== this.generation) {
+            sound.dispose();
+            return null;
+          }
+          const tracked = this.track(sound);
+          if (tracked === null) return null;
+          if (this.context.isReady) {
+            this.sounds.set(path, sound);
+            this.soundPaths.push(path);
+          }
+          return sound;
+        },
+        (_error) => null,
+      )
+      .then((sound) => {
+        if (this.soundLoads.get(path) === loading) this.soundLoads.delete(path);
         return sound;
-      },
-      (_error) => null,
-    ).then((sound) => {
-      if (this.soundLoads.get(path) === loading) this.soundLoads.delete(path);
-      return sound;
-    });
+      });
     this.soundLoads.set(path, loading);
     return loading;
   }
@@ -333,25 +342,28 @@ export class AssetManager implements ContextResource {
 
     const generation = this.generation;
     let loading: Promise<Music | null>;
-    loading = this.game.audio.loadMusicAsync(path).then(
-      (music) => {
-        if (this.disposed || this.context.isDisposed || generation !== this.generation) {
-          music.dispose();
-          return null;
-        }
-        const tracked = this.track(music);
-        if (tracked === null) return null;
-        if (this.context.isReady) {
-          this.music.set(path, music);
-          this.musicPaths.push(path);
-        }
+    loading = this.game.audio
+      .loadMusicAsync(path)
+      .then(
+        (music) => {
+          if (this.disposed || this.context.isDisposed || generation !== this.generation) {
+            music.dispose();
+            return null;
+          }
+          const tracked = this.track(music);
+          if (tracked === null) return null;
+          if (this.context.isReady) {
+            this.music.set(path, music);
+            this.musicPaths.push(path);
+          }
+          return music;
+        },
+        (_error) => null,
+      )
+      .then((music) => {
+        if (this.musicLoads.get(path) === loading) this.musicLoads.delete(path);
         return music;
-      },
-      (_error) => null,
-    ).then((music) => {
-      if (this.musicLoads.get(path) === loading) this.musicLoads.delete(path);
-      return music;
-    });
+      });
     this.musicLoads.set(path, loading);
     return loading;
   }

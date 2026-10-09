@@ -11,13 +11,15 @@
 // scene API takes 0-255. The conversion lives here, once.
 
 import {
-  createSceneNode, setSceneNodeVisible, setSceneNodeWaterMaterial,
-  attachModelToNode, setSceneNodeColor, addPointLight,
+  createSceneNode,
+  setSceneNodeVisible,
+  setSceneNodeWaterMaterial,
+  attachModelToNode,
+  setSceneNodeColor,
+  addPointLight,
   SceneNodeHandle,
 } from '../scene/internal';
-import {
-  genMeshCube, genMeshSplineRibbon, setAmbientLight, setDirectionalLight,
-} from '../models/internal';
+import { genMeshCube, genMeshSplineRibbon, setAmbientLight, setDirectionalLight } from '../models/internal';
 import { setFog } from '../core/internal';
 import { vec3 } from '../math/internal';
 import { setSceneNodeTransform } from '../scene/internal';
@@ -35,9 +37,13 @@ export function applyWorldLights(world: WorldDocument): void {
   for (let i = 0; i < world.lights.length; i++) {
     const l = world.lights[i];
     addPointLight(
-      l.position[0], l.position[1], l.position[2],
+      l.position[0],
+      l.position[1],
+      l.position[2],
       l.range,
-      l.color[0], l.color[1], l.color[2],
+      l.color[0],
+      l.color[1],
+      l.color[2],
       l.intensity,
     );
   }
@@ -106,18 +112,17 @@ export function spawnWaterVolume(volume: WaterVolume): SceneNodeHandle {
   // Column-major TRS: scale on the diagonal, translation in the last column.
   // Y is placed so the top face lands on surfaceHeight.
   const cy = volume.surfaceHeight - sy / 2;
-  setSceneNodeTransform(node, [
-    sx, 0, 0, 0,
-    0, sy, 0, 0,
-    0, 0, sz, 0,
-    volume.center[0], cy, volume.center[2], 1,
-  ]);
+  setSceneNodeTransform(node, [sx, 0, 0, 0, 0, sy, 0, 0, 0, 0, sz, 0, volume.center[0], cy, volume.center[2], 1]);
 
   const c = volume.color;
   setSceneNodeWaterMaterial(
     node,
-    volume.waveAmplitude, volume.waveSpeed,
-    c[0] * 255, c[1] * 255, c[2] * 255, c[3] * 255,
+    volume.waveAmplitude,
+    volume.waveSpeed,
+    c[0] * 255,
+    c[1] * 255,
+    c[2] * 255,
+    c[3] * 255,
   );
   setSceneNodeVisible(node, true);
   return node;
@@ -140,9 +145,8 @@ export function spawnRiver(river: RiverSpline): SceneNodeHandle {
 
   const widths: number[] = [];
   for (let i = 0; i < pointCount; i++) {
-    const w = i < river.widths.length
-      ? river.widths[i]
-      : (river.widths.length > 0 ? river.widths[river.widths.length - 1] : 1);
+    const w =
+      i < river.widths.length ? river.widths[i] : river.widths.length > 0 ? river.widths[river.widths.length - 1] : 1;
     widths.push(w);
   }
 
@@ -155,11 +159,7 @@ export function spawnRiver(river: RiverSpline): SceneNodeHandle {
   const c = river.color;
   // Flow speed drives the same wave animation as a water volume; a river with
   // no flow still ripples gently rather than reading as a flat plastic strip.
-  setSceneNodeWaterMaterial(
-    node,
-    0.05, river.flowSpeed,
-    c[0] * 255, c[1] * 255, c[2] * 255, c[3] * 255,
-  );
+  setSceneNodeWaterMaterial(node, 0.05, river.flowSpeed, c[0] * 255, c[1] * 255, c[2] * 255, c[3] * 255);
   setSceneNodeVisible(node, true);
   return node;
 }

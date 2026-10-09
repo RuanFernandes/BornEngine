@@ -1,0 +1,51 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "root": true,
+  "files": {
+    "includes": ["src/**/*.ts", "types/**/*.d.ts"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        // Perry handle casts need explicit any
+        "noExplicitAny": "off",
+        // x !== x is the NaN check Perry compiles reliably
+        "noSelfCompare": "off",
+        // obj.hasOwnProperty is used on plain data objects; rewrite could change Perry codegen
+        "noPrototypeBuiltins": "off",
+        // interface+class pairs are used on purpose
+        "noUnsafeDeclarationMerging": "off"
+      },
+      // style group disabled wholesale; rewrites could change Perry codegen
+      "style": "off",
+      "complexity": {
+        // rewrite could change Perry codegen
+        "useOptionalChain": "off",
+        // rewrite could change Perry codegen
+        "useLiteralKeys": "off",
+        // rewrite could change Perry codegen
+        "noThisInStatic": "off",
+        // rewrite could change Perry codegen
+        "noStaticOnlyClass": "off",
+        // rewrite could change Perry codegen
+        "noUselessThisAlias": "off"
+      }
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import './native-link';
 import { GameContext, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
@@ -102,7 +103,9 @@ manager.render(renderer);
 expect(renderEvents[renderEvents.length - 1] === 'managed-late',
   'manager renders objects attached after scene activation');
 expect(manager.pause(), 'manager pauses the scene');
+const pausedFrameStart = renderEvents.length;
 manager.render(renderer);
-expect(renderEvents[renderEvents.length - 1] === 'managed', 'manager continues rendering its paused scene');
+const pausedFrame = renderEvents.slice(pausedFrameStart).join(',');
+expect(pausedFrame === 'managed,managed-late', 'manager continues rendering its paused scene: ' + pausedFrame);
 
 console.log('PASS: scene component rendering');

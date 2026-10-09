@@ -125,6 +125,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: dtolnay/rust-toolchain@stable
       - name: validate-ffi
         run: node tools/validate-ffi.js
@@ -178,6 +181,49 @@ jobs:
       - name: clippy (shared)
         working-directory: native/shared
         run: cargo clippy --release --no-deps -- -D warnings
+
+  # ---------------------------------------------------------------------------
+  # TypeScript correctness. Steps: typecheck, lint, format:check,
+  # typecheck:tests, test:unit, test:tools, the harness runner (entries marked
+  # ci:true need native libs and run in build-linux), and examples:check:static.
+  # ---------------------------------------------------------------------------
+  ts-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: |
+          npm install
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Typecheck tests
+        run: npm run typecheck:tests
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Harness runner tests
+        run: npm run test:tools
+
+      - name: TypeScript harnesses
+        run: node tools/run-ts-harnesses.mjs
+
+      - name: Check examples (static)
+        run: npm run examples:check:static
 
   # ---------------------------------------------------------------------------
   # Per-platform builds: each native crate is a separate Cargo workspace root
@@ -304,20 +350,38 @@ jobs:
         run: npm run test:scripting
 
       - name: Install Perry
-        run: npm install --global @perryts/perry@0.5.1520
+        run: |
+          npm install
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Test Game, asset scopes, and scene disposal contracts
         run: npm run test:runtime
 
       - name: Prepare Perry runtime libraries
         run: |
-          perry_package="$(npm root -g)/@perryts/perry"
+          perry_package="$PWD/node_modules/@perryts/perry"
           runtime_package="$(node -e 'const path = require("path"); const manifest = require.resolve("@perryts/perry-linux-x64/package.json", { paths: [process.argv[1]] }); process.stdout.write(path.join(path.dirname(manifest), "lib"));' "$perry_package")"
           runtime_dir="$RUNNER_TEMP/perry-runtime"
           mkdir -p "$runtime_dir"
           zstd -d "$runtime_package/libperry_runtime.a.zst" -o "$runtime_dir/libperry_runtime.a"
           zstd -d "$runtime_package/libperry_stdlib.a.zst" -o "$runtime_dir/libperry_stdlib.a"
           echo "PERRY_RUNTIME_DIR=$runtime_dir" >> "$GITHUB_ENV"
+
+      - name: Generate audio harness fixture
+        run: python3 tests/game-runtime/make-tone.py
+
+      - name: Run TypeScript harnesses including native-library ones
+        run: |
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "Mesa lavapipe Vulkan ICD was not installed."
+            exit 1
+          fi
+          xvfb-run -a env \
+            BLOOM_HEADLESS=1 \
+            WGPU_BACKEND=vulkan \
+            VK_ICD_FILENAMES="$lvp_icd" \
+            node tools/run-ts-harnesses.mjs --include-ci
 
       - name: Install native TypeScript smoke dependencies
         run: |
@@ -459,7 +523,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Check web build output safety
         run: bash native/web/tests/build-output-safety.sh

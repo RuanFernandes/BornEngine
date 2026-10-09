@@ -55,9 +55,15 @@ export class Window {
     }
   }
 
-  get width(): number { return this.widthValue; }
-  get height(): number { return this.heightValue; }
-  get title(): string { return this.titleValue; }
+  get width(): number {
+    return this.widthValue;
+  }
+  get height(): number {
+    return this.heightValue;
+  }
+  get title(): string {
+    return this.titleValue;
+  }
   get isOpen(): boolean {
     return this.openValue && this.initialized && this.context.isReady && !this.context.isDisposed;
   }
@@ -73,8 +79,15 @@ export class Window {
 
   /** Attach to a host-owned native view/window/surface and let the host drive frames. */
   attachNativeSurface(handle: number, width: number, height: number): boolean {
-    if (this.mode !== 'embedded' || !this.owner.canActivateServices() || this.context.isDisposed || !isPositiveFinite(handle) ||
-        !isPositiveFinite(width) || !isPositiveFinite(height)) return false;
+    if (
+      this.mode !== 'embedded' ||
+      !this.owner.canActivateServices() ||
+      this.context.isDisposed ||
+      !isPositiveFinite(handle) ||
+      !isPositiveFinite(width) ||
+      !isPositiveFinite(height)
+    )
+      return false;
     if (this.initialized) return true;
 
     const attached = native.attachToNativeView(handle, width, height);
@@ -93,8 +106,8 @@ export class Window {
   }
 
   resize(width: number, height: number, pixelRatio = 1): boolean {
-    if (!this.isOpen || !isPositiveFinite(width) || !isPositiveFinite(height) ||
-        !isPositiveFinite(pixelRatio)) return false;
+    if (!this.isOpen || !isPositiveFinite(width) || !isPositiveFinite(height) || !isPositiveFinite(pixelRatio))
+      return false;
     native.resize(width * pixelRatio, height * pixelRatio, width, height);
     this.widthValue = width;
     this.heightValue = height;

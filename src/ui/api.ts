@@ -1,12 +1,27 @@
-import type { Color, Texture } from '../core/types';
-import type { GameContext } from '../core/context';
+import type { Color } from '../core/types';
+import type { Texture } from '../textures';
 import { UiOpcode, type UiBackendId } from './opcodes';
 import type { UiApi, UiId, UiResponse } from './types';
 
-declare function bloom_ui_command(backend: number, opcode: number, id: number, a: number, b: number, c: number, d: number, text: number): number;
+declare function bloom_ui_command(
+  backend: number,
+  opcode: number,
+  id: number,
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  text: number,
+): number;
 declare function bloom_ui_scratch_reset(backend: number): void;
 declare function bloom_ui_scratch_push_f64(backend: number, value: number): void;
-declare function bloom_ui_scratch_command(backend: number, opcode: number, id: number, count: number, text: number): number;
+declare function bloom_ui_scratch_command(
+  backend: number,
+  opcode: number,
+  id: number,
+  count: number,
+  text: number,
+): number;
 declare function bloom_ui_inject_text(text: number): void;
 declare function bloom_ui_response(backend: number, id: number, field: number): number;
 declare function bloom_ui_response_text(backend: number, id: number): string;
@@ -35,32 +50,11 @@ function colorValues(color: Color): number[] {
   return [color.r, color.g, color.b, color.a];
 }
 
-function sendUiCommand(
-  backend: UiBackendId,
-  opcode: number,
-  id: UiId,
-  args: number[],
-  text: string,
-): void {
-  bloom_ui_command(
-    backend,
-    opcode,
-    id,
-    args[0] ?? 0,
-    args[1] ?? 0,
-    args[2] ?? 0,
-    args[3] ?? 0,
-    text as any,
-  );
+function sendUiCommand(backend: UiBackendId, opcode: number, id: UiId, args: number[], text: string): void {
+  bloom_ui_command(backend, opcode, id, args[0] ?? 0, args[1] ?? 0, args[2] ?? 0, args[3] ?? 0, text as any);
 }
 
-function sendUiScratchCommand(
-  backend: UiBackendId,
-  opcode: number,
-  id: UiId,
-  values: number[],
-  text: string,
-): void {
+function sendUiScratchCommand(backend: UiBackendId, opcode: number, id: UiId, values: number[], text: string): void {
   bloom_ui_scratch_reset(backend);
   for (const value of values) bloom_ui_scratch_push_f64(backend, value);
   bloom_ui_scratch_command(backend, opcode, id, values.length, text as any);
@@ -70,7 +64,12 @@ function injectUiText(text: string): void {
   bloom_ui_inject_text(text as any);
 }
 
-export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTextureAvailable: (texture: Texture) => boolean, nativeTextureHandle: (texture: Texture) => number): UiApi {
+export function createUiApi(
+  backend: UiBackendId,
+  isActive: () => boolean,
+  isTextureAvailable: (texture: Texture) => boolean,
+  nativeTextureHandle: (texture: Texture) => number,
+): UiApi {
   function command(opcode: number, id: UiId, args: number[] = [], text?: string): void {
     if (!isActive()) return;
     sendUiCommand(backend, opcode, id, args, text ?? '');
@@ -101,18 +100,42 @@ export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTex
       command(UiOpcode.SetWindowSize, id, [width, height, 0]);
       command(UiOpcode.BeginWindow, id, [], title);
     },
-    endWindow(id = 0) { command(UiOpcode.EndWindow, id); },
-    setWindowPosition(id, x, y) { command(UiOpcode.SetWindowPosition, id, [x, y, 1]); },
-    setWindowSize(id, width, height) { command(UiOpcode.SetWindowSize, id, [width, height, 1]); },
-    beginPanel(id) { command(UiOpcode.BeginPanel, id); },
-    endPanel(id = 0) { command(UiOpcode.EndPanel, id); },
-    beginHorizontal(id) { command(UiOpcode.BeginHorizontal, id); },
-    endHorizontal(id = 0) { command(UiOpcode.EndHorizontal, id); },
-    beginVertical(id) { command(UiOpcode.BeginVertical, id); },
-    endVertical(id = 0) { command(UiOpcode.EndVertical, id); },
-    spacing(amount = 8) { command(UiOpcode.Spacing, 0, [amount]); },
-    separator() { command(UiOpcode.Separator, 0); },
-    label(id, text) { command(UiOpcode.Label, id, [], text); },
+    endWindow(id = 0) {
+      command(UiOpcode.EndWindow, id);
+    },
+    setWindowPosition(id, x, y) {
+      command(UiOpcode.SetWindowPosition, id, [x, y, 1]);
+    },
+    setWindowSize(id, width, height) {
+      command(UiOpcode.SetWindowSize, id, [width, height, 1]);
+    },
+    beginPanel(id) {
+      command(UiOpcode.BeginPanel, id);
+    },
+    endPanel(id = 0) {
+      command(UiOpcode.EndPanel, id);
+    },
+    beginHorizontal(id) {
+      command(UiOpcode.BeginHorizontal, id);
+    },
+    endHorizontal(id = 0) {
+      command(UiOpcode.EndHorizontal, id);
+    },
+    beginVertical(id) {
+      command(UiOpcode.BeginVertical, id);
+    },
+    endVertical(id = 0) {
+      command(UiOpcode.EndVertical, id);
+    },
+    spacing(amount = 8) {
+      command(UiOpcode.Spacing, 0, [amount]);
+    },
+    separator() {
+      command(UiOpcode.Separator, 0);
+    },
+    label(id, text) {
+      command(UiOpcode.Label, id, [], text);
+    },
     link(id, text) {
       command(UiOpcode.Link, id, [], text);
       return response(id).clicked;
@@ -155,7 +178,9 @@ export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTex
       command(UiOpcode.Label, 0, [], label);
       command(UiOpcode.Combo, id, [], selectedText);
     },
-    endCombo(id = 0) { command(UiOpcode.EndCombo, id); },
+    endCombo(id = 0) {
+      command(UiOpcode.EndCombo, id);
+    },
     selectable(id, label, selected) {
       command(UiOpcode.Selectable, id, [selected ? 1 : 0], label);
       return response(id).clicked;
@@ -164,17 +189,31 @@ export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTex
       command(UiOpcode.CollapsingHeader, id, [], label);
       return response(id).value > 0.5;
     },
-    endCollapsingHeader(id = 0) { command(UiOpcode.EndCollapsingHeader, id); },
-    beginScrollArea(id) { command(UiOpcode.BeginScrollArea, id); },
-    endScrollArea(id = 0) { command(UiOpcode.EndScrollArea, id); },
-    beginTabBar(id) { command(UiOpcode.BeginTabBar, id); },
-    endTabBar(id = 0) { command(UiOpcode.EndTabBar, id); },
+    endCollapsingHeader(id = 0) {
+      command(UiOpcode.EndCollapsingHeader, id);
+    },
+    beginScrollArea(id) {
+      command(UiOpcode.BeginScrollArea, id);
+    },
+    endScrollArea(id = 0) {
+      command(UiOpcode.EndScrollArea, id);
+    },
+    beginTabBar(id) {
+      command(UiOpcode.BeginTabBar, id);
+    },
+    endTabBar(id = 0) {
+      command(UiOpcode.EndTabBar, id);
+    },
     beginTabItem(id, label) {
       command(UiOpcode.BeginTabItem, id, [], label);
       return response(id).value > 0.5;
     },
-    endTabItem(id = 0) { command(UiOpcode.EndTabItem, id); },
-    progressBar(id, fraction, label = '') { command(UiOpcode.ProgressBar, id, [fraction], label); },
+    endTabItem(id = 0) {
+      command(UiOpcode.EndTabItem, id);
+    },
+    progressBar(id, fraction, label = '') {
+      command(UiOpcode.ProgressBar, id, [fraction], label);
+    },
     registerTexture(texture) {
       if (!isTextureAvailable(texture)) return;
       const handle = nativeTextureHandle(texture);
@@ -210,15 +249,27 @@ export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTex
       for (const point of points) values.push(point.x, point.y);
       scratchCommand(UiOpcode.PaintPolygon, id, [...values, ...colorValues(color), thickness]);
     },
-    setTheme(theme) { command(UiOpcode.SetStyle, 0, [theme === 'light' ? 1 : 0, Number.NaN]); },
+    setTheme(theme) {
+      command(UiOpcode.SetStyle, 0, [theme === 'light' ? 1 : 0, Number.NaN]);
+    },
     loadFont(id, family, fontBytes) {
       scratchCommand(UiOpcode.LoadFont, id, fontBytes, family);
     },
-    setFont(id) { command(UiOpcode.SetStyle, 0, [2, id]); },
-    beginMenuBar(id) { command(UiOpcode.BeginMenuBar, id); },
-    endMenuBar(id = 0) { command(UiOpcode.EndMenuBar, id); },
-    beginMenu(id, label) { command(UiOpcode.BeginMenu, id, [], label); },
-    endMenu(id = 0) { command(UiOpcode.EndMenu, id); },
+    setFont(id) {
+      command(UiOpcode.SetStyle, 0, [2, id]);
+    },
+    beginMenuBar(id) {
+      command(UiOpcode.BeginMenuBar, id);
+    },
+    endMenuBar(id = 0) {
+      command(UiOpcode.EndMenuBar, id);
+    },
+    beginMenu(id, label) {
+      command(UiOpcode.BeginMenu, id, [], label);
+    },
+    endMenu(id = 0) {
+      command(UiOpcode.EndMenu, id);
+    },
     menuItem(id, label) {
       command(UiOpcode.MenuItem, id, [], label);
       return response(id).clicked;
@@ -227,18 +278,40 @@ export function createUiApi(backend: UiBackendId, isActive: () => boolean, isTex
       command(UiOpcode.TreeNode, id, [], label);
       return response(id).value > 0.5;
     },
-    endTreeNode(id = 0) { command(UiOpcode.TreePop, id); },
-    beginTable(id, columns) { command(UiOpcode.BeginTable, id, [columns]); },
-    endTable(id = 0) { command(UiOpcode.EndTable, id); },
-    tableNextRow() { command(UiOpcode.TableNextRow, 0); },
-    tableNextColumn() { command(UiOpcode.TableNextColumn, 0); },
-    demoWindow(id = 0) { command(UiOpcode.DemoWindow, id); },
-    metricsWindow(id = 0) { command(UiOpcode.MetricsWindow, id); },
+    endTreeNode(id = 0) {
+      command(UiOpcode.TreePop, id);
+    },
+    beginTable(id, columns) {
+      command(UiOpcode.BeginTable, id, [columns]);
+    },
+    endTable(id = 0) {
+      command(UiOpcode.EndTable, id);
+    },
+    tableNextRow() {
+      command(UiOpcode.TableNextRow, 0);
+    },
+    tableNextColumn() {
+      command(UiOpcode.TableNextColumn, 0);
+    },
+    demoWindow(id = 0) {
+      command(UiOpcode.DemoWindow, id);
+    },
+    metricsWindow(id = 0) {
+      command(UiOpcode.MetricsWindow, id);
+    },
     response,
-    isAvailable() { return isActive() && bloom_ui_is_available(backend) > 0.5; },
-    wantsPointerInput() { return isActive() && bloom_ui_wants_input(backend, 0) > 0.5; },
-    wantsKeyboardInput() { return isActive() && bloom_ui_wants_input(backend, 1) > 0.5; },
-    injectText(text) { if (isActive()) injectUiText(text); },
+    isAvailable() {
+      return isActive() && bloom_ui_is_available(backend) > 0.5;
+    },
+    wantsPointerInput() {
+      return isActive() && bloom_ui_wants_input(backend, 0) > 0.5;
+    },
+    wantsKeyboardInput() {
+      return isActive() && bloom_ui_wants_input(backend, 1) > 0.5;
+    },
+    injectText(text) {
+      if (isActive()) injectUiText(text);
+    },
   };
   return api;
 }

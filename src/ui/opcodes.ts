@@ -63,4 +63,4 @@ export const UiOpcode = {
   EndCollapsingHeader: 57,
 } as const;
 
-export type UiBackendId = typeof UiBackend[keyof typeof UiBackend];
+export type UiBackendId = (typeof UiBackend)[keyof typeof UiBackend];

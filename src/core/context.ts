@@ -142,15 +142,25 @@ export class GameContext {
       try {
         pending[index].dispose();
       } catch (error) {
-        if (this.error === null) this.error = error instanceof Error ? error.message : String(error);
+        if (this.error === null)
+          this.error =
+            typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error);
       }
     }
   }
 
-  setDrawHandler(handler: ContextDrawHandler | null): void { this.drawHandler = handler; }
-  setRenderTargetHandler(handler: ContextRenderTargetHandler | null): void { this.renderTargetHandler = handler; }
+  setDrawHandler(handler: ContextDrawHandler | null): void {
+    this.drawHandler = handler;
+  }
+  setRenderTargetHandler(handler: ContextRenderTargetHandler | null): void {
+    this.renderTargetHandler = handler;
+  }
 
-  draw(resource: ContextDrawable, position: { x: number; y: number }, tint: { r: number; g: number; b: number; a: number }): boolean {
+  draw(
+    resource: ContextDrawable,
+    position: { x: number; y: number },
+    tint: { r: number; g: number; b: number; a: number },
+  ): boolean {
     if (!this.isReady || !this.owns(resource) || !resource.isLoaded || this.drawHandler === null) return false;
     return this.drawHandler(resource, position, tint);
   }

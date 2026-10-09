@@ -1,7 +1,7 @@
 import { getGameContext } from '../core/context';
 import type { ContextResource, GameContext } from '../core/context';
 import type { Game } from '../core/game';
-import type { Texture } from '../core/types';
+import type { Texture } from '../textures';
 import { createUiApi } from './api';
 import { UiBackend, type UiBackendId } from './opcodes';
 import type { UiApi } from './types';
@@ -23,7 +23,9 @@ export class UiSurface implements ContextResource {
     this.context.register(this);
   }
 
-  get isReady(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed; }
+  get isReady(): boolean {
+    return !this.disposed && this.context.isReady && !this.context.isDisposed;
+  }
 
   dispose(): void {
     if (this.disposed) return;
@@ -33,7 +35,9 @@ export class UiSurface implements ContextResource {
 }
 
 export class Ui extends UiSurface {
-  constructor(owner: Game) { super(owner, UiBackend.Egui); }
+  constructor(owner: Game) {
+    super(owner, UiBackend.Egui);
+  }
 }
 
 export interface Ui extends UiApi {}

@@ -14,7 +14,9 @@ export class GuiText extends GUI {
     this.setProfile(GUIProfiles.get('text'));
   }
 
-  getText(): string { return this.text; }
+  getText(): string {
+    return this.text;
+  }
   setText(text: string): this {
     this.text = text;
     this._guiCommandText = text;
@@ -72,27 +74,42 @@ export class GuiTextEdit extends GuiText {
 
   setMaxLength(length: number): this {
     validateGuiCoordinate(length, 'maximum text length');
-    if (!Number.isInteger(length) || length < 0) throw new RangeError('Maximum text length must be a non-negative integer.');
+    if (!Number.isInteger(length) || length < 0)
+      throw new RangeError('Maximum text length must be a non-negative integer.');
     this.maxLength = length;
     this.setText(this.getText());
     this.syncOptions();
     return this;
   }
 
-  getMaxLength(): number { return this.maxLength; }
-  setPassword(enabled: boolean): this { this.password = enabled; this.syncOptions(); return this; }
-  isPassword(): boolean { return this.password; }
+  getMaxLength(): number {
+    return this.maxLength;
+  }
+  setPassword(enabled: boolean): this {
+    this.password = enabled;
+    this.syncOptions();
+    return this;
+  }
+  isPassword(): boolean {
+    return this.password;
+  }
   setNumbersOnly(enabled: boolean): this {
     this.numbersOnly = enabled;
     if (enabled) this.setText(this.getText());
     this.syncOptions();
     return this;
   }
-  isNumbersOnly(): boolean { return this.numbersOnly; }
-  getSelection(): { start: number; end: number } { return { start: this.selectionStart, end: this.selectionEnd }; }
+  isNumbersOnly(): boolean {
+    return this.numbersOnly;
+  }
+  getSelection(): { start: number; end: number } {
+    return { start: this.selectionStart, end: this.selectionEnd };
+  }
 
   /** @internal Captures the text revision associated with an emitted command. */
-  _captureTextRevision(): number { return this.textRevision; }
+  _captureTextRevision(): number {
+    return this.textRevision;
+  }
 
   /** @internal Applies native edits only when no newer TypeScript text was set. */
   _applyNativeText(text: string, commandRevision: number, dispatchChange = true): boolean {
@@ -171,8 +188,12 @@ export class GuiTextEditSlider extends GuiTextEdit {
     return this;
   }
 
-  getRange(): { minimum: number; maximum: number } { return { minimum: this.minimum, maximum: this.maximum }; }
-  getValue(): number { return this.value; }
+  getRange(): { minimum: number; maximum: number } {
+    return { minimum: this.minimum, maximum: this.maximum };
+  }
+  getValue(): number {
+    return this.value;
+  }
 
   setValue(value: number): this {
     validateGuiCoordinate(value, 'value');
@@ -184,7 +205,9 @@ export class GuiTextEditSlider extends GuiTextEdit {
   }
 
   /** @internal Captures the numeric value revision emitted with this control. */
-  _captureValueRevision(): number { return this.revision; }
+  _captureValueRevision(): number {
+    return this.revision;
+  }
 
   /** @internal Rejects old native values after newer TypeScript updates. */
   _applyNativeValue(value: number, commandRevision: number): void {

@@ -74,9 +74,14 @@ function diagnosticResult(diagnostics: World2DDiagnostic[]): World2DMigrationRes
 }
 
 function diagnosticFromError(error: any): World2DDiagnostic {
-  if (error !== null && typeof error === 'object' && isObject(error.diagnostic) &&
-      typeof error.diagnostic.path === 'string' && typeof error.diagnostic.code === 'string' &&
-      typeof error.diagnostic.message === 'string') {
+  if (
+    error !== null &&
+    typeof error === 'object' &&
+    isObject(error.diagnostic) &&
+    typeof error.diagnostic.path === 'string' &&
+    typeof error.diagnostic.code === 'string' &&
+    typeof error.diagnostic.message === 'string'
+  ) {
     return error.diagnostic as World2DDiagnostic;
   }
   return {
@@ -139,8 +144,11 @@ function dimensionsFromFields(compact: any, width: any, height: any, path: strin
   const tuple = compact === undefined ? null : sizeValue(compact, path);
   let expanded: WorldSize | null = null;
   if (width !== undefined || height !== undefined) {
-    if ((width !== undefined && !finite(width)) || (height !== undefined && !finite(height)) ||
-        ((width === undefined || height === undefined) && tuple === null)) {
+    if (
+      (width !== undefined && !finite(width)) ||
+      (height !== undefined && !finite(height)) ||
+      ((width === undefined || height === undefined) && tuple === null)
+    ) {
       fail(path, 'invalid_dimensions', 'Expanded dimensions require finite width and height values.');
     }
     expanded = {
@@ -209,8 +217,10 @@ function chooseCommonTileSize(
 ): World2DVector | null {
   if (explicitRoot !== null) return explicitRoot;
   const candidates: World2DVector[] = [];
-  for (let index = 0; index < sourceSizes.length; index++) if (sourceSizes[index] !== null) candidates.push(sourceSizes[index] as World2DVector);
-  for (let index = 0; index < layerSizes.length; index++) if (layerSizes[index] !== null) candidates.push(layerSizes[index] as World2DVector);
+  for (let index = 0; index < sourceSizes.length; index++)
+    if (sourceSizes[index] !== null) candidates.push(sourceSizes[index] as World2DVector);
+  for (let index = 0; index < layerSizes.length; index++)
+    if (layerSizes[index] !== null) candidates.push(layerSizes[index] as World2DVector);
   if (candidates.length === 0) return null;
 
   const counts: Record<string, number> = {};
@@ -273,7 +283,8 @@ function parseTileset(
 ): World2DTilesetData {
   const path = '/tilesets/' + index;
   const tileSize = explicitSize === null ? defaultSize : explicitSize;
-  if (tileSize === null) fail(path + '/tileSize', 'missing_tile_size', 'Tileset needs a tile size or a map-level default.');
+  if (tileSize === null)
+    fail(path + '/tileSize', 'missing_tile_size', 'Tileset needs a tile size or a map-level default.');
   const margin = raw.margin === undefined ? { x: 0, y: 0 } : vectorValue(raw.margin, path + '/margin');
   const spacing = raw.spacing === undefined ? { x: 0, y: 0 } : vectorValue(raw.spacing, path + '/spacing');
   let tiles: World2DTileDefinition[] = [];
@@ -311,7 +322,8 @@ function parseObject(raw: any, layerIndex: number, objectIndex: number): World2D
   const origin = raw.origin === undefined ? { x: 0, y: 0 } : vectorValue(raw.origin, path + '/origin');
   let components: any[] = [];
   if (raw.components !== undefined) {
-    if (!Array.isArray(raw.components)) fail(path + '/components', 'invalid_components', 'Object components must be an array.');
+    if (!Array.isArray(raw.components))
+      fail(path + '/components', 'invalid_components', 'Object components must be an array.');
     components = cloneJson(raw.components);
   }
   let tags: string[] = [];
@@ -354,7 +366,8 @@ function inferredAssets(root: any, tilesets: any[], layers: any[]): any[] {
   for (let index = 0; index < tilesets.length; index++) {
     if (typeof tilesets[index].image === 'string') appendUnique(references, tilesets[index].image);
     const tiles = Array.isArray(tilesets[index].tiles) ? tilesets[index].tiles : [];
-    for (let tileIndex = 0; tileIndex < tiles.length; tileIndex++) appendFileProperties(tiles[tileIndex].properties, references);
+    for (let tileIndex = 0; tileIndex < tiles.length; tileIndex++)
+      appendFileProperties(tiles[tileIndex].properties, references);
   }
   for (let index = 0; index < layers.length; index++) {
     appendFileProperties(layers[index].properties, references);
@@ -421,14 +434,19 @@ function chooseMapSize(root: any, layerSizes: Array<WorldSize | null>): WorldSiz
 
 function normalizeVersion2(root: any): World2DDocument {
   if (root.format !== WORLD2D_FORMAT) fail('/format', 'invalid_format', 'format must be bornengine.world2d.');
-  if (root.version !== WORLD2D_VERSION) fail('/version', 'unsupported_version', 'Only World2D version 2 storage is supported.');
+  if (root.version !== WORLD2D_VERSION)
+    fail('/version', 'unsupported_version', 'Only World2D version 2 storage is supported.');
   if (!Array.isArray(root.tilesets)) fail('/tilesets', 'invalid_tilesets', 'tilesets must be an array.');
   if (!Array.isArray(root.layers)) fail('/layers', 'invalid_layers', 'layers must be an array.');
 
   const explicitRootTileSize = root.tileSize === undefined ? null : vectorValue(root.tileSize, '/tileSize');
-  if (explicitRootTileSize !== null &&
-      (!safeInteger(explicitRootTileSize.x) || !safeInteger(explicitRootTileSize.y) ||
-       explicitRootTileSize.x <= 0 || explicitRootTileSize.y <= 0)) {
+  if (
+    explicitRootTileSize !== null &&
+    (!safeInteger(explicitRootTileSize.x) ||
+      !safeInteger(explicitRootTileSize.y) ||
+      explicitRootTileSize.x <= 0 ||
+      explicitRootTileSize.y <= 0)
+  ) {
     fail('/tileSize', 'invalid_dimensions', 'Map tileSize values must be positive safe integers.');
   }
   const sourceSizes: Array<World2DVector | null> = [];
@@ -456,7 +474,8 @@ function normalizeVersion2(root: any): World2DDocument {
   const mapSize = chooseMapSize(root, rawLayerSizes);
   const defaultTileSize = chooseCommonTileSize(explicitRootTileSize, sourceSizes, layerTileSizes);
   const normalizedTilesets = root.tilesets.map((raw: any, index: number) =>
-    parseTileset(raw, index, sourceSizes[index], defaultTileSize));
+    parseTileset(raw, index, sourceSizes[index], defaultTileSize),
+  );
   const codebook = createWorld2DTileCodebook(normalizedTilesets);
   const normalizedLayers: World2DLayer[] = [];
 
@@ -466,10 +485,12 @@ function normalizeVersion2(root: any): World2DDocument {
     const base = parseLayerBase(raw, path);
     if (raw.type === 'tilemap') {
       const size = rawLayerSizes[index] === null ? mapSize : rawLayerSizes[index];
-      if (size === null) fail(path + '/size', 'missing_dimensions', 'Tile layer needs its size or a map-level default.');
+      if (size === null)
+        fail(path + '/size', 'missing_dimensions', 'Tile layer needs its size or a map-level default.');
       const cellCount = checkedCellCount(size, path + '/size');
       const tileSize = layerTileSizes[index] === null ? defaultTileSize : layerTileSizes[index];
-      if (tileSize === null) fail(path + '/tileSize', 'missing_tile_size', 'Tile layer needs tileSize or a map-level default.');
+      if (tileSize === null)
+        fail(path + '/tileSize', 'missing_tile_size', 'Tile layer needs tileSize or a map-level default.');
       if (raw.data === undefined) fail(path + '/data', 'invalid_tile_data', 'Tile layer data is required.');
       let data: Array<WorldTileCell | null>;
       if (Array.isArray(raw.data) && raw.data.every((item: any) => typeof item === 'number')) {
@@ -500,7 +521,8 @@ function normalizeVersion2(root: any): World2DDocument {
       normalizedLayers.push(layer);
     } else if (raw.type === 'objects') {
       const objects = raw.objects === undefined ? [] : raw.objects;
-      if (!Array.isArray(objects)) fail(path + '/objects', 'invalid_objects', 'Object layers require an objects array.');
+      if (!Array.isArray(objects))
+        fail(path + '/objects', 'invalid_objects', 'Object layers require an objects array.');
       const normalizedObjects = objects.map((item: any, objectIndex: number) => parseObject(item, index, objectIndex));
       normalizedLayers.push({ ...base, type: 'objects', objects: normalizedObjects });
     } else {
@@ -533,7 +555,9 @@ function vectorValueOrNull(value: any, path: string): World2DVector | null {
 /** Restores the expanded in-memory model from a strict v1 document or compact v2 storage. */
 export function normalizeWorld2DStorage(input: unknown): World2DMigrationResult {
   if (!isObject(input)) {
-    return diagnosticResult([{ path: '', code: 'invalid_document', message: 'World2D document must be a JSON object.' }]);
+    return diagnosticResult([
+      { path: '', code: 'invalid_document', message: 'World2D document must be a JSON object.' },
+    ]);
   }
   const root = input as Record<string, any>;
   try {

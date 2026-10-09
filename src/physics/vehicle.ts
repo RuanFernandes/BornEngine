@@ -10,11 +10,18 @@ import type { PhysicsTransform } from './rigid-body';
 export type VehicleOptions = Omit<native.VehicleConfig, 'chassisShape'> & { chassisShape: Collider };
 
 class VehicleChassis extends PhysicsBody {
-  constructor(world: PhysicsWorld, collider: Collider, handle: number, private readonly vehicle: Vehicle) {
+  constructor(
+    world: PhysicsWorld,
+    collider: Collider,
+    handle: number,
+    private readonly vehicle: Vehicle,
+  ) {
     super(world, collider, handle, native.MotionType.DYNAMIC);
   }
 
-  dispose(): void { this.vehicle.dispose(); }
+  dispose(): void {
+    this.vehicle.dispose();
+  }
 }
 
 /** Four-wheel vehicle constraint and its engine-owned chassis body. */
@@ -49,8 +56,11 @@ export class Vehicle implements ContextResource {
       objectLayer: options.objectLayer,
     };
     const handle = valid ? native.createVehicle(getNativeHandle(world), nativeOptions) : 0;
-    this.error = valid ? (handle === 0 ? 'Unable to create vehicle.' : null) :
-      'Vehicle chassis collider must be loaded by the same PhysicsWorld.';
+    this.error = valid
+      ? handle === 0
+        ? 'Unable to create vehicle.'
+        : null
+      : 'Vehicle chassis collider must be loaded by the same PhysicsWorld.';
     if (handle !== 0) {
       registerNativeHandle(this, handle);
       const chassisHandle = native.getVehicleChassis(handle);
@@ -62,21 +72,29 @@ export class Vehicle implements ContextResource {
     }
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0; }
+  get isLoaded(): boolean {
+    return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0;
+  }
   setInput(forward: number, steering: number, brake = 0, handbrake = 0): boolean {
     if (!this.isLoaded) return false;
     native.setVehicleInput(getNativeHandle(this), forward, steering, brake, handbrake);
     return true;
   }
-  get engineRpm(): number { return this.isLoaded ? native.getVehicleEngineRPM(getNativeHandle(this)) : 0; }
+  get engineRpm(): number {
+    return this.isLoaded ? native.getVehicleEngineRPM(getNativeHandle(this)) : 0;
+  }
   getWheelAngularVelocity(index: number): number {
     return this.isLoaded ? native.getWheelAngularVelocity(getNativeHandle(this), index) : 0;
   }
   getWheelTransform(index: number): PhysicsTransform | null {
     return this.isLoaded && index >= 0 && index < 4 ? native.getWheelTransform(getNativeHandle(this), index) : null;
   }
-  get position(): Vec3 | null { return this.chassis ? this.chassis.position : null; }
-  get rotation(): Quat | null { return this.chassis ? this.chassis.rotation : null; }
+  get position(): Vec3 | null {
+    return this.chassis ? this.chassis.position : null;
+  }
+  get rotation(): Quat | null {
+    return this.chassis ? this.chassis.rotation : null;
+  }
 
   dispose(): void {
     if (this.disposed) return;

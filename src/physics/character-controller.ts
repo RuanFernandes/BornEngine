@@ -35,8 +35,11 @@ export class CharacterController implements ContextResource {
     this.colliderValue = collider;
     const valid = world.isReady && collider.world === world && collider.isLoaded;
     const handle = valid ? native.createCharacter(getNativeHandle(world), getNativeHandle(collider), options) : 0;
-    this.error = valid ? (handle === 0 ? 'Unable to create character controller.' : null) :
-      'Character controller requires a loaded collider from the same PhysicsWorld.';
+    this.error = valid
+      ? handle === 0
+        ? 'Unable to create character controller.'
+        : null
+      : 'Character controller requires a loaded collider from the same PhysicsWorld.';
     if (handle !== 0) {
       registerNativeHandle(this, handle);
       world._registerCharacter(this);
@@ -44,14 +47,30 @@ export class CharacterController implements ContextResource {
     }
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0; }
-  get position(): Vec3 | null { return this.isLoaded ? native.getCharacterPosition(getNativeHandle(this)) : null; }
-  get rotation(): Quat | null { return this.isLoaded ? native.getCharacterRotation(getNativeHandle(this)) : null; }
-  get linearVelocity(): Vec3 | null { return this.isLoaded ? native.getCharacterLinearVelocity(getNativeHandle(this)) : null; }
-  get groundState(): number { return this.isLoaded ? native.getCharacterGroundState(getNativeHandle(this)) : native.GroundState.IN_AIR; }
-  get isGrounded(): boolean { return this.isLoaded && native.isCharacterGrounded(getNativeHandle(this)); }
-  get groundNormal(): Vec3 | null { return this.isLoaded ? native.getCharacterGroundNormal(getNativeHandle(this)) : null; }
-  get groundPosition(): Vec3 | null { return this.isLoaded ? native.getCharacterGroundPosition(getNativeHandle(this)) : null; }
+  get isLoaded(): boolean {
+    return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0;
+  }
+  get position(): Vec3 | null {
+    return this.isLoaded ? native.getCharacterPosition(getNativeHandle(this)) : null;
+  }
+  get rotation(): Quat | null {
+    return this.isLoaded ? native.getCharacterRotation(getNativeHandle(this)) : null;
+  }
+  get linearVelocity(): Vec3 | null {
+    return this.isLoaded ? native.getCharacterLinearVelocity(getNativeHandle(this)) : null;
+  }
+  get groundState(): number {
+    return this.isLoaded ? native.getCharacterGroundState(getNativeHandle(this)) : native.GroundState.IN_AIR;
+  }
+  get isGrounded(): boolean {
+    return this.isLoaded && native.isCharacterGrounded(getNativeHandle(this));
+  }
+  get groundNormal(): Vec3 | null {
+    return this.isLoaded ? native.getCharacterGroundNormal(getNativeHandle(this)) : null;
+  }
+  get groundPosition(): Vec3 | null {
+    return this.isLoaded ? native.getCharacterGroundPosition(getNativeHandle(this)) : null;
+  }
   get groundBody(): PhysicsBody | null {
     return this.isLoaded ? this.world._bodyForNative(native.getCharacterGroundBody(getNativeHandle(this))) : null;
   }
@@ -61,16 +80,30 @@ export class CharacterController implements ContextResource {
     native.updateCharacter(getNativeHandle(this), deltaTime, gravity || this.world.gravity);
     return true;
   }
-  setPosition(value: Vec3): boolean { if (!this.isLoaded) return false; native.setCharacterPosition(getNativeHandle(this), value); return true; }
-  setRotation(value: Quat): boolean { if (!this.isLoaded) return false; native.setCharacterRotation(getNativeHandle(this), value); return true; }
-  setLinearVelocity(value: Vec3): boolean { if (!this.isLoaded) return false; native.setCharacterLinearVelocity(getNativeHandle(this), value); return true; }
+  setPosition(value: Vec3): boolean {
+    if (!this.isLoaded) return false;
+    native.setCharacterPosition(getNativeHandle(this), value);
+    return true;
+  }
+  setRotation(value: Quat): boolean {
+    if (!this.isLoaded) return false;
+    native.setCharacterRotation(getNativeHandle(this), value);
+    return true;
+  }
+  setLinearVelocity(value: Vec3): boolean {
+    if (!this.isLoaded) return false;
+    native.setCharacterLinearVelocity(getNativeHandle(this), value);
+    return true;
+  }
   setCollider(value: Collider): boolean {
     if (!this.isLoaded || value.world !== this.world || !value.isLoaded) return false;
     native.setCharacterShape(getNativeHandle(this), getNativeHandle(value));
     this.colliderValue = value;
     return true;
   }
-  get collider(): Collider { return this.colliderValue; }
+  get collider(): Collider {
+    return this.colliderValue;
+  }
 
   dispose(): void {
     if (this.disposed) return;

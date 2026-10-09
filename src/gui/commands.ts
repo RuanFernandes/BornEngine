@@ -1,6 +1,6 @@
 import type { GuiProfile } from './profile';
 import type { GuiRect } from './types';
-import type { Texture } from '../core/types';
+import type { Texture } from '../textures';
 
 export const GuiControlKind = {
   Control: 0,
@@ -33,7 +33,7 @@ export const GuiControlKind = {
   DrawingPanel: 27,
 } as const;
 
-export type GuiControlKindCode = typeof GuiControlKind[keyof typeof GuiControlKind];
+export type GuiControlKindCode = (typeof GuiControlKind)[keyof typeof GuiControlKind];
 
 export interface GuiControlItemCommand {
   id: string | number;

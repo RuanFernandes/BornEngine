@@ -20,8 +20,13 @@ declare function bloom_colyseus_room_id(room: number): string;
 declare function bloom_colyseus_room_session_id(room: number): string;
 declare function bloom_colyseus_room_reconnection_token(room: number): string;
 
-export interface RoomRequestOptions { timeout?: number; }
-export interface ColyseusError extends Error { code?: number; reason?: unknown; }
+export interface RoomRequestOptions {
+  timeout?: number;
+}
+export interface ColyseusError extends Error {
+  code?: number;
+  reason?: unknown;
+}
 export interface RoomRequestCallbacks<T = any> {
   onSuccess(value: T): void;
   onError(error: ColyseusError): void;
@@ -34,9 +39,19 @@ export interface RoomJoinCallbacks<TState = any> {
 }
 
 interface NativeRoomEvent {
-  kind: string; room: number; roomId?: string; sessionId?: string; reconnectionToken?: string;
-  state?: unknown; type?: string; data?: unknown; request?: number; outcome?: number;
-  code?: number; message?: string; reason?: string;
+  kind: string;
+  room: number;
+  roomId?: string;
+  sessionId?: string;
+  reconnectionToken?: string;
+  state?: unknown;
+  type?: string;
+  data?: unknown;
+  request?: number;
+  outcome?: number;
+  code?: number;
+  message?: string;
+  reason?: string;
 }
 
 interface PendingJoin {
@@ -46,7 +61,10 @@ interface PendingJoin {
   onJoin?: (room: Room) => void;
   onError?: (error: ColyseusError) => void;
 }
-interface MessageListener { type: string; callback: (message: any) => void; }
+interface MessageListener {
+  type: string;
+  callback: (message: any) => void;
+}
 interface PendingRequest {
   id: number;
   deadline: number;
@@ -56,7 +74,9 @@ interface PendingRequest {
   onError?: (error: ColyseusError) => void;
 }
 
-class NativeRoomHandle { constructor(readonly value: number) {} }
+class NativeRoomHandle {
+  constructor(readonly value: number) {}
+}
 const COLYSEUS_RUNTIME_SLOT = {};
 
 function serializeRoomOptions(options: object): string {
@@ -91,8 +111,11 @@ class ColyseusRuntime implements ContextFrameService {
       if (bloom_colyseus_has_event() === 0) break;
       const encoded = bloom_colyseus_next_event();
       let event: NativeRoomEvent;
-      try { event = JSON.parse(encoded) as NativeRoomEvent; }
-      catch (_error) { continue; }
+      try {
+        event = JSON.parse(encoded) as NativeRoomEvent;
+      } catch (_error) {
+        continue;
+      }
       for (let index = 0; index < this.clients.length; index++) {
         if (this.clients[index]._handleEvent(event)) break;
       }
@@ -122,6 +145,7 @@ export class ColyseusClient implements ContextResource {
   private pendingJoins: PendingJoin[] = [];
   private disposed = false;
 
+  // biome-ignore format: tests/game-runtime/colyseus-timeout-harness.cjs matches this signature text
   constructor(owner: Game, readonly endpoint: string) {
     this.context = getGameContext(owner);
     if (!this.context.isReady || this.context.isDisposed) {
@@ -149,15 +173,37 @@ export class ColyseusClient implements ContextResource {
     runtime.add(this);
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed && this.context.owns(this) && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
-  get error(): string | null { return this.errorValue; }
+  get isLoaded(): boolean {
+    return (
+      !this.disposed &&
+      this.context.isReady &&
+      !this.context.isDisposed &&
+      this.context.owns(this) &&
+      this.handleValue !== 0
+    );
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get error(): string | null {
+    return this.errorValue;
+  }
 
-  joinOrCreate<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> { return this.startJoin<TState>(0, roomName, options); }
-  create<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> { return this.startJoin<TState>(1, roomName, options); }
-  join<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> { return this.startJoin<TState>(2, roomName, options); }
-  joinById<TState = any>(roomId: string, options: object = {}): Promise<Room<TState>> { return this.startJoin<TState>(3, roomId, options); }
-  reconnect<TState = any>(token: string): Promise<Room<TState>> { return this.startJoin<TState>(4, token, {}); }
+  joinOrCreate<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> {
+    return this.startJoin<TState>(0, roomName, options);
+  }
+  create<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> {
+    return this.startJoin<TState>(1, roomName, options);
+  }
+  join<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> {
+    return this.startJoin<TState>(2, roomName, options);
+  }
+  joinById<TState = any>(roomId: string, options: object = {}): Promise<Room<TState>> {
+    return this.startJoin<TState>(3, roomId, options);
+  }
+  reconnect<TState = any>(token: string): Promise<Room<TState>> {
+    return this.startJoin<TState>(4, token, {});
+  }
 
   /**
    * Start matchmaking and deliver the result from the owning Game's frame
@@ -171,34 +217,19 @@ export class ColyseusClient implements ContextResource {
     return this.startJoinWithCallbacks<TState>(0, roomName, options, callbacks);
   }
 
-  createWithCallbacks<TState = any>(
-    roomName: string,
-    options: object,
-    callbacks: RoomJoinCallbacks<TState>,
-  ): boolean {
+  createWithCallbacks<TState = any>(roomName: string, options: object, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(1, roomName, options, callbacks);
   }
 
-  joinWithCallbacks<TState = any>(
-    roomName: string,
-    options: object,
-    callbacks: RoomJoinCallbacks<TState>,
-  ): boolean {
+  joinWithCallbacks<TState = any>(roomName: string, options: object, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(2, roomName, options, callbacks);
   }
 
-  joinByIdWithCallbacks<TState = any>(
-    roomId: string,
-    options: object,
-    callbacks: RoomJoinCallbacks<TState>,
-  ): boolean {
+  joinByIdWithCallbacks<TState = any>(roomId: string, options: object, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(3, roomId, options, callbacks);
   }
 
-  reconnectWithCallbacks<TState = any>(
-    token: string,
-    callbacks: RoomJoinCallbacks<TState>,
-  ): boolean {
+  reconnectWithCallbacks<TState = any>(token: string, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(4, token, {}, callbacks);
   }
 
@@ -208,15 +239,19 @@ export class ColyseusClient implements ContextResource {
     if (this.isLoaded && runtime !== null) runtime.updateFrame(0);
   }
 
-  dispose(): void { this.disposeInternal(true); }
+  dispose(): void {
+    this.disposeInternal(true);
+  }
 
   private startJoin<TState>(method: number, target: string, options: object): Promise<Room<TState>> {
     if (!this.isLoaded) return Promise.reject(new Error(this.errorValue || 'Colyseus client has been disposed.'));
     const optionsJson = serializeRoomOptions(options);
     return new Promise<Room<TState>>((resolve, reject) => {
-      const nativeHandle = bloom_colyseus_client_join(this.handleValue, method, target,
-        optionsJson);
-      if (nativeHandle === 0) { reject(new Error('Unable to start Colyseus matchmaking')); return; }
+      const nativeHandle = bloom_colyseus_client_join(this.handleValue, method, target, optionsJson);
+      if (nativeHandle === 0) {
+        reject(new Error('Unable to start Colyseus matchmaking'));
+        return;
+      }
       const room = new Room<TState>(new NativeRoomHandle(nativeHandle), this);
       this.rooms.push(room);
       this.pendingJoins.push({ room, resolve: (joined) => resolve(joined as Room<TState>), reject });
@@ -235,8 +270,7 @@ export class ColyseusClient implements ContextResource {
     }
 
     const optionsJson = serializeRoomOptions(options);
-    const nativeHandle = bloom_colyseus_client_join(this.handleValue, method, target,
-      optionsJson);
+    const nativeHandle = bloom_colyseus_client_join(this.handleValue, method, target, optionsJson);
     if (nativeHandle === 0) {
       callbacks.onError(new Error('Unable to start Colyseus matchmaking') as ColyseusError);
       return false;
@@ -275,16 +309,19 @@ export class ColyseusClient implements ContextResource {
         this.pendingJoins.splice(index, 1);
         if (pending.onError !== undefined) pending.onError(error);
         else pending.reject?.(error);
-      }
-      else room._emitError(error);
+      } else room._emitError(error);
       return true;
     }
     room._handleEvent(event);
     return true;
   }
 
-  _checkRequestTimeouts(now: number): void { for (const room of this.rooms) room._checkRequestTimeouts(now); }
-  _disposeFromRuntime(): void { this.disposeInternal(false); }
+  _checkRequestTimeouts(now: number): void {
+    for (const room of this.rooms) room._checkRequestTimeouts(now);
+  }
+  _disposeFromRuntime(): void {
+    this.disposeInternal(false);
+  }
 
   private disposeInternal(removeFromRuntime: boolean): void {
     if (this.disposed) return;
@@ -329,13 +366,21 @@ export class Room<TState = any> {
     this.client = client;
   }
 
-  get roomId(): string { return this.roomIdValue; }
+  get roomId(): string {
+    return this.roomIdValue;
+  }
 
-  get sessionId(): string { return this.sessionIdValue; }
+  get sessionId(): string {
+    return this.sessionIdValue;
+  }
 
-  get reconnectionToken(): string { return this.reconnectionTokenValue; }
+  get reconnectionToken(): string {
+    return this.reconnectionTokenValue;
+  }
 
-  get isLoaded(): boolean { return !this.disposed && this.client.isLoaded; }
+  get isLoaded(): boolean {
+    return !this.disposed && this.client.isLoaded;
+  }
 
   get isConnected(): boolean {
     return this.isLoaded && this.connected && bloom_colyseus_room_is_connected(this.handle.value) !== 0;
@@ -429,10 +474,15 @@ export class Room<TState = any> {
   /** Send a message and resolve with the value returned by the server handler. */
   request<T = any>(type: string, message: unknown = null, options: RoomRequestOptions = {}): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.requestWithCallbacks<T>(type, message, {
-        onSuccess: resolve,
-        onError: reject,
-      }, options);
+      this.requestWithCallbacks<T>(
+        type,
+        message,
+        {
+          onSuccess: resolve,
+          onError: reject,
+        },
+        options,
+      );
     });
   }
 
@@ -483,7 +533,9 @@ export class Room<TState = any> {
     if (this.isLoaded) this.client.poll();
   }
 
-  _matchesNativeHandle(handle: number): boolean { return this.handle.value === handle; }
+  _matchesNativeHandle(handle: number): boolean {
+    return this.handle.value === handle;
+  }
 
   _setJoined(event: NativeRoomEvent): void {
     this.roomIdValue = event.roomId || bloom_colyseus_room_id(this.handle.value);
@@ -505,16 +557,19 @@ export class Room<TState = any> {
       for (let index = 0; index < this.messageListeners.length; index++) {
         if (this.messageListeners[index].type === String(type)) this.messageListeners[index].callback(event.data);
       }
-      for (let index = 0; index < this.anyMessageListeners.length; index++) this.anyMessageListeners[index](type, event.data);
+      for (let index = 0; index < this.anyMessageListeners.length; index++)
+        this.anyMessageListeners[index](type, event.data);
     } else if (event.kind === 'drop') {
       this.connected = false;
-      for (let index = 0; index < this.dropListeners.length; index++) this.dropListeners[index](event.code || 0, event.reason || '');
+      for (let index = 0; index < this.dropListeners.length; index++)
+        this.dropListeners[index](event.code || 0, event.reason || '');
     } else if (event.kind === 'reconnect') {
       this.connected = true;
       for (let index = 0; index < this.reconnectListeners.length; index++) this.reconnectListeners[index]();
     } else if (event.kind === 'leave') {
       this.connected = false;
-      for (let index = 0; index < this.leaveListeners.length; index++) this.leaveListeners[index](event.code || 0, event.reason || '');
+      for (let index = 0; index < this.leaveListeners.length; index++)
+        this.leaveListeners[index](event.code || 0, event.reason || '');
       this.leaveListeners = [];
     } else if (event.kind === 'request') {
       this._settleRequest(event);
@@ -570,7 +625,7 @@ export class Room<TState = any> {
   private _normalizeMessageType(type: string): string | number {
     if (type.length > 1 && type.charAt(0) === 'i') {
       const numeric = parseInt(type.slice(1), 10);
-      if (!isNaN(numeric)) return numeric;
+      if (!Number.isNaN(numeric)) return numeric;
     }
     return type;
   }

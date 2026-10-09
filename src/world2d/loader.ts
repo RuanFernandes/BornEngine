@@ -7,7 +7,6 @@ import { SpriteRenderer } from '../sprites/sprite-renderer';
 import type { SpriteFrame } from '../sprites/sprite-sheet';
 import { Tilemap } from '../tilemap/tilemap';
 import { migrateWorld2D } from './migrate';
-import { validateWorld2D } from './validate';
 import type {
   World2DComponentDescriptor,
   World2DDocument,
@@ -22,7 +21,6 @@ import type {
   World2DTileDefinition,
   World2DTileLayer,
   World2DTilesetData,
-  WorldTileCell,
 } from './types';
 
 export interface World2DComponentFactoryContext {
@@ -43,11 +41,7 @@ export interface World2DLoaderOptions {
   /** Root directory used to resolve normalized project-relative asset paths. */
   documentRoot?: string;
   /** Resolves an atlas tile into a loaded, Game-owned frame. */
-  resolveSpriteFrame?: (
-    tileset: World2DTilesetData,
-    tileId: number,
-    resolvedImagePath: string,
-  ) => SpriteFrame | null;
+  resolveSpriteFrame?: (tileset: World2DTilesetData, tileId: number, resolvedImagePath: string) => SpriteFrame | null;
   /** Required when a physicsBody2D descriptor is present. */
   physicsWorld2D?: PhysicsWorld2D | null;
 }
@@ -68,8 +62,9 @@ function diagnostic(path: string, code: string, message: string): World2DDiagnos
 }
 
 function isDiagnostic(value: any): value is World2DDiagnostic {
-  return value !== null && typeof value === 'object' &&
-    typeof value.code === 'string' && typeof value.message === 'string';
+  return (
+    value !== null && typeof value === 'object' && typeof value.code === 'string' && typeof value.message === 'string'
+  );
 }
 
 function isBuiltin(kind: string): boolean {
@@ -122,13 +117,17 @@ function appendFrame(
   const tileset = findTileset(document, tilesetId);
   if (tileset === null) return;
   if (options.resolveSpriteFrame === undefined) {
-    diagnostics.push(diagnostic(path, 'asset_resolver_missing', 'Loading this descriptor requires a sprite-frame resolver.'));
+    diagnostics.push(
+      diagnostic(path, 'asset_resolver_missing', 'Loading this descriptor requires a sprite-frame resolver.'),
+    );
     return;
   }
   try {
     const frame = options.resolveSpriteFrame(tileset, tileId, pathJoin(documentRoot, tileset.image));
     if (frame === null || frame === undefined) {
-      diagnostics.push(diagnostic(path, 'sprite_frame_missing', 'The sprite-frame resolver could not resolve this tile.'));
+      diagnostics.push(
+        diagnostic(path, 'sprite_frame_missing', 'The sprite-frame resolver could not resolve this tile.'),
+      );
       return;
     }
     if (frame.sheet === null || frame.sheet === undefined || frame.sheet.error !== null) {
@@ -157,8 +156,7 @@ function collectFrames(
         const cell = layer.data[cellIndex];
         if (cell === null) continue;
         const path = layerPath + '/data/' + cellIndex;
-        appendFrame(document, options, documentRoot, frames, diagnostics,
-          cell.tilesetId, cell.tileId, path);
+        appendFrame(document, options, documentRoot, frames, diagnostics, cell.tilesetId, cell.tileId, path);
       }
     } else {
       for (let objectIndex = 0; objectIndex < layer.objects.length; objectIndex++) {
@@ -168,14 +166,21 @@ function collectFrames(
           const path = layerPath + '/objects/' + objectIndex + '/components/' + componentIndex;
           if (component.kind === 'spriteRenderer') {
             const data = component.data as any as World2DSpriteRendererData;
-            appendFrame(document, options, documentRoot, frames, diagnostics,
-              data.tilesetId, data.tileId, path);
+            appendFrame(document, options, documentRoot, frames, diagnostics, data.tilesetId, data.tileId, path);
           } else if (component.kind === 'physicsBody2D') {
             const world = options.physicsWorld2D;
             if (world === undefined || world === null || !world.isReady) {
-              diagnostics.push(diagnostic(path, 'physics_world_missing', 'physicsBody2D requires a ready PhysicsWorld2D.'));
+              diagnostics.push(
+                diagnostic(path, 'physics_world_missing', 'physicsBody2D requires a ready PhysicsWorld2D.'),
+              );
             } else if (world.context !== scene.context) {
-              diagnostics.push(diagnostic(path, 'physics_world_mismatch', 'PhysicsWorld2D belongs to a different Game than the destination scene.'));
+              diagnostics.push(
+                diagnostic(
+                  path,
+                  'physics_world_mismatch',
+                  'PhysicsWorld2D belongs to a different Game than the destination scene.',
+                ),
+              );
             }
           }
         }
@@ -184,13 +189,17 @@ function collectFrames(
   }
   for (let index = 0; index < frames.length; index++) {
     if (!frames[index].frame.sheet._canAttachTo(scene.context)) {
-      diagnostics.push(diagnostic('/tilesets/' + frames[index].tilesetId,
-        'sprite_frame_game_mismatch', 'Resolved sprite frame belongs to a different Game.'));
+      diagnostics.push(
+        diagnostic(
+          '/tilesets/' + frames[index].tilesetId,
+          'sprite_frame_game_mismatch',
+          'Resolved sprite frame belongs to a different Game.',
+        ),
+      );
     }
   }
   return { frames, diagnostics };
 }
-
 
 function cloneJsonValue(value: World2DJsonValue): World2DJsonValue {
   if (value === null || typeof value !== 'object') return value;
@@ -213,7 +222,12 @@ function layerObject(layer: World2DLayer, x: number, y: number, name: string): G
   });
 }
 
-function addComponent(object: GameObject, component: GameComponent, path: string, diagnostics: World2DDiagnostic[]): void {
+function addComponent(
+  object: GameObject,
+  component: GameComponent,
+  path: string,
+  diagnostics: World2DDiagnostic[],
+): void {
   if (object.addComponent(component) === null) {
     diagnostics.push(diagnostic(path, 'component_attach_failed', 'Component could not be attached to its GameObject.'));
   }
@@ -314,11 +328,13 @@ export class World2DLoader {
         for (let componentIndex = 0; componentIndex < object.components.length; componentIndex++) {
           const component = object.components[componentIndex];
           if (isBuiltin(component.kind) || this.registry.hasComponentFactory(component.kind)) continue;
-          missingFactories.push(diagnostic(
-            '/layers/' + layerIndex + '/objects/' + objectIndex + '/components/' + componentIndex + '/kind',
-            'component_factory_missing',
-            'No component factory is registered for kind "' + component.kind + '".',
-          ));
+          missingFactories.push(
+            diagnostic(
+              '/layers/' + layerIndex + '/objects/' + objectIndex + '/components/' + componentIndex + '/kind',
+              'component_factory_missing',
+              'No component factory is registered for kind "' + component.kind + '".',
+            ),
+          );
         }
       }
     }
@@ -337,13 +353,20 @@ export class World2DLoader {
     try {
       for (let layerIndex = 0; layerIndex < document.layers.length; layerIndex++) {
         const layer = document.layers[layerIndex];
-        const layerPath = '/layers/' + layerIndex;
         if (layer.type === 'tilemap') {
-          this.buildTileLayer(document, layer, layerIndex, documentRoot, frameResolution.frames,
-            roots, instances, diagnostics);
+          this.buildTileLayer(document, layer, layerIndex, frameResolution.frames, roots, instances, diagnostics);
         } else {
-          this.buildObjectLayer(document, layer, layerIndex, scene, documentRoot,
-            frameResolution.frames, roots, instances, diagnostics);
+          this.buildObjectLayer(
+            document,
+            layer,
+            layerIndex,
+            scene,
+            documentRoot,
+            frameResolution.frames,
+            roots,
+            instances,
+            diagnostics,
+          );
         }
         if (diagnostics.length > 0) {
           cleanup(roots);
@@ -364,7 +387,13 @@ export class World2DLoader {
       cleanup(roots);
       return {
         ok: false,
-        diagnostics: [diagnostic('/layers', 'scene_attach_failed', 'World2D objects could not be attached atomically to the destination scene.')],
+        diagnostics: [
+          diagnostic(
+            '/layers',
+            'scene_attach_failed',
+            'World2D objects could not be attached atomically to the destination scene.',
+          ),
+        ],
         document: null,
         instances: [],
       };
@@ -376,7 +405,6 @@ export class World2DLoader {
     document: World2DDocument,
     layer: World2DTileLayer,
     layerIndex: number,
-    documentRoot: string,
     frames: ResolvedFrame[],
     roots: GameObject[],
     instances: World2DLoadInstance[],
@@ -393,7 +421,13 @@ export class World2DLoader {
         const tileId = usedIds[tileIndex];
         const frame = frameForCell(frames, tilesetId, tileId);
         if (frame === null) {
-          diagnostics.push(diagnostic('/layers/' + layerIndex + '/data', 'sprite_frame_missing', 'A tilemap cell has no resolved sprite frame.'));
+          diagnostics.push(
+            diagnostic(
+              '/layers/' + layerIndex + '/data',
+              'sprite_frame_missing',
+              'A tilemap cell has no resolved sprite frame.',
+            ),
+          );
           return;
         }
         const sourceTile = findTile(tileset, tileId);
@@ -457,7 +491,7 @@ export class World2DLoader {
     for (let objectIndex = 0; objectIndex < layer.objects.length; objectIndex++) {
       const source = layer.objects[objectIndex] as World2DObjectData;
       const objectPath = '/layers/' + layerIndex + '/objects/' + objectIndex;
-      const rotationRadians = source.rotation * Math.PI / 360;
+      const rotationRadians = (source.rotation * Math.PI) / 360;
       const object = new GameObject({
         name: source.name,
         position: {
@@ -471,8 +505,17 @@ export class World2DLoader {
       for (let componentIndex = 0; componentIndex < source.components.length; componentIndex++) {
         const descriptor = source.components[componentIndex];
         const componentPath = objectPath + '/components/' + componentIndex;
-        const component = this.createComponent(document, layer, source, scene, documentRoot,
-          descriptor, componentPath, frames, diagnostics);
+        const component = this.createComponent(
+          document,
+          layer,
+          source,
+          scene,
+          documentRoot,
+          descriptor,
+          componentPath,
+          frames,
+          diagnostics,
+        );
         if (component === null) {
           if (diagnostics.length > 0) {
             object.destroy();
@@ -506,16 +549,25 @@ export class World2DLoader {
       const data = descriptor.data as any as World2DSpriteRendererData;
       const frame = frameForCell(frames, data.tilesetId, data.tileId);
       if (frame === null) {
-        diagnostics.push(diagnostic(componentPath, 'sprite_frame_missing', 'SpriteRenderer descriptor has no resolved frame.'));
+        diagnostics.push(
+          diagnostic(componentPath, 'sprite_frame_missing', 'SpriteRenderer descriptor has no resolved frame.'),
+        );
         return null;
       }
       if (data.flipDiagonal === true) {
-        diagnostics.push(diagnostic(componentPath + '/data/flipDiagonal', 'unsupported_sprite_flip', 'Diagonal flips are supported for tilemap cells but not spriteRenderer components.'));
+        diagnostics.push(
+          diagnostic(
+            componentPath + '/data/flipDiagonal',
+            'unsupported_sprite_flip',
+            'Diagonal flips are supported for tilemap cells but not spriteRenderer components.',
+          ),
+        );
         return null;
       }
-      const tint = data.tint === undefined
-        ? { r: 255, g: 255, b: 255, a: 255 }
-        : { r: data.tint.r, g: data.tint.g, b: data.tint.b, a: data.tint.a };
+      const tint =
+        data.tint === undefined
+          ? { r: 255, g: 255, b: 255, a: 255 }
+          : { r: data.tint.r, g: data.tint.g, b: data.tint.b, a: data.tint.a };
       tint.a = tint.a * layer.opacity;
       const sprite = new SpriteRenderer(frame, {
         size: data.size === undefined ? object.size : data.size,
@@ -535,7 +587,9 @@ export class World2DLoader {
       const data = descriptor.data as any as World2DPhysicsBodyData;
       const world = this.options.physicsWorld2D;
       if (world === undefined || world === null || !world.isReady) {
-        diagnostics.push(diagnostic(componentPath, 'physics_world_missing', 'physicsBody2D requires a ready PhysicsWorld2D.'));
+        diagnostics.push(
+          diagnostic(componentPath, 'physics_world_missing', 'physicsBody2D requires a ready PhysicsWorld2D.'),
+        );
         return null;
       }
       const body = new PhysicsBody2D(world, {
@@ -554,7 +608,13 @@ export class World2DLoader {
     }
     const factory = this.registry._factory(descriptor.kind);
     if (factory === null) {
-      diagnostics.push(diagnostic(componentPath + '/kind', 'component_factory_missing', 'No component factory is registered for kind "' + descriptor.kind + '".'));
+      diagnostics.push(
+        diagnostic(
+          componentPath + '/kind',
+          'component_factory_missing',
+          'No component factory is registered for kind "' + descriptor.kind + '".',
+        ),
+      );
       return null;
     }
     try {
@@ -570,7 +630,7 @@ export class World2DLoader {
         },
       };
       const result = factory(cloneJsonValue(descriptor.data) as Record<string, World2DJsonValue>, context);
-      if (result instanceof GameComponent) return result;
+      if (typeof result === 'object' && result !== null && result instanceof GameComponent) return result;
       if (isDiagnostic(result)) {
         diagnostics.push({
           path: result.path.length > 0 ? result.path : componentPath,
@@ -579,10 +639,22 @@ export class World2DLoader {
         });
         return null;
       }
-      diagnostics.push(diagnostic(componentPath, 'invalid_factory_result', 'Component factory must return a GameComponent or a structured diagnostic.'));
+      diagnostics.push(
+        diagnostic(
+          componentPath,
+          'invalid_factory_result',
+          'Component factory must return a GameComponent or a structured diagnostic.',
+        ),
+      );
       return null;
     } catch (_error) {
-      diagnostics.push(diagnostic(componentPath, 'component_factory_failed', 'Component factory threw while constructing its component.'));
+      diagnostics.push(
+        diagnostic(
+          componentPath,
+          'component_factory_failed',
+          'Component factory threw while constructing its component.',
+        ),
+      );
       return null;
     }
   }

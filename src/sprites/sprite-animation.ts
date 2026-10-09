@@ -58,9 +58,7 @@ export class SpriteAnimation {
   private durationValue = 0;
 
   constructor(options: SpriteAnimationOptions) {
-    const settings: SpriteAnimationOptions = options === null || options === undefined
-      ? { frames: [] }
-      : options;
+    const settings: SpriteAnimationOptions = options === null || options === undefined ? { frames: [] } : options;
     this.fpsValue = settings.fps === undefined ? 12 : settings.fps;
     this.loopValue = settings.loop === undefined ? 'loop' : settings.loop;
     if (!isPositive(this.fpsValue)) {
@@ -124,9 +122,19 @@ export class SpriteAnimation {
     }
   }
 
-  get error(): string | null { return this.frameError; }
-  get fps(): number { return this.fpsValue; }
-  get loop(): SpriteAnimationLoop { return this.loopValue; }
-  get duration(): number { return this.durationValue; }
-  get frames(): readonly ResolvedSpriteKeyframe[] { return this.resolvedFrames; }
+  get error(): string | null {
+    return this.frameError;
+  }
+  get fps(): number {
+    return this.fpsValue;
+  }
+  get loop(): SpriteAnimationLoop {
+    return this.loopValue;
+  }
+  get duration(): number {
+    return this.durationValue;
+  }
+  get frames(): readonly ResolvedSpriteKeyframe[] {
+    return this.resolvedFrames;
+  }
 }

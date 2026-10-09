@@ -10,15 +10,41 @@ import type { Vec3 } from '../core/types';
 // EN-026 particles + EN-027 decals. Native pool/buffer identifiers stay private.
 declare function bloom_particles_create(capacity: number): number;
 declare function bloom_particles_configure(sys: number): void;
-declare function bloom_particles_emit(sys: number, x: number, y: number, z: number, dx: number, dy: number, dz: number, count: number): void;
+declare function bloom_particles_emit(
+  sys: number,
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  count: number,
+): void;
 declare function bloom_particles_update(sys: number, dt: number): number;
 declare function bloom_particles_instance_buffer(sys: number): number;
 declare function bloom_particles_clear(sys: number): void;
 declare function bloom_particles_destroy(sys: number): void;
 declare function bloom_particles_live(sys: number): number;
 declare function bloom_decals_init(capacity: number): number;
-declare function bloom_decals_spawn(x: number, y: number, z: number, nx: number, ny: number, nz: number, size: number, roll: number): void;
-declare function bloom_decals_set_style(frame: number, r: number, g: number, b: number, a: number, life: number, fade: number): void;
+declare function bloom_decals_spawn(
+  x: number,
+  y: number,
+  z: number,
+  nx: number,
+  ny: number,
+  nz: number,
+  size: number,
+  roll: number,
+): void;
+declare function bloom_decals_set_style(
+  frame: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  life: number,
+  fade: number,
+): void;
 declare function bloom_decals_update(dt: number): number;
 declare function bloom_decals_instance_buffer(): number;
 declare function bloom_decals_clear(): void;
@@ -69,7 +95,11 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     return new ParticleSystem(owner, capacity, config);
   }
 
-  private constructor(owner: Game, readonly capacity: number, config: ParticleConfig = {}) {
+  private constructor(
+    owner: Game,
+    readonly capacity: number,
+    config: ParticleConfig = {},
+  ) {
     const context = getGameContext(owner);
     this.context = context;
     if (!context.isReady || context.isDisposed || capacity <= 0) {
@@ -84,21 +114,53 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     }
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed && this.context.owns(this) && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
-  get liveCount(): number { return this.isLoaded ? bloom_particles_live(this.handleValue) : 0; }
+  get isLoaded(): boolean {
+    return (
+      !this.disposed &&
+      this.context.isReady &&
+      !this.context.isDisposed &&
+      this.context.owns(this) &&
+      this.handleValue !== 0
+    );
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get liveCount(): number {
+    return this.isLoaded ? bloom_particles_live(this.handleValue) : 0;
+  }
 
   configure(config: ParticleConfig): boolean {
     if (!this.isLoaded) return false;
     const color0 = config.color0 ?? [1, 1, 1, 1];
     const color1 = config.color1 ?? [1, 1, 1, 0];
     const values = [
-      config.life ?? 1, config.lifeVar ?? 0, config.speed ?? 1, config.speedVar ?? 0,
-      config.spread ?? 0.3, config.gravity ?? -9.81, config.drag ?? 0,
-      config.size0 ?? 0.2, config.size1 ?? 0.2, config.sizeVar ?? 0,
-      color0[0], color0[1], color0[2], color0[3], color1[0], color1[1], color1[2], color1[3],
-      config.spin ?? 0, config.spinVar ?? 0, config.posJitter ?? 0, config.stretch ?? 0,
-      config.inherit ?? 0, config.frames ?? 1, config.floorY ?? 0, config.restitution ?? 0,
+      config.life ?? 1,
+      config.lifeVar ?? 0,
+      config.speed ?? 1,
+      config.speedVar ?? 0,
+      config.spread ?? 0.3,
+      config.gravity ?? -9.81,
+      config.drag ?? 0,
+      config.size0 ?? 0.2,
+      config.size1 ?? 0.2,
+      config.sizeVar ?? 0,
+      color0[0],
+      color0[1],
+      color0[2],
+      color0[3],
+      color1[0],
+      color1[1],
+      color1[2],
+      color1[3],
+      config.spin ?? 0,
+      config.spinVar ?? 0,
+      config.posJitter ?? 0,
+      config.stretch ?? 0,
+      config.inherit ?? 0,
+      config.frames ?? 1,
+      config.floorY ?? 0,
+      config.restitution ?? 0,
     ];
     bloom_mesh_scratch_reset();
     for (const value of values) bloom_mesh_scratch_push_f32(value);
@@ -108,8 +170,16 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
 
   emit(options: ParticleEmitOptions): boolean {
     if (!this.isLoaded || options.count <= 0) return false;
-    bloom_particles_emit(this.handleValue, options.position.x, options.position.y, options.position.z,
-      options.direction.x, options.direction.y, options.direction.z, options.count);
+    bloom_particles_emit(
+      this.handleValue,
+      options.position.x,
+      options.position.y,
+      options.position.z,
+      options.direction.x,
+      options.direction.y,
+      options.direction.z,
+      options.count,
+    );
     return true;
   }
 
@@ -120,7 +190,12 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     return this.liveCountValue;
   }
 
-  clear(): void { if (this.isLoaded) { bloom_particles_clear(this.handleValue); this.liveCountValue = 0; } }
+  clear(): void {
+    if (this.isLoaded) {
+      bloom_particles_clear(this.handleValue);
+      this.liveCountValue = 0;
+    }
+  }
 
   draw(renderer: Renderer, material: Material, mesh: Model | Mesh, meshIndex = 0): boolean {
     return renderer.drawInstanced(material, mesh, this, meshIndex);
@@ -130,8 +205,13 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
   drawNative(material: Material, mesh: Model | Mesh, meshIndex: number): boolean {
     if (!this.isLoaded || this.liveCountValue <= 0 || this.bufferValue === 0) return false;
     const nativeModel = toNativeModel(mesh);
-    modelOperations.drawMeshWithMaterialInstanced((material as any).handleValue, nativeModel, meshIndex,
-      this.bufferValue, this.liveCountValue);
+    modelOperations.drawMeshWithMaterialInstanced(
+      (material as any).handleValue,
+      nativeModel,
+      meshIndex,
+      this.bufferValue,
+      this.liveCountValue,
+    );
     return true;
   }
 
@@ -166,9 +246,14 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
   private readonly ownsRuntimeSlot: boolean;
 
   /** @internal SceneVfx is the public factory for decal pools. */
-  static _create(owner: Game, capacity: number): DecalSystem { return new DecalSystem(owner, capacity); }
+  static _create(owner: Game, capacity: number): DecalSystem {
+    return new DecalSystem(owner, capacity);
+  }
 
-  private constructor(owner: Game, readonly capacity: number) {
+  private constructor(
+    owner: Game,
+    readonly capacity: number,
+  ) {
     this.context = getGameContext(owner);
     const registered = this.context.getOrCreateService(DECAL_RUNTIME_SLOT, () => this);
     this.ownsRuntimeSlot = registered === this;
@@ -185,13 +270,33 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     else this.context.removeService(DECAL_RUNTIME_SLOT, this);
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.context.isReady && !this.context.isDisposed && this.context.owns(this) && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
-  get liveCount(): number { return this.liveCountValue; }
+  get isLoaded(): boolean {
+    return (
+      !this.disposed &&
+      this.context.isReady &&
+      !this.context.isDisposed &&
+      this.context.owns(this) &&
+      this.handleValue !== 0
+    );
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get liveCount(): number {
+    return this.liveCountValue;
+  }
 
   setStyle(style: DecalStyle): boolean {
     if (!this.isLoaded) return false;
-    bloom_decals_set_style(style.frame, style.color[0], style.color[1], style.color[2], style.color[3], style.lifetime, style.fadeDuration);
+    bloom_decals_set_style(
+      style.frame,
+      style.color[0],
+      style.color[1],
+      style.color[2],
+      style.color[3],
+      style.lifetime,
+      style.fadeDuration,
+    );
     return true;
   }
 
@@ -208,7 +313,12 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     return this.liveCountValue;
   }
 
-  clear(): void { if (this.isLoaded) { bloom_decals_clear(); this.liveCountValue = 0; } }
+  clear(): void {
+    if (this.isLoaded) {
+      bloom_decals_clear();
+      this.liveCountValue = 0;
+    }
+  }
 
   draw(renderer: Renderer, material: Material, mesh: Model | Mesh, meshIndex = 0): boolean {
     return renderer.drawInstanced(material, mesh, this, meshIndex);
@@ -217,8 +327,13 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
   /** @internal Renderer entry point. */
   drawNative(material: Material, mesh: Model | Mesh, meshIndex: number): boolean {
     if (!this.isLoaded || this.liveCountValue <= 0 || this.bufferValue === 0) return false;
-    modelOperations.drawMeshWithMaterialInstanced((material as any).handleValue, toNativeModel(mesh), meshIndex,
-      this.bufferValue, this.liveCountValue);
+    modelOperations.drawMeshWithMaterialInstanced(
+      (material as any).handleValue,
+      toNativeModel(mesh),
+      meshIndex,
+      this.bufferValue,
+      this.liveCountValue,
+    );
     return true;
   }
 

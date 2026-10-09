@@ -4,7 +4,10 @@ import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './han
 import type { PhysicsWorld } from './physics-world';
 import type { Quat, Vec3 } from '../core/types';
 
-export interface PhysicsTransform { position: Vec3; rotation: Quat; }
+export interface PhysicsTransform {
+  position: Vec3;
+  rotation: Quat;
+}
 
 /** Reusable, context-owned collision geometry. */
 export abstract class Collider implements ContextResource {
@@ -26,18 +29,28 @@ export abstract class Collider implements ContextResource {
     }
   }
 
-  get isLoaded(): boolean { return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   get bounds(): { min: Vec3; max: Vec3 } | null {
     const handle = getNativeHandle(this);
     return this.isLoaded ? native.shapeBounds(handle) : null;
   }
 
-  get volume(): number { return this.isLoaded ? native.shapeVolume(getNativeHandle(this)) : 0; }
+  get volume(): number {
+    return this.isLoaded ? native.shapeVolume(getNativeHandle(this)) : 0;
+  }
 
-  scaled(scale: Vec3): ScaledCollider { return new ScaledCollider(this.world, this, scale); }
-  offsetCenterOfMass(offset: Vec3): OffsetCollider { return new OffsetCollider(this.world, this, offset); }
+  scaled(scale: Vec3): ScaledCollider {
+    return new ScaledCollider(this.world, this, scale);
+  }
+  offsetCenterOfMass(offset: Vec3): OffsetCollider {
+    return new OffsetCollider(this.world, this, offset);
+  }
 
   /** @internal Registers source-shape lifetime dependencies. */
   _setSources(sources: Collider[]): void {
@@ -72,51 +85,71 @@ export abstract class Collider implements ContextResource {
 
 export class BoxCollider extends Collider {
   constructor(world: PhysicsWorld, halfExtents: Vec3, convexRadius = 0.05) {
-    super(world, world.isReady ? native.boxShape(halfExtents, convexRadius) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+    super(
+      world,
+      world.isReady ? native.boxShape(halfExtents, convexRadius) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
 export class SphereCollider extends Collider {
   constructor(world: PhysicsWorld, radius: number) {
-    super(world, world.isReady ? native.sphereShape(radius) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+    super(
+      world,
+      world.isReady ? native.sphereShape(radius) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
 export class CapsuleCollider extends Collider {
   constructor(world: PhysicsWorld, halfHeight: number, radius: number) {
-    super(world, world.isReady ? native.capsuleShape(halfHeight, radius) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+    super(
+      world,
+      world.isReady ? native.capsuleShape(halfHeight, radius) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
 export class CylinderCollider extends Collider {
   constructor(world: PhysicsWorld, halfHeight: number, radius: number, convexRadius = 0.05) {
-    super(world, world.isReady ? native.cylinderShape(halfHeight, radius, convexRadius) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+    super(
+      world,
+      world.isReady ? native.cylinderShape(halfHeight, radius, convexRadius) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
 export class ConvexHullCollider extends Collider {
   constructor(world: PhysicsWorld, points: Vec3[], convexRadius = 0.05) {
-    super(world, world.isReady ? native.convexHullShape(points, convexRadius) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+    super(
+      world,
+      world.isReady ? native.convexHullShape(points, convexRadius) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
 export class MeshCollider extends Collider {
   constructor(world: PhysicsWorld, vertices: Vec3[], indices: number[]) {
-    super(world, world.isReady ? native.meshShape(vertices, indices) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+    super(
+      world,
+      world.isReady ? native.meshShape(vertices, indices) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
 export class HeightfieldCollider extends Collider {
-  constructor(world: PhysicsWorld, samples: number[], sampleCount: number,
-    offset: Vec3, scale: Vec3, blockSize = 4) {
-    super(world, world.isReady ? native.heightfieldShape(samples, sampleCount, offset, scale, blockSize) : 0,
-      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.');
+  constructor(world: PhysicsWorld, samples: number[], sampleCount: number, offset: Vec3, scale: Vec3, blockSize = 4) {
+    super(
+      world,
+      world.isReady ? native.heightfieldShape(samples, sampleCount, offset, scale, blockSize) : 0,
+      world.isReady ? null : 'PhysicsWorld must be ready before creating a collider.',
+    );
   }
 }
 
@@ -155,8 +188,11 @@ export class CompoundCollider extends Collider {
 export class ScaledCollider extends Collider {
   constructor(world: PhysicsWorld, base: Collider, scale: Vec3) {
     const valid = world.isReady && base.world === world && base.isLoaded;
-    super(world, valid ? native.scaledShape(getNativeHandle(base), scale) : 0,
-      valid ? null : 'Scaled collider source must be loaded by the same PhysicsWorld.');
+    super(
+      world,
+      valid ? native.scaledShape(getNativeHandle(base), scale) : 0,
+      valid ? null : 'Scaled collider source must be loaded by the same PhysicsWorld.',
+    );
     if (valid && this.isLoaded) this._setSources([base]);
   }
 }
@@ -164,8 +200,11 @@ export class ScaledCollider extends Collider {
 export class OffsetCollider extends Collider {
   constructor(world: PhysicsWorld, base: Collider, offset: Vec3) {
     const valid = world.isReady && base.world === world && base.isLoaded;
-    super(world, valid ? native.offsetCenterOfMassShape(getNativeHandle(base), offset) : 0,
-      valid ? null : 'Offset collider source must be loaded by the same PhysicsWorld.');
+    super(
+      world,
+      valid ? native.offsetCenterOfMassShape(getNativeHandle(base), offset) : 0,
+      valid ? null : 'Offset collider source must be loaded by the same PhysicsWorld.',
+    );
     if (valid && this.isLoaded) this._setSources([base]);
   }
 }

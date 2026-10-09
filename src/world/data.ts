@@ -22,12 +22,24 @@ export class WorldData {
     this.documentValue = typeof source === 'string' ? null : source;
   }
 
-  get document(): WorldDocument | null { return this.documentValue; }
-  get path(): string | null { return this.sourcePath; }
-  get error(): string | null { return this.errorValue; }
-  get isLoaded(): boolean { return this.documentValue !== null; }
-  get name(): string { return this.documentValue === null ? '' : this.documentValue.name; }
-  get id(): string { return this.documentValue === null ? '' : this.documentValue.id; }
+  get document(): WorldDocument | null {
+    return this.documentValue;
+  }
+  get path(): string | null {
+    return this.sourcePath;
+  }
+  get error(): string | null {
+    return this.errorValue;
+  }
+  get isLoaded(): boolean {
+    return this.documentValue !== null;
+  }
+  get name(): string {
+    return this.documentValue === null ? '' : this.documentValue.name;
+  }
+  get id(): string {
+    return this.documentValue === null ? '' : this.documentValue.id;
+  }
 
   load(): boolean {
     if (this.sourcePath === null) {
@@ -69,21 +81,38 @@ export class WorldData {
   }
 
   /** Pure constructors and transforms remain static because they own no runtime state. */
-  static create(id: string, name: string): WorldData { return new WorldData(loader.createEmptyWorld(id, name)); }
+  static create(id: string, name: string): WorldData {
+    return new WorldData(loader.createEmptyWorld(id, name));
+  }
   static createEntity(id: string, modelRef: string, position: [number, number, number]): import('./types').EntityData {
     return loader.createEntity(id, modelRef, position);
   }
-  static migrate(document: WorldDocument): WorldDocument { return versions.migrateWorldData(document); }
-  static validateDocument(document: WorldDocument): ValidationResult { return validator.validateWorld(document); }
-  static serialize(document: WorldDocument): string { return importSerializeWorld(document); }
-  static createDefaultTerrain(): TerrainData { return terrain.defaultTerrain(); }
-  static sampleTerrain(data: TerrainData, x: number, z: number): number { return terrain.sampleHeight(data, x, z); }
+  static migrate(document: WorldDocument): WorldDocument {
+    return versions.migrateWorldData(document);
+  }
+  static validateDocument(document: WorldDocument): ValidationResult {
+    return validator.validateWorld(document);
+  }
+  static serialize(document: WorldDocument): string {
+    return importSerializeWorld(document);
+  }
+  static createDefaultTerrain(): TerrainData {
+    return terrain.defaultTerrain();
+  }
+  static sampleTerrain(data: TerrainData, x: number, z: number): number {
+    return terrain.sampleHeight(data, x, z);
+  }
   static createTerrainLayer(data: TerrainData, id: string, textureRef: string, tileScale: number): TerrainLayer {
     return terrain.createTerrainLayer(data, id, textureRef, tileScale);
   }
-  static quantizeWeight(weight: number): number { return terrain.quantizeWeight(weight); }
+  static quantizeWeight(weight: number): number {
+    return terrain.quantizeWeight(weight);
+  }
 
-  static validatePrefab(prefab: PrefabData): ValidationResult { return validator.validatePrefab(prefab); }
-  static migratePrefab(prefab: PrefabData): PrefabData { return versions.migratePrefabData(prefab); }
-
+  static validatePrefab(prefab: PrefabData): ValidationResult {
+    return validator.validatePrefab(prefab);
+  }
+  static migratePrefab(prefab: PrefabData): PrefabData {
+    return versions.migratePrefabData(prefab);
+  }
 }

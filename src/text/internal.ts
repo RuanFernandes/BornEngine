@@ -1,10 +1,30 @@
 import { Color, Font, Vector2DLike } from '../core/types';
 
 // FFI declarations
-declare function bloom_draw_text(text: number, x: number, y: number, size: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_text(
+  text: number,
+  x: number,
+  y: number,
+  size: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 declare function bloom_measure_text(text: number, size: number): number;
 declare function bloom_load_font(path: number, size: number): number;
-declare function bloom_draw_text_ex(font: number, text: number, x: number, y: number, size: number, spacing: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_text_ex(
+  font: number,
+  text: number,
+  x: number,
+  y: number,
+  size: number,
+  spacing: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 declare function bloom_measure_text_ex(font: number, text: number, size: number, spacing: number): number;
 declare function bloom_unload_font(font: number): void;
 
@@ -16,7 +36,16 @@ export function drawText(text: string, x: number, y: number, size: number, color
 /// Android (aarch64): Perry 0.5.x miscompiles `color.r` field reads that feed
 /// straight into an f64 FFI slot, producing NaN for all color components and
 /// dropping the glyph quads. Passing raw numbers bypasses the object read.
-export function drawTextRgba(text: string, x: number, y: number, size: number, r: number, g: number, b: number, a: number): void {
+export function drawTextRgba(
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void {
   bloom_draw_text(text as any, x, y, size, r, g, b, a);
 }
 
@@ -38,7 +67,14 @@ export function unloadFont(font: Font): void {
   bloom_unload_font(font.handle);
 }
 
-export function drawTextEx(font: Font, text: string, pos: Vector2DLike, size: number, spacing: number, color: Color): void {
+export function drawTextEx(
+  font: Font,
+  text: string,
+  pos: Vector2DLike,
+  size: number,
+  spacing: number,
+  color: Color,
+): void {
   bloom_draw_text_ex(font.handle, text as any, pos.x, pos.y, size, spacing, color.r, color.g, color.b, color.a);
 }
 

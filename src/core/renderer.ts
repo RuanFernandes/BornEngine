@@ -8,11 +8,26 @@ import type { Font } from '../text/font';
 import type { Model, Mesh } from '../models/model';
 import type { Material } from '../models/material';
 import * as native from './internal';
-import { drawBezier, drawCircle, drawCircleLines, drawLine, drawPoly, drawRect, drawRectLines, drawTriangle } from '../shapes/internal';
+import {
+  drawBezier,
+  drawCircle,
+  drawCircleLines,
+  drawLine,
+  drawPoly,
+  drawRect,
+  drawRectLines,
+  drawTriangle,
+} from '../shapes/internal';
 import { drawText as drawPlainText, measureText as measurePlainText } from '../text/internal';
 import {
-  drawCube, drawCubeWires, drawCylinder, drawGrid, drawPlane, drawRay,
-  drawSphere, drawSphereWires,
+  drawCube,
+  drawCubeWires,
+  drawCylinder,
+  drawGrid,
+  drawPlane,
+  drawRay,
+  drawSphere,
+  drawSphereWires,
 } from '../models/internal';
 import type { Camera2D, Camera3D, Color, Rect, Vector2DLike, Vec3 } from './types';
 import { getCamera2DWorldBounds, isRectIntersecting } from './camera2d-culling';
@@ -41,12 +56,21 @@ function isFiniteNumber(value: number): boolean {
 }
 
 function isValidCamera2D(camera: Camera2D): boolean {
-  return camera !== null && camera !== undefined &&
-    camera.offset !== null && camera.offset !== undefined &&
-    camera.target !== null && camera.target !== undefined &&
-    isFiniteNumber(camera.offset.x) && isFiniteNumber(camera.offset.y) &&
-    isFiniteNumber(camera.target.x) && isFiniteNumber(camera.target.y) &&
-    isFiniteNumber(camera.rotation) && isFiniteNumber(camera.zoom) && camera.zoom > 0;
+  return (
+    camera !== null &&
+    camera !== undefined &&
+    camera.offset !== null &&
+    camera.offset !== undefined &&
+    camera.target !== null &&
+    camera.target !== undefined &&
+    isFiniteNumber(camera.offset.x) &&
+    isFiniteNumber(camera.offset.y) &&
+    isFiniteNumber(camera.target.x) &&
+    isFiniteNumber(camera.target.y) &&
+    isFiniteNumber(camera.rotation) &&
+    isFiniteNumber(camera.zoom) &&
+    camera.zoom > 0
+  );
 }
 
 export interface InstancedDrawSource extends ContextResource {
@@ -72,24 +96,29 @@ export class Renderer {
   constructor(owner: Game) {
     this.context = getGameContext(owner);
     this.context.setDrawHandler((resource, position, tint) =>
-      this.drawTexture(resource as Texture | RenderTexture, position, tint));
+      this.drawTexture(resource as Texture | RenderTexture, position, tint),
+    );
     this.context.setRenderTargetHandler((resource, action) => {
       const target = resource as RenderTexture;
       return action === 'begin' ? this.beginRenderTexture(target) : this.endRenderTexture(target);
     });
   }
 
-  get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
+  get isReady(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed;
+  }
 
   /** Snapshot of the camera applied to the current 2D render pass. */
   get activeCamera2D(): Camera2D | null {
     const camera = this.activeCameraValue;
-    return camera === null ? null : {
-      offset: { x: camera.offset.x, y: camera.offset.y },
-      target: { x: camera.target.x, y: camera.target.y },
-      rotation: camera.rotation,
-      zoom: camera.zoom,
-    };
+    return camera === null
+      ? null
+      : {
+          offset: { x: camera.offset.x, y: camera.offset.y },
+          target: { x: camera.target.x, y: camera.target.y },
+          rotation: camera.rotation,
+          zoom: camera.zoom,
+        };
   }
 
   /** Snapshot of the current game frame's render workload. */
@@ -107,9 +136,8 @@ export class Renderer {
   /** @internal Starts a new game-frame statistics sample. */
   _beginFrame(deltaTime: number): void {
     const frameIntervalMs = deltaTime * 1000;
-    this.frameIntervalMsValue = isFiniteNumber(deltaTime) && deltaTime > 0 && isFiniteNumber(frameIntervalMs)
-      ? frameIntervalMs
-      : 0;
+    this.frameIntervalMsValue =
+      isFiniteNumber(deltaTime) && deltaTime > 0 && isFiniteNumber(frameIntervalMs) ? frameIntervalMs : 0;
     this.spritesDrawnValue = 0;
     this.spritesCulledValue = 0;
     this.activeCameraBounds = null;
@@ -130,10 +158,14 @@ export class Renderer {
   }
 
   /** @internal Counts a SpriteRenderer quad after successful submission. */
-  _recordSpriteDrawn(): void { this.spritesDrawnValue++; }
+  _recordSpriteDrawn(): void {
+    this.spritesDrawnValue++;
+  }
 
   /** @internal Counts a SpriteRenderer quad rejected by camera culling. */
-  _recordSpriteCulled(count = 1): void { this.spritesCulledValue += count; }
+  _recordSpriteCulled(count = 1): void {
+    this.spritesCulledValue += count;
+  }
 
   clear(color: Color): boolean {
     if (!this.isReady) return false;
@@ -142,8 +174,8 @@ export class Renderer {
   }
 
   begin2D(camera: Camera2D, viewport?: Viewport2D | null): boolean {
-    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null ||
-        !isValidCamera2D(camera)) return false;
+    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null || !isValidCamera2D(camera))
+      return false;
     if (viewport !== undefined && viewport !== null) {
       const transform = viewport._renderTransform(native.getScreenWidth(), native.getScreenHeight());
       if (transform === null) return false;
@@ -237,12 +269,16 @@ export class Renderer {
     return true;
   }
 
-  drawBezier(start: Vector2DLike, control1: Vector2DLike, control2: Vector2DLike, end: Vector2DLike, color: Color, thickness = 1): boolean {
+  drawBezier(
+    start: Vector2DLike,
+    control1: Vector2DLike,
+    control2: Vector2DLike,
+    end: Vector2DLike,
+    color: Color,
+    thickness = 1,
+  ): boolean {
     if (!this.isReady) return false;
-    drawBezier(
-      start.x, start.y, control1.x, control1.y, control2.x, control2.y,
-      end.x, end.y, thickness, color,
-    );
+    drawBezier(start.x, start.y, control1.x, control1.y, control2.x, control2.y, end.x, end.y, thickness, color);
     return true;
   }
 
@@ -278,22 +314,48 @@ export class Renderer {
     return model.drawTransformNative(transform, tint);
   }
 
-  drawMaterial(material: Material, model: Model | Mesh, position: Vec3, scale = 1,
-    tint: Color = Colors.WHITE, meshIndex?: number): boolean {
-    if (!this.isReady || !this.context.owns(material) || !material.isLoaded ||
-        !this.context.owns(model) || !model.isLoaded) return false;
+  drawMaterial(
+    material: Material,
+    model: Model | Mesh,
+    position: Vec3,
+    scale = 1,
+    tint: Color = Colors.WHITE,
+    meshIndex?: number,
+  ): boolean {
+    if (
+      !this.isReady ||
+      !this.context.owns(material) ||
+      !material.isLoaded ||
+      !this.context.owns(model) ||
+      !model.isLoaded
+    )
+      return false;
     return material.drawNative(model, position, scale, tint, meshIndex);
   }
 
   drawInstanced(material: Material, model: Model | Mesh, source: InstancedDrawSource, meshIndex = 0): boolean {
-    if (!this.isReady || !this.context.owns(material) || !material.isLoaded ||
-        !this.context.owns(model) || !model.isLoaded || !this.context.owns(source) || !source.isLoaded) return false;
+    if (
+      !this.isReady ||
+      !this.context.owns(material) ||
+      !material.isLoaded ||
+      !this.context.owns(model) ||
+      !model.isLoaded ||
+      !this.context.owns(source) ||
+      !source.isLoaded
+    )
+      return false;
     return source.drawNative(material, model, meshIndex);
   }
 
   beginRenderTexture(target: RenderTexture): boolean {
-    if (!this.isReady || this.mode !== 'none' || this.activeRenderTexture !== null ||
-        !this.context.owns(target) || !target.isLoaded) return false;
+    if (
+      !this.isReady ||
+      this.mode !== 'none' ||
+      this.activeRenderTexture !== null ||
+      !this.context.owns(target) ||
+      !target.isLoaded
+    )
+      return false;
     if (!target.beginNative()) return false;
     this.activeRenderTexture = target;
     return true;
@@ -331,7 +393,14 @@ export class Renderer {
     return true;
   }
 
-  drawCylinder(position: Vec3, radiusTop: number, radiusBottom: number, height: number, color: Color, slices?: number): boolean {
+  drawCylinder(
+    position: Vec3,
+    radiusTop: number,
+    radiusBottom: number,
+    height: number,
+    color: Color,
+    slices?: number,
+  ): boolean {
     if (!this.isReady) return false;
     drawCylinder(position, radiusTop, radiusBottom, height, color, slices);
     return true;
@@ -361,62 +430,196 @@ export class Renderer {
     return true;
   }
 
-  setEnvironmentFromHdr(path: string): boolean { if (!this.isReady) return false; native.setEnvClearFromHdr(path); return true; }
+  setEnvironmentFromHdr(path: string): boolean {
+    if (!this.isReady) return false;
+    native.setEnvClearFromHdr(path);
+    return true;
+  }
   setFog(color: Color, density: number, heightReference: number, heightFalloff: number): boolean {
     if (!this.isReady) return false;
     native.setFog(color.r / 255, color.g / 255, color.b / 255, density, heightReference, heightFalloff);
     return true;
   }
-  setChromaticAberration(strength: number): boolean { if (!this.isReady) return false; native.setChromaticAberration(strength); return true; }
-  setVignette(strength: number, softness: number): boolean { if (!this.isReady) return false; native.setVignette(strength, softness); return true; }
-  setFilmGrain(strength: number): boolean { if (!this.isReady) return false; native.setFilmGrain(strength); return true; }
-  setSharpenStrength(strength: number): boolean { if (!this.isReady) return false; native.setSharpenStrength(strength); return true; }
+  setChromaticAberration(strength: number): boolean {
+    if (!this.isReady) return false;
+    native.setChromaticAberration(strength);
+    return true;
+  }
+  setVignette(strength: number, softness: number): boolean {
+    if (!this.isReady) return false;
+    native.setVignette(strength, softness);
+    return true;
+  }
+  setFilmGrain(strength: number): boolean {
+    if (!this.isReady) return false;
+    native.setFilmGrain(strength);
+    return true;
+  }
+  setSharpenStrength(strength: number): boolean {
+    if (!this.isReady) return false;
+    native.setSharpenStrength(strength);
+    return true;
+  }
   setSunShafts(strength: number, decay: number, color: Color): boolean {
     if (!this.isReady) return false;
     native.setSunShafts(strength, decay, color.r / 255, color.g / 255, color.b / 255);
     return true;
   }
-  setAutoExposure(enabled: boolean): boolean { if (!this.isReady) return false; native.setAutoExposure(enabled); return true; }
-  setOcclusionCulling(enabled: boolean): boolean { if (!this.isReady) return false; native.setOcclusionCulling(enabled); return true; }
-  setTaaEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setTaaEnabled(enabled); return true; }
-  setRenderScale(scale: number): boolean { if (!this.isReady) return false; native.setRenderScale(scale); return true; }
-  setOutputScale(scale: number): boolean { if (!this.isReady) return false; native.setOutputScale(scale); return true; }
-  getRenderScale(): number { return this.isReady ? native.getRenderScale() : 0; }
-  getOutputScale(): number { return this.isReady ? native.getOutputScale() : 0; }
-  setUpscaleMode(mode: native.UpscaleMode): boolean { if (!this.isReady) return false; native.setUpscaleMode(mode); return true; }
-  setCasStrength(strength: number): boolean { if (!this.isReady) return false; native.setCasStrength(strength); return true; }
+  setAutoExposure(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setAutoExposure(enabled);
+    return true;
+  }
+  setOcclusionCulling(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setOcclusionCulling(enabled);
+    return true;
+  }
+  setTaaEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setTaaEnabled(enabled);
+    return true;
+  }
+  setRenderScale(scale: number): boolean {
+    if (!this.isReady) return false;
+    native.setRenderScale(scale);
+    return true;
+  }
+  setOutputScale(scale: number): boolean {
+    if (!this.isReady) return false;
+    native.setOutputScale(scale);
+    return true;
+  }
+  getRenderScale(): number {
+    return this.isReady ? native.getRenderScale() : 0;
+  }
+  getOutputScale(): number {
+    return this.isReady ? native.getOutputScale() : 0;
+  }
+  setUpscaleMode(mode: native.UpscaleMode): boolean {
+    if (!this.isReady) return false;
+    native.setUpscaleMode(mode);
+    return true;
+  }
+  setCasStrength(strength: number): boolean {
+    if (!this.isReady) return false;
+    native.setCasStrength(strength);
+    return true;
+  }
   setAutoResolution(targetHz: number, enabled = true): boolean {
     if (!this.isReady) return false;
     native.setAutoResolution(targetHz, enabled);
     return true;
   }
-  setManualExposure(value: number): boolean { if (!this.isReady) return false; native.setManualExposure(value); return true; }
-  setEnvironmentIntensity(intensity: number): boolean { if (!this.isReady) return false; native.setEnvIntensity(intensity); return true; }
-  setSsgiEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setSsgiEnabled(enabled); return true; }
-  setPathTracing(mode: number): boolean { if (!this.isReady) return false; native.setPathTracing(mode); return true; }
-  isPathTracingSupported(): boolean { return this.isReady && native.isPathTracingSupported(); }
-  setSsgiIntensity(intensity: number): boolean { if (!this.isReady) return false; native.setSsgiIntensity(intensity); return true; }
-  setSsgiRadius(radius: number): boolean { if (!this.isReady) return false; native.setSsgiRadius(radius); return true; }
+  setManualExposure(value: number): boolean {
+    if (!this.isReady) return false;
+    native.setManualExposure(value);
+    return true;
+  }
+  setEnvironmentIntensity(intensity: number): boolean {
+    if (!this.isReady) return false;
+    native.setEnvIntensity(intensity);
+    return true;
+  }
+  setSsgiEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setSsgiEnabled(enabled);
+    return true;
+  }
+  setPathTracing(mode: number): boolean {
+    if (!this.isReady) return false;
+    native.setPathTracing(mode);
+    return true;
+  }
+  isPathTracingSupported(): boolean {
+    return this.isReady && native.isPathTracingSupported();
+  }
+  setSsgiIntensity(intensity: number): boolean {
+    if (!this.isReady) return false;
+    native.setSsgiIntensity(intensity);
+    return true;
+  }
+  setSsgiRadius(radius: number): boolean {
+    if (!this.isReady) return false;
+    native.setSsgiRadius(radius);
+    return true;
+  }
   setDepthOfField(focusDistance: number, aperture: number): boolean {
     if (!this.isReady) return false;
     native.setDepthOfField(focusDistance, aperture);
     return true;
   }
-  setQualityPreset(preset: native.QualityPreset): boolean { if (!this.isReady) return false; native.setQualityPreset(preset); return true; }
-  setShadowsEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setShadowsEnabled(enabled); return true; }
-  setShadowsAlwaysFresh(enabled: boolean): boolean { if (!this.isReady) return false; native.setShadowsAlwaysFresh(enabled); return true; }
-  setBloomEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setBloomEnabled(enabled); return true; }
-  setBloomIntensity(intensity: number): boolean { if (!this.isReady) return false; native.setBloomIntensity(intensity); return true; }
-  setTonemap(kind: native.Tonemap): boolean { if (!this.isReady) return false; native.setTonemap(kind); return true; }
-  setAutoExposureKey(key: number): boolean { if (!this.isReady) return false; native.setAutoExposureKey(key); return true; }
-  setAutoExposureRate(rate: number): boolean { if (!this.isReady) return false; native.setAutoExposureRate(rate); return true; }
-  setSsaoEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setSsaoEnabled(enabled); return true; }
-  setSsaoIntensity(intensity: number): boolean { if (!this.isReady) return false; native.setSsaoIntensity(intensity); return true; }
-  setSsaoRadius(radius: number): boolean { if (!this.isReady) return false; native.setSsaoRadius(radius); return true; }
-  setPostPass(source: string): boolean { return this.isReady && native.setPostPass(source); }
-  clearPostPass(): boolean { if (!this.isReady) return false; native.clearPostPass(); return true; }
-  addPostPass(source: string): boolean { return this.isReady && native.addPostPass(source) >= 0; }
-  clearAllPostPasses(): boolean { if (!this.isReady) return false; native.clearAllPostPasses(); return true; }
+  setQualityPreset(preset: native.QualityPreset): boolean {
+    if (!this.isReady) return false;
+    native.setQualityPreset(preset);
+    return true;
+  }
+  setShadowsEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setShadowsEnabled(enabled);
+    return true;
+  }
+  setShadowsAlwaysFresh(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setShadowsAlwaysFresh(enabled);
+    return true;
+  }
+  setBloomEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setBloomEnabled(enabled);
+    return true;
+  }
+  setBloomIntensity(intensity: number): boolean {
+    if (!this.isReady) return false;
+    native.setBloomIntensity(intensity);
+    return true;
+  }
+  setTonemap(kind: native.Tonemap): boolean {
+    if (!this.isReady) return false;
+    native.setTonemap(kind);
+    return true;
+  }
+  setAutoExposureKey(key: number): boolean {
+    if (!this.isReady) return false;
+    native.setAutoExposureKey(key);
+    return true;
+  }
+  setAutoExposureRate(rate: number): boolean {
+    if (!this.isReady) return false;
+    native.setAutoExposureRate(rate);
+    return true;
+  }
+  setSsaoEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setSsaoEnabled(enabled);
+    return true;
+  }
+  setSsaoIntensity(intensity: number): boolean {
+    if (!this.isReady) return false;
+    native.setSsaoIntensity(intensity);
+    return true;
+  }
+  setSsaoRadius(radius: number): boolean {
+    if (!this.isReady) return false;
+    native.setSsaoRadius(radius);
+    return true;
+  }
+  setPostPass(source: string): boolean {
+    return this.isReady && native.setPostPass(source);
+  }
+  clearPostPass(): boolean {
+    if (!this.isReady) return false;
+    native.clearPostPass();
+    return true;
+  }
+  addPostPass(source: string): boolean {
+    return this.isReady && native.addPostPass(source) >= 0;
+  }
+  clearAllPostPasses(): boolean {
+    if (!this.isReady) return false;
+    native.clearAllPostPasses();
+    return true;
+  }
   setWind(directionX: number, directionZ: number, amplitude: number, frequency: number): boolean {
     if (!this.isReady) return false;
     native.setWind(directionX, directionZ, amplitude, frequency);
@@ -427,19 +630,43 @@ export class Renderer {
     native.setCloudShadows(strength, deckHeight, featureScale, driftSpeed);
     return true;
   }
-  setSsrEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setSsrEnabled(enabled); return true; }
-  setMotionBlurEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setMotionBlurEnabled(enabled); return true; }
-  setSssEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setSssEnabled(enabled); return true; }
-  setProfilerEnabled(enabled: boolean): boolean { if (!this.isReady) return false; native.setProfilerEnabled(enabled); return true; }
-  getProfilerCpuTimeUs(): number { return this.isReady ? native.getProfilerFrameCpuUs() : 0; }
-  getProfilerGpuTimeUs(): number { return this.isReady ? native.getProfilerFrameGpuUs() : 0; }
+  setSsrEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setSsrEnabled(enabled);
+    return true;
+  }
+  setMotionBlurEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setMotionBlurEnabled(enabled);
+    return true;
+  }
+  setSssEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setSssEnabled(enabled);
+    return true;
+  }
+  setProfilerEnabled(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setProfilerEnabled(enabled);
+    return true;
+  }
+  getProfilerCpuTimeUs(): number {
+    return this.isReady ? native.getProfilerFrameCpuUs() : 0;
+  }
+  getProfilerGpuTimeUs(): number {
+    return this.isReady ? native.getProfilerFrameGpuUs() : 0;
+  }
   getProfilerOverlay(): { label: string; cpuUs: number; gpuUs: number }[] {
     return this.isReady ? native.getProfilerOverlay() : [];
   }
   getProfilerFrameHistory(): { cpuUs: number; gpuUs: number }[] {
     return this.isReady ? native.getProfilerFrameHistory() : [];
   }
-  printProfilerSummary(): boolean { if (!this.isReady) return false; native.printProfilerSummary(); return true; }
+  printProfilerSummary(): boolean {
+    if (!this.isReady) return false;
+    native.printProfilerSummary();
+    return true;
+  }
   splatImpulse(x: number, z: number, radius: number, strength: number): boolean {
     if (!this.isReady) return false;
     native.splatImpulse(x, z, radius, strength);

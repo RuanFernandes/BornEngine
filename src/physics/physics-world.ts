@@ -80,17 +80,45 @@ export class PhysicsWorld implements ContextResource {
   get isReady(): boolean {
     return !this.disposed && this.context.isReady && !this.context.isDisposed && getNativeHandle(this) !== 0;
   }
-  get isDisposed(): boolean { return this.disposed; }
-  get gravity(): Vec3 { return this.isReady ? native.getGravity(getNativeHandle(this)) : { x: 0, y: -9.81, z: 0 }; }
-  get bodyCount(): number { return this.isReady ? native.bodyCount(getNativeHandle(this)) : 0; }
-  get activeBodyCount(): number { return this.isReady ? native.activeBodyCount(getNativeHandle(this)) : 0; }
-  get stepAlpha(): number { return this.isReady ? native.getStepAlpha(getNativeHandle(this)) : 1; }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get gravity(): Vec3 {
+    return this.isReady ? native.getGravity(getNativeHandle(this)) : { x: 0, y: -9.81, z: 0 };
+  }
+  get bodyCount(): number {
+    return this.isReady ? native.bodyCount(getNativeHandle(this)) : 0;
+  }
+  get activeBodyCount(): number {
+    return this.isReady ? native.activeBodyCount(getNativeHandle(this)) : 0;
+  }
+  get stepAlpha(): number {
+    return this.isReady ? native.getStepAlpha(getNativeHandle(this)) : 1;
+  }
 
-  setSceneManager(manager: PhysicsStepHooks | null): void { this.sceneManager = manager; }
-  setGravity(gravity: Vec3): boolean { if (!this.isReady) return false; native.setGravity(getNativeHandle(this), gravity); return true; }
-  optimizeBroadphase(): boolean { if (!this.isReady) return false; native.optimizeBroadphase(getNativeHandle(this)); return true; }
-  setFixedTimestep(hz: number, maxSteps = 4): boolean { if (!this.isReady) return false; native.setFixedTimestep(getNativeHandle(this), hz, maxSteps); return true; }
-  setInterpolation(enabled: boolean): boolean { if (!this.isReady) return false; native.setInterpolation(getNativeHandle(this), enabled); return true; }
+  setSceneManager(manager: PhysicsStepHooks | null): void {
+    this.sceneManager = manager;
+  }
+  setGravity(gravity: Vec3): boolean {
+    if (!this.isReady) return false;
+    native.setGravity(getNativeHandle(this), gravity);
+    return true;
+  }
+  optimizeBroadphase(): boolean {
+    if (!this.isReady) return false;
+    native.optimizeBroadphase(getNativeHandle(this));
+    return true;
+  }
+  setFixedTimestep(hz: number, maxSteps = 4): boolean {
+    if (!this.isReady) return false;
+    native.setFixedTimestep(getNativeHandle(this), hz, maxSteps);
+    return true;
+  }
+  setInterpolation(enabled: boolean): boolean {
+    if (!this.isReady) return false;
+    native.setInterpolation(getNativeHandle(this), enabled);
+    return true;
+  }
   setLayerCollides(a: number, b: number, collides: boolean): boolean {
     if (!this.isReady) return false;
     native.setLayerCollides(getNativeHandle(this), a, b, collides);
@@ -118,27 +146,48 @@ export class PhysicsWorld implements ContextResource {
     return true;
   }
 
-  raycast(origin: Vec3, direction: Vec3, maxDistance: number, layerMask = native.ALL_LAYERS_MASK): PhysicsRayHit | null {
+  raycast(
+    origin: Vec3,
+    direction: Vec3,
+    maxDistance: number,
+    layerMask = native.ALL_LAYERS_MASK,
+  ): PhysicsRayHit | null {
     if (!this.isReady) return null;
     const hit = native.raycast(getNativeHandle(this), origin, direction, maxDistance, layerMask);
     if (hit === null) return null;
     const body = this._bodyForNative(hit.body);
-    return body === null ? null : {
-      body, point: hit.point, normal: hit.normal, fraction: hit.fraction, subShapeId: hit.subShapeId,
-    };
+    return body === null
+      ? null
+      : {
+          body,
+          point: hit.point,
+          normal: hit.normal,
+          fraction: hit.fraction,
+          subShapeId: hit.subShapeId,
+        };
   }
 
-  raycastAll(origin: Vec3, direction: Vec3, maxDistance: number, maxHits = 16,
-    layerMask = native.ALL_LAYERS_MASK): PhysicsRayHit[] {
+  raycastAll(
+    origin: Vec3,
+    direction: Vec3,
+    maxDistance: number,
+    maxHits = 16,
+    layerMask = native.ALL_LAYERS_MASK,
+  ): PhysicsRayHit[] {
     if (!this.isReady) return [];
     const nativeHits = native.raycastAll(getNativeHandle(this), origin, direction, maxDistance, maxHits, layerMask);
     const hits: PhysicsRayHit[] = [];
     for (let index = 0; index < nativeHits.length; index++) {
       const hit = nativeHits[index];
       const body = this._bodyForNative(hit.body);
-      if (body !== null) hits.push({
-        body, point: hit.point, normal: hit.normal, fraction: hit.fraction, subShapeId: hit.subShapeId,
-      });
+      if (body !== null)
+        hits.push({
+          body,
+          point: hit.point,
+          normal: hit.normal,
+          fraction: hit.fraction,
+          subShapeId: hit.subShapeId,
+        });
     }
     return hits;
   }
@@ -151,13 +200,19 @@ export class PhysicsWorld implements ContextResource {
     if (!this.isReady) return [];
     return this._mapBodies(native.overlapPoint(getNativeHandle(this), point, maxResults, layerMask));
   }
-  overlapBox(transform: { position: Vec3; rotation: Quat }, halfExtents: Vec3,
-    maxResults = 16, layerMask = native.ALL_LAYERS_MASK): PhysicsBody[] {
+  overlapBox(
+    transform: { position: Vec3; rotation: Quat },
+    halfExtents: Vec3,
+    maxResults = 16,
+    layerMask = native.ALL_LAYERS_MASK,
+  ): PhysicsBody[] {
     if (!this.isReady) return [];
     return this._mapBodies(native.overlapBox(getNativeHandle(this), transform, halfExtents, maxResults, layerMask));
   }
 
-  get contactCount(): number { return this.isReady ? native.contactCount() : 0; }
+  get contactCount(): number {
+    return this.isReady ? native.contactCount() : 0;
+  }
   popContacts(): PhysicsContact[] {
     if (!this.isReady) return [];
     const contacts = native.popContacts();
@@ -178,33 +233,64 @@ export class PhysicsWorld implements ContextResource {
     }
     return out;
   }
-  clearContacts(): boolean { if (!this.isReady) return false; native.clearContacts(getNativeHandle(this)); return true; }
+  clearContacts(): boolean {
+    if (!this.isReady) return false;
+    native.clearContacts(getNativeHandle(this));
+    return true;
+  }
 
   createBody(collider: Collider, options: RigidBodyOptions = {}): RigidBody {
     return new RigidBody(this, collider, options);
   }
-  createJoint(kind: JointKind, options: JointOptions): Joint { return new Joint(this, kind, options); }
+  createJoint(kind: JointKind, options: JointOptions): Joint {
+    return new Joint(this, kind, options);
+  }
   createCharacter(collider: Collider, options: CharacterControllerOptions = {}): CharacterController {
     return new CharacterController(this, collider, options);
   }
-  createSoftBody(options: native.SoftBodyConfig): SoftBody { return new SoftBody(this, options); }
-  createVehicle(options: VehicleOptions): Vehicle { return new Vehicle(this, options); }
+  createSoftBody(options: native.SoftBodyConfig): SoftBody {
+    return new SoftBody(this, options);
+  }
+  createVehicle(options: VehicleOptions): Vehicle {
+    return new Vehicle(this, options);
+  }
 
-  /** @internal */ _registerCollider(value: Collider): void { if (this.colliders.indexOf(value) < 0) this.colliders.push(value); }
-  /** @internal */ _unregisterCollider(value: Collider): void { this._remove(this.colliders, value); }
-  /** @internal */ _registerBody(value: PhysicsBody): void { if (this.bodies.indexOf(value) < 0) this.bodies.push(value); }
-  /** @internal */ _unregisterBody(value: PhysicsBody): void { this._remove(this.bodies, value); }
-  /** @internal */ _registerJoint(value: Joint): void { if (this.joints.indexOf(value) < 0) this.joints.push(value); }
-  /** @internal */ _unregisterJoint(value: Joint): void { this._remove(this.joints, value); }
-  /** @internal */ _registerCharacter(value: CharacterController): void { if (this.characters.indexOf(value) < 0) this.characters.push(value); }
-  /** @internal */ _unregisterCharacter(value: CharacterController): void { this._remove(this.characters, value); }
-  /** @internal */ _registerVehicle(value: Vehicle): void { if (this.vehicles.indexOf(value) < 0) this.vehicles.push(value); }
-  /** @internal */ _unregisterVehicle(value: Vehicle): void { this._remove(this.vehicles, value); }
+  /** @internal */ _registerCollider(value: Collider): void {
+    if (this.colliders.indexOf(value) < 0) this.colliders.push(value);
+  }
+  /** @internal */ _unregisterCollider(value: Collider): void {
+    this._remove(this.colliders, value);
+  }
+  /** @internal */ _registerBody(value: PhysicsBody): void {
+    if (this.bodies.indexOf(value) < 0) this.bodies.push(value);
+  }
+  /** @internal */ _unregisterBody(value: PhysicsBody): void {
+    this._remove(this.bodies, value);
+  }
+  /** @internal */ _registerJoint(value: Joint): void {
+    if (this.joints.indexOf(value) < 0) this.joints.push(value);
+  }
+  /** @internal */ _unregisterJoint(value: Joint): void {
+    this._remove(this.joints, value);
+  }
+  /** @internal */ _registerCharacter(value: CharacterController): void {
+    if (this.characters.indexOf(value) < 0) this.characters.push(value);
+  }
+  /** @internal */ _unregisterCharacter(value: CharacterController): void {
+    this._remove(this.characters, value);
+  }
+  /** @internal */ _registerVehicle(value: Vehicle): void {
+    if (this.vehicles.indexOf(value) < 0) this.vehicles.push(value);
+  }
+  /** @internal */ _unregisterVehicle(value: Vehicle): void {
+    this._remove(this.vehicles, value);
+  }
 
   /** @internal */ _disposeBodiesUsing(collider: Collider): void {
     const vehicles = this.vehicles.slice();
     for (let index = vehicles.length - 1; index >= 0; index--) {
-      if (vehicles[index].chassis !== null && vehicles[index].chassis.collider === collider) {
+      const chassis = vehicles[index].chassis;
+      if (chassis !== null && chassis.collider === collider) {
         vehicles[index].dispose();
       }
     }
@@ -241,7 +327,9 @@ export class PhysicsWorld implements ContextResource {
     if (index >= 0) values.splice(index, 1);
   }
 
-  _belongsToContext(context: GameContext): boolean { return this.context === context; }
+  _belongsToContext(context: GameContext): boolean {
+    return this.context === context;
+  }
 
   dispose(): void {
     if (this.disposed) return;

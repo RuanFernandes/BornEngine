@@ -8,15 +8,25 @@ import type { Vec3 } from '../core/types';
 /** Simulated cloth, rope, or deformable mesh. */
 export class SoftBody extends PhysicsBody {
   constructor(world: PhysicsWorld, options: SoftBodyConfig) {
-    const valid = world.isReady && options.vertices.length >= 3 &&
+    const valid =
+      world.isReady &&
+      options.vertices.length >= 3 &&
       options.inverseMasses.length === options.vertices.length &&
-      options.indices.length >= 3 && options.indices.length % 3 === 0;
+      options.indices.length >= 3 &&
+      options.indices.length % 3 === 0;
     const handle = valid ? native.createSoftBody(getNativeHandle(world), options) : 0;
-    super(world, null, handle, native.MotionType.DYNAMIC,
-      valid ? null : 'Soft body data must have vertices, matching inverse masses, and triangle indices.');
+    super(
+      world,
+      null,
+      handle,
+      native.MotionType.DYNAMIC,
+      valid ? null : 'Soft body data must have vertices, matching inverse masses, and triangle indices.',
+    );
   }
 
-  get vertexCount(): number { return this.isLoaded ? native.softBodyVertexCount(getNativeHandle(this)) : 0; }
+  get vertexCount(): number {
+    return this.isLoaded ? native.softBodyVertexCount(getNativeHandle(this)) : 0;
+  }
   getVertex(index: number): Vec3 | null {
     if (!this.isLoaded || index < 0 || index >= this.vertexCount) return null;
     return native.getSoftBodyVertex(getNativeHandle(this), index);

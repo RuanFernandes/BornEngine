@@ -35,20 +35,31 @@ function isFiniteNumber(value: number): boolean {
 }
 
 function validSize(value: Vector2DLike): boolean {
-  return value !== null && value !== undefined &&
-    isFiniteNumber(value.x) && isFiniteNumber(value.y) && value.x >= 0 && value.y >= 0;
+  return (
+    value !== null &&
+    value !== undefined &&
+    isFiniteNumber(value.x) &&
+    isFiniteNumber(value.y) &&
+    value.x >= 0 &&
+    value.y >= 0
+  );
 }
 
 function validColor(value: Color): boolean {
-  return value !== null && value !== undefined &&
-    isFiniteNumber(value.r) && isFiniteNumber(value.g) &&
-    isFiniteNumber(value.b) && isFiniteNumber(value.a);
+  return (
+    value !== null &&
+    value !== undefined &&
+    isFiniteNumber(value.r) &&
+    isFiniteNumber(value.g) &&
+    isFiniteNumber(value.b) &&
+    isFiniteNumber(value.a)
+  );
 }
 
 function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number }): number {
   const sin = 2 * (rotation.w * rotation.z + rotation.x * rotation.y);
   const cos = 1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z);
-  return Math.atan2(sin, cos) * 180 / Math.PI;
+  return (Math.atan2(sin, cos) * 180) / Math.PI;
 }
 
 /** Draws a SpriteSheet frame from its GameObject transform during scene rendering. */
@@ -69,9 +80,7 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
 
   constructor(frame: SpriteFrame, options: SpriteRendererOptions = {}) {
     super();
-    const settings: SpriteRendererOptions = options === null || options === undefined
-      ? {}
-      : options;
+    const settings: SpriteRendererOptions = options === null || options === undefined ? {} : options;
     this.size = Vector2D.zero();
     this.pivot = new Vector2D(0.5, 0.5);
     this.tint = copyColor(Colors.WHITE);
@@ -96,7 +105,9 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     }
   }
 
-  get frame(): SpriteFrame | null { return this.currentFrame; }
+  get frame(): SpriteFrame | null {
+    return this.currentFrame;
+  }
 
   /** Changes the frame without changing the renderer's size or pivot. */
   setFrame(frame: SpriteFrame | null): boolean {
@@ -123,11 +134,17 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
       this.error = null;
       return true;
     }
-    if (frame.sheet === null || frame.sheet === undefined || frame.sheet.error !== null ||
-        frame.sheet.texture === null || !frame.sheet.texture.isLoaded) {
-      this.error = frame.sheet === null || frame.sheet === undefined
-        ? 'SpriteRenderer requires a frame from a valid SpriteSheet.'
-        : frame.sheet.error || 'SpriteRenderer texture is not loaded.';
+    if (
+      frame.sheet === null ||
+      frame.sheet === undefined ||
+      frame.sheet.error !== null ||
+      frame.sheet.texture === null ||
+      !frame.sheet.texture.isLoaded
+    ) {
+      this.error =
+        frame.sheet === null || frame.sheet === undefined
+          ? 'SpriteRenderer requires a frame from a valid SpriteSheet.'
+          : frame.sheet.error || 'SpriteRenderer texture is not loaded.';
       return false;
     }
     const owner = this.gameObject;
@@ -172,8 +189,15 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     if (!(clip instanceof SpriteAnimation) || clip.error !== null || clip.frames.length === 0) return false;
     for (let index = 0; index < clip.frames.length; index++) {
       const frame = clip.frames[index].sprite;
-      if (frame === null || frame === undefined || frame.sheet === null || frame.sheet === undefined ||
-          frame.sheet.error !== null || !frame.sheet.texture.isLoaded) return false;
+      if (
+        frame === null ||
+        frame === undefined ||
+        frame.sheet === null ||
+        frame.sheet === undefined ||
+        frame.sheet.error !== null ||
+        !frame.sheet.texture.isLoaded
+      )
+        return false;
     }
     return true;
   }
@@ -223,8 +247,7 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
   }
 
   setPivot(pivot: Vector2DLike): boolean {
-    if (pivot === null || pivot === undefined ||
-        !isFiniteNumber(pivot.x) || !isFiniteNumber(pivot.y)) {
+    if (pivot === null || pivot === undefined || !isFiniteNumber(pivot.x) || !isFiniteNumber(pivot.y)) {
       this.error = 'SpriteRenderer pivot must be finite.';
       return false;
     }
@@ -235,18 +258,28 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
 
   /** @internal Rejects a renderer whose frame is owned by another Game. */
   _canAttachTo(context: GameContext): boolean {
-    return this.error === null && this.currentFrame !== null &&
-      this.currentFrame.sheet._canAttachTo(context);
+    return this.error === null && this.currentFrame !== null && this.currentFrame.sheet._canAttachTo(context);
   }
 
   render(renderer: Renderer): void {
     const frame = this.currentFrame;
     const owner = this.gameObject;
-    if (!this.visible || this.error !== null || frame === null || owner === null ||
-        owner.scene === null || !this.isActiveAndEnabled ||
-        !frame.sheet._canAttachTo(owner.scene.context) ||
-        !validSize(this.size) || this.size.x === 0 || this.size.y === 0 ||
-        !isFiniteNumber(this.pivot.x) || !isFiniteNumber(this.pivot.y) || !validColor(this.tint)) return;
+    if (
+      !this.visible ||
+      this.error !== null ||
+      frame === null ||
+      owner === null ||
+      owner.scene === null ||
+      !this.isActiveAndEnabled ||
+      !frame.sheet._canAttachTo(owner.scene.context) ||
+      !validSize(this.size) ||
+      this.size.x === 0 ||
+      this.size.y === 0 ||
+      !isFiniteNumber(this.pivot.x) ||
+      !isFiniteNumber(this.pivot.y) ||
+      !validColor(this.tint)
+    )
+      return;
 
     if (this.fadingFrame !== null && this.fadeDuration > 0) {
       const progress = Math.max(0, Math.min(1, this.fadeElapsed / this.fadeDuration));
@@ -269,12 +302,12 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     worldPosition.y += parallaxOffset.y;
     const worldScale = transform.worldScale;
     const worldRotation = transform.worldRotation;
-    const scaleX = Math.abs(worldScale.x) * this.size.x / originalSize.x;
-    const scaleY = Math.abs(worldScale.y) * this.size.y / originalSize.y;
+    const scaleX = (Math.abs(worldScale.x) * this.size.x) / originalSize.x;
+    const scaleY = (Math.abs(worldScale.y) * this.size.y) / originalSize.y;
     if (!isFiniteNumber(scaleX) || !isFiniteNumber(scaleY) || scaleX === 0 || scaleY === 0) return;
 
-    const flipX = this.flipX !== (worldScale.x < 0);
-    const flipY = this.flipY !== (worldScale.y < 0);
+    const flipX = this.flipX !== worldScale.x < 0;
+    const flipY = this.flipY !== worldScale.y < 0;
     const sourceX = frame.source.x + (flipX ? frame.source.width : 0);
     const sourceY = frame.source.y + (flipY ? frame.source.height : 0);
     const source: Rect = {
@@ -285,12 +318,8 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     };
     const trim = frame.trim;
     const trimOffset = trim === null ? { x: 0, y: 0 } : trim.offset;
-    const trimX = flipX
-      ? originalSize.x - trimOffset.x - frame.source.width
-      : trimOffset.x;
-    const trimY = flipY
-      ? originalSize.y - trimOffset.y - frame.source.height
-      : trimOffset.y;
+    const trimX = flipX ? originalSize.x - trimOffset.x - frame.source.width : trimOffset.x;
+    const trimY = flipY ? originalSize.y - trimOffset.y - frame.source.height : trimOffset.y;
     const origin: Vector2DLike = {
       x: this.pivot.x * this.size.x * Math.abs(worldScale.x) - trimX * scaleX,
       y: this.pivot.y * this.size.y * Math.abs(worldScale.y) - trimY * scaleY,
@@ -316,15 +345,13 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
 }
 
 function updateRotatedBounds(destination: Rect, origin: Vector2DLike, rotation: number, bounds: Rect): void {
-  const radians = rotation * Math.PI / 180;
+  const radians = (rotation * Math.PI) / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   const pivotX = destination.x + origin.x;
   const pivotY = destination.y + origin.y;
-  const centerX = pivotX + (destination.width * 0.5 - origin.x) * cosine -
-    (destination.height * 0.5 - origin.y) * sine;
-  const centerY = pivotY + (destination.width * 0.5 - origin.x) * sine +
-    (destination.height * 0.5 - origin.y) * cosine;
+  const centerX = pivotX + (destination.width * 0.5 - origin.x) * cosine - (destination.height * 0.5 - origin.y) * sine;
+  const centerY = pivotY + (destination.width * 0.5 - origin.x) * sine + (destination.height * 0.5 - origin.y) * cosine;
   const halfWidth = (Math.abs(cosine) * destination.width + Math.abs(sine) * destination.height) * 0.5;
   const halfHeight = (Math.abs(sine) * destination.width + Math.abs(cosine) * destination.height) * 0.5;
   bounds.x = centerX - halfWidth;

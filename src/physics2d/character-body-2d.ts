@@ -18,7 +18,9 @@ function validVec(value: Vector2DLike): boolean {
   return value !== null && value !== undefined && finite(value.x) && finite(value.y);
 }
 
-function copyVec(value: Vector2DLike): Vector2D { return Vector2D.from(value); }
+function copyVec(value: Vector2DLike): Vector2D {
+  return Vector2D.from(value);
+}
 
 /** Arcade character movement backed by a kinematic PhysicsBody2D. */
 export class CharacterBody2D extends GameComponent {
@@ -37,8 +39,8 @@ export class CharacterBody2D extends GameComponent {
   constructor(world: PhysicsWorld2D, options: CharacterBody2DOptions) {
     super();
     this.world = world;
-    const settings: CharacterBody2DOptions = options === null || options === undefined
-      ? { width: 0, height: 0 } : options;
+    const settings: CharacterBody2DOptions =
+      options === null || options === undefined ? { width: 0, height: 0 } : options;
     this.width = settings.width;
     this.height = settings.height;
 
@@ -61,7 +63,9 @@ export class CharacterBody2D extends GameComponent {
     if (this.error !== null) this.enabled = false;
   }
 
-  get isReady(): boolean { return this.error === null && this.body !== null && !this.body.isDisposed && this.world.isReady; }
+  get isReady(): boolean {
+    return this.error === null && this.body !== null && !this.body.isDisposed && this.world.isReady;
+  }
   get position(): Vector2D {
     const owner = this.gameObject;
     if (owner !== null) {
@@ -71,10 +75,18 @@ export class CharacterBody2D extends GameComponent {
     if (this.body !== null) return this.body.position;
     return Vector2D.zero();
   }
-  get velocity(): Vector2D { return Vector2D.from(this.velocityValue); }
-  get isOnFloor(): boolean { return this.onFloorValue; }
-  get isOnWall(): boolean { return this.onWallValue; }
-  get isOnCeiling(): boolean { return this.onCeilingValue; }
+  get velocity(): Vector2D {
+    return Vector2D.from(this.velocityValue);
+  }
+  get isOnFloor(): boolean {
+    return this.onFloorValue;
+  }
+  get isOnWall(): boolean {
+    return this.onWallValue;
+  }
+  get isOnCeiling(): boolean {
+    return this.onCeilingValue;
+  }
   get contactNormals(): ReadonlyArray<Readonly<Vector2D>> {
     const result: Vector2D[] = [];
     for (let index = 0; index < this.contactNormalsValue.length; index++) {
@@ -86,8 +98,17 @@ export class CharacterBody2D extends GameComponent {
   /** Moves by velocity times dt and slides along filtered non-sensor surfaces. */
   moveAndSlide(velocity: Vector2DLike, dt: number): boolean {
     const owner = this.gameObject;
-    if (!this.isReady || !validVec(velocity) || !finite(dt) || dt < 0 || owner === null ||
-        owner.scene === null || !this.isActiveAndEnabled || this.body === null) return false;
+    if (
+      !this.isReady ||
+      !validVec(velocity) ||
+      !finite(dt) ||
+      dt < 0 ||
+      owner === null ||
+      owner.scene === null ||
+      !this.isActiveAndEnabled ||
+      this.body === null
+    )
+      return false;
     const delta = { x: velocity.x * dt, y: velocity.y * dt };
     if (!validVec(delta)) return false;
     const start = owner.transform.worldPosition;
@@ -111,12 +132,18 @@ export class CharacterBody2D extends GameComponent {
         resolvedVelocity.x -= toward * normal.x;
         resolvedVelocity.y -= toward * normal.y;
       }
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: 0.70710678 is a truncated 45-degree normal threshold; Math.SQRT1_2 would change the cutoff
       if (normal.y < -0.70710678) this.onFloorValue = true;
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: 0.70710678 is a truncated 45-degree normal threshold; Math.SQRT1_2 would change the cutoff
       else if (normal.y > 0.70710678) this.onCeilingValue = true;
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: 0.70710678 is a truncated 45-degree normal threshold; Math.SQRT1_2 would change the cutoff
       if (Math.abs(normal.x) > 0.70710678) this.onWallValue = true;
       this.contactNormalsValue.push(copyVec(normal));
     }
-    if (result.exhausted) { resolvedVelocity.x = 0; resolvedVelocity.y = 0; }
+    if (result.exhausted) {
+      resolvedVelocity.x = 0;
+      resolvedVelocity.y = 0;
+    }
     this.velocityValue = resolvedVelocity;
     return true;
   }

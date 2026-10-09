@@ -1,31 +1,145 @@
 import { spawn, parallelMap } from 'perry/thread';
-import { Color, Model, Vec3, Mat4, BoundingBox } from '../core/types';
+import { Color, Model, Vec3, BoundingBox } from '../core/types';
 
 // FFI declarations
 declare function bloom_load_model(path: number): number;
 declare function bloom_unload_model(handle: number): void;
-declare function bloom_draw_model(handle: number, x: number, y: number, z: number, scale: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_model_rotated(handle: number, x: number, y: number, z: number, scale: number, rotY: number, colorPackedArgb: number): void;
+declare function bloom_draw_model(
+  handle: number,
+  x: number,
+  y: number,
+  z: number,
+  scale: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_model_rotated(
+  handle: number,
+  x: number,
+  y: number,
+  z: number,
+  scale: number,
+  rotY: number,
+  colorPackedArgb: number,
+): void;
 declare function bloom_draw_model_transform16(
   handle: number,
-  m0: number, m1: number, m2: number, m3: number,
-  m4: number, m5: number, m6: number, m7: number,
-  m8: number, m9: number, m10: number, m11: number,
-  m12: number, m13: number, m14: number, m15: number,
+  m0: number,
+  m1: number,
+  m2: number,
+  m3: number,
+  m4: number,
+  m5: number,
+  m6: number,
+  m7: number,
+  m8: number,
+  m9: number,
+  m10: number,
+  m11: number,
+  m12: number,
+  m13: number,
+  m14: number,
+  m15: number,
   colorPackedArgb: number,
 ): void;
 declare function bloom_set_model_foliage_wind(handle: number, amount: number): void;
 declare function bloom_set_foliage_shadow_motion(on: number): void;
 declare function bloom_unload_model(handle: number): void;
-declare function bloom_draw_cube(x: number, y: number, z: number, w: number, h: number, d: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_cube_wires(x: number, y: number, z: number, w: number, h: number, d: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_sphere(x: number, y: number, z: number, radius: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_sphere_wires(x: number, y: number, z: number, radius: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_cylinder(x: number, y: number, z: number, rt: number, rb: number, h: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_cylinder_ex(x: number, y: number, z: number, rt: number, rb: number, h: number, slices: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_plane(x: number, y: number, z: number, w: number, d: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_cube(
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  h: number,
+  d: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_cube_wires(
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  h: number,
+  d: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_sphere(
+  x: number,
+  y: number,
+  z: number,
+  radius: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_sphere_wires(
+  x: number,
+  y: number,
+  z: number,
+  radius: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_cylinder(
+  x: number,
+  y: number,
+  z: number,
+  rt: number,
+  rb: number,
+  h: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_cylinder_ex(
+  x: number,
+  y: number,
+  z: number,
+  rt: number,
+  rb: number,
+  h: number,
+  slices: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_plane(
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  d: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 declare function bloom_draw_grid(slices: number, spacing: number): void;
-declare function bloom_draw_ray(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_ray(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 declare function bloom_gen_mesh_cube(w: number, h: number, d: number): number;
 declare function bloom_gen_mesh_heightmap(imageHandle: number, sizeX: number, sizeY: number, sizeZ: number): number;
 declare function bloom_load_shader(source: number): number;
@@ -37,30 +151,93 @@ declare function bloom_compile_material_cutout(source: number): number;
 declare function bloom_compile_material_instanced(source: number): number;
 declare function bloom_create_instance_buffer(dataPtr: any, instanceCount: number): number;
 declare function bloom_create_instance_buffer_scratch(instanceCount: number): number;
-declare function bloom_submit_material_draw_instanced(material: number, meshHandle: number, meshIdx: number, instanceBuffer: number, instanceCount: number): void;
+declare function bloom_submit_material_draw_instanced(
+  material: number,
+  meshHandle: number,
+  meshIdx: number,
+  instanceBuffer: number,
+  instanceCount: number,
+): void;
 declare function bloom_destroy_instance_buffer(handle: number): void;
-declare function bloom_create_planar_reflection(planeY: number, normalX: number, normalY: number, normalZ: number, resolution: number): number;
+declare function bloom_create_planar_reflection(
+  planeY: number,
+  normalX: number,
+  normalY: number,
+  normalZ: number,
+  resolution: number,
+): number;
 declare function bloom_set_material_reflection_probe(material: number, probe: number): void;
 declare function bloom_set_material_texture_array(material: number, slot: number, array: number): void;
 declare function bloom_set_material_shading_model(material: number, model: number): void;
 declare function bloom_set_material_probe_visible(material: number, visible: number): void;
-declare function bloom_set_material_foliage(material: number, transR: number, transG: number, transB: number, transAmount: number, wrapFactor: number): void;
+declare function bloom_set_material_foliage(
+  material: number,
+  transR: number,
+  transG: number,
+  transB: number,
+  transAmount: number,
+  wrapFactor: number,
+): void;
 declare function bloom_compile_material_from_file(path: number, bucketKind: number): number;
 declare function bloom_set_material_params_scratch(handle: number, paramCount: number): void;
-declare function bloom_draw_material(material: number, meshHandle: number, meshIdx: number, x: number, y: number, z: number, scale: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_material(
+  material: number,
+  meshHandle: number,
+  meshIdx: number,
+  x: number,
+  y: number,
+  z: number,
+  scale: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 declare function bloom_load_model_animation(path: number): number;
 declare function bloom_instantiate_animation(src: number): number;
-declare function bloom_update_model_animation(handle: number, animIndex: number, time: number, scale: number, px: number, py: number, pz: number, rotY: number): void;
-declare function bloom_create_mesh(vertexPtr: number, vertexCount: number, indexPtr: number, indexCount: number): number;
+declare function bloom_update_model_animation(
+  handle: number,
+  animIndex: number,
+  time: number,
+  scale: number,
+  px: number,
+  py: number,
+  pz: number,
+  rotY: number,
+): void;
+declare function bloom_create_mesh(
+  vertexPtr: number,
+  vertexCount: number,
+  indexPtr: number,
+  indexCount: number,
+): number;
 declare function bloom_mesh_scratch_reset(): void;
 declare function bloom_mesh_scratch_push_f32(v: number): void;
 declare function bloom_mesh_scratch_push_u32(v: number): void;
 declare function bloom_create_mesh_scratch(vertexCount: number, indexCount: number): number;
 declare function bloom_set_ambient_light(r: number, g: number, b: number, intensity: number): void;
-declare function bloom_set_directional_light(dx: number, dy: number, dz: number, r: number, g: number, b: number, intensity: number): void;
-declare function bloom_set_procedural_sky(enabled: number, rayleighDensity: number, mieDensity: number, groundAlbedo: number): void;
+declare function bloom_set_directional_light(
+  dx: number,
+  dy: number,
+  dz: number,
+  r: number,
+  g: number,
+  b: number,
+  intensity: number,
+): void;
+declare function bloom_set_procedural_sky(
+  enabled: number,
+  rayleighDensity: number,
+  mieDensity: number,
+  groundAlbedo: number,
+): void;
 declare function bloom_set_sun_direction(dx: number, dy: number, dz: number, intensity: number): void;
-declare function bloom_gen_mesh_spline_ribbon(pointsPtr: number, pointCount: number, widthsPtr: number, widthCount: number): number;
+declare function bloom_gen_mesh_spline_ribbon(
+  pointsPtr: number,
+  pointCount: number,
+  widthsPtr: number,
+  widthCount: number,
+): number;
 declare function bloom_gen_mesh_spline_ribbon_scratch(pointCount: number, widthCount: number): number;
 declare function bloom_get_model_mesh_count(handle: number): number;
 declare function bloom_get_model_material_count(handle: number): number;
@@ -74,7 +251,12 @@ declare function bloom_get_model_bounds_max_z(handle: number): number;
 function makeModel(handle: number): Model {
   const mc = bloom_get_model_mesh_count(handle);
   const matc = bloom_get_model_material_count(handle);
-  return { handle, meshCount: mc, materialCount: matc, transform: [1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0] };
+  return {
+    handle,
+    meshCount: mc,
+    materialCount: matc,
+    transform: [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+  };
 }
 
 // OBJ parser (pure TypeScript)
@@ -110,9 +292,9 @@ function parseOBJ(text: string): { vertices: number[]; indices: number[] } | nul
           faceIndices.push(vertexMap.get(key)!);
         } else {
           const segs = key.split('/');
-          const pi = parseInt(segs[0]) - 1;
-          const ti = segs.length > 1 && segs[1] !== '' ? parseInt(segs[1]) - 1 : -1;
-          const ni = segs.length > 2 ? parseInt(segs[2]) - 1 : -1;
+          const pi = parseInt(segs[0], 10) - 1;
+          const ti = segs.length > 1 && segs[1] !== '' ? parseInt(segs[1], 10) - 1 : -1;
+          const ni = segs.length > 2 ? parseInt(segs[2], 10) - 1 : -1;
 
           const pos = pi >= 0 && pi < positions.length ? positions[pi] : [0, 0, 0];
           const norm = ni >= 0 && ni < normals.length ? normals[ni] : [0, 1, 0];
@@ -161,10 +343,7 @@ export function loadModel(path: string): Model {
     if (text) {
       const parsed = parseOBJ(text);
       if (parsed) {
-        return uploadMeshScratch(
-          parsed.vertices, parsed.vertices.length / 12,
-          parsed.indices, parsed.indices.length,
-        );
+        return uploadMeshScratch(parsed.vertices, parsed.vertices.length / 12, parsed.indices, parsed.indices.length);
       }
     }
     return makeModel(0);
@@ -186,17 +365,15 @@ export function drawModel(model: Model, position: Vec3, scale: number, tint: Col
  * convention, matching Camera2D.rotation and raylib; was radians before
  * v0.5). Tint components are 0-255.
  */
-export function drawModelRotated(
-  model: Model, position: Vec3, scale: number, rotY: number, tint: Color,
-): void {
+export function drawModelRotated(model: Model, position: Vec3, scale: number, rotY: number, tint: Color): void {
   // Color components are 0..255 ints (matching drawModel above).
   const a = (tint.a & 0xff) << 24;
   const r = (tint.r & 0xff) << 16;
-  const g = (tint.g & 0xff) <<  8;
-  const b =  tint.b & 0xff;
+  const g = (tint.g & 0xff) << 8;
+  const b = tint.b & 0xff;
   // Use unsigned-shift-zero to keep the value positive when stored as f64.
   const packed = (a | r | g | b) >>> 0;
-  bloom_draw_model_rotated(model.handle, position.x, position.y, position.z, scale, rotY * Math.PI / 180, packed);
+  bloom_draw_model_rotated(model.handle, position.x, position.y, position.z, scale, (rotY * Math.PI) / 180, packed);
 }
 
 /**
@@ -220,15 +397,27 @@ export function drawModelRotated(
 export function drawModelTransform(model: Model, m16: number[], tint: Color): void {
   const a = (tint.a & 0xff) << 24;
   const r = (tint.r & 0xff) << 16;
-  const g = (tint.g & 0xff) <<  8;
-  const b =  tint.b & 0xff;
+  const g = (tint.g & 0xff) << 8;
+  const b = tint.b & 0xff;
   const packed = (a | r | g | b) >>> 0;
   bloom_draw_model_transform16(
     model.handle,
-    m16[0], m16[1], m16[2], m16[3],
-    m16[4], m16[5], m16[6], m16[7],
-    m16[8], m16[9], m16[10], m16[11],
-    m16[12], m16[13], m16[14], m16[15],
+    m16[0],
+    m16[1],
+    m16[2],
+    m16[3],
+    m16[4],
+    m16[5],
+    m16[6],
+    m16[7],
+    m16[8],
+    m16[9],
+    m16[10],
+    m16[11],
+    m16[12],
+    m16[13],
+    m16[14],
+    m16[15],
     packed,
   );
 }
@@ -291,7 +480,15 @@ export interface DrawCubeOpts {
   rotationY?: number;
 }
 
-export function drawCube(position: Vec3, width: number, height: number, depth: number, color: Color, opts?: DrawCubeOpts): void {
+export function drawCube(
+  position: Vec3,
+  width: number,
+  height: number,
+  depth: number,
+  color: Color,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: opts.rotationY is accepted for API compatibility until native support exists
+  opts?: DrawCubeOpts,
+): void {
   // Note: rotationY is accepted for API compatibility but applied only when native support exists
   bloom_draw_cube(position.x, position.y, position.z, width, height, depth, color.r, color.g, color.b, color.a);
 }
@@ -308,8 +505,27 @@ export function drawSphereWires(position: Vec3, radius: number, color: Color): v
   bloom_draw_sphere_wires(position.x, position.y, position.z, radius, color.r, color.g, color.b, color.a);
 }
 
-export function drawCylinder(position: Vec3, radiusTop: number, radiusBottom: number, height: number, color: Color, slices?: number): void {
-  bloom_draw_cylinder(position.x, position.y, position.z, radiusTop, radiusBottom, height, color.r, color.g, color.b, color.a);
+export function drawCylinder(
+  position: Vec3,
+  radiusTop: number,
+  radiusBottom: number,
+  height: number,
+  color: Color,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: slices is accepted for API compatibility until native support exists
+  slices?: number,
+): void {
+  bloom_draw_cylinder(
+    position.x,
+    position.y,
+    position.z,
+    radiusTop,
+    radiusBottom,
+    height,
+    color.r,
+    color.g,
+    color.b,
+    color.a,
+  );
 }
 
 export function drawPlane(position: Vec3, width: number, depth: number, color: Color): void {
@@ -321,17 +537,28 @@ export function drawGrid(slices: number, spacing: number): void {
 }
 
 export function drawRay(origin: Vec3, direction: Vec3, color: Color): void {
-  bloom_draw_ray(origin.x, origin.y, origin.z, direction.x, direction.y, direction.z, color.r, color.g, color.b, color.a);
+  bloom_draw_ray(
+    origin.x,
+    origin.y,
+    origin.z,
+    direction.x,
+    direction.y,
+    direction.z,
+    color.r,
+    color.g,
+    color.b,
+    color.a,
+  );
 }
 
 export function genMeshCube(width: number, height: number, depth: number): Model {
   const handle = bloom_gen_mesh_cube(width, height, depth);
-  return makeModel(handle, 1, 1);
+  return makeModel(handle);
 }
 
 export function genMeshHeightmap(imageHandle: number, sizeX: number, sizeY: number, sizeZ: number): Model {
   const handle = bloom_gen_mesh_heightmap(imageHandle, sizeX, sizeY, sizeZ);
-  return makeModel(handle, 1, 1);
+  return makeModel(handle);
 }
 
 export function loadShader(wgslSource: string): number {
@@ -435,7 +662,9 @@ export const BUCKET_TRANSPARENT = 3;
 /// pipeline is created (not when it is written), which is a confusing way to
 /// find out.
 export function compileMaterialInstancedBucket(
-  wgslSource: string, bucket: number, readsScene: boolean = false,
+  wgslSource: string,
+  bucket: number,
+  readsScene: boolean = false,
 ): number {
   return bloom_compile_material_instanced_bucket(wgslSource as any, bucket, readsScene ? 1 : 0);
 }
@@ -470,12 +699,13 @@ export function createInstanceBuffer(data: number[], instanceCount: number): num
 /// single draw_indexed call. Per-draw model/MVP are identity / current
 /// camera VP — per-instance pos/rot_y/scale dominate from the buffer.
 export function drawMeshWithMaterialInstanced(
-  material: number, mesh: Model, meshIdx: number,
-  instanceBuffer: number, instanceCount: number,
+  material: number,
+  mesh: Model,
+  meshIdx: number,
+  instanceBuffer: number,
+  instanceCount: number,
 ): void {
-  bloom_submit_material_draw_instanced(
-    material, mesh.handle, meshIdx, instanceBuffer, instanceCount,
-  );
+  bloom_submit_material_draw_instanced(material, mesh.handle, meshIdx, instanceBuffer, instanceCount);
 }
 
 /// EN-001 — release the GPU memory backing an instance buffer
@@ -521,7 +751,9 @@ export function destroyInstanceBuffer(handle: number): void {
 ///   ```
 export function createPlanarReflection(
   planeY: number,
-  normalX: number, normalY: number, normalZ: number,
+  normalX: number,
+  normalY: number,
+  normalZ: number,
   resolution: number,
 ): number {
   return bloom_create_planar_reflection(planeY, normalX, normalY, normalZ, resolution);
@@ -550,7 +782,7 @@ export function setMaterialProbeVisible(material: number, visible: boolean): voi
 /// EN-014 — slot indices for `setMaterialTextureArray`.
 export const TEXTURE_ARRAY_ALBEDO = 0;
 export const TEXTURE_ARRAY_NORMAL = 1;
-export const TEXTURE_ARRAY_MR     = 2;
+export const TEXTURE_ARRAY_MR = 2;
 
 /// EN-014 — create a 2D texture array from a flat RGBA8 byte buffer.
 /// All `layerCount` layers must share the same `width × height` (wgpu
@@ -572,8 +804,11 @@ export const TEXTURE_ARRAY_MR     = 2;
 /// `.push()` — Perry's `.length` reports the literal-init size, not
 /// the post-push count. (See `feedback_perry_array_push.md`.)
 export function createTextureArray(
-  bytes: number[], dataLen: number,
-  width: number, height: number, layerCount: number,
+  bytes: number[],
+  dataLen: number,
+  width: number,
+  height: number,
+  layerCount: number,
 ): number {
   // Routes through the all-f64 mesh scratch (like createTextureArrayFromTexels):
   // the raw *const u8 FFI is uncallable from Perry (number[] into an i64 pointer
@@ -583,13 +818,9 @@ export function createTextureArray(
   const texelCount = dataLen / 4;
   for (let i = 0; i < texelCount; i = i + 1) {
     const b = i * 4;
-    bloom_mesh_scratch_push_u32(
-      bytes[b] | (bytes[b + 1] << 8) | (bytes[b + 2] << 16) | (bytes[b + 3] << 24),
-    );
+    bloom_mesh_scratch_push_u32(bytes[b] | (bytes[b + 1] << 8) | (bytes[b + 2] << 16) | (bytes[b + 3] << 24));
   }
-  return bloom_create_texture_array_scratch(
-    width, height, layerCount, TEX_ARRAY_FORMAT_SRGB, 1,
-  );
+  return bloom_create_texture_array_scratch(width, height, layerCount, TEX_ARRAY_FORMAT_SRGB, 1);
 }
 
 /// EN-014 V2 — texture-array pixel format codes for `createTextureArrayEx`.
@@ -597,7 +828,7 @@ export function createTextureArray(
 ///   `TEX_ARRAY_FORMAT_LINEAR` (1) → Rgba8Unorm (normal / MR / data textures —
 ///     mandatory for normal maps so the GPU doesn't sRGB-decode the encoded
 ///     data and silently corrupt the channels).
-export const TEX_ARRAY_FORMAT_SRGB:   number = 0;
+export const TEX_ARRAY_FORMAT_SRGB: number = 0;
 export const TEX_ARRAY_FORMAT_LINEAR: number = 1;
 
 /// EN-014 V2 — create a texture array with explicit format + mip control.
@@ -616,24 +847,30 @@ export const TEX_ARRAY_FORMAT_LINEAR: number = 1;
 /// Backwards compatible: `createTextureArray` (no Ex) stays available
 /// and is equivalent to `createTextureArrayEx(.., TEX_ARRAY_FORMAT_SRGB, 1)`.
 export function createTextureArrayEx(
-  bytes: number[], dataLen: number,
-  width: number, height: number, layerCount: number,
-  format: number, mipLevels: number,
+  bytes: number[],
+  dataLen: number,
+  width: number,
+  height: number,
+  layerCount: number,
+  format: number,
+  mipLevels: number,
 ): number {
   // Same scratch reroute as createTextureArray, with explicit format + mips.
   bloom_mesh_scratch_reset();
   const texelCount = dataLen / 4;
   for (let i = 0; i < texelCount; i = i + 1) {
     const b = i * 4;
-    bloom_mesh_scratch_push_u32(
-      bytes[b] | (bytes[b + 1] << 8) | (bytes[b + 2] << 16) | (bytes[b + 3] << 24),
-    );
+    bloom_mesh_scratch_push_u32(bytes[b] | (bytes[b + 1] << 8) | (bytes[b + 2] << 16) | (bytes[b + 3] << 24));
   }
   return bloom_create_texture_array_scratch(width, height, layerCount, format, mipLevels);
 }
 
 declare function bloom_create_texture_array_scratch(
-  width: number, height: number, layerCount: number, format: number, mipLevels: number,
+  width: number,
+  height: number,
+  layerCount: number,
+  format: number,
+  mipLevels: number,
 ): number;
 
 /// EN-049 — build a texture array from data you computed, not from files.
@@ -654,9 +891,13 @@ declare function bloom_create_texture_array_scratch(
 /// Load-time only. It is linear in the texel count and crosses the FFI once per
 /// texel; do not put it on a frame path.
 export function createTextureArrayFromTexels(
-  texels: number[], texelCount: number,
-  width: number, height: number, layerCount: number,
-  format: number = TEX_ARRAY_FORMAT_LINEAR, mipLevels: number = 1,
+  texels: number[],
+  texelCount: number,
+  width: number,
+  height: number,
+  layerCount: number,
+  format: number = TEX_ARRAY_FORMAT_LINEAR,
+  mipLevels: number = 1,
 ): number {
   bloom_mesh_scratch_reset();
   for (let i = 0; i < texelCount; i = i + 1) bloom_mesh_scratch_push_u32(texels[i]);
@@ -710,8 +951,8 @@ export function setMaterialTextureArray(material: number, slot: number, array: n
 
 /// EN-012 — shading-model selectors. Pass to `setMaterialShadingModel`.
 export const SHADING_MODEL_DEFAULT_LIT = 0;
-export const SHADING_MODEL_FOLIAGE     = 1;
-export const SHADING_MODEL_SUBSURFACE  = 2;   // V2 stub — currently behaves as default lit
+export const SHADING_MODEL_FOLIAGE = 1;
+export const SHADING_MODEL_SUBSURFACE = 2; // V2 stub — currently behaves as default lit
 
 /// EN-012 — switch a material's shading model. The game shader is
 /// responsible for branching on `material.shading_model.x` and calling
@@ -735,8 +976,11 @@ export function setMaterialShadingModel(material: number, model: number): void {
 ///   back face.
 export function setMaterialFoliage(
   material: number,
-  transmissionR: number, transmissionG: number, transmissionB: number,
-  transmissionAmount: number, wrapFactor: number,
+  transmissionR: number,
+  transmissionG: number,
+  transmissionB: number,
+  transmissionAmount: number,
+  wrapFactor: number,
 ): void {
   bloom_set_material_foliage(material, transmissionR, transmissionG, transmissionB, transmissionAmount, wrapFactor);
 }
@@ -759,11 +1003,16 @@ export function compileMaterialFromFile(
   path: string,
   bucket: 'opaque' | 'cutout' | 'transparent' | 'refractive' | 'additive',
 ): number {
-  const kind = bucket === 'opaque'      ? 0
-             : bucket === 'transparent' ? 1
-             : bucket === 'refractive'  ? 2
-             : bucket === 'additive'    ? 3
-             :                            4; // cutout
+  const kind =
+    bucket === 'opaque'
+      ? 0
+      : bucket === 'transparent'
+        ? 1
+        : bucket === 'refractive'
+          ? 2
+          : bucket === 'additive'
+            ? 3
+            : 4; // cutout
   return bloom_compile_material_from_file(path as any, kind);
 }
 
@@ -813,29 +1062,45 @@ export function loadMaterial(desc: MaterialDesc): number {
 /// default 0 for single-mesh models. Loop 0..mesh.meshCount when
 /// rendering a multi-primitive GLB through a custom material.
 export function drawMeshWithMaterial(
-  material: number, mesh: Model,
-  position: Vec3, scale: number, tint: Color,
+  material: number,
+  mesh: Model,
+  position: Vec3,
+  scale: number,
+  tint: Color,
   meshIdx: number = 0,
 ): void {
   bloom_draw_material(
-    material, mesh.handle, meshIdx,
-    position.x, position.y, position.z, scale,
-    tint.r, tint.g, tint.b, tint.a,
+    material,
+    mesh.handle,
+    meshIdx,
+    position.x,
+    position.y,
+    position.z,
+    scale,
+    tint.r,
+    tint.g,
+    tint.b,
+    tint.a,
   );
 }
 
 /// Draw every primitive of a multi-mesh GLB with the same material.
 /// Convenience wrapper around `drawMeshWithMaterial` that loops
 /// 0..mesh.meshCount internally.
-export function drawModelWithMaterial(
-  material: number, mesh: Model,
-  position: Vec3, scale: number, tint: Color,
-): void {
+export function drawModelWithMaterial(material: number, mesh: Model, position: Vec3, scale: number, tint: Color): void {
   for (let i = 0; i < mesh.meshCount; i = i + 1) {
     bloom_draw_material(
-      material, mesh.handle, i,
-      position.x, position.y, position.z, scale,
-      tint.r, tint.g, tint.b, tint.a,
+      material,
+      mesh.handle,
+      i,
+      position.x,
+      position.y,
+      position.z,
+      scale,
+      tint.r,
+      tint.g,
+      tint.b,
+      tint.a,
     );
   }
 }
@@ -852,7 +1117,16 @@ export function instantiateAnimation(src: number): number {
   return bloom_instantiate_animation(src);
 }
 
-export function updateModelAnimation(handle: number, animIndex: number, time: number, scale: number, px: number, py: number, pz: number, rotY: number): void {
+export function updateModelAnimation(
+  handle: number,
+  animIndex: number,
+  time: number,
+  scale: number,
+  px: number,
+  py: number,
+  pz: number,
+  rotY: number,
+): void {
   bloom_update_model_animation(handle, animIndex, time, scale, px, py, pz, rotY);
 }
 
@@ -868,9 +1142,24 @@ export function updateModelAnimation(handle: number, animIndex: number, time: nu
 //   animUpdate(h, dt, scale, x, y, z, yaw);
 
 declare function bloom_anim_play(handle: number, clip: number, fade: number, speed: number, looping: number): void;
-declare function bloom_anim_set_layer(handle: number, clip: number, weight: number, maskRoot: number, speed: number, looping: number): void;
+declare function bloom_anim_set_layer(
+  handle: number,
+  clip: number,
+  weight: number,
+  maskRoot: number,
+  speed: number,
+  looping: number,
+): void;
 declare function bloom_anim_set_root_motion(handle: number, on: number): void;
-declare function bloom_anim_update(handle: number, dt: number, scale: number, px: number, py: number, pz: number, rotY: number): void;
+declare function bloom_anim_update(
+  handle: number,
+  dt: number,
+  scale: number,
+  px: number,
+  py: number,
+  pz: number,
+  rotY: number,
+): void;
 declare function bloom_anim_finished(handle: number): number;
 declare function bloom_anim_clip_duration(handle: number, clip: number): number;
 declare function bloom_anim_root_delta(handle: number, axis: number): number;
@@ -880,14 +1169,27 @@ declare function bloom_model_joint_world(handle: number, joint: number, comp: nu
 /// Transition the base track to `clip` over `fade` seconds. Safe to call every
 /// frame with the clip you *want* — re-requesting the clip already playing is
 /// a no-op, so callers don't have to track edges.
-export function animPlay(handle: number, clip: number, fade: number = 0.15, speed: number = 1.0, looping: boolean = true): void {
+export function animPlay(
+  handle: number,
+  clip: number,
+  fade: number = 0.15,
+  speed: number = 1.0,
+  looping: boolean = true,
+): void {
   bloom_anim_play(handle, clip, fade, speed, looping ? 1 : 0);
 }
 
 /// Drive the subtree below `maskRoot` (a joint index — see `findJoint`) from a
 /// second clip at `weight`. Pass clip = -1 to switch the layer off. This is how
 /// a character attacks while still walking.
-export function animSetLayer(handle: number, clip: number, weight: number, maskRoot: number, speed: number = 1.0, looping: boolean = false): void {
+export function animSetLayer(
+  handle: number,
+  clip: number,
+  weight: number,
+  maskRoot: number,
+  speed: number = 1.0,
+  looping: boolean = false,
+): void {
   bloom_anim_set_layer(handle, clip, weight, maskRoot, speed, looping ? 1 : 0);
 }
 
@@ -900,7 +1202,15 @@ export function animSetRootMotion(handle: number, on: boolean): void {
 
 /// Advance all clocks on this model and upload the blended pose. One call per
 /// model per frame, in place of `updateModelAnimation`.
-export function animUpdate(handle: number, dt: number, scale: number, px: number, py: number, pz: number, rotY: number): void {
+export function animUpdate(
+  handle: number,
+  dt: number,
+  scale: number,
+  px: number,
+  py: number,
+  pz: number,
+  rotY: number,
+): void {
   bloom_anim_update(handle, dt, scale, px, py, pz, rotY);
 }
 
@@ -939,16 +1249,13 @@ export function jointWorld(handle: number, joint: number, comp: number): number 
 // passing a `number[]` to a native `i64` pointer param (strict safe-integer
 // check), so we push each vertex float + index scalar through the all-f64
 // scratch FFI and then build. One-time init cost; fine for static meshes.
-function uploadMeshScratch(
-  vertices: number[], vertexCount: number,
-  indices: number[], indexCount: number,
-): Model {
+function uploadMeshScratch(vertices: number[], vertexCount: number, indices: number[], indexCount: number): Model {
   bloom_mesh_scratch_reset();
   const vfloats = vertexCount * 12;
   for (let i = 0; i < vfloats; i++) bloom_mesh_scratch_push_f32(vertices[i]);
   for (let i = 0; i < indexCount; i++) bloom_mesh_scratch_push_u32(indices[i]);
   const handle = bloom_create_mesh_scratch(vertexCount, indexCount);
-  return makeModel(handle, 1, 1);
+  return makeModel(handle);
 }
 
 export function createMesh(vertices: number[], indices: number[]): Model {
@@ -965,8 +1272,10 @@ export function createMesh(vertices: number[], indices: number[]): Model {
 /// Use this when the underlying `number[]` arrays were built with
 /// `.push()`, since Perry's `.length` doesn't reflect post-push size.
 export function createMeshExplicit(
-  vertices: number[], vertexCount: number,
-  indices: number[], indexCount: number,
+  vertices: number[],
+  vertexCount: number,
+  indices: number[],
+  indexCount: number,
 ): Model {
   return uploadMeshScratch(vertices, vertexCount, indices, indexCount);
 }
@@ -1037,7 +1346,7 @@ export async function loadModelAsync(path: string): Promise<Model> {
         parsed.indices as any,
         parsed.indices.length,
       );
-      return makeModel(handle, 1, 1);
+      return makeModel(handle);
     }
     return makeModel(0);
   }
@@ -1138,8 +1447,12 @@ export function commitModel(stagingHandle: number): Model {
 /// 47 m); when TAA is enabled the residual flicker is mostly resolved
 /// across frames.
 export function pickImposterLOD(
-  cameraX: number, cameraY: number, cameraZ: number,
-  worldX: number, worldY: number, worldZ: number,
+  cameraX: number,
+  cameraY: number,
+  cameraZ: number,
+  worldX: number,
+  worldY: number,
+  worldZ: number,
   switchDistance: number,
 ): boolean {
   const dx = cameraX - worldX;
@@ -1162,15 +1475,8 @@ export function pickImposterLOD(
 /// Future revs may add a dedicated FFI that submits a hard-coded unit
 /// quad so games don't need to author a quad mesh; for V1 we keep the
 /// API surface tight and reuse the existing draw path.
-export function drawImposterAtlas(
-  material: number, quadMesh: Model,
-  position: Vec3, scale: number,
-): void {
-  bloom_draw_material(
-    material, quadMesh.handle, 0,
-    position.x, position.y, position.z, scale,
-    1.0, 1.0, 1.0, 1.0,
-  );
+export function drawImposterAtlas(material: number, quadMesh: Model, position: Vec3, scale: number): void {
+  bloom_draw_material(material, quadMesh.handle, 0, position.x, position.y, position.z, scale, 1.0, 1.0, 1.0, 1.0);
 }
 
 // ---- EN-025: ragdolls -------------------------------------------------------
@@ -1184,7 +1490,16 @@ export function drawImposterAtlas(
 // asset to author and it works for any skinned model the game loads.
 
 declare function bloom_ragdoll_create(): number;
-declare function bloom_ragdoll_activate(rag: number, anim: number, world: number, scale: number, px: number, py: number, pz: number, rotY: number): number;
+declare function bloom_ragdoll_activate(
+  rag: number,
+  anim: number,
+  world: number,
+  scale: number,
+  px: number,
+  py: number,
+  pz: number,
+  rotY: number,
+): number;
 declare function bloom_ragdoll_push(rag: number, dx: number, dy: number, dz: number, impulse: number): void;
 declare function bloom_ragdoll_update(rag: number, anim: number, dt: number): number;
 declare function bloom_ragdoll_release(rag: number): void;
@@ -1206,8 +1521,14 @@ export function createRagdoll(): number {
 /// Returns false if the model has no skeleton, or no bones long enough to
 /// simulate.
 export function activateRagdoll(
-  rag: number, anim: number, world: number,
-  scale: number, px: number, py: number, pz: number, rotY: number,
+  rag: number,
+  anim: number,
+  world: number,
+  scale: number,
+  px: number,
+  py: number,
+  pz: number,
+  rotY: number,
 ): boolean {
   return bloom_ragdoll_activate(rag, anim, world, scale, px, py, pz, rotY) !== 0;
 }

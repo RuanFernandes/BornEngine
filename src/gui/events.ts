@@ -17,7 +17,7 @@ export const GUIEventType = {
   KeyUp: 13,
 } as const;
 
-export type GUIEventTypeCode = typeof GUIEventType[keyof typeof GUIEventType];
+export type GUIEventTypeCode = (typeof GUIEventType)[keyof typeof GUIEventType];
 
 export interface GUIEventOptions {
   local?: GuiPoint;

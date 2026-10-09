@@ -4,9 +4,46 @@ import { Color, Rect, Texture } from '../core/types';
 // FFI declarations
 declare function bloom_load_texture(path: number): number;
 declare function bloom_unload_texture(handle: number): void;
-declare function bloom_draw_texture(handle: number, x: number, y: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_texture_rec(handle: number, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, r: number, g: number, b: number, a: number): void;
-declare function bloom_draw_texture_pro(handle: number, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number, ox: number, oy: number, rot: number, r: number, g: number, b: number, a: number): void;
+declare function bloom_draw_texture(
+  handle: number,
+  x: number,
+  y: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_texture_rec(
+  handle: number,
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  dx: number,
+  dy: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
+declare function bloom_draw_texture_pro(
+  handle: number,
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  ox: number,
+  oy: number,
+  rot: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void;
 declare function bloom_get_texture_width(handle: number): number;
 declare function bloom_get_texture_height(handle: number): number;
 declare function bloom_load_image(path: number): number;
@@ -49,19 +86,46 @@ export function drawTexture(texture: Texture, x: number, y: number, tint: Color)
 }
 
 export function drawTextureRec(texture: Texture, source: Rect, position: { x: number; y: number }, tint: Color): void {
-  bloom_draw_texture_rec(texture.handle, source.x, source.y, source.width, source.height, position.x, position.y, tint.r, tint.g, tint.b, tint.a);
+  bloom_draw_texture_rec(
+    texture.handle,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    position.x,
+    position.y,
+    tint.r,
+    tint.g,
+    tint.b,
+    tint.a,
+  );
 }
 
 export function drawTexturePro(
-  texture: Texture, source: Rect, dest: Rect,
-  origin: { x: number; y: number }, rotation: number, tint: Color,
+  texture: Texture,
+  source: Rect,
+  dest: Rect,
+  origin: { x: number; y: number },
+  rotation: number,
+  tint: Color,
 ): void {
   bloom_draw_texture_pro(
     texture.handle,
-    source.x, source.y, source.width, source.height,
-    dest.x, dest.y, dest.width, dest.height,
-    origin.x, origin.y, rotation,
-    tint.r, tint.g, tint.b, tint.a,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    dest.x,
+    dest.y,
+    dest.width,
+    dest.height,
+    origin.x,
+    origin.y,
+    rotation,
+    tint.r,
+    tint.g,
+    tint.b,
+    tint.a,
   );
 }
 
@@ -69,10 +133,21 @@ export function drawTexturePro(
 // Perry miscompilation where obj.field reads feeding f64 FFI args arrive as NaN.
 export function drawTextureProRaw(
   textureId: number,
-  sx: number, sy: number, sw: number, sh: number,
-  dx: number, dy: number, dw: number, dh: number,
-  ox: number, oy: number, rotation: number,
-  r: number, g: number, b: number, a: number,
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  ox: number,
+  oy: number,
+  rotation: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
 ): void {
   bloom_draw_texture_pro(textureId, sx, sy, sw, sh, dx, dy, dw, dh, ox, oy, rotation, r, g, b, a);
 }

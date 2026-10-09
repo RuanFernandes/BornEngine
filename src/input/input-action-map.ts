@@ -1,17 +1,8 @@
 import type { InputSystem } from './input-system';
 import type { Rect } from '../core/types';
 import { Vector2D } from '../math/vector2d';
-import {
-  advanceActionState,
-  evaluateActionBindings,
-  evaluateAxisBinding,
-} from './action-map-state';
-import type {
-  ActionAxisBinding,
-  ActionButtonBinding,
-  ActionInputSnapshot,
-  ActionState,
-} from './action-map-state';
+import { advanceActionState, evaluateActionBindings, evaluateAxisBinding } from './action-map-state';
+import type { ActionAxisBinding, ActionButtonBinding, ActionInputSnapshot, ActionState } from './action-map-state';
 
 interface ActionEntry {
   name: string;
@@ -27,8 +18,7 @@ interface AxisEntry {
 }
 
 function finiteNumber(value: number): boolean {
-  return typeof value === 'number' && value === value &&
-    value !== Infinity && value !== -Infinity;
+  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity;
 }
 
 function validIndex(value: number): boolean {
@@ -41,10 +31,16 @@ function validName(name: string): boolean {
 
 function copyRect(rect: Rect): Rect | null {
   if (rect === null || typeof rect !== 'object') return null;
-  if (!finiteNumber(rect.x) || !finiteNumber(rect.y) ||
-      !finiteNumber(rect.width) || !finiteNumber(rect.height) ||
-      rect.width < 0 || rect.height < 0 ||
-      !finiteNumber(rect.x + rect.width) || !finiteNumber(rect.y + rect.height)) {
+  if (
+    !finiteNumber(rect.x) ||
+    !finiteNumber(rect.y) ||
+    !finiteNumber(rect.width) ||
+    !finiteNumber(rect.height) ||
+    rect.width < 0 ||
+    rect.height < 0 ||
+    !finiteNumber(rect.x + rect.width) ||
+    !finiteNumber(rect.y + rect.height)
+  ) {
     return null;
   }
   return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
@@ -74,8 +70,12 @@ function sameButtonBinding(left: ActionButtonBinding, right: ActionButtonBinding
   if (left.kind === 'mouse' && right.kind === 'mouse') return left.button === right.button;
   if (left.kind === 'gamepad' && right.kind === 'gamepad') return left.button === right.button;
   if (left.kind === 'touch-region' && right.kind === 'touch-region') {
-    return left.rect.x === right.rect.x && left.rect.y === right.rect.y &&
-      left.rect.width === right.rect.width && left.rect.height === right.rect.height;
+    return (
+      left.rect.x === right.rect.x &&
+      left.rect.y === right.rect.y &&
+      left.rect.width === right.rect.width &&
+      left.rect.height === right.rect.height
+    );
   }
   return false;
 }
@@ -114,12 +114,10 @@ function copyAxisBinding(binding: ActionAxisBinding): ActionAxisBinding | null {
   }
   if (binding.gamepadAxis !== undefined) {
     const gamepadAxis = binding.gamepadAxis;
-    if (gamepadAxis === null || typeof gamepadAxis !== 'object' ||
-        !validIndex(gamepadAxis.axis)) return null;
+    if (gamepadAxis === null || typeof gamepadAxis !== 'object' || !validIndex(gamepadAxis.axis)) return null;
     const scale = gamepadAxis.scale === undefined ? 1 : gamepadAxis.scale;
     const deadzone = gamepadAxis.deadzone === undefined ? 0.15 : gamepadAxis.deadzone;
-    if (!finiteNumber(scale) || !finiteNumber(deadzone) ||
-        deadzone < 0 || deadzone >= 1) return null;
+    if (!finiteNumber(scale) || !finiteNumber(deadzone) || deadzone < 0 || deadzone >= 1) return null;
     result.gamepadAxis = { axis: gamepadAxis.axis, scale, deadzone };
   }
   return result;
@@ -305,7 +303,11 @@ export class InputActionMap {
     }
     for (let axisIndex = 0; axisIndex < this.axes.length; axisIndex++) {
       const collected = collectAxisIndices(
-        this.axes[axisIndex].binding, keys, mouseButtons, gamepadButtons, gamepadAxisIndices,
+        this.axes[axisIndex].binding,
+        keys,
+        mouseButtons,
+        gamepadButtons,
+        gamepadAxisIndices,
       );
       hasTouchBindings = hasTouchBindings || collected.hasTouch;
     }
@@ -334,9 +336,8 @@ export class InputActionMap {
 
     if (hasTouchBindings) {
       const reportedTouchCount = this.input.getMaxTouchPoints();
-      const touchCount = finiteNumber(reportedTouchCount) && reportedTouchCount >= 0
-        ? Math.floor(reportedTouchCount)
-        : 0;
+      const touchCount =
+        finiteNumber(reportedTouchCount) && reportedTouchCount >= 0 ? Math.floor(reportedTouchCount) : 0;
       for (let slot = 0; slot < touchCount; slot++) {
         if (!this.input.isTouchActive(slot)) {
           snapshot.touches.push(null);
@@ -413,15 +414,21 @@ export class InputActionMap {
    * state is reset and remains quiet until each action returns to neutral.
    */
   loadData(data: InputActionMapData): boolean {
-    if (data === null || typeof data !== 'object' || data.version !== 1 ||
-        !Array.isArray(data.actions) || !Array.isArray(data.axes)) return false;
+    if (
+      data === null ||
+      typeof data !== 'object' ||
+      data.version !== 1 ||
+      !Array.isArray(data.actions) ||
+      !Array.isArray(data.axes)
+    )
+      return false;
 
     const actions: ActionEntry[] = [];
     const actionNames: string[] = [];
     for (let index = 0; index < data.actions.length; index++) {
       const source = data.actions[index];
-      if (source === null || typeof source !== 'object' ||
-          !validName(source.name) || hasName(actionNames, source.name)) return false;
+      if (source === null || typeof source !== 'object' || !validName(source.name) || hasName(actionNames, source.name))
+        return false;
       const bindings = copyButtonBindings(source.bindings);
       if (bindings === null) return false;
       actionNames.push(source.name);
@@ -437,8 +444,8 @@ export class InputActionMap {
     const axisNames: string[] = [];
     for (let index = 0; index < data.axes.length; index++) {
       const source = data.axes[index];
-      if (source === null || typeof source !== 'object' ||
-          !validName(source.name) || hasName(axisNames, source.name)) return false;
+      if (source === null || typeof source !== 'object' || !validName(source.name) || hasName(axisNames, source.name))
+        return false;
       const binding = copyAxisBinding(source.binding);
       if (binding === null) return false;
       axisNames.push(source.name);

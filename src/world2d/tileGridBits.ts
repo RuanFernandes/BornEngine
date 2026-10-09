@@ -12,20 +12,31 @@ function fail(path: string, code: string, message: string): never {
 }
 
 function safeInteger(value: unknown): value is number {
-  return typeof value === 'number' && value === value && value !== Infinity && value !== -Infinity &&
-    Math.floor(value) === value && Math.abs(value) <= MAX_SAFE_INTEGER_VALUE;
+  return (
+    typeof value === 'number' &&
+    value === value &&
+    value !== Infinity &&
+    value !== -Infinity &&
+    Math.floor(value) === value &&
+    Math.abs(value) <= MAX_SAFE_INTEGER_VALUE
+  );
 }
 
 function checkedCellCount(value: unknown): number {
   if (!safeInteger(value) || value < 0 || value > MAX_WORLD2D_TILE_CELLS) {
-    fail('/size', 'invalid_tile_grid_size', 'Tile grid cell count must be an integer from zero through the supported limit.');
+    fail(
+      '/size',
+      'invalid_tile_grid_size',
+      'Tile grid cell count must be an integer from zero through the supported limit.',
+    );
   }
   return value;
 }
 
 function checkedCodes(value: unknown, path: string): number[] {
   if (!Array.isArray(value)) fail(path, 'invalid_tile_grid', 'Tile grid codes must be an array.');
-  if (value.length > MAX_WORLD2D_TILE_CELLS) fail(path, 'tile_grid_too_large', 'Tile grid exceeds the supported cell limit.');
+  if (value.length > MAX_WORLD2D_TILE_CELLS)
+    fail(path, 'tile_grid_too_large', 'Tile grid exceeds the supported cell limit.');
   for (let index = 0; index < value.length; index++) {
     if (!safeInteger(value[index])) fail(path + '/' + index, 'invalid_tile_code', 'Tile codes must be safe integers.');
   }
@@ -93,7 +104,8 @@ export function packTileCodes(inputCodes: number[]): { palette: number[]; bytes:
     }
   }
   if (bitCount > 0) bytes.push(bitBuffer & 255);
-  if (bytes.length > MAX_WORLD2D_TILE_BYTES) fail('/data', 'tile_grid_too_large', 'Packed grid exceeds the supported byte limit.');
+  if (bytes.length > MAX_WORLD2D_TILE_BYTES)
+    fail('/data', 'tile_grid_too_large', 'Packed grid exceeds the supported byte limit.');
   return { palette, bytes };
 }
 
@@ -101,24 +113,39 @@ export function packTileCodes(inputCodes: number[]): { palette: number[]; bytes:
 export function unpackTileCodes(paletteInput: number[], byteInput: number[], inputCellCount: number): number[] {
   const cellCount = checkedCellCount(inputCellCount);
   const palette = checkedCodes(paletteInput, '/data/palette');
-  const maxBytes = Math.ceil(cellCount * 20 / 8);
+  const maxBytes = Math.ceil((cellCount * 20) / 8);
   const bytes = checkedBytes(byteInput, '/data/values', maxBytes);
-  if (palette.length > cellCount) fail('/data/palette', 'invalid_tile_palette', 'Tile palette cannot contain more values than the grid has cells.');
+  if (palette.length > cellCount)
+    fail('/data/palette', 'invalid_tile_palette', 'Tile palette cannot contain more values than the grid has cells.');
   if ((cellCount === 0 && palette.length !== 0) || (cellCount > 0 && palette.length === 0)) {
-    fail('/data/palette', 'invalid_tile_palette', 'A nonempty grid needs a nonempty palette, and an empty grid needs an empty palette.');
+    fail(
+      '/data/palette',
+      'invalid_tile_palette',
+      'A nonempty grid needs a nonempty palette, and an empty grid needs an empty palette.',
+    );
   }
   const seenPaletteCodes: Record<string, boolean> = {};
   for (let index = 0; index < palette.length; index++) {
     const key = '' + palette[index];
-    if (seenPaletteCodes[key] === true) fail('/data/palette/' + index, 'duplicate_palette_code', 'Tile palettes cannot contain duplicate codes.');
+    if (seenPaletteCodes[key] === true)
+      fail('/data/palette/' + index, 'duplicate_palette_code', 'Tile palettes cannot contain duplicate codes.');
     seenPaletteCodes[key] = true;
   }
 
   const bits = bitWidth(palette.length);
-  const expectedByteCount = Math.ceil(cellCount * bits / 8);
-  if (bytes.length !== expectedByteCount) fail('/data/values', 'tile_grid_byte_count_mismatch', 'Packed grid byte length does not match its dimensions and palette.');
-  const usedLastByteBits = cellCount * bits % 8;
-  if (usedLastByteBits !== 0 && bytes.length > 0 && Math.floor(bytes[bytes.length - 1] / Math.pow(2, usedLastByteBits)) !== 0) {
+  const expectedByteCount = Math.ceil((cellCount * bits) / 8);
+  if (bytes.length !== expectedByteCount)
+    fail(
+      '/data/values',
+      'tile_grid_byte_count_mismatch',
+      'Packed grid byte length does not match its dimensions and palette.',
+    );
+  const usedLastByteBits = (cellCount * bits) % 8;
+  if (
+    usedLastByteBits !== 0 &&
+    bytes.length > 0 &&
+    Math.floor(bytes[bytes.length - 1] / Math.pow(2, usedLastByteBits)) !== 0
+  ) {
     fail('/data/values', 'nonzero_tile_grid_padding', 'Unused high bits in the last packed byte must be zero.');
   }
 
@@ -185,16 +212,20 @@ export function decodeBase64(text: string, maxBytes: number): number[] {
   if (text.charAt(text.length - 2) === '=') padding++;
   if (padding > 0) {
     const firstPadding = text.length - padding;
-    if (firstPadding < text.length - 2) fail('/data/values', 'invalid_base64', 'Base64 padding can appear only in the final two positions.');
+    if (firstPadding < text.length - 2)
+      fail('/data/values', 'invalid_base64', 'Base64 padding can appear only in the final two positions.');
     for (let index = firstPadding; index < text.length; index++) {
-      if (text.charAt(index) !== '=') fail('/data/values', 'invalid_base64', 'Base64 padding must be contiguous at the end.');
+      if (text.charAt(index) !== '=')
+        fail('/data/values', 'invalid_base64', 'Base64 padding must be contiguous at the end.');
     }
   }
 
-  const decodedLength = text.length / 4 * 3 - padding;
-  if (decodedLength > maxBytes) fail('/data/values', 'base64_payload_too_large', 'Base64 payload exceeds its decoded byte limit.');
+  const decodedLength = (text.length / 4) * 3 - padding;
+  if (decodedLength > maxBytes)
+    fail('/data/values', 'base64_payload_too_large', 'Base64 payload exceeds its decoded byte limit.');
   for (let index = 0; index < text.length - padding; index++) {
-    if (base64Value(text.charAt(index)) < 0) fail('/data/values/' + index, 'invalid_base64', 'Base64 contains a character outside its standard alphabet.');
+    if (base64Value(text.charAt(index)) < 0)
+      fail('/data/values/' + index, 'invalid_base64', 'Base64 contains a character outside its standard alphabet.');
   }
   if (padding === 2 && (base64Value(text.charAt(text.length - 3)) & 15) !== 0) {
     fail('/data/values', 'noncanonical_base64', 'Unused Base64 padding bits must be zero.');

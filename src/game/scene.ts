@@ -1,6 +1,5 @@
 import { GameObject } from './game-object';
 import { GameScene } from './game-scene';
-import type { GameContext } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Camera2D } from '../core/types';
@@ -60,8 +59,13 @@ export class Scene extends GameScene {
 
   get camera2D(): Camera2D | null {
     const rig = this.boundCameraRig;
-    if (rig !== null && rig.error === null && rig.isActiveAndEnabled &&
-        rig.gameObject !== null && rig.gameObject.scene === this) {
+    if (
+      rig !== null &&
+      rig.error === null &&
+      rig.isActiveAndEnabled &&
+      rig.gameObject !== null &&
+      rig.gameObject.scene === this
+    ) {
       return rig.camera;
     }
     return this.boundCameraRig === null ? this.cameraValue : this.fallbackCameraValue;
@@ -75,8 +79,11 @@ export class Scene extends GameScene {
   /** Binds a live component camera, retaining the camera for restoration. */
   bindCameraRig2D(rig: CameraRig2D | null): boolean {
     if (this.state === 'unloaded') return false;
-    if (rig !== null && (rig.destroyed || rig.gameObject === null ||
-        rig.gameObject.scene !== this || rig.error !== null)) return false;
+    if (
+      rig !== null &&
+      (rig.destroyed || rig.gameObject === null || rig.gameObject.scene !== this || rig.error !== null)
+    )
+      return false;
     if (rig === this.boundCameraRig) return true;
     if (this.boundCameraRig === null) this.fallbackCameraValue = this.cameraValue;
     if (this.boundCameraRig !== null) this.cameraValue = this.fallbackCameraValue;
@@ -170,8 +177,8 @@ export class Scene extends GameScene {
 
   /** @internal Changes state before dispatching the pause hook. */
   _pause(manager: object): boolean {
-    if (this.managerOwner !== manager || this.currentState !== 'active' ||
-        this.unloading || this.inLifecycleHook) return false;
+    if (this.managerOwner !== manager || this.currentState !== 'active' || this.unloading || this.inLifecycleHook)
+      return false;
     this.currentState = 'paused';
     this.invokeLifecycleHook('pause');
     return true;
@@ -179,8 +186,8 @@ export class Scene extends GameScene {
 
   /** @internal Changes state before dispatching the resume hook. */
   _resume(manager: object): boolean {
-    if (this.managerOwner !== manager || this.currentState !== 'paused' ||
-        this.unloading || this.inLifecycleHook) return false;
+    if (this.managerOwner !== manager || this.currentState !== 'paused' || this.unloading || this.inLifecycleHook)
+      return false;
     this.currentState = 'active';
     this.invokeLifecycleHook('resume');
     return true;
@@ -188,8 +195,7 @@ export class Scene extends GameScene {
 
   /** @internal Validates a fresh scene before a manager unloads its current one. */
   _canActivate(): boolean {
-    return this.currentState === 'ready' && this.managerOwner === null &&
-      !this.unloading && !this.inLifecycleHook;
+    return this.currentState === 'ready' && this.managerOwner === null && !this.unloading && !this.inLifecycleHook;
   }
 
   /** @internal Advances scene-owned resources from the manager's frame loop. */

@@ -72,8 +72,13 @@ export class GameScene implements ContextResource {
   }
 
   add<T extends GameObject>(object: T): T | null {
-    if (this.wasDestroyed || object.destroyed || object.scene !== null || object.parent !== null ||
-        !this._canAttachSubtree(object)) {
+    if (
+      this.wasDestroyed ||
+      object.destroyed ||
+      object.scene !== null ||
+      object.parent !== null ||
+      !this._canAttachSubtree(object)
+    ) {
       return null;
     }
     return this._attachSubtree(object) ? object : null;
@@ -173,9 +178,10 @@ export class GameScene implements ContextResource {
     let cameraStarted = false;
     try {
       if ((camera !== undefined && camera !== null) || (viewport !== undefined && viewport !== null)) {
-        const activeCamera = camera === undefined || camera === null
-          ? { offset: { x: 0, y: 0 }, target: { x: 0, y: 0 }, rotation: 0, zoom: 1 }
-          : camera;
+        const activeCamera =
+          camera === undefined || camera === null
+            ? { offset: { x: 0, y: 0 }, target: { x: 0, y: 0 }, rotation: 0, zoom: 1 }
+            : camera;
         if (!renderer.begin2D(activeCamera, viewport)) return;
         cameraStarted = true;
       }
@@ -264,7 +270,9 @@ export class GameScene implements ContextResource {
     this.context.unregister(this);
   }
 
-  dispose(): void { this.destroy(); }
+  dispose(): void {
+    this.destroy();
+  }
 
   /** @internal Validates a detached subtree before an atomic scene attachment. */
   _canAttachSubtree(root: GameObject): boolean {
@@ -416,18 +424,22 @@ export class GameScene implements ContextResource {
   }
 
   private _isEligibleObject(object: GameObject, generation: number): boolean {
-    return object.scene === this && !object.destroyed &&
-      object._getAttachmentGeneration() === generation && object.activeInHierarchy;
+    return (
+      object.scene === this &&
+      !object.destroyed &&
+      object._getAttachmentGeneration() === generation &&
+      object.activeInHierarchy
+    );
   }
 
-  private _isEligibleComponent(
-    object: GameObject,
-    component: GameComponent,
-    generation: number,
-  ): boolean {
-    return this._isEligibleObject(object, generation) &&
-      component.gameObject === object && !component.destroyed && component.enabled &&
-      object.activeInHierarchy;
+  private _isEligibleComponent(object: GameObject, component: GameComponent, generation: number): boolean {
+    return (
+      this._isEligibleObject(object, generation) &&
+      component.gameObject === object &&
+      !component.destroyed &&
+      component.enabled &&
+      object.activeInHierarchy
+    );
   }
 
   private _syncRuntimeAdapters(): void {

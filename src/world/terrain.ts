@@ -22,7 +22,6 @@ import { TerrainData, TerrainLayer, Vec3Lit } from './types';
 // See `bloom/engine/src/scene/index.ts` updateSceneNodeGeometry docs.
 const STRIDE = 12;
 
-
 // ---- splat mask preview -----------------------------------------------------
 
 // Mask colours for the first eight splat layers, used to tint the heightmap
@@ -35,21 +34,37 @@ const STRIDE = 12;
 // colours. They are ordered to read naturally for the common
 // grass/dry/dirt/rock set, so the preview is not actively misleading.
 const MASK_PALETTE: number[] = [
-  0.36, 0.60, 0.24,   // 0 — green      (lush grass)
-  0.72, 0.68, 0.30,   // 1 — olive      (dry grass)
-  0.55, 0.40, 0.26,   // 2 — brown      (dirt)
-  0.58, 0.58, 0.60,   // 3 — grey       (rock)
-  0.80, 0.74, 0.55,   // 4 — sand
-  0.90, 0.92, 0.95,   // 5 — snow
-  0.30, 0.34, 0.42,   // 6 — slate
-  0.62, 0.30, 0.28,   // 7 — clay
+  0.36,
+  0.6,
+  0.24, // 0 — green      (lush grass)
+  0.72,
+  0.68,
+  0.3, // 1 — olive      (dry grass)
+  0.55,
+  0.4,
+  0.26, // 2 — brown      (dirt)
+  0.58,
+  0.58,
+  0.6, // 3 — grey       (rock)
+  0.8,
+  0.74,
+  0.55, // 4 — sand
+  0.9,
+  0.92,
+  0.95, // 5 — snow
+  0.3,
+  0.34,
+  0.42, // 6 — slate
+  0.62,
+  0.3,
+  0.28, // 7 — clay
 ];
 
 // Unpainted ground. Also the colour of a terrain with no layers at all, which
 // is every terrain until someone opens the paint tool.
 const BARE_R = 0.55;
-const BARE_G = 0.60;
-const BARE_B = 0.50;
+const BARE_G = 0.6;
+const BARE_B = 0.5;
 
 /// The mask colour the editor viewport uses for splat layer `i`. Wraps past 8.
 export function terrainLayerMaskColor(i: number): Vec3Lit {
@@ -181,7 +196,6 @@ export function buildHeightmapMesh(t: TerrainData): { vertices: number[]; indice
   return { vertices: vertices, indices: indices };
 }
 
-
 // Bilinear sample of the terrain at world-space (wx, wz). Returns the world
 // Y of the surface at that point, including the terrain's origin offset.
 // Points outside the grid clamp to the nearest edge cell.
@@ -265,7 +279,7 @@ export function raycastTerrain(
         const my = origin[1] + dir[1] * mid;
         const mz = origin[2] + dir[2] * mid;
         const mh = sampleHeight(t, mx, mz);
-        if ((my > mh) === prevAbove) {
+        if (my > mh === prevAbove) {
           lo = mid;
         } else {
           hi = mid;

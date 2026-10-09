@@ -39,8 +39,15 @@ function safeWrite(path: string, json: string): string | null {
   }
   const readBack = readFile(tmpPath);
   if (readBack !== json) {
-    return 'readback mismatch on ' + tmpPath + ' (wrote ' + json.length +
-      ' chars, read ' + (readBack ? readBack.length : 0) + ') — disk or FFI fault, original untouched';
+    return (
+      'readback mismatch on ' +
+      tmpPath +
+      ' (wrote ' +
+      json.length +
+      ' chars, read ' +
+      (readBack ? readBack.length : 0) +
+      ') — disk or FFI fault, original untouched'
+    );
   }
 
   if (fileExists(path)) {
@@ -52,8 +59,7 @@ function safeWrite(path: string, json: string): string | null {
   }
 
   if (!writeFile(path, json)) {
-    return 'could not write ' + path + ' — previous version is in ' + path +
-      '.bak, the new one in ' + tmpPath;
+    return 'could not write ' + path + ' — previous version is in ' + path + '.bak, the new one in ' + tmpPath;
   }
   return null;
 }

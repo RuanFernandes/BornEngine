@@ -45,7 +45,9 @@ export class SceneNodeComponent extends GameComponent {
     return this;
   }
 
-  _canAttachTo(context: GameContext): boolean { return context.owns(this.node); }
+  _canAttachTo(context: GameContext): boolean {
+    return context.owns(this.node);
+  }
 
   _syncRuntimeAfterPhase(): void {
     const owner: GameObject | null = this.gameObject;
@@ -62,7 +64,12 @@ export class SceneNodeComponent extends GameComponent {
   }
 
   onDestroy(): void {
-    if (this.ownership === 'owned') this.node.dispose();
-    else this.node.setParent(null);
+    if (this.ownership === 'borrowed') {
+      this.node.setParent(null);
+      return;
+    }
+    const children = this.node.children;
+    for (let index = 0; index < children.length; index++) children[index].setParent(null);
+    this.node.dispose();
   }
 }

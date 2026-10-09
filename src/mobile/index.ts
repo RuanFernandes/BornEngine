@@ -34,7 +34,9 @@ export class TouchControls implements ContextResource {
     this.context.register(this);
   }
 
-  get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
+  get isReady(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed;
+  }
 
   createJoystick(options: VirtualJoystickOptions = {}): VirtualJoystick {
     const joystick = new VirtualJoystick(this, options);
@@ -75,7 +77,10 @@ export class TouchControls implements ContextResource {
       y = gamepadY;
     }
     const length = Math.sqrt(x * x + y * y);
-    if (length > 1) { x /= length; y /= length; }
+    if (length > 1) {
+      x /= length;
+      y /= length;
+    }
     return { x, y };
   }
 
@@ -87,13 +92,21 @@ export class TouchControls implements ContextResource {
   }
 
   /** @internal */
-  isClaimed(index: number): boolean { return this.claimedTouches.has(index); }
+  isClaimed(index: number): boolean {
+    return this.claimedTouches.has(index);
+  }
   /** @internal */
-  get input(): InputSystem { return this.host.input; }
+  get input(): InputSystem {
+    return this.host.input;
+  }
   /** @internal */
-  get renderer(): Renderer { return this.host.renderer; }
+  get renderer(): Renderer {
+    return this.host.renderer;
+  }
   /** @internal */
-  get screenWidth(): number { return this.host.input.getScreenWidth(); }
+  get screenWidth(): number {
+    return this.host.input.getScreenWidth();
+  }
 
   /** @internal */
   releaseJoystick(value: VirtualJoystick): void {
@@ -136,7 +149,10 @@ export class VirtualJoystick {
   valueY = 0;
   private disposed = false;
 
-  constructor(private readonly controls: TouchControls, options: VirtualJoystickOptions = {}) {
+  constructor(
+    private readonly controls: TouchControls,
+    options: VirtualJoystickOptions = {},
+  ) {
     this.zone = options.zone ?? 'left';
     this.radius = options.radius ?? 60;
     this.deadzone = options.deadzone ?? 0.15;
@@ -162,7 +178,10 @@ export class VirtualJoystick {
         if (this.controls.isClaimed(index)) continue;
         const position = input.getTouchPosition(index);
         if (!input.isTouchActive(index)) continue;
-        const inZone = this.zone === 'left' ? position.x < this.controls.screenWidth / 2 : position.x >= this.controls.screenWidth / 2;
+        const inZone =
+          this.zone === 'left'
+            ? position.x < this.controls.screenWidth / 2
+            : position.x >= this.controls.screenWidth / 2;
         if (!inZone || !this.controls.claim(index)) continue;
         this.active = true;
         this.touchIndex = index;
@@ -185,8 +204,8 @@ export class VirtualJoystick {
       const normalizedDistance = Math.min(distance, this.radius) / distance;
       this.handleX = this.originX + dx * normalizedDistance;
       this.handleY = this.originY + dy * normalizedDistance;
-      this.valueX = dx * normalizedDistance / this.radius;
-      this.valueY = dy * normalizedDistance / this.radius;
+      this.valueX = (dx * normalizedDistance) / this.radius;
+      this.valueY = (dy * normalizedDistance) / this.radius;
     }
     input.injectGamepadAxis(this.axisX, this.valueX);
     input.injectGamepadAxis(this.axisY, this.valueY);
@@ -194,8 +213,18 @@ export class VirtualJoystick {
 
   draw(): void {
     if (!this.active || this.disposed) return;
-    this.controls.renderer.drawCircleOutline({ x: this.originX, y: this.originY }, this.radius, { r: 255, g: 255, b: 255, a: 60 });
-    this.controls.renderer.drawCircle({ x: this.handleX, y: this.handleY }, this.radius * 0.4, { r: 255, g: 255, b: 255, a: 140 });
+    this.controls.renderer.drawCircleOutline({ x: this.originX, y: this.originY }, this.radius, {
+      r: 255,
+      g: 255,
+      b: 255,
+      a: 60,
+    });
+    this.controls.renderer.drawCircle({ x: this.handleX, y: this.handleY }, this.radius * 0.4, {
+      r: 255,
+      g: 255,
+      b: 255,
+      a: 140,
+    });
   }
 
   dispose(): void {
@@ -221,8 +250,12 @@ export class VirtualButton {
   touchIndex = -1;
   private disposed = false;
 
-  constructor(private readonly controls: TouchControls, readonly x: number, readonly y: number,
-    options: VirtualButtonOptions = {}) {
+  constructor(
+    private readonly controls: TouchControls,
+    readonly x: number,
+    readonly y: number,
+    options: VirtualButtonOptions = {},
+  ) {
     this.radius = options.radius ?? 30;
     this.label = options.label ?? '';
     this.key = options.key ?? null;
@@ -238,7 +271,10 @@ export class VirtualButton {
       const position = input.getTouchPosition(index);
       const dx = position.x - this.x;
       const dy = position.y - this.y;
-      if (dx * dx + dy * dy <= this.radius * this.radius) { activeIndex = index; break; }
+      if (dx * dx + dy * dy <= this.radius * this.radius) {
+        activeIndex = index;
+        break;
+      }
     }
     const wasActive = this.active;
     this.active = activeIndex >= 0;
@@ -250,7 +286,8 @@ export class VirtualButton {
     }
     if (this.active === wasActive) return;
     if (this.key !== null) this.active ? input.injectKeyDown(this.key) : input.injectKeyUp(this.key);
-    if (this.gamepadButton !== null) this.active ? input.injectGamepadButtonDown(this.gamepadButton) : input.injectGamepadButtonUp(this.gamepadButton);
+    if (this.gamepadButton !== null)
+      this.active ? input.injectGamepadButtonDown(this.gamepadButton) : input.injectGamepadButtonUp(this.gamepadButton);
   }
 
   draw(): void {
@@ -260,7 +297,12 @@ export class VirtualButton {
     if (!this.label) return;
     const size = this.radius * 0.8;
     const width = this.controls.renderer.measureText(this.label, size);
-    this.controls.renderer.drawText(this.label, { x: this.x - width / 2, y: this.y - size / 2 }, size, { r: 255, g: 255, b: 255, a: 200 });
+    this.controls.renderer.drawText(this.label, { x: this.x - width / 2, y: this.y - size / 2 }, size, {
+      r: 255,
+      g: 255,
+      b: 255,
+      a: 200,
+    });
   }
 
   dispose(): void {

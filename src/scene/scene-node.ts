@@ -22,6 +22,8 @@ export class SceneNode implements ContextResource {
   private readonly sceneGraph: SceneGraph;
 
   constructor(owner: Game, options?: SceneNodeOptions);
+  /** @internal */
+  constructor(owner: Game, options: SceneNodeOptions, adoptedHandle: number);
   constructor(owner: Game, options: SceneNodeOptions = {}, adoptedHandle?: number) {
     this.context = getGameContext(owner);
     this.sceneGraph = owner.sceneGraph;
@@ -40,21 +42,31 @@ export class SceneNode implements ContextResource {
   }
 
   /** @internal Wraps a node created by the world loader without exposing its identity. */
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (SceneNode as any).adoptNative(...) from src/scene/ownership.ts
   private static adoptNative(owner: Game, handle: number, name = ''): SceneNode {
     return new SceneNode(owner, { name }, handle);
   }
 
   /** @internal Restores a parent relationship already established by native operations. */
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (SceneNode as any).adoptParentLink(...) from src/scene/ownership.ts
   private static adoptParentLink(child: SceneNode, parent: SceneNode): void {
     if (child.parentValue !== null) child.parentValue.removeChild(child);
     child.parentValue = parent;
     if (parent.childrenValue.indexOf(child) < 0) parent.childrenValue.push(child);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
-  get parent(): SceneNode | null { return this.parentValue; }
-  get children(): SceneNode[] { return this.childrenValue.slice(); }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get parent(): SceneNode | null {
+    return this.parentValue;
+  }
+  get children(): SceneNode[] {
+    return this.childrenValue.slice();
+  }
 
   setVisible(visible: boolean): boolean {
     if (!this.isLoaded) return false;
@@ -128,7 +140,13 @@ export class SceneNode implements ContextResource {
 
   attachModelLod(model: Model | Mesh, meshIndex: number, level: number, maxCoverage: number): boolean {
     if (!this.isLoaded || !this.context.owns(model) || !model.isLoaded) return false;
-    operations.attachModelLodToNode(this.handleValue, { handle: (model as any).handleValue }, meshIndex, level, maxCoverage);
+    operations.attachModelLodToNode(
+      this.handleValue,
+      { handle: (model as any).handleValue },
+      meshIndex,
+      level,
+      maxCoverage,
+    );
     return true;
   }
 
@@ -152,8 +170,15 @@ export class SceneNode implements ContextResource {
 
   setWaterMaterial(waveAmplitude: number, waveSpeed: number, color: Color): boolean {
     if (!this.isLoaded) return false;
-    operations.setSceneNodeWaterMaterial(this.handleValue, waveAmplitude, waveSpeed,
-      color.r, color.g, color.b, color.a);
+    operations.setSceneNodeWaterMaterial(
+      this.handleValue,
+      waveAmplitude,
+      waveSpeed,
+      color.r,
+      color.g,
+      color.b,
+      color.a,
+    );
     return true;
   }
 
@@ -170,18 +195,38 @@ export class SceneNode implements ContextResource {
 
   subtractBox(bounds: BoundingBox): boolean {
     if (!this.isLoaded) return false;
-    operations.subtractBox(this.handleValue, bounds.min.x, bounds.min.y, bounds.min.z,
-      bounds.max.x, bounds.max.y, bounds.max.z);
+    operations.subtractBox(
+      this.handleValue,
+      bounds.min.x,
+      bounds.min.y,
+      bounds.min.z,
+      bounds.max.x,
+      bounds.max.y,
+      bounds.max.z,
+    );
     return true;
   }
 
-  getTransform(): Mat4 | null { return this.isLoaded ? operations.getSceneNodeTransform(this.handleValue) : null; }
-  getBounds(): BoundingBox | null { return this.isLoaded ? operations.getSceneNodeBounds(this.handleValue) : null; }
-  setUserData(value: number): boolean { if (!this.isLoaded) return false; operations.setSceneNodeUserData(this.handleValue, value); return true; }
-  getUserData(): number { return this.isLoaded ? operations.getSceneNodeUserData(this.handleValue) : 0; }
+  getTransform(): Mat4 | null {
+    return this.isLoaded ? operations.getSceneNodeTransform(this.handleValue) : null;
+  }
+  getBounds(): BoundingBox | null {
+    return this.isLoaded ? operations.getSceneNodeBounds(this.handleValue) : null;
+  }
+  setUserData(value: number): boolean {
+    if (!this.isLoaded) return false;
+    operations.setSceneNodeUserData(this.handleValue, value);
+    return true;
+  }
+  getUserData(): number {
+    return this.isLoaded ? operations.getSceneNodeUserData(this.handleValue) : 0;
+  }
 
   /** @internal Used to map a native pick result back to a class instance. */
-  private matchesNativeHandle(handle: number): boolean { return this.isLoaded && this.handleValue === handle; }
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked as (node as any).matchesNativeHandle(...) from src/scene/ownership.ts
+  private matchesNativeHandle(handle: number): boolean {
+    return this.isLoaded && this.handleValue === handle;
+  }
 
   dispose(): void {
     if (this.disposed) return;

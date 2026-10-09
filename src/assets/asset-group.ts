@@ -58,9 +58,15 @@ export class AssetGroup {
     if (context.isReady && !context.isDisposed) context.register(this);
   }
 
-  get state(): AssetGroupState { return this.currentState; }
-  get isDisposed(): boolean { return this.disposed; }
-  get entryCount(): number { return this.entriesValue.length; }
+  get state(): AssetGroupState {
+    return this.currentState;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+  get entryCount(): number {
+    return this.entriesValue.length;
+  }
   get progress(): number {
     if (this.entriesValue.length === 0) return this.currentState === 'idle' ? 0 : 1;
     return this.completedCount / this.entriesValue.length;
@@ -80,9 +86,15 @@ export class AssetGroup {
     return snapshot;
   }
 
-  addTexture(path: string): boolean { return this.add('texture', path); }
-  addSound(path: string): boolean { return this.add('sound', path); }
-  addMusic(path: string): boolean { return this.add('music', path); }
+  addTexture(path: string): boolean {
+    return this.add('texture', path);
+  }
+  addSound(path: string): boolean {
+    return this.add('sound', path);
+  }
+  addMusic(path: string): boolean {
+    return this.add('music', path);
+  }
 
   /** Start all entries once. Individual failures remain available in `entries`. */
   load(): Promise<AssetGroupState> {
@@ -135,8 +147,7 @@ export class AssetGroup {
   }
 
   private add(kind: AssetGroupKind, path: string): boolean {
-    if (this.disposed || this.currentState !== 'idle' ||
-        typeof path !== 'string' || path.length === 0) return false;
+    if (this.disposed || this.currentState !== 'idle' || typeof path !== 'string' || path.length === 0) return false;
     for (let index = 0; index < this.entriesValue.length; index++) {
       const entry = this.entriesValue[index];
       if (entry.kind === kind && entry.path === path) return false;
@@ -166,9 +177,7 @@ export class AssetGroup {
 
     let loading: Promise<Sound | Music | null>;
     try {
-      loading = entry.kind === 'sound'
-        ? this.loader.loadSound(entry.path)
-        : this.loader.loadMusic(entry.path);
+      loading = entry.kind === 'sound' ? this.loader.loadSound(entry.path) : this.loader.loadMusic(entry.path);
     } catch (_error) {
       this.settleEntry(entry, null);
       return;

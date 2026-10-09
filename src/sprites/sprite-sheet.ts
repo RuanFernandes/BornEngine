@@ -79,8 +79,7 @@ function isNonNegative(value: number): boolean {
 }
 
 function isValidVector(value: Vector2DLike): boolean {
-  return value !== null && value !== undefined &&
-    isFiniteNumber(value.x) && isFiniteNumber(value.y);
+  return value !== null && value !== undefined && isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
 
 class AtlasSpriteFrame implements SpriteFrame {
@@ -91,23 +90,26 @@ class AtlasSpriteFrame implements SpriteFrame {
   private readonly trimValue: SpriteFrameTrim | null;
   private readonly originalSizeValue: Vector2D;
 
-  get pivot(): Readonly<Vector2D> { return this.pivotValue.clone(); }
-  get trim(): SpriteFrameTrim | null { return this.trimValue === null ? null : copyTrim(this.trimValue); }
-  get originalSize(): Readonly<Vector2D> { return this.originalSizeValue.clone(); }
+  get pivot(): Readonly<Vector2D> {
+    return this.pivotValue.clone();
+  }
+  get trim(): SpriteFrameTrim | null {
+    return this.trimValue === null ? null : copyTrim(this.trimValue);
+  }
+  get originalSize(): Readonly<Vector2D> {
+    return this.originalSizeValue.clone();
+  }
 
   constructor(sheet: SpriteSheet, definition: SpriteFrameDefinition) {
     this.name = definition.name;
     this.sheet = sheet;
     this.source = copyRect(definition.source);
-    this.pivotValue = definition.pivot === undefined
-      ? new Vector2D(0.5, 0.5)
-      : copyVec2(definition.pivot);
-    this.trimValue = definition.trim === undefined
-      ? null
-      : copyTrim(definition.trim);
-    this.originalSizeValue = this.trimValue === null
-      ? new Vector2D(this.source.width, this.source.height)
-      : this.trimValue.originalSize.clone();
+    this.pivotValue = definition.pivot === undefined ? new Vector2D(0.5, 0.5) : copyVec2(definition.pivot);
+    this.trimValue = definition.trim === undefined ? null : copyTrim(definition.trim);
+    this.originalSizeValue =
+      this.trimValue === null
+        ? new Vector2D(this.source.width, this.source.height)
+        : this.trimValue.originalSize.clone();
   }
 }
 
@@ -126,25 +128,40 @@ export class SpriteSheet {
   private gridFrames: GridFrameEntry[] = [];
 
   constructor(texture: Texture, options: SpriteSheetOptions = {}) {
-    const settings: SpriteSheetOptions = options === null || options === undefined
-      ? {}
-      : options;
+    const settings: SpriteSheetOptions = options === null || options === undefined ? {} : options;
     this.texture = texture;
     this.frameWidth = settings.frameWidth === undefined ? 0 : settings.frameWidth;
     this.frameHeight = settings.frameHeight === undefined ? 0 : settings.frameHeight;
-    this.marginValue = settings.margin === undefined
-      ? Vector2D.zero()
-      : isValidVector(settings.margin) ? copyVec2(settings.margin) : new Vector2D(NaN, NaN);
-    this.spacingValue = settings.spacing === undefined
-      ? Vector2D.zero()
-      : isValidVector(settings.spacing) ? copyVec2(settings.spacing) : new Vector2D(NaN, NaN);
-    if (texture === null || texture === undefined || !texture.isLoaded ||
-        !isPositive(texture.width) || !isPositive(texture.height)) {
+    this.marginValue =
+      settings.margin === undefined
+        ? Vector2D.zero()
+        : isValidVector(settings.margin)
+          ? copyVec2(settings.margin)
+          : new Vector2D(NaN, NaN);
+    this.spacingValue =
+      settings.spacing === undefined
+        ? Vector2D.zero()
+        : isValidVector(settings.spacing)
+          ? copyVec2(settings.spacing)
+          : new Vector2D(NaN, NaN);
+    if (
+      texture === null ||
+      texture === undefined ||
+      !texture.isLoaded ||
+      !isPositive(texture.width) ||
+      !isPositive(texture.height)
+    ) {
       this.frameError = 'SpriteSheet requires a loaded texture.';
       return;
     }
-    if (!isValidVector(this.marginValue) || !isNonNegative(this.marginValue.x) || !isNonNegative(this.marginValue.y) ||
-        !isValidVector(this.spacingValue) || !isNonNegative(this.spacingValue.x) || !isNonNegative(this.spacingValue.y)) {
+    if (
+      !isValidVector(this.marginValue) ||
+      !isNonNegative(this.marginValue.x) ||
+      !isNonNegative(this.marginValue.y) ||
+      !isValidVector(this.spacingValue) ||
+      !isNonNegative(this.spacingValue.x) ||
+      !isNonNegative(this.spacingValue.y)
+    ) {
       this.frameError = 'SpriteSheet margin and spacing must be finite and non-negative.';
       return;
     }
@@ -165,12 +182,10 @@ export class SpriteSheet {
       const availableHeight = texture.height - this.marginValue.y * 2;
       const columnStride = this.frameWidth + this.spacingValue.x;
       const rowStride = this.frameHeight + this.spacingValue.y;
-      this.columnCount = availableWidth < this.frameWidth
-        ? 0
-        : Math.floor((availableWidth + this.spacingValue.x) / columnStride);
-      this.rowCount = availableHeight < this.frameHeight
-        ? 0
-        : Math.floor((availableHeight + this.spacingValue.y) / rowStride);
+      this.columnCount =
+        availableWidth < this.frameWidth ? 0 : Math.floor((availableWidth + this.spacingValue.x) / columnStride);
+      this.rowCount =
+        availableHeight < this.frameHeight ? 0 : Math.floor((availableHeight + this.spacingValue.y) / rowStride);
       if (this.columnCount === 0 || this.rowCount === 0) {
         this.frameError = 'SpriteSheet grid does not fit inside the texture.';
         return;
@@ -188,8 +203,12 @@ export class SpriteSheet {
     }
     for (let index = 0; index < definitions.length; index++) {
       const definition = definitions[index];
-      if (definition === null || definition === undefined ||
-          typeof definition.name !== 'string' || definition.name.length === 0) {
+      if (
+        definition === null ||
+        definition === undefined ||
+        typeof definition.name !== 'string' ||
+        definition.name.length === 0
+      ) {
         this.frameError = 'SpriteSheet frame names must be non-empty strings.';
         this.namedFrames = [];
         return;
@@ -209,17 +228,36 @@ export class SpriteSheet {
     }
   }
 
-  get error(): string | null { return this.frameError; }
-  get columns(): number { return this.columnCount; }
-  get rows(): number { return this.rowCount; }
-  get margin(): Readonly<Vector2D> { return this.marginValue.clone(); }
-  get spacing(): Readonly<Vector2D> { return this.spacingValue.clone(); }
+  get error(): string | null {
+    return this.frameError;
+  }
+  get columns(): number {
+    return this.columnCount;
+  }
+  get rows(): number {
+    return this.rowCount;
+  }
+  get margin(): Readonly<Vector2D> {
+    return this.marginValue.clone();
+  }
+  get spacing(): Readonly<Vector2D> {
+    return this.spacingValue.clone();
+  }
 
   /** Returns the same cached frame object for every request of a grid cell. */
   gridFrame(column: number, row: number): SpriteFrame | null {
-    if (this.frameError !== null || this.frameWidth <= 0 || this.frameHeight <= 0 ||
-        column !== Math.floor(column) || row !== Math.floor(row) ||
-        column < 0 || row < 0 || column >= this.columns || row >= this.rows) return null;
+    if (
+      this.frameError !== null ||
+      this.frameWidth <= 0 ||
+      this.frameHeight <= 0 ||
+      column !== Math.floor(column) ||
+      row !== Math.floor(row) ||
+      column < 0 ||
+      row < 0 ||
+      column >= this.columns ||
+      row >= this.rows
+    )
+      return null;
     for (let index = 0; index < this.gridFrames.length; index++) {
       const entry = this.gridFrames[index];
       if (entry.column === column && entry.row === row) return entry.frame;
@@ -259,12 +297,18 @@ export class SpriteSheet {
 
   private validateDefinition(definition: SpriteFrameDefinition): string | null {
     const source = definition.source;
-    if (source === null || source === undefined ||
-        !isPositive(source.width) || !isPositive(source.height) ||
-        !isFiniteNumber(source.x) || !isFiniteNumber(source.y) ||
-        source.x < 0 || source.y < 0 ||
-        source.x + source.width > this.texture.width ||
-        source.y + source.height > this.texture.height) {
+    if (
+      source === null ||
+      source === undefined ||
+      !isPositive(source.width) ||
+      !isPositive(source.height) ||
+      !isFiniteNumber(source.x) ||
+      !isFiniteNumber(source.y) ||
+      source.x < 0 ||
+      source.y < 0 ||
+      source.x + source.width > this.texture.width ||
+      source.y + source.height > this.texture.height
+    ) {
       return 'SpriteSheet frame source is outside the texture: ' + definition.name;
     }
     if (definition.pivot !== undefined && !isValidVector(definition.pivot)) {
@@ -272,11 +316,17 @@ export class SpriteSheet {
     }
     if (definition.trim !== undefined) {
       const trim = definition.trim;
-      if (trim === null || !isValidVector(trim.offset) || !isValidVector(trim.originalSize) ||
-          !isPositive(trim.originalSize.x) || !isPositive(trim.originalSize.y) ||
-          !isNonNegative(trim.offset.x) || !isNonNegative(trim.offset.y) ||
-          trim.offset.x + source.width > trim.originalSize.x ||
-          trim.offset.y + source.height > trim.originalSize.y) {
+      if (
+        trim === null ||
+        !isValidVector(trim.offset) ||
+        !isValidVector(trim.originalSize) ||
+        !isPositive(trim.originalSize.x) ||
+        !isPositive(trim.originalSize.y) ||
+        !isNonNegative(trim.offset.x) ||
+        !isNonNegative(trim.offset.y) ||
+        trim.offset.x + source.width > trim.originalSize.x ||
+        trim.offset.y + source.height > trim.originalSize.y
+      ) {
         return 'SpriteSheet trim metadata is invalid: ' + definition.name;
       }
     }

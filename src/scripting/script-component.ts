@@ -59,18 +59,32 @@ function finite(value: number): boolean {
 
 function normalizedLimits(options?: Partial<ScriptLimits>): ScriptLimits | null {
   const source = options === null || options === undefined ? {} : options;
-  const maxMemoryBytes = source.maxMemoryBytes === undefined
-    ? DEFAULT_SCRIPT_LIMITS.maxMemoryBytes : source.maxMemoryBytes;
-  const maxStackBytes = source.maxStackBytes === undefined
-    ? DEFAULT_SCRIPT_LIMITS.maxStackBytes : source.maxStackBytes;
-  const maxInterruptChecks = source.maxInterruptChecks === undefined
-    ? DEFAULT_SCRIPT_LIMITS.maxInterruptChecks : source.maxInterruptChecks;
-  if (!finite(maxMemoryBytes) || Math.floor(maxMemoryBytes) !== maxMemoryBytes ||
-      maxMemoryBytes < 64 * 1024 || maxMemoryBytes > MAX_MEMORY_BYTES) return null;
-  if (!finite(maxStackBytes) || Math.floor(maxStackBytes) !== maxStackBytes ||
-      maxStackBytes < 16 * 1024 || maxStackBytes > MAX_STACK_BYTES) return null;
-  if (!finite(maxInterruptChecks) || Math.floor(maxInterruptChecks) !== maxInterruptChecks ||
-      maxInterruptChecks < 1 || maxInterruptChecks > MAX_INTERRUPT_CHECKS) return null;
+  const maxMemoryBytes =
+    source.maxMemoryBytes === undefined ? DEFAULT_SCRIPT_LIMITS.maxMemoryBytes : source.maxMemoryBytes;
+  const maxStackBytes = source.maxStackBytes === undefined ? DEFAULT_SCRIPT_LIMITS.maxStackBytes : source.maxStackBytes;
+  const maxInterruptChecks =
+    source.maxInterruptChecks === undefined ? DEFAULT_SCRIPT_LIMITS.maxInterruptChecks : source.maxInterruptChecks;
+  if (
+    !finite(maxMemoryBytes) ||
+    Math.floor(maxMemoryBytes) !== maxMemoryBytes ||
+    maxMemoryBytes < 64 * 1024 ||
+    maxMemoryBytes > MAX_MEMORY_BYTES
+  )
+    return null;
+  if (
+    !finite(maxStackBytes) ||
+    Math.floor(maxStackBytes) !== maxStackBytes ||
+    maxStackBytes < 16 * 1024 ||
+    maxStackBytes > MAX_STACK_BYTES
+  )
+    return null;
+  if (
+    !finite(maxInterruptChecks) ||
+    Math.floor(maxInterruptChecks) !== maxInterruptChecks ||
+    maxInterruptChecks < 1 ||
+    maxInterruptChecks > MAX_INTERRUPT_CHECKS
+  )
+    return null;
   return { maxMemoryBytes, maxStackBytes, maxInterruptChecks };
 }
 
@@ -80,11 +94,20 @@ function permissionMask(permissions?: readonly ScriptPermission[]): number | nul
   let mask = 0;
   for (let index = 0; index < source.length; index++) {
     switch (source[index]) {
-      case 'log': mask |= 1; break;
-      case 'self.read': mask |= 2; break;
-      case 'self.transform.write': mask |= 4; break;
-      case 'self.particles.emit': mask |= 8; break;
-      default: return null;
+      case 'log':
+        mask |= 1;
+        break;
+      case 'self.read':
+        mask |= 2;
+        break;
+      case 'self.transform.write':
+        mask |= 4;
+        break;
+      case 'self.particles.emit':
+        mask |= 8;
+        break;
+      default:
+        return null;
     }
   }
   return mask;
@@ -149,16 +172,24 @@ export class ScriptComponent extends GameComponent {
       this.statusValue = 'ready';
       this.memoryUsedValue = scriptOperations.scriptVmMemoryUsed(handle);
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : String(error));
+      this.fail(typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error));
       if (handle > 0) scriptOperations.destroyScriptVm(handle);
       this.handleValue = 0;
     }
   }
 
-  get status(): ScriptStatus { return this.statusValue; }
-  get error(): string | null { return this.errorValue; }
-  get lastCallbackMs(): number { return this.lastCallbackMsValue; }
-  get memoryUsed(): number { return this.memoryUsedValue; }
+  get status(): ScriptStatus {
+    return this.statusValue;
+  }
+  get error(): string | null {
+    return this.errorValue;
+  }
+  get lastCallbackMs(): number {
+    return this.lastCallbackMsValue;
+  }
+  get memoryUsed(): number {
+    return this.memoryUsedValue;
+  }
 
   /** @internal Accept only the GameContext owned by this script runtime. */
   override _canAttachTo(context: GameContext): boolean {
@@ -176,7 +207,8 @@ export class ScriptComponent extends GameComponent {
   }
 
   override update(deltaTime: number): void {
-    if (this.handleValue === 0 || this.disposed || !this.started || !this.isActiveAndEnabled || !finite(deltaTime)) return;
+    if (this.handleValue === 0 || this.disposed || !this.started || !this.isActiveAndEnabled || !finite(deltaTime))
+      return;
     this.measureCallback(() => {
       const result = scriptOperations.updateScriptVm(
         this.handleValue,
@@ -190,12 +222,18 @@ export class ScriptComponent extends GameComponent {
   }
 
   /** Releases the guest VM. Safe before attachment and idempotent. */
-  dispose(): void { this.release(true); }
+  dispose(): void {
+    this.release(true);
+  }
 
-  override onDestroy(): void { this.release(true); }
+  override onDestroy(): void {
+    this.release(true);
+  }
 
   /** @internal Releases detached components when their Game is disposed. */
-  _disposeFromRuntime(): void { this.release(true); }
+  _disposeFromRuntime(): void {
+    this.release(true);
+  }
 
   private selfId(): string {
     const owner = this.gameObject;
@@ -212,7 +250,7 @@ export class ScriptComponent extends GameComponent {
     try {
       callback();
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : String(error));
+      this.fail(typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error));
     }
     this.lastCallbackMsValue = Math.max(0, Date.now() - start);
     if (this.handleValue !== 0) this.memoryUsedValue = scriptOperations.scriptVmMemoryUsed(this.handleValue);
@@ -284,7 +322,9 @@ export class ScriptComponent extends GameComponent {
           this.applyCommands();
         }
       } catch (error) {
-        this.fail(error instanceof Error ? error.message : String(error));
+        this.fail(
+          typeof error === 'object' && error !== null && error instanceof Error ? error.message : String(error),
+        );
       } finally {
         scriptOperations.destroyScriptVm(handle);
         this.handleValue = 0;

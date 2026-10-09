@@ -17,9 +17,14 @@ export class Model implements ContextResource {
   private readonly context: GameContext;
 
   /** @internal Resource construction is routed through an asset scope. */
-  static _create(game: Game, path: string): Model { return new Model(game, path); }
+  static _create(game: Game, path: string): Model {
+    return new Model(game, path);
+  }
 
-  private constructor(game: Game, readonly path: string) {
+  private constructor(
+    game: Game,
+    readonly path: string,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
@@ -38,8 +43,12 @@ export class Model implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   draw(renderer: Renderer, position: Vec3, scale = 1, tint?: Color, rotationY?: number): boolean {
     return renderer.drawModel(this, position, scale, tint, rotationY);
@@ -119,8 +128,12 @@ export class Mesh implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   draw(renderer: Renderer, position: Vec3, scale = 1, tint?: Color, rotationY?: number): boolean {
     return renderer.drawModel(this, position, scale, tint, rotationY);
@@ -143,7 +156,12 @@ export class Mesh implements ContextResource {
   }
 
   private toNativeModel(): ModelData {
-    return { handle: this.handleValue, meshCount: this.meshCount, materialCount: this.materialCount, transform: this.transform };
+    return {
+      handle: this.handleValue,
+      meshCount: this.meshCount,
+      materialCount: this.materialCount,
+      transform: this.transform,
+    };
   }
 
   dispose(): void {

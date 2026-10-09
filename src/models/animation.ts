@@ -11,9 +11,14 @@ export class Animation implements ContextResource {
   private readonly context: GameContext;
 
   /** @internal Resource construction is routed through an asset scope. */
-  static _create(game: Game, path: string): Animation { return new Animation(game, path); }
+  static _create(game: Game, path: string): Animation {
+    return new Animation(game, path);
+  }
 
-  private constructor(game: Game, readonly path: string) {
+  private constructor(
+    game: Game,
+    readonly path: string,
+  ) {
     this.context = getGameContext(game);
     const context = this.context;
     if (!context.isReady || context.isDisposed) {
@@ -26,8 +31,12 @@ export class Animation implements ContextResource {
     context.register(this);
   }
 
-  get isLoaded(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0; }
-  get isDisposed(): boolean { return this.disposed; }
+  get isLoaded(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
+  }
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 
   play(clip: number, fade = 0.15, speed = 1, looping = true): boolean {
     if (!this.isLoaded) return false;
@@ -53,11 +62,19 @@ export class Animation implements ContextResource {
     return true;
   }
 
-  isFinished(): boolean { return this.isLoaded && operations.animFinished(this.handleValue); }
-  getClipDuration(clip: number): number { return this.isLoaded ? operations.animClipDuration(this.handleValue, clip) : 0; }
-  getRootMotionDelta(axis: 0 | 1 | 2): number { return this.isLoaded ? operations.animRootDelta(this.handleValue, axis) : 0; }
+  isFinished(): boolean {
+    return this.isLoaded && operations.animFinished(this.handleValue);
+  }
+  getClipDuration(clip: number): number {
+    return this.isLoaded ? operations.animClipDuration(this.handleValue, clip) : 0;
+  }
+  getRootMotionDelta(axis: 0 | 1 | 2): number {
+    return this.isLoaded ? operations.animRootDelta(this.handleValue, axis) : 0;
+  }
 
-  findJoint(name: string): number { return this.isLoaded ? operations.findJoint(this.handleValue, name) : -1; }
+  findJoint(name: string): number {
+    return this.isLoaded ? operations.findJoint(this.handleValue, name) : -1;
+  }
 
   getJointWorldTransformComponent(joint: number, component: number): number {
     return this.isLoaded ? operations.jointWorld(this.handleValue, joint, component) : 0;

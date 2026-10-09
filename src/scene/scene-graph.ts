@@ -31,9 +31,15 @@ export class SceneGraph implements ContextResource {
     this.context.register(this);
   }
 
-  get isReady(): boolean { return this.context.isReady && !this.context.isDisposed && !this.disposed; }
-  get nodeCount(): number { return this.nodes.length; }
-  getNodes(): SceneNode[] { return this.nodes.slice(); }
+  get isReady(): boolean {
+    return this.context.isReady && !this.context.isDisposed && !this.disposed;
+  }
+  get nodeCount(): number {
+    return this.nodes.length;
+  }
+  getNodes(): SceneNode[] {
+    return this.nodes.slice();
+  }
 
   createNode(options: SceneNodeOptions = {}): SceneNode {
     return new SceneNode(this.game, options);
@@ -97,8 +103,15 @@ export class SceneGraph implements ContextResource {
 
   addDirectionalLight(direction: Vec3, color: Color, intensity: number): boolean {
     if (!this.isReady) return false;
-    operations.addDirectionalLight(direction.x, direction.y, direction.z,
-      color.r / 255, color.g / 255, color.b / 255, intensity);
+    operations.addDirectionalLight(
+      direction.x,
+      direction.y,
+      direction.z,
+      color.r / 255,
+      color.g / 255,
+      color.b / 255,
+      intensity,
+    );
     return true;
   }
 
@@ -110,21 +123,35 @@ export class SceneGraph implements ContextResource {
 
   addPointLight(position: Vec3, range: number, color: Color, intensity: number): boolean {
     if (!this.isReady) return false;
-    operations.addPointLight(position.x, position.y, position.z, range,
-      color.r / 255, color.g / 255, color.b / 255, intensity);
+    operations.addPointLight(
+      position.x,
+      position.y,
+      position.z,
+      range,
+      color.r / 255,
+      color.g / 255,
+      color.b / 255,
+      intensity,
+    );
     return true;
   }
 
   setShadowsEnabled(enabled: boolean): boolean {
     if (!this.isReady) return false;
-    if (enabled) operations.enableShadows(); else operations.disableShadows();
+    if (enabled) operations.enableShadows();
+    else operations.disableShadows();
     return true;
   }
 
-  dumpShadowMap(path: string): boolean { if (!this.isReady) return false; operations.dumpShadowMap(path); return true; }
+  dumpShadowMap(path: string): boolean {
+    if (!this.isReady) return false;
+    operations.dumpShadowMap(path);
+    return true;
+  }
   setPostProcessingEnabled(enabled: boolean): boolean {
     if (!this.isReady) return false;
-    if (enabled) operations.enablePostFx(); else operations.disablePostFx();
+    if (enabled) operations.enablePostFx();
+    else operations.disablePostFx();
     return true;
   }
   setSelected(node: SceneNode | null): boolean {
@@ -193,7 +220,9 @@ export class FrameSubscription implements ContextResource {
     }
   }
 
-  get isActive(): boolean { return this.active && this.context.isReady && !this.context.isDisposed; }
+  get isActive(): boolean {
+    return this.active && this.context.isReady && !this.context.isDisposed;
+  }
 
   dispose(): void {
     if (!this.active) return;

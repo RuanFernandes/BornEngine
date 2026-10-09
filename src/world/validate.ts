@@ -13,7 +13,6 @@ import {
   TerrainData,
   TransformData,
   Vec3Lit,
-  Vec4Lit,
 } from './types';
 
 export interface ValidationResult {
@@ -27,9 +26,7 @@ export function validateWorld(w: WorldDocument): ValidationResult {
   if (typeof w.schemaVersion !== 'number') {
     errors.push('world.schemaVersion is missing or not a number');
   } else if (w.schemaVersion > WORLD_SCHEMA_VERSION) {
-    errors.push(
-      'world.schemaVersion ' + w.schemaVersion + ' is newer than engine version ' + WORLD_SCHEMA_VERSION,
-    );
+    errors.push('world.schemaVersion ' + w.schemaVersion + ' is newer than engine version ' + WORLD_SCHEMA_VERSION);
   }
 
   if (typeof w.name !== 'string' || w.name.length === 0) {
@@ -188,10 +185,7 @@ function validateTerrain(errors: string[], t: TerrainData): void {
   if (!Array.isArray(t.heights)) {
     errors.push('terrain.heights must be an array');
   } else if (t.heights.length !== t.width * t.depth) {
-    errors.push(
-      'terrain.heights length ' + t.heights.length +
-        ' does not match width*depth = ' + (t.width * t.depth),
-    );
+    errors.push('terrain.heights length ' + t.heights.length + ' does not match width*depth = ' + t.width * t.depth);
   }
   checkVec3(errors, 'terrain.origin', t.origin);
 
@@ -228,9 +222,32 @@ function checkVec3(errors: string[], path: string, v: Vec3Lit | null): void {
 // `entity.tags`. Anything else is schema, and schema changes land in types.ts,
 // serialize.ts, validate.ts, and version.ts together.
 
-const WORLD_KEYS = ['schemaVersion', 'name', 'id', 'bounds', 'environment', 'terrain', 'entities', 'lights', 'water', 'rivers', 'metadata'];
+const WORLD_KEYS = [
+  'schemaVersion',
+  'name',
+  'id',
+  'bounds',
+  'environment',
+  'terrain',
+  'entities',
+  'lights',
+  'water',
+  'rivers',
+  'metadata',
+];
 const BOUNDS_KEYS = ['min', 'max'];
-const ENVIRONMENT_KEYS = ['skyColor', 'ambientColor', 'ambientIntensity', 'sunDirection', 'sunColor', 'sunIntensity', 'fogStart', 'fogEnd', 'fogColor', 'shadowsEnabled'];
+const ENVIRONMENT_KEYS = [
+  'skyColor',
+  'ambientColor',
+  'ambientIntensity',
+  'sunDirection',
+  'sunColor',
+  'sunIntensity',
+  'fogStart',
+  'fogEnd',
+  'fogColor',
+  'shadowsEnabled',
+];
 const TERRAIN_KEYS = ['width', 'depth', 'cellSize', 'origin', 'heights', 'layers'];
 const TERRAIN_LAYER_KEYS = ['id', 'textureRef', 'weights', 'tileScale'];
 const ENTITY_KEYS = ['id', 'name', 'modelRef', 'prefabRef', 'transform', 'tint', 'tags', 'userData'];

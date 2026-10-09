@@ -1,3 +1,4 @@
+import './native-link';
 import { Game } from '../../src/core/game';
 import { GameComponent } from '../../src/game/game-component';
 import { GameObject } from '../../src/game/game-object';

@@ -46,7 +46,9 @@ export class ParallaxLayer2D extends GameComponent {
     this.drawCallback = typeof settings.draw === 'function' ? settings.draw : null;
   }
 
-  get factor(): Vector2D { return Vector2D.from(this.factorValue); }
+  get factor(): Vector2D {
+    return Vector2D.from(this.factorValue);
+  }
 
   render(renderer: Renderer): void {
     if (this.error !== null || !this.isActiveAndEnabled || this.drawCallback === null) return;
@@ -63,9 +65,7 @@ export class ParallaxLayer2D extends GameComponent {
   }
 
   resetAnchor(camera: Camera2D | null): void {
-    this.anchor = camera === null || !validPoint(camera.target)
-      ? null
-      : Vector2D.from(camera.target);
+    this.anchor = camera === null || !validPoint(camera.target) ? null : Vector2D.from(camera.target);
   }
 }
 

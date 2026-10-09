@@ -1,7 +1,7 @@
 import type { Game } from '../core/game';
 import { getGameContext } from '../core/context';
 import type { ContextFrameService, GameContext } from '../core/context';
-import type { Texture } from '../core/types';
+import type { Texture } from '../textures';
 import { GUIEvent, GUIEventType, type GUIEventOptions } from './events';
 import type { GUI } from './gui';
 import type { GuiSize } from './types';
@@ -15,7 +15,10 @@ type NativeValueControl = GUI & {
   _captureGeometryRevision?: () => number;
   _applyNativeValue?: (value: number | boolean, commandRevision: number) => void;
   _applyNativeText?: (text: string, commandRevision: number) => boolean;
-  _applyNativeGeometry?: (rect: { x: number; y: number; width: number; height: number }, commandRevision: number) => void;
+  _applyNativeGeometry?: (
+    rect: { x: number; y: number; width: number; height: number },
+    commandRevision: number,
+  ) => void;
   _applyNativeSelectionIndex?: (index: number, commandRevision?: number) => void;
   getValue?: () => number | boolean;
 };
@@ -28,18 +31,28 @@ export class GUIManager implements ContextFrameService {
   private disposed = false;
   private readonly bridge: GuiNativeBridge;
   private readonly context: GameContext | null;
-  private submittedControls = new Map<number, { control: GUI; revision: number; textRevision: number; geometryRevision: number }>();
+  private submittedControls = new Map<
+    number,
+    { control: GUI; revision: number; textRevision: number; geometryRevision: number }
+  >();
   private pendingNativeFocus: { controlId: number; focused: boolean } | null = null;
 
   constructor(game: Game, bridge: GuiNativeBridge = new GuiNativeBridge()) {
     this.game = game;
     this.bridge = bridge;
-    try { this.context = getGameContext(game); }
-    catch { this.context = null; }
+    try {
+      this.context = getGameContext(game);
+    } catch {
+      this.context = null;
+    }
   }
 
-  getControls(): readonly GUI[] { return this.controls.slice(); }
-  getFocusedControl(): GUI | null { return this.focusedControl; }
+  getControls(): readonly GUI[] {
+    return this.controls.slice();
+  }
+  getFocusedControl(): GUI | null {
+    return this.focusedControl;
+  }
 
   addControl(control: GUI): GUI {
     if (control.parent !== null || control._getManager() !== null) {
@@ -74,9 +87,11 @@ export class GUIManager implements ContextFrameService {
       if (!response.present) continue;
       const control = entry.control as NativeValueControl;
       if (control._getManager() !== this || !control._isInputEligible()) continue;
-      if (control._applyNativeSelectionIndex !== undefined
-        || control._applyNativeValue !== undefined
-        || control._applyNativeText !== undefined) {
+      if (
+        control._applyNativeSelectionIndex !== undefined ||
+        control._applyNativeValue !== undefined ||
+        control._applyNativeText !== undefined
+      ) {
         readbackManagedControls.add(id);
       }
       if (control._applyNativeSelectionIndex !== undefined) {
@@ -144,8 +159,9 @@ export class GUIManager implements ContextFrameService {
       if (control !== undefined && command.kind === 10) {
         const textures = (control as any)._getButtonTextures?.();
         if (textures !== undefined) {
-          command.values = [textures.normal, textures.hover, textures.pressed, textures.disabled]
-            .map((texture) => this.registerTexture(texture ?? null, registeredTextures));
+          command.values = [textures.normal, textures.hover, textures.pressed, textures.disabled].map((texture) =>
+            this.registerTexture(texture ?? null, registeredTextures),
+          );
         }
       }
       command.drawings = command.drawings.filter((drawing) => {
@@ -166,9 +182,15 @@ export class GUIManager implements ContextFrameService {
     if (focusRequestSubmitted) this.pendingNativeFocus = null;
   }
 
-  isAvailable(): boolean { return !this.disposed && this.bridge.isAvailable(); }
-  wantsPointerInput(): boolean { return !this.disposed && this.bridge.wantsPointerInput(); }
-  wantsKeyboardInput(): boolean { return !this.disposed && this.bridge.wantsKeyboardInput(); }
+  isAvailable(): boolean {
+    return !this.disposed && this.bridge.isAvailable();
+  }
+  wantsPointerInput(): boolean {
+    return !this.disposed && this.bridge.wantsPointerInput();
+  }
+  wantsKeyboardInput(): boolean {
+    return !this.disposed && this.bridge.wantsKeyboardInput();
+  }
 
   dispatchEvent(target: GUI, type: number, options: GUIEventOptions = {}): GUIEvent | null {
     if (this.disposed || target._getManager() !== this || !target._isInputEligible()) return null;
@@ -222,7 +244,8 @@ export class GUIManager implements ContextFrameService {
     if (eventOptions === undefined) this.pendingNativeFocus = { controlId: control.id, focused: false };
     this.focusedControl = null;
     control._setFocused(false);
-    if (control._getManager() === this && control._isInputEligible()) this.dispatchEvent(control, GUIEventType.Blur, eventOptions ?? {});
+    if (control._getManager() === this && control._isInputEligible())
+      this.dispatchEvent(control, GUIEventType.Blur, eventOptions ?? {});
   }
 
   /** @internal Clears focused descendants before a subtree is detached or hidden. */
@@ -236,7 +259,9 @@ export class GUIManager implements ContextFrameService {
   }
 
   /** @internal Viewport bounds are supplied by Game integration. */
-  _getViewportSize(): GuiSize { return { ...this.viewport }; }
+  _getViewportSize(): GuiSize {
+    return { ...this.viewport };
+  }
 
   private collectSubmittedControls(control: GUI, emittedIds: Set<number>): void {
     if (emittedIds.has(control.id)) {
@@ -257,7 +282,7 @@ export class GUIManager implements ContextFrameService {
   }
 
   private registerTexture(texture: Texture | null, registered: Set<number>): number {
-    if (texture === null || this.context === null || !this.context.owns(texture) || (texture as any).isLoaded !== true) return 0;
+    if (texture === null || this.context === null || !this.context.owns(texture) || texture.isLoaded !== true) return 0;
     const handle = (texture as any).handleValue;
     if (typeof handle !== 'number' || !Number.isFinite(handle) || handle <= 0) return 0;
     if (!registered.has(handle)) {

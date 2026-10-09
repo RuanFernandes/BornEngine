@@ -43,7 +43,7 @@ export interface Camera3D {
   target: Vec3;
   up: Vec3;
   fovy: number;
-  projection: "perspective" | "orthographic";
+  projection: 'perspective' | 'orthographic';
 }
 
 export interface Texture {
