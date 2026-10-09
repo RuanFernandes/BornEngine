@@ -4,10 +4,6 @@ name: Release
 # passing for the exact same commit, then creates/updates the GitHub Release
 # and publishes the package to npm as @bornengine/engine.
 #
-# The /release Claude Code skill in .claude/skills/release/ drives this end
-# to end: it bumps the version in package.json, commits, tags, pushes, and
-# waits for this workflow to go green.
-#
 # Authentication: npm trusted publishing. Both packages — @bornengine/engine
 # (job: publish-npm) and @bornengine/jolt-prebuilt (job: publish-jolt-prebuilt)
 # — must be configured on npmjs.com with this workflow as a trusted publisher.

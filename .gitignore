@@ -52,8 +52,10 @@ _perry_stubs.o
 # those, the canonical bytes come from CI artifacts.
 npm/jolt-prebuilt/lib/
 
-# Claude Code harness-local state
-.claude/scheduled_tasks.lock
+# Local agent and planning workspace state
+/.claude/
+/.superpowers/
+/docs/superpowers/
 
 # The VS Code extension needs a committed lockfile for reproducible CI installs.
 !tools/vscode/bornengine-tools/package-lock.json
