@@ -1,6 +1,6 @@
 {
   "name": "@bornengine/engine",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
     "test": "npm run typecheck && npm run lint && npm run check:side-effects && npm run test:unit && npm run test:harnesses && npm run test:tools && npm run test:runtime && npm run test:scripting && npm run examples:check:static",
