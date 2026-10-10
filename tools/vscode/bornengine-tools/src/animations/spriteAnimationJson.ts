@@ -13,11 +13,8 @@ import type {
 function compactVector(
   value: { readonly x: number; readonly y: number },
   defaults: { readonly x: number; readonly y: number },
-): Record<string, number> | undefined {
-  const result: Record<string, number> = {};
-  if (value.x !== defaults.x) result.x = value.x;
-  if (value.y !== defaults.y) result.y = value.y;
-  return Object.keys(result).length === 0 ? undefined : result;
+): { x: number; y: number } | undefined {
+  return value.x === defaults.x && value.y === defaults.y ? undefined : { x: value.x, y: value.y };
 }
 
 function compactTransform(value: ResolvedSpriteAnimationTemplateTransform): Record<string, unknown> | undefined {

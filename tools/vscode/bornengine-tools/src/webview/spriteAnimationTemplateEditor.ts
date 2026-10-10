@@ -18,6 +18,24 @@ import {
   updateSpriteAnimationTemplateParameter,
 } from '../animations/spriteAnimationTemplateEdits';
 import { cropSpriteFrameFromDrag } from '../animations/animationFrames';
+import {
+  STAGE_ROTATE_HANDLE_DISTANCE,
+  STAGE_SCALE_HANDLES,
+  hitTestStage,
+  layerHandlePoint,
+  layerPoint,
+  layerRotateHandlePoint,
+  moveTransform,
+  rotateTransform,
+  scaleTransform,
+  stageCursorFor,
+} from '../animations/stageLayerTransform';
+import type {
+  StageHit,
+  StageLayerInput,
+  StageLayerSource,
+  StageVector,
+} from '../animations/stageLayerTransform';
 import { spriteAnimationTemplateSource, validateSpriteAnimationTemplate } from '../animations/spriteAnimationTemplateSchema';
 import { drawSpriteAnimationTemplateFrame, getSpriteAnimationTemplateFrameIndex } from '../animations/spriteAnimationTemplatePreview';
 import {
@@ -632,33 +650,129 @@ function imageLookup(): Record<string, { image: HTMLImageElement } | undefined> 
   return result;
 }
 
+interface StagePlacement {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+}
+
+interface StageDraft {
+  readonly frameIndex: number;
+  readonly layerIndex: number;
+  readonly transform: ResolvedSpriteAnimationTemplateTransform;
+}
+
+interface StageDrag {
+  readonly pointerId: number;
+  readonly hit: StageHit;
+  readonly clipName: string;
+  readonly direction: AnimationDirection;
+  readonly frameIndex: number;
+  readonly start: StageVector;
+  readonly base: ResolvedSpriteAnimationTemplateTransform;
+  readonly source: StageLayerSource;
+}
+
+const STAGE_SELECTION_COLOR = '#4aa3ff';
+let stageDrag: StageDrag | null = null;
+let stageDraft: StageDraft | null = null;
+
+function stageLayerTransform(layer: SpriteAnimationTemplateLayer): ResolvedSpriteAnimationTemplateTransform {
+  return { ...DEFAULT_TRANSFORM, ...layer.transform };
+}
+
+function stageLayers(frame: SpriteAnimationTemplateFrame): StageLayerInput[] {
+  return frame.layers.map((layer) => ({ visible: layer.visible !== false, source: layer.source, transform: stageLayerTransform(layer) }));
+}
+
+function stageSize(): { readonly width: number; readonly height: number } {
+  const rect = previewCanvas.getBoundingClientRect();
+  return { width: Math.max(200, rect.width || 480), height: Math.max(200, rect.height || 360) };
+}
+
+function stagePlacement(clip: SpriteAnimationTemplateClip): StagePlacement {
+  const size = stageSize();
+  const scale = Math.max(0.1, Math.min((size.width - 24) / clip.canvasSize.width, (size.height - 24) / clip.canvasSize.height));
+  return { x: (size.width - clip.canvasSize.width * scale) / 2, y: (size.height - clip.canvasSize.height * scale) / 2, scale };
+}
+
+function stagePointer(event: PointerEvent, placement: StagePlacement): StageVector {
+  const rect = previewCanvas.getBoundingClientRect();
+  return { x: (event.clientX - rect.left - placement.x) / placement.scale, y: (event.clientY - rect.top - placement.y) / placement.scale };
+}
+
+function displayedFrame(frame: SpriteAnimationTemplateFrame, frameIndex: number): SpriteAnimationTemplateFrame {
+  const draft = stageDraft;
+  if (draft === null || draft.frameIndex !== frameIndex) return frame;
+  return {
+    ...frame,
+    layers: frame.layers.map((layer, index) => index === draft.layerIndex ? { ...layer, transform: draft.transform } : layer),
+  };
+}
+
+function drawStageSelection(context: CanvasRenderingContext2D, clip: SpriteAnimationTemplateClip, frame: SpriteAnimationTemplateFrame, placement: StagePlacement): void {
+  const layer = frame.layers[selectedLayerIndex];
+  if (!layer || layer.visible === false) return;
+  const transform = stageLayerTransform(layer);
+  const toCss = (point: StageVector): StageVector => ({ x: placement.x + point.x * placement.scale, y: placement.y + point.y * placement.scale });
+  const corners = [layerPoint(clip.canvasSize, layer.source, transform, { x: 0, y: 0 }),
+    layerPoint(clip.canvasSize, layer.source, transform, { x: layer.source.width, y: 0 }),
+    layerPoint(clip.canvasSize, layer.source, transform, { x: layer.source.width, y: layer.source.height }),
+    layerPoint(clip.canvasSize, layer.source, transform, { x: 0, y: layer.source.height })].map(toCss);
+  const top = toCss(layerHandlePoint(clip.canvasSize, layer.source, transform, 0, -1));
+  const rotate = toCss(layerRotateHandlePoint(clip.canvasSize, layer.source, transform, STAGE_ROTATE_HANDLE_DISTANCE / placement.scale));
+  context.save();
+  context.strokeStyle = STAGE_SELECTION_COLOR;
+  context.fillStyle = '#ffffff';
+  context.lineWidth = 1;
+  context.beginPath();
+  corners.forEach((corner, index) => index === 0 ? context.moveTo(corner.x, corner.y) : context.lineTo(corner.x, corner.y));
+  context.closePath();
+  context.stroke();
+  context.beginPath();
+  context.moveTo(top.x, top.y);
+  context.lineTo(rotate.x, rotate.y);
+  context.stroke();
+  for (const [hx, hy] of STAGE_SCALE_HANDLES) {
+    const handle = toCss(layerHandlePoint(clip.canvasSize, layer.source, transform, hx, hy));
+    context.fillRect(handle.x - 4, handle.y - 4, 8, 8);
+    context.strokeRect(handle.x - 4, handle.y - 4, 8, 8);
+  }
+  context.beginPath();
+  context.arc(rotate.x, rotate.y, 4.5, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  context.restore();
+}
+
 function drawPreviewFrame(frameIndex: number): void {
   const clip = selectedClip();
   const context = previewCanvas.getContext('2d');
   if (!context) return;
   const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
-  const rect = previewCanvas.getBoundingClientRect();
-  const width = Math.round(Math.max(200, rect.width || 480) * pixelRatio);
-  const height = Math.round(Math.max(200, rect.height || 360) * pixelRatio);
+  const size = stageSize();
+  const width = Math.round(size.width * pixelRatio);
+  const height = Math.round(size.height * pixelRatio);
   if (previewCanvas.width !== width || previewCanvas.height !== height) {
     previewCanvas.width = width;
     previewCanvas.height = height;
   }
+  context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, width, height);
   if (!clip) return;
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.imageSmoothingEnabled = false;
-  const scale = Math.max(0.1, Math.min((width - 24) / clip.canvasSize.width, (height - 24) / clip.canvasSize.height));
-  const renderedWidth = clip.canvasSize.width * scale;
-  const renderedHeight = clip.canvasSize.height * scale;
-  const x = (width - renderedWidth) / 2;
-  const y = (height - renderedHeight) / 2;
+  const placement = stagePlacement(clip);
   context.save();
   context.strokeStyle = 'rgba(127, 127, 127, 0.5)';
-  context.lineWidth = pixelRatio;
-  context.strokeRect(x, y, renderedWidth, renderedHeight);
+  context.lineWidth = 1;
+  context.strokeRect(placement.x, placement.y, clip.canvasSize.width * placement.scale, clip.canvasSize.height * placement.scale);
   context.restore();
   const frame = clipFrames(clip)[frameIndex];
-  if (frame) drawSpriteAnimationTemplateFrame(context, clip, frame, imageLookup(), { x, y, scale });
+  if (!frame) return;
+  const shown = displayedFrame(frame, frameIndex);
+  drawSpriteAnimationTemplateFrame(context, clip, shown, imageLookup(), placement);
+  if (editable && !playing) drawStageSelection(context, clip, shown, placement);
 }
 
 function renderFrameThumbnails(): void {
@@ -1228,6 +1342,81 @@ atlasCanvas.addEventListener('pointerup', (event) => {
   else drawAtlas();
 });
 atlasCanvas.addEventListener('pointercancel', () => { atlasPointer = null; cropStart = null; cropEnd = null; drawAtlas(); });
+function dragTransform(drag: StageDrag, canvas: { readonly width: number; readonly height: number }, point: StageVector): ResolvedSpriteAnimationTemplateTransform {
+  if (drag.hit.kind === 'move') return moveTransform(drag.base, drag.start, point);
+  if (drag.hit.kind === 'rotate') return rotateTransform(canvas, drag.base, drag.start, point);
+  return scaleTransform(canvas, drag.source, drag.base, drag.hit.hx, drag.hit.hy, point);
+}
+
+function finishStageDrag(event: PointerEvent, commit: boolean): void {
+  const drag = stageDrag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  const draft = stageDraft;
+  stageDrag = null;
+  stageDraft = null;
+  if (previewCanvas.hasPointerCapture(event.pointerId)) previewCanvas.releasePointerCapture(event.pointerId);
+  const changed = draft !== null && JSON.stringify(draft.transform) !== JSON.stringify(drag.base);
+  if (!commit || !changed || !template || !draft) {
+    renderPreviewAndAtlas();
+    return;
+  }
+  tryEdit(() => updateSpriteAnimationTemplateLayer(template!, drag.clipName, drag.frameIndex, draft.layerIndex, { transform: draft.transform }, drag.direction),
+    'Layer transform could not be applied.');
+}
+
+previewCanvas.addEventListener('pointerdown', (event) => {
+  const clip = selectedClip();
+  if (!editable || !clip || event.button !== 0) return;
+  const wasPlaying = playing;
+  if (playing) {
+    stopPlayback();
+    selectedFrameIndex = currentPlaybackFrameIndex;
+  }
+  const frame = selectedFrame();
+  const placement = stagePlacement(clip);
+  const point = stagePointer(event, placement);
+  const hit = frame ? hitTestStage(clip.canvasSize, stageLayers(frame), selectedLayerIndex, point, placement.scale) : null;
+  if (!hit || !frame) {
+    if (wasPlaying) render();
+    return;
+  }
+  event.preventDefault();
+  if (hit.layerIndex !== selectedLayerIndex) {
+    selectedLayerIndex = hit.layerIndex;
+    renderLayers();
+  }
+  const layer = frame.layers[hit.layerIndex]!;
+  stageDrag = {
+    pointerId: event.pointerId,
+    hit,
+    clipName: selectedClipName,
+    direction: activeDirection,
+    frameIndex: selectedFrameIndex,
+    start: point,
+    base: stageLayerTransform(layer),
+    source: layer.source,
+  };
+  previewCanvas.setPointerCapture(event.pointerId);
+  renderPreviewAndAtlas();
+});
+previewCanvas.addEventListener('pointermove', (event) => {
+  const clip = selectedClip();
+  if (!clip) return;
+  const placement = stagePlacement(clip);
+  const point = stagePointer(event, placement);
+  const drag = stageDrag;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    const frame = selectedFrame();
+    previewCanvas.style.cursor = editable && frame
+      ? stageCursorFor(hitTestStage(clip.canvasSize, stageLayers(frame), selectedLayerIndex, point, placement.scale))
+      : 'default';
+    return;
+  }
+  stageDraft = { frameIndex: drag.frameIndex, layerIndex: drag.hit.layerIndex, transform: dragTransform(drag, clip.canvasSize, point) };
+  drawPreviewFrame(drag.frameIndex);
+});
+previewCanvas.addEventListener('pointerup', (event) => finishStageDrag(event, true));
+previewCanvas.addEventListener('pointercancel', (event) => finishStageDrag(event, false));
 playButton.addEventListener('click', togglePlayback);
 resetButton.addEventListener('click', () => selectFrame(0));
 prevFrameButton.addEventListener('click', () => stepFrame(-1));

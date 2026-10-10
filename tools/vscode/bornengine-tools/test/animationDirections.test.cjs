@@ -86,7 +86,7 @@ test('template edits target the selected direction and keep the JSON source form
   const compact = JSON.parse(json.serializeSpriteAnimationJsonCompact(source));
   assert.deepEqual(Object.keys(compact.clips[0].directions), ['up', 'left', 'down', 'right']);
   assert.equal(compact.clips[0].frames, undefined);
-  assert.deepEqual(compact.clips[0].directions.right[1].layers[0].transform, { stretch: { x: -1 } });
+  assert.deepEqual(compact.clips[0].directions.right[1].layers[0].transform, { stretch: { x: -1, y: 1 } });
 });
 
 test('renaming or removing an input looks at every direction', () => {

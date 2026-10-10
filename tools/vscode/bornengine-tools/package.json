@@ -2,7 +2,7 @@
   "name": "bornengine-tools",
   "displayName": "BornEngineTools",
   "description": "Visual editors for BornEngine maps, sprite animations, and reusable game blueprints.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "nullborne",
   "license": "MIT",
   "repository": {
