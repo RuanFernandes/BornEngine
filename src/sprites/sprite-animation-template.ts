@@ -761,9 +761,7 @@ export function spriteAnimationTemplateSource(template: ResolvedSpriteAnimationT
 }
 
 /** Lists every frame list a clip plays: one for plain clips, one per direction for directional clips. */
-export function clipFrameLists(
-  clip: ResolvedSpriteAnimationTemplateClip,
-): {
+export function clipFrameLists(clip: ResolvedSpriteAnimationTemplateClip): {
   readonly direction: SpriteAnimationDirectionName | null;
   readonly frames: readonly ResolvedSpriteAnimationTemplateFrame[];
 }[] {
