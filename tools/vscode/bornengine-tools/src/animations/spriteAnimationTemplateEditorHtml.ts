@@ -103,7 +103,7 @@ export function buildSpriteAnimationTemplateEditorHtml(
             <button type="button" id="next-frame" class="icon-button" title="Next frame (→)">▶</button>
             <input id="frame-scrubber" type="range" min="0" max="0" value="0" aria-label="Frame">
           </div>
-          <p class="hint stage-hint">Layers draw bottom to top in the order listed on the right.</p>
+          <p class="hint stage-hint">Drag a layer to move it, its handles to resize, the top handle to rotate. Layers draw bottom to top in the order listed on the right.</p>
         </section>
         <section class="timeline-panel">
           <div class="panel-heading"><h2>Frames <span id="timeline-direction" class="badge"></span></h2><button type="button" id="add-frame" class="small-button" title="Adds a copy of the selected frame">+ Add frame</button></div>
