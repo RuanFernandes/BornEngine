@@ -29,8 +29,10 @@ import {
   CREATE_SPRITE_ANIMATION_TEMPLATE_COMMAND,
   CREATE_WORLD2D_COMMAND,
   OPTIMIZE_WORLD2D_COMMAND,
+  RUN_BORNENGINE_CLI_COMMAND,
   WORLD2D_EDITOR_VIEW_TYPE,
 } from './shared/extensionIds';
+import { runBornEngineCli } from './cli/bornEngineCli';
 import { BornEngineToolsTreeProvider } from './views/bornEngineToolsProvider';
 import { World2DMapCodecCoordinator } from './maps/mapCodecCoordinator';
 
@@ -101,6 +103,8 @@ export function activate(
       createBlueprintTemplate(api, { workspaceFolderUri })),
     api.commands.registerCommand(CREATE_BLUEPRINT_COMMAND, (workspaceFolderUri?: vscode.Uri) =>
       createBlueprint(api, workspaceFolderUri)),
+    api.commands.registerCommand(RUN_BORNENGINE_CLI_COMMAND, (folderUri?: vscode.Uri, shortcutId?: string) =>
+      runBornEngineCli(api, folderUri instanceof api.Uri ? folderUri : undefined, typeof shortcutId === 'string' ? shortcutId : undefined)),
   );
 }
 

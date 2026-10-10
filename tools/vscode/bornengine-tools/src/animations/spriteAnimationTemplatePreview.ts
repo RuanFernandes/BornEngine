@@ -72,7 +72,7 @@ export function drawSpriteAnimationTemplateFrame(
 
 /** Resolves a shared clip playhead to one frame, including frame-specific timing and loop modes. */
 export function getSpriteAnimationTemplateFrameIndex(
-  clip: SpriteAnimationTemplateClip | ResolvedSpriteAnimationTemplateClip,
+  clip: Pick<SpriteAnimationTemplateClip, 'fps' | 'loop'> & { readonly frames: readonly { readonly duration?: number }[] },
   elapsedSeconds: number,
 ): SpriteAnimationTemplatePlaybackFrame {
   const count = clip.frames.length;

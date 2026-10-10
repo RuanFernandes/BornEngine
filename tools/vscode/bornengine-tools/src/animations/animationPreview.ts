@@ -1,4 +1,12 @@
-import type { SpriteAnimationDocument, SpriteAnimationFrameTransform, SpriteAnimationLoop, SpriteSheetCharacterMetadata } from './spriteAnimationSchema';
+import type {
+  SpriteAnimationClipDefinition,
+  SpriteAnimationDocument,
+  SpriteAnimationFrameDefinition,
+  SpriteAnimationFrameTransform,
+  SpriteAnimationLoop,
+  SpriteSheetCharacterMetadata,
+} from './spriteAnimationSchema';
+import { SPRITE_ANIMATION_DIRECTIONS } from './spriteAnimationSchema';
 import { getSpriteAnimationCanvasSize } from './animationFrameTransform';
 
 export interface AnimationPreviewFrame {
@@ -41,6 +49,9 @@ export function getAnimationPreviewClipOptions(
   metadata: SpriteSheetCharacterMetadata,
 ): AnimationPreviewClipOption[] {
   return document.clips.map((clip) => {
+    if (clip.directions !== undefined) {
+      return { name: clip.name, animationGroupId: clip.animationGroupId, directions: [...SPRITE_ANIMATION_DIRECTIONS] };
+    }
     if (clip.frames !== undefined) {
       return { name: clip.name, animationGroupId: clip.animationGroupId, directions: ['Frames'] };
     }
@@ -53,6 +64,63 @@ export function getAnimationPreviewClipOptions(
   });
 }
 
+function selectionFromFrames(
+  clip: SpriteAnimationClipDefinition,
+  metadata: SpriteSheetCharacterMetadata,
+  direction: string,
+  sourceFrames: readonly SpriteAnimationFrameDefinition[],
+): AnimationPreviewSelection | null {
+  if (sourceFrames.length === 0) return null;
+  const frames = sourceFrames.map((frame, column) => ({
+    column,
+    row: -1,
+    x: frame.x,
+    y: frame.y,
+    width: frame.width,
+    height: frame.height,
+    imagePath: frame.image,
+    ...(frame.name === undefined ? {} : { name: frame.name }),
+    ...(frame.duration === undefined ? {} : { duration: frame.duration }),
+    ...(frame.transform === undefined ? {} : { transform: frame.transform }),
+  }));
+  const canvas = getSpriteAnimationCanvasSize(clip, metadata);
+  return {
+    clipName: clip.name,
+    animationGroupId: clip.animationGroupId,
+    direction,
+    fps: clip.fps,
+    loop: clip.loop,
+    row: -1,
+    frameCount: frames.length,
+    cellWidth: frames[0]?.width ?? 1,
+    cellHeight: frames[0]?.height ?? 1,
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    frames,
+  };
+}
+
+const METADATA_DIRECTION_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  up: ['up', 'north', 'n', 'back'],
+  left: ['left', 'west', 'w'],
+  down: ['down', 'south', 's', 'front'],
+  right: ['right', 'east', 'e'],
+};
+
+/** Finds the sheet row of an animation group that matches an up/left/down/right direction name. */
+export function findMetadataDirectionRow(
+  metadata: SpriteSheetCharacterMetadata,
+  animationGroupId: string,
+  direction: string,
+): string | null {
+  const aliases = METADATA_DIRECTION_ALIASES[direction] ?? [direction];
+  for (const row of metadata.rows) {
+    if (row.animation_group_id !== animationGroupId || !row.direction) continue;
+    if (aliases.includes(row.direction.trim().toLowerCase())) return row.direction;
+  }
+  return null;
+}
+
 /** Maps a clip and direction to the atlas cells covered by its metadata row. */
 export function selectFramesForGroupAndDirection(
   document: SpriteAnimationDocument,
@@ -63,35 +131,15 @@ export function selectFramesForGroupAndDirection(
   const clip = document.clips.find((candidate) => candidate.name === clipName);
   if (!clip || !direction) return null;
 
+  if (clip.directions !== undefined) {
+    const frames = (SPRITE_ANIMATION_DIRECTIONS as readonly string[]).includes(direction)
+      ? clip.directions[direction as keyof typeof clip.directions]
+      : undefined;
+    return frames === undefined ? null : selectionFromFrames(clip, metadata, direction, frames);
+  }
   if (clip.frames !== undefined) {
-    if (direction !== 'Frames' || clip.frames.length === 0) return null;
-    const frames = clip.frames.map((frame, column) => ({
-      column,
-      row: -1,
-      x: frame.x,
-      y: frame.y,
-      width: frame.width,
-      height: frame.height,
-      imagePath: frame.image,
-      ...(frame.name === undefined ? {} : { name: frame.name }),
-      ...(frame.duration === undefined ? {} : { duration: frame.duration }),
-      ...(frame.transform === undefined ? {} : { transform: frame.transform }),
-    }));
-    const canvas = getSpriteAnimationCanvasSize(clip, metadata);
-    return {
-      clipName: clip.name,
-      animationGroupId: clip.animationGroupId,
-      direction: 'Frames',
-      fps: clip.fps,
-      loop: clip.loop,
-      row: -1,
-      frameCount: frames.length,
-      cellWidth: frames[0]?.width ?? 1,
-      cellHeight: frames[0]?.height ?? 1,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
-      frames,
-    };
+    if (direction !== 'Frames') return null;
+    return selectionFromFrames(clip, metadata, 'Frames', clip.frames);
   }
 
   const rows = metadata.rows.filter((row) =>

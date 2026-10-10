@@ -9,3 +9,4 @@ export const BLUEPRINT_TEMPLATE_EDITOR_VIEW_TYPE = 'bornengineTools.blueprintTem
 export const CREATE_BLUEPRINT_COMMAND = 'bornengineTools.createBlueprint';
 export const BLUEPRINT_EDITOR_VIEW_TYPE = 'bornengineTools.blueprintEditor';
 export const BORNENGINE_TOOLS_VIEW_ID = 'bornengineTools.assets';
+export const RUN_BORNENGINE_CLI_COMMAND = 'bornengineTools.runCli';

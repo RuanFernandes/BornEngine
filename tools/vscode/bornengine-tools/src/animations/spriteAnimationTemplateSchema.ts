@@ -1,6 +1,7 @@
 import {
   SPRITE_ANIMATION_TEMPLATE_FORMAT,
   SPRITE_ANIMATION_TEMPLATE_VERSION,
+  spriteAnimationTemplateSource,
   validateSpriteAnimationTemplate,
   validateSpriteAnimationTemplateBinding,
 } from '../../../../../src/sprites/sprite-animation-template';
@@ -29,6 +30,7 @@ import type {
 export {
   SPRITE_ANIMATION_TEMPLATE_FORMAT,
   SPRITE_ANIMATION_TEMPLATE_VERSION,
+  spriteAnimationTemplateSource,
   validateSpriteAnimationTemplate,
   validateSpriteAnimationTemplateBinding,
 };

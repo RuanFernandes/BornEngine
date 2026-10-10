@@ -28,7 +28,10 @@ const creation = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteA
   './spriteAnimationCreation': { spriteAnimationFileStem: (name) => name.toLowerCase().replace(/\s+/g, '-') },
   './spriteAnimationTemplateSchema': extensionSchema,
 });
-const edits = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnimationTemplateEdits.ts'));
+const directions = loadTypeScript(path.join(extensionRoot, 'src/animations/animationDirections.ts'));
+const edits = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnimationTemplateEdits.ts'), {
+  './animationDirections': directions,
+});
 const preview = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnimationTemplatePreview.ts'));
 
 test('template editor model supports author-defined inputs, layer order, transforms, and composite previews', () => {

@@ -9,8 +9,12 @@ function load(relativePath) {
   const source = fs.readFileSync(sourcePath, 'utf8');
   const { code } = transformSync(source, { loader: 'ts', format: 'cjs', target: 'node18' });
   const module = { exports: {} };
-  const localRequire = (specifier) => specifier === './animationFrameTransform'
-    ? load('animations/animationFrameTransform.ts')
+  const localModules = {
+    './animationFrameTransform': 'animations/animationFrameTransform.ts',
+    './spriteAnimationSchema': 'animations/spriteAnimationSchema.ts',
+  };
+  const localRequire = (specifier) => Object.hasOwn(localModules, specifier)
+    ? load(localModules[specifier])
     : require(specifier);
   new Function('require', 'module', 'exports', code)(localRequire, module, module.exports);
   return module.exports;

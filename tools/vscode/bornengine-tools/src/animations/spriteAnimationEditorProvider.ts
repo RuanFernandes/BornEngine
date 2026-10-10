@@ -11,6 +11,7 @@ import {
   validateSpriteSheetCharacterMetadata,
 } from './spriteAnimationSchema';
 import { buildAnimationEditorHtml } from './animationEditorHtml';
+import { spriteAnimationClipFrameLists } from './spriteAnimationSchema';
 import { serializeSpriteAnimationJsonCompact } from './spriteAnimationJson';
 import {
   resolveDocumentRelativeWorkspaceAsset,
@@ -101,7 +102,7 @@ function sourceReferenceDiagnostics(
   const diagnostics: SpriteAnimationDocumentDiagnostic[] = [];
   for (let clipIndex = 0; clipIndex < document.clips.length; clipIndex++) {
     const clip = document.clips[clipIndex];
-    if (!clip || clip.frames !== undefined) continue;
+    if (!clip || clip.frames !== undefined || clip.directions !== undefined) continue;
     const matchingRows = metadata.rows.filter((row) => row.animation_group_id === clip.animationGroupId);
     if (matchingRows.length === 0) {
       diagnostics.push(diagnostic(`/clips/${clipIndex}/animationGroupId`, 'missing_animation_group',
@@ -109,7 +110,7 @@ function sourceReferenceDiagnostics(
     }
   }
 
-  const referencedGroups = document.clips.filter((clip) => clip.frames === undefined).map((clip) => clip.animationGroupId);
+  const referencedGroups = document.clips.filter((clip) => clip.frames === undefined && clip.directions === undefined).map((clip) => clip.animationGroupId);
   const seenGroups: string[] = [];
   const seenDirections: string[] = [];
   for (let rowIndex = 0; rowIndex < metadata.rows.length; rowIndex++) {
@@ -268,41 +269,45 @@ export class SpriteAnimationTextEditorProvider implements vscode.CustomTextEdito
       }
       for (let clipIndex = 0; clipIndex < documentResult.value.clips.length; clipIndex++) {
         const clip = documentResult.value.clips[clipIndex];
-        for (let frameIndex = 0; clip?.frames && frameIndex < clip.frames.length; frameIndex++) {
-          const frame = clip.frames[frameIndex];
-          if (!frame) continue;
-          let asset = frameImageAssets.get(frame.image);
-          if (!asset) {
-            const frameUri = resolveWorkspaceAsset(document.uri, frame.image, workspaceFolders);
-            if (!frameUri) {
-              nextDiagnostics.push(diagnostic(`/clips/${clipIndex}/frames/${frameIndex}/image`, 'frame_image_outside_workspace',
-                'Frame images must resolve inside the workspace that contains the animation companion.'));
-              continue;
-            }
-            try {
-              await this.api.workspace.fs.stat(frameUri);
-              const bytes = await this.api.workspace.fs.readFile(frameUri);
-              const size = readRasterImageSize(frameUri.path, bytes);
-              if (!size) {
-                nextDiagnostics.push(diagnostic(`/clips/${clipIndex}/frames/${frameIndex}/image`, 'invalid_frame_image',
-                  `Frame image "${frame.image}" must be a readable PNG, JPEG, GIF, WebP, or BMP image.`));
+        if (!clip) continue;
+        for (const frameList of spriteAnimationClipFrameLists(clip, `/clips/${clipIndex}`)) {
+          for (let frameIndex = 0; frameIndex < frameList.frames.length; frameIndex++) {
+            const frame = frameList.frames[frameIndex];
+            if (!frame) continue;
+            const framePath = `${frameList.path}/${frameIndex}`;
+            let asset = frameImageAssets.get(frame.image);
+            if (!asset) {
+              const frameUri = resolveWorkspaceAsset(document.uri, frame.image, workspaceFolders);
+              if (!frameUri) {
+                nextDiagnostics.push(diagnostic(`${framePath}/image`, 'frame_image_outside_workspace',
+                  'Frame images must resolve inside the workspace that contains the animation companion.'));
                 continue;
               }
-              asset = {
-                path: frame.image,
-                uri: panel.webview.asWebviewUri(frameUri).toString(),
-                size,
-              };
-              frameImageAssets.set(frame.image, asset);
-            } catch (_error) {
-              nextDiagnostics.push(diagnostic(`/clips/${clipIndex}/frames/${frameIndex}/image`, 'missing_frame_image',
-                `Frame image "${frame.image}" could not be read.`));
-              continue;
+              try {
+                await this.api.workspace.fs.stat(frameUri);
+                const bytes = await this.api.workspace.fs.readFile(frameUri);
+                const size = readRasterImageSize(frameUri.path, bytes);
+                if (!size) {
+                  nextDiagnostics.push(diagnostic(`${framePath}/image`, 'invalid_frame_image',
+                    `Frame image "${frame.image}" must be a readable PNG, JPEG, GIF, WebP, or BMP image.`));
+                  continue;
+                }
+                asset = {
+                  path: frame.image,
+                  uri: panel.webview.asWebviewUri(frameUri).toString(),
+                  size,
+                };
+                frameImageAssets.set(frame.image, asset);
+              } catch (_error) {
+                nextDiagnostics.push(diagnostic(`${framePath}/image`, 'missing_frame_image',
+                  `Frame image "${frame.image}" could not be read.`));
+                continue;
+              }
             }
-          }
-          if (frame.x + frame.width > asset.size.width || frame.y + frame.height > asset.size.height) {
-            nextDiagnostics.push(diagnostic(`/clips/${clipIndex}/frames/${frameIndex}`, 'frame_outside_image',
-              'Frame crop rectangle must fit inside its source image.'));
+            if (frame.x + frame.width > asset.size.width || frame.y + frame.height > asset.size.height) {
+              nextDiagnostics.push(diagnostic(framePath, 'frame_outside_image',
+                'Frame crop rectangle must fit inside its source image.'));
+            }
           }
         }
       }

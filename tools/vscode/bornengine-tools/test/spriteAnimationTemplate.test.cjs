@@ -27,7 +27,10 @@ const json = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnima
   './spriteAnimationSchema': loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnimationSchema.ts')),
   './spriteAnimationTemplateSchema': extensionSchema,
 });
-const edits = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnimationTemplateEdits.ts'));
+const directions = loadTypeScript(path.join(extensionRoot, 'src/animations/animationDirections.ts'));
+const edits = loadTypeScript(path.join(extensionRoot, 'src/animations/spriteAnimationTemplateEdits.ts'), {
+  './animationDirections': directions,
+});
 
 const template = {
   format: 'bornengine.spriteanim-template',

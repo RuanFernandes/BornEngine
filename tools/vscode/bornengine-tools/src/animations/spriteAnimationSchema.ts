@@ -3,6 +3,10 @@ export const SPRITE_ANIMATION_DOCUMENT_VERSION = 1;
 
 export type SpriteAnimationLoop = 'loop' | 'once' | 'ping-pong';
 
+/** Direction names in Graal `dir` order: 0 = up, 1 = left, 2 = down, 3 = right. */
+export const SPRITE_ANIMATION_DIRECTIONS = ['up', 'left', 'down', 'right'] as const;
+export type SpriteAnimationDirection = (typeof SPRITE_ANIMATION_DIRECTIONS)[number];
+
 export interface SpriteAnimationFrameTransform {
   offset: { x: number; y: number };
   stretch: { x: number; y: number };
@@ -28,7 +32,23 @@ export interface SpriteAnimationClipDefinition {
   fps: number;
   loop: SpriteAnimationLoop;
   frames?: SpriteAnimationFrameDefinition[];
+  /** Per-direction frames. Mutually exclusive with frames. */
+  directions?: Record<SpriteAnimationDirection, SpriteAnimationFrameDefinition[]>;
   canvasSize?: { width: number; height: number };
+}
+
+/** Every explicit frame list of a clip with its JSON pointer: frames, or one list per direction. */
+export function spriteAnimationClipFrameLists(
+  clip: SpriteAnimationClipDefinition,
+  clipPath: string,
+): { path: string; frames: SpriteAnimationFrameDefinition[] }[] {
+  if (clip.directions !== undefined) {
+    return SPRITE_ANIMATION_DIRECTIONS.map((direction) => ({
+      path: `${clipPath}/directions/${direction}`,
+      frames: clip.directions![direction],
+    }));
+  }
+  return clip.frames === undefined ? [] : [{ path: `${clipPath}/frames`, frames: clip.frames }];
 }
 
 export interface SpriteAnimationDocument {
@@ -122,6 +142,79 @@ function failure<T>(diagnostics: SpriteAnimationDocumentDiagnostic[]): SpriteAni
   return { ok: false, value: null, diagnostics };
 }
 
+function validateFrameList(
+  frames: unknown,
+  framesPath: string,
+  diagnostics: SpriteAnimationDocumentDiagnostic[],
+): void {
+  if (!Array.isArray(frames)) {
+    addDiagnostic(diagnostics, framesPath, 'invalid_frames', 'frames must be an array when present.');
+    return;
+  }
+  frames.forEach((frame, frameIndex) => {
+    const framePath = pointer(framesPath, frameIndex);
+    if (!isObject(frame)) {
+      addDiagnostic(diagnostics, framePath, 'invalid_frame', 'Each sprite frame must be a JSON object.');
+      return;
+    }
+    if (!isNormalizedWorkspacePath(frame.image)) {
+      addDiagnostic(diagnostics, pointer(framePath, 'image'), 'invalid_frame_image', 'Frame image must be a normalized workspace-relative path.');
+    }
+    if (!isFiniteNumber(frame.x) || frame.x < 0 || !Number.isInteger(frame.x) ||
+        !isFiniteNumber(frame.y) || frame.y < 0 || !Number.isInteger(frame.y)) {
+      addDiagnostic(diagnostics, framePath, 'invalid_frame_position', 'Frame x and y must be non-negative integers.');
+    }
+    if (!isPositiveInteger(frame.width) || !isPositiveInteger(frame.height)) {
+      addDiagnostic(diagnostics, framePath, 'invalid_frame_size', 'Frame width and height must be positive integers.');
+    }
+    if (frame.name !== undefined && (typeof frame.name !== 'string' || frame.name.length === 0 || frame.name !== frame.name.trim())) {
+      addDiagnostic(diagnostics, pointer(framePath, 'name'), 'invalid_frame_name', 'Frame name must be a non-empty trimmed string when present.');
+    }
+    if (frame.duration !== undefined && (!isFiniteNumber(frame.duration) || frame.duration <= 0)) {
+      addDiagnostic(diagnostics, pointer(framePath, 'duration'), 'invalid_frame_duration', 'Frame duration must be finite and positive when present.');
+    }
+    if (frame.transform !== undefined) {
+      const transform = isObject(frame.transform) ? frame.transform : null;
+      const offset = transform && isObject(transform.offset) ? transform.offset : null;
+      const stretch = transform && isObject(transform.stretch) ? transform.stretch : null;
+      const pivot = transform && isObject(transform.pivot) ? transform.pivot : null;
+      const validOffset = offset && isFiniteNumber(offset.x) && isFiniteNumber(offset.y);
+      const validStretch = stretch && isFiniteNumber(stretch.x) && stretch.x !== 0 &&
+        isFiniteNumber(stretch.y) && stretch.y !== 0;
+      const validRotation = transform && isFiniteNumber(transform.rotation);
+      const validZoom = transform && (transform.zoom === undefined ||
+        (isFiniteNumber(transform.zoom) && transform.zoom > 0));
+      const validPivot = pivot && isFiniteNumber(pivot.x) && pivot.x >= 0 && pivot.x <= 1 &&
+        isFiniteNumber(pivot.y) && pivot.y >= 0 && pivot.y <= 1;
+      if (!transform || !validOffset || !validStretch || !validZoom || !validRotation || !validPivot) {
+        addDiagnostic(diagnostics, pointer(framePath, 'transform'), 'invalid_frame_transform',
+          'Frame transform needs finite offset, non-zero stretch, positive zoom, rotation, and pivot coordinates between 0 and 1.');
+      }
+    }
+  });
+}
+
+function normalizeFrameList(frames: unknown): SpriteAnimationFrameDefinition[] {
+  return (frames as Array<Record<string, unknown>>).map((frame) => ({
+    image: frame.image as string,
+    x: frame.x as number,
+    y: frame.y as number,
+    width: frame.width as number,
+    height: frame.height as number,
+    ...(frame.name === undefined ? {} : { name: frame.name as string }),
+    ...(frame.duration === undefined ? {} : { duration: frame.duration as number }),
+    ...(frame.transform === undefined ? {} : {
+      transform: {
+        offset: { ...(frame.transform as SpriteAnimationFrameTransform).offset },
+        stretch: { ...(frame.transform as SpriteAnimationFrameTransform).stretch },
+        zoom: (frame.transform as SpriteAnimationFrameTransform).zoom ?? 1,
+        rotation: (frame.transform as SpriteAnimationFrameTransform).rotation,
+        pivot: { ...(frame.transform as SpriteAnimationFrameTransform).pivot },
+      },
+    }),
+  }));
+}
+
 export function validateSpriteAnimationDocument(input: unknown): SpriteAnimationValidationResult<SpriteAnimationDocument> {
   const diagnostics: SpriteAnimationDocumentDiagnostic[] = [];
   if (!isObject(input)) {
@@ -165,51 +258,26 @@ export function validateSpriteAnimationDocument(input: unknown): SpriteAnimation
           !isPositiveInteger(clip.canvasSize.width) || !isPositiveInteger(clip.canvasSize.height))) {
         addDiagnostic(diagnostics, pointer(clipPath, 'canvasSize'), 'invalid_canvas_size', 'canvasSize width and height must be positive integers.');
       }
-      if (clip.frames !== undefined) {
-        if (!Array.isArray(clip.frames)) {
-          addDiagnostic(diagnostics, pointer(clipPath, 'frames'), 'invalid_frames', 'frames must be an array when present.');
+      if (clip.frames !== undefined && clip.directions !== undefined) {
+        addDiagnostic(diagnostics, clipPath, 'frames_and_directions', 'A clip must define either frames or directions, not both.');
+      } else if (clip.frames !== undefined) {
+        validateFrameList(clip.frames, pointer(clipPath, 'frames'), diagnostics);
+      } else if (clip.directions !== undefined) {
+        const directionsPath = pointer(clipPath, 'directions');
+        if (!isObject(clip.directions)) {
+          addDiagnostic(diagnostics, directionsPath, 'invalid_directions', 'directions must be an object with up, left, down, and right frame lists.');
         } else {
-          clip.frames.forEach((frame, frameIndex) => {
-            const framePath = pointer(pointer(clipPath, 'frames'), frameIndex);
-            if (!isObject(frame)) {
-              addDiagnostic(diagnostics, framePath, 'invalid_frame', 'Each sprite frame must be a JSON object.');
-              return;
+          for (const key of Object.keys(clip.directions)) {
+            if (!(SPRITE_ANIMATION_DIRECTIONS as readonly string[]).includes(key)) {
+              addDiagnostic(diagnostics, pointer(directionsPath, key), 'unknown_direction', `Unknown direction "${key}".`);
             }
-            if (!isNormalizedWorkspacePath(frame.image)) {
-              addDiagnostic(diagnostics, pointer(framePath, 'image'), 'invalid_frame_image', 'Frame image must be a normalized workspace-relative path.');
-            }
-            if (!isFiniteNumber(frame.x) || frame.x < 0 || !Number.isInteger(frame.x) ||
-                !isFiniteNumber(frame.y) || frame.y < 0 || !Number.isInteger(frame.y)) {
-              addDiagnostic(diagnostics, framePath, 'invalid_frame_position', 'Frame x and y must be non-negative integers.');
-            }
-            if (!isPositiveInteger(frame.width) || !isPositiveInteger(frame.height)) {
-              addDiagnostic(diagnostics, framePath, 'invalid_frame_size', 'Frame width and height must be positive integers.');
-            }
-            if (frame.name !== undefined && (typeof frame.name !== 'string' || frame.name.length === 0 || frame.name !== frame.name.trim())) {
-              addDiagnostic(diagnostics, pointer(framePath, 'name'), 'invalid_frame_name', 'Frame name must be a non-empty trimmed string when present.');
-            }
-            if (frame.duration !== undefined && (!isFiniteNumber(frame.duration) || frame.duration <= 0)) {
-              addDiagnostic(diagnostics, pointer(framePath, 'duration'), 'invalid_frame_duration', 'Frame duration must be finite and positive when present.');
-            }
-            if (frame.transform !== undefined) {
-              const transform = isObject(frame.transform) ? frame.transform : null;
-              const offset = transform && isObject(transform.offset) ? transform.offset : null;
-              const stretch = transform && isObject(transform.stretch) ? transform.stretch : null;
-              const pivot = transform && isObject(transform.pivot) ? transform.pivot : null;
-              const validOffset = offset && isFiniteNumber(offset.x) && isFiniteNumber(offset.y);
-              const validStretch = stretch && isFiniteNumber(stretch.x) && stretch.x !== 0 &&
-                isFiniteNumber(stretch.y) && stretch.y !== 0;
-              const validRotation = transform && isFiniteNumber(transform.rotation);
-              const validZoom = transform && (transform.zoom === undefined ||
-                (isFiniteNumber(transform.zoom) && transform.zoom > 0));
-              const validPivot = pivot && isFiniteNumber(pivot.x) && pivot.x >= 0 && pivot.x <= 1 &&
-                isFiniteNumber(pivot.y) && pivot.y >= 0 && pivot.y <= 1;
-              if (!transform || !validOffset || !validStretch || !validZoom || !validRotation || !validPivot) {
-                addDiagnostic(diagnostics, pointer(framePath, 'transform'), 'invalid_frame_transform',
-                  'Frame transform needs finite offset, non-zero stretch, positive zoom, rotation, and pivot coordinates between 0 and 1.');
-              }
-            }
-          });
+          }
+          for (const direction of SPRITE_ANIMATION_DIRECTIONS) {
+            const frames = clip.directions[direction];
+            if (!Array.isArray(frames) || frames.length === 0) {
+              addDiagnostic(diagnostics, pointer(directionsPath, direction), 'invalid_direction_frames', `Direction "${direction}" needs at least one frame.`);
+            } else validateFrameList(frames, pointer(directionsPath, direction), diagnostics);
+          }
         }
       }
     });
@@ -226,25 +294,14 @@ export function validateSpriteAnimationDocument(input: unknown): SpriteAnimation
         height: (clip.canvasSize as { width: number; height: number }).height,
       },
     }),
-    ...(clip.frames === undefined ? {} : {
-      frames: (clip.frames as Array<Record<string, unknown>>).map((frame) => ({
-        image: frame.image as string,
-        x: frame.x as number,
-        y: frame.y as number,
-        width: frame.width as number,
-        height: frame.height as number,
-        ...(frame.name === undefined ? {} : { name: frame.name as string }),
-        ...(frame.duration === undefined ? {} : { duration: frame.duration as number }),
-        ...(frame.transform === undefined ? {} : {
-          transform: {
-            offset: { ...(frame.transform as SpriteAnimationFrameTransform).offset },
-            stretch: { ...(frame.transform as SpriteAnimationFrameTransform).stretch },
-            zoom: (frame.transform as SpriteAnimationFrameTransform).zoom ?? 1,
-            rotation: (frame.transform as SpriteAnimationFrameTransform).rotation,
-            pivot: { ...(frame.transform as SpriteAnimationFrameTransform).pivot },
-          },
-        }),
-      })),
+    ...(clip.frames === undefined ? {} : { frames: normalizeFrameList(clip.frames) }),
+    ...(clip.directions === undefined ? {} : {
+      directions: {
+        up: normalizeFrameList((clip.directions as Record<string, unknown>).up),
+        left: normalizeFrameList((clip.directions as Record<string, unknown>).left),
+        down: normalizeFrameList((clip.directions as Record<string, unknown>).down),
+        right: normalizeFrameList((clip.directions as Record<string, unknown>).right),
+      },
     }),
   }));
   return success({

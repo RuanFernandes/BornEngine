@@ -5,6 +5,7 @@ import {
 import { SPRITE_ANIMATION_DOCUMENT_FORMAT } from './spriteAnimationSchema';
 import type {
   ResolvedSpriteAnimationTemplate,
+  ResolvedSpriteAnimationTemplateFrame,
   ResolvedSpriteAnimationTemplateLayer,
   ResolvedSpriteAnimationTemplateTransform,
 } from './spriteAnimationTemplateSchema';
@@ -32,6 +33,19 @@ function compactTransform(value: ResolvedSpriteAnimationTemplateTransform): Reco
   return Object.keys(result).length === 0 ? undefined : result;
 }
 
+function compactFrames(frames: readonly ResolvedSpriteAnimationTemplateFrame[]): Record<string, unknown>[] {
+  return frames.map((frame) => ({
+    ...(frame.duration === undefined ? {} : { duration: frame.duration }),
+    ...(frame.markers === undefined ? {} : { markers: [...frame.markers] }),
+    layers: frame.layers.map((layer: ResolvedSpriteAnimationTemplateLayer) => ({
+      parameter: layer.parameter,
+      source: { x: layer.source.x, y: layer.source.y, width: layer.source.width, height: layer.source.height },
+      ...(layer.visible === false ? { visible: false } : {}),
+      ...(compactTransform(layer.transform) === undefined ? {} : { transform: compactTransform(layer.transform) }),
+    })),
+  }));
+}
+
 function compactTemplate(template: ResolvedSpriteAnimationTemplate): Record<string, unknown> {
   return {
     format: template.format,
@@ -50,16 +64,16 @@ function compactTemplate(template: ResolvedSpriteAnimationTemplate): Record<stri
       fps: clip.fps,
       loop: clip.loop,
       canvasSize: { width: clip.canvasSize.width, height: clip.canvasSize.height },
-      frames: clip.frames.map((frame) => ({
-        ...(frame.duration === undefined ? {} : { duration: frame.duration }),
-        ...(frame.markers === undefined ? {} : { markers: [...frame.markers] }),
-        layers: frame.layers.map((layer: ResolvedSpriteAnimationTemplateLayer) => ({
-          parameter: layer.parameter,
-          source: { x: layer.source.x, y: layer.source.y, width: layer.source.width, height: layer.source.height },
-          ...(layer.visible === false ? { visible: false } : {}),
-          ...(compactTransform(layer.transform) === undefined ? {} : { transform: compactTransform(layer.transform) }),
-        })),
-      })),
+      ...(clip.directions === undefined
+        ? { frames: compactFrames(clip.frames) }
+        : {
+            directions: {
+              up: compactFrames(clip.directions.up),
+              left: compactFrames(clip.directions.left),
+              down: compactFrames(clip.directions.down),
+              right: compactFrames(clip.directions.right),
+            },
+          }),
     })),
   };
 }

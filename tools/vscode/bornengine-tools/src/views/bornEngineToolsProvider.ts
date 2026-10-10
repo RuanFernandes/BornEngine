@@ -8,8 +8,10 @@ import {
   CREATE_SPRITE_ANIMATION_COMMAND,
   CREATE_SPRITE_ANIMATION_TEMPLATE_COMMAND,
   CREATE_WORLD2D_COMMAND,
+  RUN_BORNENGINE_CLI_COMMAND,
   WORLD2D_EDITOR_VIEW_TYPE,
 } from '../shared/extensionIds';
+import { BORNENGINE_CLI_SHORTCUTS } from '../cli/bornEngineCli';
 import { workspaceFolderForDocument } from '../shared/workspaceAssets';
 import { isBornEngineProjectManifest } from './bornEngineProject';
 import { discoverBornEngineAssets, type BornEngineWorkspaceAsset } from './bornEngineAssets';
@@ -30,6 +32,7 @@ type TreeNode =
   | { kind: 'createBlueprint'; folder: vscode.WorkspaceFolder }
   | { kind: 'createTemplate'; folder: vscode.WorkspaceFolder }
   | { kind: 'servers'; servers: BornEngineServerDestination[] }
+  | { kind: 'cli'; folder: vscode.WorkspaceFolder }
   | { kind: 'group'; folder: vscode.WorkspaceFolder; assets: BornEngineWorkspaceAsset[] }
   | { kind: 'asset'; asset: BornEngineWorkspaceAsset }
   | { kind: 'metadataImage' }
@@ -94,6 +97,7 @@ export class BornEngineToolsTreeProvider implements vscode.TreeDataProvider<vsco
     if (!node) return [];
     if (node.kind === 'workspace') return this.getWorkspaceChildren(node.folder);
     if (node.kind === 'servers') return this.getServerChildren(node.servers);
+    if (node.kind === 'cli') return this.getCliChildren(node.folder);
     if (node.kind === 'group') return node.assets.map((asset) => this.createAssetItem(asset));
     if (node.kind === 'asset' && node.asset.kind === 'spriteMetadata') {
       return this.getSpriteMetadataChildren(node.asset);
@@ -154,6 +158,12 @@ export class BornEngineToolsTreeProvider implements vscode.TreeDataProvider<vsco
     });
 
     const items: vscode.TreeItem[] = [
+      this.createItem('BornEngine CLI', { kind: 'cli', folder }, {
+        collapsibleState: this.api.TreeItemCollapsibleState.Expanded,
+        description: 'run, build, upgrade…',
+        iconPath: new this.api.ThemeIcon('terminal'),
+        tooltip: 'Run BornEngine CLI commands in an integrated terminal for this project',
+      }),
       this.createItem('Create World2D Map', { kind: 'createMap', folder }, { resourceUri: folder.uri }),
       this.createItem('Create Sprite Animation', { kind: 'createAnimation', folder }, { resourceUri: folder.uri }),
       this.createItem('Create Sprite Animation Template', { kind: 'createAnimationTemplate', folder }, { resourceUri: folder.uri }),
@@ -181,6 +191,19 @@ export class BornEngineToolsTreeProvider implements vscode.TreeDataProvider<vsco
     }
     if (assets.length === 0) items.push(this.createItem('No BornEngine assets found yet', { kind: 'message' }));
     return items;
+  }
+
+  private getCliChildren(folder: vscode.WorkspaceFolder): vscode.TreeItem[] {
+    return BORNENGINE_CLI_SHORTCUTS.map((shortcut) => this.createItem(shortcut.label, { kind: 'message' }, {
+      command: {
+        command: RUN_BORNENGINE_CLI_COMMAND,
+        title: shortcut.label,
+        arguments: [folder.uri, shortcut.id],
+      },
+      description: shortcut.description,
+      iconPath: new this.api.ThemeIcon(shortcut.icon),
+      tooltip: `Run \`${shortcut.description}\` in ${folder.name}`,
+    }));
   }
 
   private getServerChildren(servers: BornEngineServerDestination[]): vscode.TreeItem[] {

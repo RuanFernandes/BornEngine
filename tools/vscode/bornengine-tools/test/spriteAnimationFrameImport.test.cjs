@@ -88,6 +88,7 @@ test('Add Images returns every selected image and copies external images into th
   const schema = {
     validateSpriteAnimationDocument: (input) => ({ ok: true, value: input, diagnostics: [] }),
     validateSpriteSheetCharacterMetadata: (input) => ({ ok: true, value: input, diagnostics: [] }),
+    spriteAnimationClipFrameLists: (clip, clipPath) => clip.frames === undefined ? [] : [{ path: `${clipPath}/frames`, frames: clip.frames }],
   };
   const creation = {
     createSpriteAnimationAssets() {},

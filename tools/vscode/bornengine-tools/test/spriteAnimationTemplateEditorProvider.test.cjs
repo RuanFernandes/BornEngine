@@ -22,6 +22,7 @@ function loadProvider(mocks) {
   const localRequire = createRequire(filePath);
   const defaults = {
     './spriteAnimationTemplateSchema': {
+      spriteAnimationTemplateSource: (value) => value,
       validateSpriteAnimationTemplate: (value) => ({ ok: true, value, diagnostics: [] }),
       validateSpriteAnimationTemplateBinding: () => ({ ok: true, diagnostics: [] }),
       readSpriteAnimationTemplate: (sourceText) => ({ sourceText, result: { ok: true, value: JSON.parse(sourceText), diagnostics: [] } }),
@@ -73,6 +74,7 @@ test('template editor keeps preview images transient and saves compact validated
   let opens = [];
   const api = loadProvider({
     './spriteAnimationTemplateSchema': {
+      spriteAnimationTemplateSource: (value) => value,
       validateSpriteAnimationTemplate: (value) => ({ ok: true, value, diagnostics: [] }),
       validateSpriteAnimationTemplateBinding: () => ({ ok: true, diagnostics: [] }),
       readSpriteAnimationTemplate: (sourceText) => {

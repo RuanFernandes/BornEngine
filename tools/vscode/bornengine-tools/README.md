@@ -21,6 +21,12 @@ Invalid JSON or schema data stays unchanged and appears in the Problems panel. M
 - Add a clip, set its name, FPS, and loop mode (`loop`, `once`, or `ping-pong`), then use Play, Pause, Reset, and the frame slider to inspect it.
 - Build a sequence from multiple images or crop frames from a sprite sheet. A frame can also contain multiple ordered image layers. Adjust each layer's offset, stretch, zoom, rotation, visibility, and pivot independently.
 - Source metadata and images remain unchanged. Animation settings use VS Code's normal save, undo, and redo history.
+- Enable **4 directions** on a clip to store separate frames for up, left, down, and right (`directions` in JSON). Switch the edited direction with the direction pad or W, A, S, D; **Copy this direction to** with **Mirror** builds the opposite side. Games select the variant with `animator.setDir(0–3)`.
+- Shortcuts: Space plays or pauses, ←/→ step frames, Home/End jump, Delete removes the selected frame. Drag frames in the timeline to reorder them; drag on the sprite sheet to crop.
+
+## BornEngine CLI shortcuts
+
+The **BornEngine CLI** group in the BornEngine view (and **BornEngineTools: Run BornEngine CLI Command…** or the terminal button in the view title) runs `bornengine` commands in an integrated terminal rooted at the project: dev with watch, run, build for an OS, Perry check, asset validation, engine upgrade, engine version, create server, add AI docs, clean, doctor, and info. Run, dev, build, and check use `[project] entry` from `perry.toml` (default `main.ts`). Set `bornengineTools.cliPath` when `bornengine` is not on `PATH`.
 
 ## JSON blueprints
 

@@ -90,7 +90,14 @@ function loadTreeProvider(servers) {
       CREATE_SPRITE_ANIMATION_COMMAND: 'bornengine.createSpriteAnimation',
       CREATE_SPRITE_ANIMATION_TEMPLATE_COMMAND: 'bornengine.createSpriteAnimationTemplate',
       CREATE_WORLD2D_COMMAND: 'bornengineTools.createWorld2D',
+      RUN_BORNENGINE_CLI_COMMAND: 'bornengineTools.runCli',
       WORLD2D_EDITOR_VIEW_TYPE: 'bornengineTools.world2dEditor',
+    },
+    '../cli/bornEngineCli': {
+      BORNENGINE_CLI_SHORTCUTS: [
+        { id: 'dev', label: 'Dev (watch)', description: 'bornengine dev --watch', icon: 'debug-start' },
+        { id: 'upgrade', label: 'Upgrade engine…', description: 'bornengine upgrade', icon: 'arrow-circle-up' },
+      ],
     },
     '../shared/workspaceAssets': {
       workspaceFolderForDocument: (uri, folders) => folders.find((folder) => uri.path.startsWith(folder.uri.path)) ?? null,
@@ -110,9 +117,13 @@ function loadTreeProvider(servers) {
     event() { return { dispose() {} }; }
     fire() {}
   }
+  class ThemeIcon {
+    constructor(id) { this.id = id; }
+  }
   const api = {
     TreeItem,
-    TreeItemCollapsibleState: { None: 0, Collapsed: 1 },
+    ThemeIcon,
+    TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
     EventEmitter,
     Uri: { joinPath: (base, ...parts) => makeUri(path.posix.join(base.path, ...parts)) },
     workspace: {
@@ -312,4 +323,19 @@ test('shows each valid server destination in the BornEngine tools tree', async (
 
   assert.deepEqual(serverItems.map((item) => item.label), ['server', 'backend']);
   assert.deepEqual(serverItems.map((item) => item.description), ['server', 'services/backend']);
+});
+
+test('lists BornEngine CLI shortcuts that run in the selected workspace', async () => {
+  const { provider } = loadTreeProvider([]);
+  const [workspaceItem] = await provider.getChildren();
+  const rootItems = await provider.getChildren(workspaceItem);
+  const cliItem = rootItems.find((item) => item.label === 'BornEngine CLI');
+  assert.ok(cliItem);
+  assert.equal(cliItem.iconPath.id, 'terminal');
+  const shortcuts = await provider.getChildren(cliItem);
+
+  assert.deepEqual(shortcuts.map((item) => item.label), ['Dev (watch)', 'Upgrade engine…']);
+  assert.equal(shortcuts[0].command.command, 'bornengineTools.runCli');
+  assert.deepEqual(shortcuts[0].command.arguments, [workspaceItem.resourceUri, 'dev']);
+  assert.equal(shortcuts[1].iconPath.id, 'arrow-circle-up');
 });

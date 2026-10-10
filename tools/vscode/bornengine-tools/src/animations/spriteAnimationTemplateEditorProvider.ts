@@ -3,6 +3,7 @@ import path from 'node:path';
 import type * as vscode from 'vscode';
 import {
   readSpriteAnimationTemplate,
+  spriteAnimationTemplateSource,
   validateSpriteAnimationTemplateBinding,
   validateSpriteAnimationTemplate,
 } from './spriteAnimationTemplateSchema';
@@ -113,7 +114,7 @@ export class SpriteAnimationTemplateTextEditorProvider implements vscode.CustomT
         for (const image of images) {
           const binding: Record<string, { width: number; height: number }> = Object.create(null);
           binding[parameterId] = image.size;
-          const checked = validateSpriteAnimationTemplateBinding(template, binding);
+          const checked = validateSpriteAnimationTemplateBinding(spriteAnimationTemplateSource(template), binding);
           for (const item of checked.diagnostics) {
             if (item.code === 'binding.crop') diagnostics.push({ ...item, message: `${image.name}: ${item.message}` });
           }
@@ -140,7 +141,7 @@ export class SpriteAnimationTemplateTextEditorProvider implements vscode.CustomT
       await panel.webview.postMessage({
         type: 'document',
         mode: 'template',
-        template: state.template,
+        template: state.template === null ? null : spriteAnimationTemplateSource(state.template),
         editable: state.editable,
         dirty: document.isDirty,
         diagnostics: diagnosticsText(state.diagnostics),
@@ -242,7 +243,7 @@ export class SpriteAnimationTemplateTextEditorProvider implements vscode.CustomT
       }
       const cropDiagnostics = previewCropDiagnostics(result.value, nextPreviewImages);
       if (cropDiagnostics.length > 0) throw new Error(diagnosticsText(cropDiagnostics));
-      const nextText = serializeSpriteAnimationJsonCompact(result.value);
+      const nextText = serializeSpriteAnimationJsonCompact(spriteAnimationTemplateSource(result.value));
       latestExternalTextDuringApply = null;
       const applied = await applyWorkspaceText(nextText);
       if (!applied) throw new Error('VS Code did not apply the animation template edit.');

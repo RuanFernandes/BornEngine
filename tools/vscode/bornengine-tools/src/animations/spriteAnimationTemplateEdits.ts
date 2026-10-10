@@ -1,4 +1,22 @@
-import type { SpriteAnimationTemplate } from './spriteAnimationTemplateSchema';
+import {
+  ANIMATION_DIRECTIONS,
+  DEFAULT_ANIMATION_DIRECTION,
+  copyClipDirection,
+  getClipFrameList,
+  setClipDirectional,
+  withClipFrameList,
+} from './animationDirections';
+import type { AnimationDirection } from './animationDirections';
+import type {
+  SpriteAnimationTemplate,
+  SpriteAnimationTemplateClip,
+  SpriteAnimationTemplateFrame,
+  SpriteAnimationTemplateLayer,
+} from './spriteAnimationTemplateSchema';
+
+type TemplateClip = SpriteAnimationTemplateClip;
+type TemplateFrame = SpriteAnimationTemplateFrame;
+type TemplateLayer = SpriteAnimationTemplateLayer;
 
 function findClip(template: SpriteAnimationTemplate, clipName: string) {
   const clip = template.clips.find((candidate) => candidate.name === clipName);
@@ -6,26 +24,59 @@ function findClip(template: SpriteAnimationTemplate, clipName: string) {
   return clip;
 }
 
-function findFrame(template: SpriteAnimationTemplate, clipName: string, frameIndex: number) {
+/** Every frame list of a clip: its frames, or all four directions. */
+function allFrameLists(clip: TemplateClip): readonly (readonly TemplateFrame[])[] {
+  if (clip.directions !== undefined) return ANIMATION_DIRECTIONS.map((direction) => clip.directions![direction]);
+  return [clip.frames ?? []];
+}
+
+function mapAllFrames(clip: TemplateClip, update: (frame: TemplateFrame) => TemplateFrame): TemplateClip {
+  if (clip.directions !== undefined) {
+    let next = clip;
+    for (const direction of ANIMATION_DIRECTIONS) {
+      next = withClipFrameList(next, direction, clip.directions[direction].map(update));
+    }
+    return next;
+  }
+  return withClipFrameList(clip, DEFAULT_ANIMATION_DIRECTION, (clip.frames ?? []).map(update));
+}
+
+function updateClipFrames(
+  template: SpriteAnimationTemplate,
+  clipName: string,
+  direction: AnimationDirection,
+  update: (frames: readonly TemplateFrame[]) => readonly TemplateFrame[],
+): SpriteAnimationTemplate {
+  return {
+    ...template,
+    clips: template.clips.map((clip) => clip.name !== clipName
+      ? clip
+      : withClipFrameList(clip, direction, update(getClipFrameList(clip, direction)))),
+  };
+}
+
+function findFrame(
+  template: SpriteAnimationTemplate,
+  clipName: string,
+  frameIndex: number,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
+) {
   const clip = findClip(template, clipName);
-  const frame = clip.frames[frameIndex];
+  const frames = getClipFrameList(clip, direction);
+  const frame = frames[frameIndex];
   if (!frame) throw new Error(`Unknown frame ${frameIndex} in clip: ${clipName}`);
-  return { clip, frame };
+  return { clip, frames, frame };
 }
 
 function replaceFrame(
   template: SpriteAnimationTemplate,
   clipName: string,
   frameIndex: number,
-  update: (frame: SpriteAnimationTemplate['clips'][number]['frames'][number]) => SpriteAnimationTemplate['clips'][number]['frames'][number],
+  update: (frame: TemplateFrame) => TemplateFrame,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  return {
-    ...template,
-    clips: template.clips.map((clip) => clip.name !== clipName ? clip : {
-      ...clip,
-      frames: clip.frames.map((frame, index) => index === frameIndex ? update(frame) : frame),
-    }),
-  };
+  return updateClipFrames(template, clipName, direction,
+    (frames) => frames.map((frame, index) => index === frameIndex ? update(frame) : frame));
 }
 
 export function addSpriteAnimationTemplateClip(
@@ -78,24 +129,23 @@ export function removeSpriteAnimationTemplateClip(
 export function addSpriteAnimationTemplateFrame(
   template: SpriteAnimationTemplate,
   clipName: string,
-  frame: SpriteAnimationTemplate['clips'][number]['frames'][number],
+  frame: TemplateFrame,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
   findClip(template, clipName);
-  return {
-    ...template,
-    clips: template.clips.map((clip) => clip.name === clipName ? { ...clip, frames: [...clip.frames, frame] } : clip),
-  };
+  return updateClipFrames(template, clipName, direction, (frames) => [...frames, frame]);
 }
 
 export function updateSpriteAnimationTemplateFrame(
   template: SpriteAnimationTemplate,
   clipName: string,
   frameIndex: number,
-  update: Partial<SpriteAnimationTemplate['clips'][number]['frames'][number]>,
+  update: Partial<TemplateFrame>,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { frame } = findFrame(template, clipName, frameIndex);
+  const { frame } = findFrame(template, clipName, frameIndex, direction);
   return replaceFrame(template, clipName, frameIndex, (current) => ({ ...frame, ...current, ...update,
-    layers: update.layers === undefined ? current.layers : update.layers.map((layer) => ({ ...layer })) }));
+    layers: update.layers === undefined ? current.layers : update.layers.map((layer) => ({ ...layer })) }), direction);
 }
 
 export function moveSpriteAnimationTemplateFrame(
@@ -103,29 +153,72 @@ export function moveSpriteAnimationTemplateFrame(
   clipName: string,
   frameIndex: number,
   delta: number,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { clip } = findFrame(template, clipName, frameIndex);
-  return {
-    ...template,
-    clips: template.clips.map((candidate) => candidate.name === clipName
-      ? { ...candidate, frames: moveItem(clip.frames, frameIndex, delta) }
-      : candidate),
-  };
+  findFrame(template, clipName, frameIndex, direction);
+  return updateClipFrames(template, clipName, direction, (frames) => moveItem(frames, frameIndex, delta));
 }
 
 export function removeSpriteAnimationTemplateFrame(
   template: SpriteAnimationTemplate,
   clipName: string,
   frameIndex: number,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { clip, frame } = findFrame(template, clipName, frameIndex);
-  if (!frame) throw new Error(`Unknown frame ${frameIndex} in clip: ${clipName}`);
-  if (clip.frames.length <= 1) throw new Error('A clip needs at least one frame.');
+  const { frames } = findFrame(template, clipName, frameIndex, direction);
+  if (frames.length <= 1) throw new Error('A clip needs at least one frame.');
+  return updateClipFrames(template, clipName, direction,
+    (current) => current.filter((_item, index) => index !== frameIndex));
+}
+
+/** Turns per-direction frames on (copying the current frames to all four directions) or off (keeping one). */
+export function setSpriteAnimationTemplateClipDirectional(
+  template: SpriteAnimationTemplate,
+  clipName: string,
+  directional: boolean,
+  keep: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
+): SpriteAnimationTemplate {
+  findClip(template, clipName);
   return {
     ...template,
-    clips: template.clips.map((candidate) => candidate.name === clipName
-      ? { ...candidate, frames: candidate.frames.filter((_item, index) => index !== frameIndex) }
-      : candidate),
+    clips: template.clips.map((clip) => clip.name === clipName ? setClipDirectional(clip, directional, keep) : clip),
+  };
+}
+
+/** Replaces one direction with a copy of another. Mirroring flips each layer horizontally around the canvas. */
+export function copySpriteAnimationTemplateDirection(
+  template: SpriteAnimationTemplate,
+  clipName: string,
+  from: AnimationDirection,
+  to: AnimationDirection,
+  mirror = false,
+): SpriteAnimationTemplate {
+  const clip = findClip(template, clipName);
+  if (clip.directions === undefined) throw new Error(`Clip ${clipName} does not use directions.`);
+  return {
+    ...template,
+    clips: template.clips.map((candidate) => candidate.name !== clipName ? candidate
+      : copyClipDirection(candidate, from, to, (frame: TemplateFrame) => mirror ? mirrorTemplateFrame(frame) : frame)),
+  };
+}
+
+function mirrorTemplateFrame(frame: TemplateFrame): TemplateFrame {
+  return {
+    ...frame,
+    layers: frame.layers.map((layer) => {
+      const transform = layer.transform ?? {};
+      const offset = transform.offset ?? { x: 0, y: 0 };
+      const stretch = transform.stretch ?? { x: 1, y: 1 };
+      return {
+        ...layer,
+        transform: {
+          ...transform,
+          offset: { x: offset.x === 0 ? 0 : -offset.x, y: offset.y },
+          stretch: { x: -stretch.x, y: stretch.y },
+          rotation: (transform.rotation ?? 0) === 0 ? 0 : -(transform.rotation ?? 0),
+        },
+      };
+    }),
   };
 }
 
@@ -164,13 +257,10 @@ export function updateSpriteAnimationTemplateParameter(
   const nextParameters = template.imageParameters.map((candidate) => candidate.id === parameterId
     ? { ...candidate, ...update, tags: update.tags === undefined ? candidate.tags : [...update.tags] }
     : candidate);
-  const nextClips = nextId === parameterId ? template.clips : template.clips.map((clip) => ({
-    ...clip,
-    frames: clip.frames.map((frame) => ({
-      ...frame,
-      layers: frame.layers.map((layer) => layer.parameter === parameterId ? { ...layer, parameter: nextId } : layer),
-    })),
-  }));
+  const nextClips = nextId === parameterId ? template.clips : template.clips.map((clip) => mapAllFrames(clip, (frame) => ({
+    ...frame,
+    layers: frame.layers.map((layer) => layer.parameter === parameterId ? { ...layer, parameter: nextId } : layer),
+  })));
   return { ...template, imageParameters: nextParameters, clips: nextClips };
 }
 
@@ -192,7 +282,8 @@ export function removeSpriteAnimationTemplateParameter(
     throw new Error(`Unknown animation template parameter: ${parameterId}`);
   }
   if (template.imageParameters.length <= 1) throw new Error('An animation template needs at least one image parameter.');
-  const stillUsed = template.clips.some((clip) => clip.frames.some((frame) => frame.layers.some((layer) => layer.parameter === parameterId)));
+  const stillUsed = template.clips.some((clip) => allFrameLists(clip).some((frames) =>
+    frames.some((frame) => frame.layers.some((layer) => layer.parameter === parameterId))));
   if (stillUsed) throw new Error(`Reassign or remove layers that still use parameter ${parameterId} before removing it.`);
   return { ...template, imageParameters: template.imageParameters.filter((parameter) => parameter.id !== parameterId) };
 }
@@ -218,16 +309,17 @@ export function addSpriteAnimationTemplateLayer(
   template: SpriteAnimationTemplate,
   clipName: string,
   frameIndex: number,
-  layer: SpriteAnimationTemplate['clips'][number]['frames'][number]['layers'][number],
+  layer: TemplateLayer,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { frame } = findFrame(template, clipName, frameIndex);
+  const { frame } = findFrame(template, clipName, frameIndex, direction);
   if (!template.imageParameters.some((parameter) => parameter.id === layer.parameter)) {
     throw new Error(`Unknown animation template parameter: ${layer.parameter}`);
   }
   return replaceFrame(template, clipName, frameIndex, (current) => ({
     ...current,
     layers: [...current.layers, { ...layer, source: { ...layer.source }, transform: layer.transform ? { ...layer.transform } : undefined }],
-  }));
+  }), direction);
 }
 
 export function updateSpriteAnimationTemplateLayer(
@@ -235,9 +327,10 @@ export function updateSpriteAnimationTemplateLayer(
   clipName: string,
   frameIndex: number,
   layerIndex: number,
-  update: Partial<SpriteAnimationTemplate['clips'][number]['frames'][number]['layers'][number]>,
+  update: Partial<TemplateLayer>,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { frame } = findFrame(template, clipName, frameIndex);
+  const { frame } = findFrame(template, clipName, frameIndex, direction);
   if (!frame.layers[layerIndex]) throw new Error(`Unknown layer ${layerIndex} in frame ${frameIndex}.`);
   if (update.parameter !== undefined && !template.imageParameters.some((parameter) => parameter.id === update.parameter)) {
     throw new Error(`Unknown animation template parameter: ${update.parameter}`);
@@ -250,7 +343,7 @@ export function updateSpriteAnimationTemplateLayer(
       source: update.source === undefined ? layer.source : { ...update.source },
       transform: update.transform === undefined ? layer.transform : { ...update.transform },
     }),
-  }));
+  }), direction);
 }
 
 export function moveSpriteAnimationTemplateLayer(
@@ -259,13 +352,14 @@ export function moveSpriteAnimationTemplateLayer(
   frameIndex: number,
   layerIndex: number,
   delta: number,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { frame } = findFrame(template, clipName, frameIndex);
+  const { frame } = findFrame(template, clipName, frameIndex, direction);
   if (!frame.layers[layerIndex]) throw new Error(`Unknown layer ${layerIndex} in frame ${frameIndex}.`);
   return replaceFrame(template, clipName, frameIndex, (current) => ({
     ...current,
     layers: moveItem(current.layers, layerIndex, delta),
-  }));
+  }), direction);
 }
 
 export function removeSpriteAnimationTemplateLayer(
@@ -273,12 +367,13 @@ export function removeSpriteAnimationTemplateLayer(
   clipName: string,
   frameIndex: number,
   layerIndex: number,
+  direction: AnimationDirection = DEFAULT_ANIMATION_DIRECTION,
 ): SpriteAnimationTemplate {
-  const { frame } = findFrame(template, clipName, frameIndex);
+  const { frame } = findFrame(template, clipName, frameIndex, direction);
   if (!frame.layers[layerIndex]) throw new Error(`Unknown layer ${layerIndex} in frame ${frameIndex}.`);
   if (frame.layers.length <= 1) throw new Error('A frame needs at least one layer.');
   return replaceFrame(template, clipName, frameIndex, (current) => ({
     ...current,
     layers: current.layers.filter((_layer, index) => index !== layerIndex),
-  }));
+  }), direction);
 }
