@@ -10,8 +10,19 @@ export interface SpriteKeyframe {
   readonly markers?: readonly string[];
 }
 
+/** Per-direction keyframes. Directions follow Graal `dir` order: 0 up, 1 left, 2 down, 3 right. */
+export interface SpriteAnimationDirectionalFrames {
+  readonly up: readonly SpriteKeyframe[];
+  readonly left: readonly SpriteKeyframe[];
+  readonly down: readonly SpriteKeyframe[];
+  readonly right: readonly SpriteKeyframe[];
+}
+
 export interface SpriteAnimationOptions {
-  readonly frames: readonly SpriteKeyframe[];
+  /** Keyframes of a non-directional clip. Mutually exclusive with directions. */
+  readonly frames?: readonly SpriteKeyframe[];
+  /** Keyframes per direction. SpriteAnimator.dir selects the variant that plays. */
+  readonly directions?: SpriteAnimationDirectionalFrames;
   readonly fps?: number;
   readonly loop?: SpriteAnimationLoop;
 }
@@ -35,7 +46,11 @@ export interface SpriteAnimationPlaybackClip {
   readonly duration: number;
   readonly error: string | null;
   readonly frames: readonly SpriteAnimationPlaybackFrame[];
+  /** Variants indexed by dir (0 up, 1 left, 2 down, 3 right); null when the clip has no directions. */
+  readonly directions: readonly SpriteAnimationPlaybackClip[] | null;
 }
+
+const DIRECTION_NAMES = ['up', 'left', 'down', 'right'];
 
 function isFiniteNumber(value: number): boolean {
   return value === value && value !== Infinity && value !== -Infinity;
@@ -56,6 +71,7 @@ export class SpriteAnimation {
   private fpsValue = 12;
   private loopValue: SpriteAnimationLoop = 'loop';
   private durationValue = 0;
+  private directionClips: SpriteAnimation[] | null = null;
 
   constructor(options: SpriteAnimationOptions) {
     const settings: SpriteAnimationOptions = options === null || options === undefined ? { frames: [] } : options;
@@ -69,7 +85,11 @@ export class SpriteAnimation {
       this.frameError = 'SpriteAnimation loop must be loop, once, or ping-pong.';
       return;
     }
-    if (!isArray(settings.frames) || settings.frames.length === 0) {
+    if (settings.directions !== undefined) {
+      this.buildDirections(settings);
+      return;
+    }
+    if (settings.frames === undefined || !isArray(settings.frames) || settings.frames.length === 0) {
       this.frameError = 'SpriteAnimation requires at least one keyframe.';
       return;
     }
@@ -136,5 +156,35 @@ export class SpriteAnimation {
   }
   get frames(): readonly ResolvedSpriteKeyframe[] {
     return this.resolvedFrames;
+  }
+  /** Variants indexed by dir; frames mirror the down (dir 2) variant. */
+  get directions(): readonly SpriteAnimation[] | null {
+    return this.directionClips;
+  }
+
+  private buildDirections(settings: SpriteAnimationOptions): void {
+    const directions = settings.directions;
+    if (settings.frames !== undefined) {
+      this.frameError = 'SpriteAnimation cannot define both frames and directions.';
+      return;
+    }
+    if (directions === null || directions === undefined || typeof directions !== 'object') {
+      this.frameError = 'SpriteAnimation directions must define up, left, down, and right keyframes.';
+      return;
+    }
+    const lists = [directions.up, directions.left, directions.down, directions.right];
+    const clips: SpriteAnimation[] = [];
+    for (let dir = 0; dir < lists.length; dir++) {
+      const clip = new SpriteAnimation({ frames: lists[dir], fps: this.fpsValue, loop: this.loopValue });
+      if (clip.error !== null) {
+        this.frameError = 'SpriteAnimation direction ' + DIRECTION_NAMES[dir] + ': ' + clip.error;
+        return;
+      }
+      clips.push(clip);
+    }
+    const defaultClip = clips[2];
+    this.directionClips = clips;
+    this.resolvedFrames = defaultClip.resolvedFrames;
+    this.durationValue = defaultClip.durationValue;
   }
 }

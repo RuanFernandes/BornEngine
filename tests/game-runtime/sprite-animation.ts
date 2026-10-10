@@ -369,4 +369,32 @@ const malformedStates: any = {};
 const malformedAnimator = new SpriteAnimator(machineSprite, { clips: { idle }, states: malformedStates });
 expect(malformedAnimator.error !== null, 'malformed state collections fail without throwing');
 
+const walk = new SpriteAnimation({
+  directions: {
+    up: [{ sprite: frameA, duration: 0.1 }, { sprite: frameB, duration: 0.1 }],
+    left: [{ sprite: frameC, duration: 0.1 }],
+    down: [{ sprite: frameD, duration: 0.1 }, { sprite: frameE, duration: 0.1 }],
+    right: [{ sprite: frameE, duration: 0.1 }, { sprite: frameA, duration: 0.1 }],
+  },
+});
+expect(walk.error === null && walk.directions !== null && walk.directions.length === 4 &&
+  walk.frames[0].sprite === frameD,
+  'directional animations build one variant per dir and expose down as default frames');
+expect(new SpriteAnimation({ frames: [{ sprite: frameA }], directions: walk.directions === null ? undefined : {
+  up: [{ sprite: frameA }], left: [{ sprite: frameA }], down: [{ sprite: frameA }], right: [{ sprite: frameA }],
+} }).error !== null, 'frames and directions are mutually exclusive');
+expect(new SpriteAnimation({ directions: { up: [], left: [{ sprite: frameA }], down: [{ sprite: frameA }],
+  right: [{ sprite: frameA }] } }).error !== null, 'every direction needs keyframes');
+const dirSprite = new SpriteRenderer(frameA);
+const dirAnimator = new SpriteAnimator(dirSprite, { clips: { walk } });
+expect(dirAnimator.error === null && dirAnimator.dir === 2, 'animators default to dir 2 (down)');
+dirAnimator.play('walk');
+dirAnimator.update(0.15);
+expect(dirSprite.frame === frameE && dirAnimator.currentFrameIndex === 1, 'directional clips play the current dir');
+expect(dirAnimator.setDir(0) && dirSprite.frame === frameB && dirAnimator.currentFrameIndex === 1,
+  'setDir swaps frames at the same index without restarting');
+expect(dirAnimator.setDir(1) && dirSprite.frame === frameC && dirAnimator.currentFrameIndex === 0,
+  'setDir clamps to shorter directions');
+expect(!dirAnimator.setDir(-1) && dirAnimator.dir === 1, 'setDir rejects invalid dirs');
+
 console.log('PASS: sprite animation and state machine');

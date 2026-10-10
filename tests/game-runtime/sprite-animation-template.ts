@@ -308,4 +308,67 @@ pingAnimator.update(0.2);
 expect(pingAnimator.currentFrameIndex === 0,
   'ping-pong playback reverses the composite frame sequence on its shared playhead');
 
+const dirFrame = (x: number, duration?: number) => ({
+  ...(duration === undefined ? {} : { duration }),
+  layers: [{ parameter: 'body_art', source: { x, y: 0, width: 8, height: 8 } }],
+});
+const directionalData = {
+  ...runtimeTemplateData,
+  id: 'directional-template',
+  name: 'Directional Template',
+  clips: [
+    {
+      name: 'idle',
+      fps: 10,
+      loop: 'loop',
+      canvasSize: { width: 8, height: 8 },
+      directions: {
+        up: [dirFrame(0), dirFrame(8)],
+        left: [dirFrame(16)],
+        down: [dirFrame(24), dirFrame(32)],
+        right: [dirFrame(40), dirFrame(48)],
+      },
+    },
+  ],
+};
+const directionalTemplate = new SpriteAnimationTemplateAsset(directionalData);
+expect(directionalTemplate.error === null &&
+  directionalTemplate.definition?.clips[0].frames[0].layers[0].source.x === 24,
+  'directional clips validate and expose the down direction as their default frames');
+expect(new SpriteAnimationTemplateAsset({
+  ...directionalData,
+  clips: [{ ...directionalData.clips[0], frames: [dirFrame(0)] }],
+}).error !== null, 'a clip cannot define both frames and directions');
+expect(new SpriteAnimationTemplateAsset({
+  ...directionalData,
+  clips: [{ ...directionalData.clips[0], directions: { up: [dirFrame(0)], left: [dirFrame(0)], down: [dirFrame(0)] } }],
+}).error !== null, 'directional clips require all four directions');
+expect(!directionalTemplate.bind({ body_art: makeTexture('narrow', 40, 8) }).ok,
+  'binding checks crops in every direction, not only the default one');
+const directionalBinding = directionalTemplate.bind({ body_art: baseA });
+expect(directionalBinding.ok, 'directional clips bind to image parameters');
+if (!directionalBinding.ok) process.exit(1);
+const idleClip = directionalBinding.value.clips.idle;
+expect(idleClip.directions !== null && idleClip.directions.length === 4 &&
+  idleClip.directions[0].frames[0].layers[0].sprite.source.x === 0 &&
+  idleClip.directions[3].frames[1].layers[0].sprite.source.x === 48,
+  'bound directional clips expose one variant per dir in up, left, down, right order');
+const dirRenderer = new SpriteAnimationTemplateRenderer(directionalBinding.value);
+const dirAnimator = new SpriteAnimator(dirRenderer, { clips: directionalBinding.value.clips });
+expect(dirAnimator.error === null && dirAnimator.dir === 2, 'animators accept directional clips and default to dir 2');
+dirAnimator.play('idle');
+expect(dirAnimator.currentClipData === idleClip.directions?.[2], 'play uses the variant for the current dir');
+dirAnimator.update(0.15);
+expect(dirAnimator.setDir(3) && dirAnimator.currentClipData === idleClip.directions?.[3] &&
+  dirAnimator.currentFrameIndex === 1 && Math.abs(dirAnimator.currentTime - 0.15) < 1e-9,
+  'changing dir keeps the frame index and elapsed time');
+expect(dirAnimator.setDir(1) && dirAnimator.currentFrameIndex === 0,
+  'changing to a shorter direction clamps the frame index');
+expect(!dirAnimator.setDir(4) && !dirAnimator.setDir(1.5) && dirAnimator.dir === 1,
+  'setDir rejects values outside 0..3');
+dirAnimator.setDir(0);
+dirAnimator.play('idle', { restart: true });
+expect(dirAnimator.currentClipData === idleClip.directions?.[0] && dirAnimator.currentFrameIndex === 0,
+  'restarting a directional clip uses the current dir');
+
 console.log('PASS: sprite animation template binding and playback');

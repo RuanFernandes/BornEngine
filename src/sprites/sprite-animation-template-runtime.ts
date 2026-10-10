@@ -13,7 +13,13 @@ import type {
   ResolvedSpriteAnimationTemplateLayer,
   SpriteAnimationTemplateDiagnostic,
 } from './sprite-animation-template';
-import { validateSpriteAnimationTemplate, validateSpriteAnimationTemplateBinding } from './sprite-animation-template';
+import {
+  clipFrameLists,
+  SPRITE_ANIMATION_DEFAULT_DIR,
+  spriteAnimationTemplateSource,
+  validateSpriteAnimationTemplate,
+  validateSpriteAnimationTemplateBinding,
+} from './sprite-animation-template';
 import type {
   SpriteAnimationLoop,
   SpriteAnimationPlaybackClip,
@@ -55,9 +61,16 @@ export class SpriteAnimationTemplateBoundClip implements SpriteAnimationPlayback
   readonly duration: number;
   readonly canvasSize: ResolvedSpriteAnimationTemplateClip['canvasSize'];
   readonly frames: readonly SpriteAnimationTemplateBoundFrame[];
+  /** Per-direction variants indexed by dir (0 up, 1 left, 2 down, 3 right); null for plain clips. */
+  readonly directions: readonly SpriteAnimationTemplateBoundClip[] | null;
 
-  constructor(clip: ResolvedSpriteAnimationTemplateClip, frames: readonly SpriteAnimationTemplateBoundFrame[]) {
+  constructor(
+    clip: ResolvedSpriteAnimationTemplateClip,
+    frames: readonly SpriteAnimationTemplateBoundFrame[],
+    directions: readonly SpriteAnimationTemplateBoundClip[] | null = null,
+  ) {
     this.name = clip.name;
+    this.directions = directions === null ? null : Object.freeze(directions.slice());
     this.fps = clip.fps;
     this.loop = clip.loop;
     this.canvasSize = Object.freeze({ width: clip.canvasSize.width, height: clip.canvasSize.height });
@@ -187,7 +200,7 @@ export class SpriteAnimationTemplateAsset {
     }
 
     const bindingCheck = validateSpriteAnimationTemplateBinding(
-      template,
+      spriteAnimationTemplateSource(template),
       imageSizesWithUnknownKeys(images, imageSizes),
     );
     if (!bindingCheck.ok) diagnostics.push(...bindingCheck.diagnostics);
@@ -219,14 +232,17 @@ export class SpriteAnimationTemplateAsset {
       boundTextures.push(texture);
       const definitions: { name: string; source: Rect }[] = [];
       for (let clipIndex = 0; clipIndex < template.clips.length; clipIndex++) {
-        const clip = template.clips[clipIndex];
-        for (let frameIndex = 0; frameIndex < clip.frames.length; frameIndex++) {
-          const frame = clip.frames[frameIndex];
-          for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
-            const layer = frame.layers[layerIndex];
-            if (layer.parameter !== parameter.id) continue;
-            const name = layerFrameName(clipIndex, frameIndex, layerIndex);
-            definitions.push({ name, source: layer.source });
+        const frameLists = clipFrameLists(template.clips[clipIndex]);
+        for (let listIndex = 0; listIndex < frameLists.length; listIndex++) {
+          const frames = frameLists[listIndex].frames;
+          for (let frameIndex = 0; frameIndex < frames.length; frameIndex++) {
+            const frame = frames[frameIndex];
+            for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
+              const layer = frame.layers[layerIndex];
+              if (layer.parameter !== parameter.id) continue;
+              const name = layerFrameName(clipIndex, listIndex, frameIndex, layerIndex);
+              definitions.push({ name, source: layer.source });
+            }
           }
         }
       }
@@ -239,23 +255,27 @@ export class SpriteAnimationTemplateAsset {
       }
       sheets.push(sheet);
       for (let clipIndex = 0; clipIndex < template.clips.length; clipIndex++) {
-        const clip = template.clips[clipIndex];
-        for (let frameIndex = 0; frameIndex < clip.frames.length; frameIndex++) {
-          const frame = clip.frames[frameIndex];
-          for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
-            const layer = frame.layers[layerIndex];
-            if (layer.parameter !== parameter.id) continue;
-            const frameObject = sheet.getFrame(layerFrameName(clipIndex, frameIndex, layerIndex));
-            if (frameObject === null) {
-              return bindingFailure([
-                {
-                  path: `/clips/${clipIndex}/frames/${frameIndex}/layers/${layerIndex}`,
-                  code: 'binding.frame',
-                  message: 'Could not construct a SpriteFrame for the bound animation layer.',
-                },
-              ]);
+        const frameLists = clipFrameLists(template.clips[clipIndex]);
+        for (let listIndex = 0; listIndex < frameLists.length; listIndex++) {
+          const frameList = frameLists[listIndex];
+          for (let frameIndex = 0; frameIndex < frameList.frames.length; frameIndex++) {
+            const frame = frameList.frames[frameIndex];
+            for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
+              const layer = frame.layers[layerIndex];
+              if (layer.parameter !== parameter.id) continue;
+              const frameObject = sheet.getFrame(layerFrameName(clipIndex, listIndex, frameIndex, layerIndex));
+              if (frameObject === null) {
+                const listPath = frameList.direction === null ? 'frames' : `directions/${frameList.direction}`;
+                return bindingFailure([
+                  {
+                    path: `/clips/${clipIndex}/${listPath}/${frameIndex}/layers/${layerIndex}`,
+                    code: 'binding.frame',
+                    message: 'Could not construct a SpriteFrame for the bound animation layer.',
+                  },
+                ]);
+              }
+              framesByKey.set(layerFrameKey(clipIndex, listIndex, frameIndex, layerIndex), frameObject);
             }
-            framesByKey.set(layerFrameKey(clipIndex, frameIndex, layerIndex), frameObject);
           }
         }
       }
@@ -264,23 +284,41 @@ export class SpriteAnimationTemplateAsset {
     const clips: Record<string, SpriteAnimationTemplateBoundClip> = Object.create(null);
     for (let clipIndex = 0; clipIndex < template.clips.length; clipIndex++) {
       const clip = template.clips[clipIndex];
-      const frames: SpriteAnimationTemplateBoundFrame[] = [];
-      for (let frameIndex = 0; frameIndex < clip.frames.length; frameIndex++) {
-        const frame = clip.frames[frameIndex];
-        const layers: SpriteAnimationTemplateBoundLayer[] = [];
-        for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
-          const layer = frame.layers[layerIndex];
-          const sprite = framesByKey.get(layerFrameKey(clipIndex, frameIndex, layerIndex));
-          if (sprite === undefined) continue;
-          layers.push({ ...layer, sprite });
+      const frameLists = clipFrameLists(clip);
+      const boundLists: SpriteAnimationTemplateBoundFrame[][] = [];
+      for (let listIndex = 0; listIndex < frameLists.length; listIndex++) {
+        const sourceFrames = frameLists[listIndex].frames;
+        const frames: SpriteAnimationTemplateBoundFrame[] = [];
+        for (let frameIndex = 0; frameIndex < sourceFrames.length; frameIndex++) {
+          const frame = sourceFrames[frameIndex];
+          const layers: SpriteAnimationTemplateBoundLayer[] = [];
+          for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
+            const layer = frame.layers[layerIndex];
+            const sprite = framesByKey.get(layerFrameKey(clipIndex, listIndex, frameIndex, layerIndex));
+            if (sprite === undefined) continue;
+            layers.push({ ...layer, sprite });
+          }
+          frames.push({
+            duration: frame.duration === undefined ? 1 / clip.fps : frame.duration,
+            markers: frame.markers === undefined ? [] : frame.markers.slice(),
+            layers,
+          });
         }
-        frames.push({
-          duration: frame.duration === undefined ? 1 / clip.fps : frame.duration,
-          markers: frame.markers === undefined ? [] : frame.markers.slice(),
-          layers,
-        });
+        boundLists.push(frames);
       }
-      clips[clip.name] = new SpriteAnimationTemplateBoundClip(clip, frames);
+      if (clip.directions === undefined) {
+        clips[clip.name] = new SpriteAnimationTemplateBoundClip(clip, boundLists[0], null);
+      } else {
+        const variants: SpriteAnimationTemplateBoundClip[] = [];
+        for (let dir = 0; dir < boundLists.length; dir++) {
+          variants.push(new SpriteAnimationTemplateBoundClip(clip, boundLists[dir], null));
+        }
+        clips[clip.name] = new SpriteAnimationTemplateBoundClip(
+          clip,
+          boundLists[SPRITE_ANIMATION_DEFAULT_DIR],
+          variants,
+        );
+      }
     }
 
     return {
@@ -363,7 +401,11 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
   /** @internal Only clips from this bound asset can use this target. */
   _canPlayClip(clip: SpriteAnimationPlaybackClip): boolean {
     if (!(clip instanceof SpriteAnimationTemplateBoundClip)) return false;
-    return this.animation.getClip(clip.name) === clip && clip.error === null && clip.frames.length > 0;
+    if (clip.error !== null || clip.frames.length === 0) return false;
+    const owned = this.animation.getClip(clip.name);
+    if (owned === null) return false;
+    if (owned === clip) return true;
+    return owned.directions !== null && owned.directions.indexOf(clip) >= 0;
   }
 
   /** @internal Starts a template clip on the shared timeline and optionally crossfades the composite. */
@@ -533,12 +575,12 @@ function imageSizesWithUnknownKeys(
   return result;
 }
 
-function layerFrameName(clipIndex: number, frameIndex: number, layerIndex: number): string {
-  return `template:${clipIndex}:${frameIndex}:${layerIndex}`;
+function layerFrameName(clipIndex: number, listIndex: number, frameIndex: number, layerIndex: number): string {
+  return `template:${clipIndex}:${listIndex}:${frameIndex}:${layerIndex}`;
 }
 
-function layerFrameKey(clipIndex: number, frameIndex: number, layerIndex: number): string {
-  return `${clipIndex}:${frameIndex}:${layerIndex}`;
+function layerFrameKey(clipIndex: number, listIndex: number, frameIndex: number, layerIndex: number): string {
+  return `${clipIndex}:${listIndex}:${frameIndex}:${layerIndex}`;
 }
 
 function escapePointer(value: string): string {

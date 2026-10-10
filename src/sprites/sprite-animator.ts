@@ -71,6 +71,20 @@ function isArray(value: any): boolean {
   return Array.isArray(value);
 }
 
+const DEFAULT_DIR = 2;
+
+function validDirections(target: SpriteAnimationTarget, clip: SpriteAnimationPlaybackClip): boolean {
+  if (clip.directions === null || clip.directions === undefined) return true;
+  if (!isArray(clip.directions) || clip.directions.length !== 4) return false;
+  for (let dir = 0; dir < 4; dir++) {
+    const variant = clip.directions[dir];
+    if (variant === null || variant === undefined || variant.error !== null || variant.frames.length === 0)
+      return false;
+    if (!target._canPlayClip(variant)) return false;
+  }
+  return true;
+}
+
 function validCondition(condition: SpriteTransitionCondition): boolean {
   if (condition === null || condition === undefined) return false;
   if (condition.type === 'callback') return typeof condition.test === 'function';
@@ -106,7 +120,10 @@ export class SpriteAnimator extends GameComponent {
   private numberValues: number[] = [];
   private triggerNames: string[] = [];
   private triggerValues: boolean[] = [];
+  /** Playing frame list: the clip itself, or its variant for the current dir. */
   private currentAnimationValue: SpriteAnimationPlaybackClip | null = null;
+  private currentBaseClip: SpriteAnimationPlaybackClip | null = null;
+  private dirValue = DEFAULT_DIR;
   private currentClipNameValue: string | null = null;
   private currentStateValue: string | null = null;
   private frameIndexValue = 0;
@@ -166,7 +183,7 @@ export class SpriteAnimator extends GameComponent {
         this.clips = [];
         return;
       }
-      if (!renderer._canPlayClip(clip)) {
+      if (!renderer._canPlayClip(clip) || !validDirections(renderer, clip)) {
         this.animationError = 'SpriteAnimator received a clip unsupported by its animation target: ' + name;
         this.clipNames = [];
         this.clips = [];
@@ -279,6 +296,39 @@ export class SpriteAnimator extends GameComponent {
   }
   get speed(): number {
     return this.speedValue;
+  }
+  /** Facing direction in Graal order: 0 up, 1 left, 2 down (default), 3 right. */
+  get dir(): number {
+    return this.dirValue;
+  }
+
+  /**
+   * Sets the facing direction used by directional clips. A playing directional clip switches to the new
+   * direction's frames at the same frame index and time, without restarting or re-sending markers.
+   */
+  setDir(dir: number): boolean {
+    if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
+      this.animationError = 'SpriteAnimator dir must be 0 (up), 1 (left), 2 (down), or 3 (right).';
+      return false;
+    }
+    this.animationError = null;
+    if (dir === this.dirValue) return true;
+    this.dirValue = dir;
+    const base = this.currentBaseClip;
+    if (base === null || base.directions === null) return true;
+    const variant = base.directions[dir];
+    let frameIndex = this.frameIndexValue;
+    if (frameIndex > variant.frames.length - 1) frameIndex = variant.frames.length - 1;
+    const frameDuration = variant.frames[frameIndex].duration;
+    this.currentAnimationValue = variant;
+    this.frameIndexValue = frameIndex;
+    if (this.frameElapsed > frameDuration) this.frameElapsed = frameDuration;
+    if (this.pingPongDirection < 0 && frameIndex >= variant.frames.length - 1) this.pingPongDirection = 1;
+    if (!this.animationTarget._selectClipFrame(variant, frameIndex)) {
+      this.animationError = this.animationTarget.error || 'SpriteAnimator could not select the direction frame.';
+      return false;
+    }
+    return true;
   }
 
   get currentTime(): number {
@@ -517,7 +567,12 @@ export class SpriteAnimator extends GameComponent {
   _canAttachTo(context: GameContext): boolean {
     if (!this.animationTarget._canAttachTo(context)) return false;
     for (let clipIndex = 0; clipIndex < this.clips.length; clipIndex++) {
-      if (!this.animationTarget._canAttachClipTo(this.clips[clipIndex], context)) return false;
+      const clip = this.clips[clipIndex];
+      if (!this.animationTarget._canAttachClipTo(clip, context)) return false;
+      if (clip.directions === null) continue;
+      for (let dir = 0; dir < clip.directions.length; dir++) {
+        if (!this.animationTarget._canAttachClipTo(clip.directions[dir], context)) return false;
+      }
     }
     return true;
   }
@@ -536,12 +591,14 @@ export class SpriteAnimator extends GameComponent {
     return null;
   }
 
-  private startClip(name: string, animation: SpriteAnimationPlaybackClip, fade: number): boolean {
+  private startClip(name: string, clip: SpriteAnimationPlaybackClip, fade: number): boolean {
+    const animation = clip.directions === null ? clip : clip.directions[this.dirValue];
     if (!this.animationTarget._startClipFrame(animation, 0, fade)) {
       this.animationError = this.animationTarget.error || 'SpriteAnimator could not select the clip frame.';
       return false;
     }
     this.playbackRevision++;
+    this.currentBaseClip = clip;
     this.currentAnimationValue = animation;
     this.currentClipNameValue = name;
     this.frameIndexValue = 0;

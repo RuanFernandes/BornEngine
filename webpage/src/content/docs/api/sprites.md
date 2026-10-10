@@ -103,6 +103,27 @@ The animator exposes `play`, `pause`, `resume`, `stop`, `seek`, `setSpeed`, and 
 
 States can transition to another state based on bool, number (`eq`, `gt`, `gte`, `lt`, `lte`), trigger, or callback conditions. Conditions on one transition are ANDed. Transitions are checked in declaration order, only one is taken per update, and trigger parameters are consumed only when their transition succeeds. Call `setBool`, `setNumber`, or `setTrigger` to provide parameters; `resetTrigger` clears a trigger manually.
 
+### Directional clips
+
+A clip can hold separate keyframes for four facing directions. Pass `directions` instead of `frames`; every direction needs at least one keyframe and the counts may differ. The animator's `dir` selects the variant, using the Graal order `0` up, `1` left, `2` down (the default), and `3` right.
+
+```ts
+const idle = new SpriteAnimation({
+  directions: {
+    up: [{ sprite: idleUp }],
+    left: [{ sprite: idleLeft }],
+    down: [{ sprite: idleDown }],
+    right: [{ sprite: idleRight }],
+  },
+  fps: 6,
+});
+const animator = new SpriteAnimator(sprite, { clips: { idle } });
+animator.play('idle');
+animator.setDir(3); // face right
+```
+
+`setDir(dir)` returns `false` for values other than the integers 0 to 3. Changing the direction during playback keeps the frame index and elapsed time, clamping to the last frame when the new direction is shorter, and does not restart the clip or re-send markers. Non-directional clips ignore `dir`. A directional clip's `frames` and `duration` describe its down variant; `directions` holds all four variants in dir order.
+
 ## Reusable animation templates
 
 An animation template stores clip timing and ordered image layers separately from the actual textures. BornEngineTools saves `.spriteanim-template.json` documents using the `bornengine.spriteanim-template` format. Its compact JSON mode removes only defaults such as an implicit frame duration or identity transform; it preserves parameter IDs, tags, frame and layer order, crops, markers, and playback values. Existing `.spriteanim.json` assets and concrete `SpriteAnimation` playback remain supported.

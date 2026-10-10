@@ -12,26 +12,33 @@ export { SpriteAnimation } from './sprite-animation';
 export type {
   ResolvedSpriteKeyframe,
   SpriteAnimationLoop,
+  SpriteAnimationDirectionalFrames,
   SpriteAnimationOptions,
   SpriteAnimationPlaybackClip,
   SpriteAnimationPlaybackFrame,
   SpriteKeyframe,
 } from './sprite-animation';
 export {
+  SPRITE_ANIMATION_DEFAULT_DIR,
+  SPRITE_ANIMATION_DIRECTIONS,
   SPRITE_ANIMATION_TEMPLATE_FORMAT,
   SPRITE_ANIMATION_TEMPLATE_VERSION,
+  spriteAnimationTemplateSource,
   validateSpriteAnimationTemplate,
   validateSpriteAnimationTemplateBinding,
 } from './sprite-animation-template';
 export type {
   ResolvedSpriteAnimationTemplate,
   ResolvedSpriteAnimationTemplateClip,
+  ResolvedSpriteAnimationTemplateDirections,
   ResolvedSpriteAnimationTemplateFrame,
   ResolvedSpriteAnimationTemplateLayer,
+  SpriteAnimationDirectionName,
   SpriteAnimationTemplate,
   SpriteAnimationTemplateBindingValidationResult,
   SpriteAnimationTemplateCanvasSize,
   SpriteAnimationTemplateClip,
+  SpriteAnimationTemplateDirections,
   SpriteAnimationTemplateDiagnostic,
   SpriteAnimationTemplateFrame,
   SpriteAnimationTemplateImageSize,

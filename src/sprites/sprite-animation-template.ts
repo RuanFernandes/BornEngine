@@ -3,6 +3,12 @@ export const SPRITE_ANIMATION_TEMPLATE_VERSION = 1;
 
 export type SpriteAnimationTemplateLoop = 'loop' | 'once' | 'ping-pong';
 
+/** Direction names in Graal `dir` order: 0 = up, 1 = left, 2 = down, 3 = right. */
+export const SPRITE_ANIMATION_DIRECTIONS = ['up', 'left', 'down', 'right'] as const;
+export type SpriteAnimationDirectionName = (typeof SPRITE_ANIMATION_DIRECTIONS)[number];
+/** Direction used when a directional clip has to be read as a single frame list. */
+export const SPRITE_ANIMATION_DEFAULT_DIR = 2;
+
 export interface SpriteAnimationTemplateVector2 {
   readonly x: number;
   readonly y: number;
@@ -61,8 +67,15 @@ export interface SpriteAnimationTemplateClip {
   readonly fps: number;
   readonly loop: SpriteAnimationTemplateLoop;
   readonly canvasSize: SpriteAnimationTemplateCanvasSize;
-  readonly frames: readonly SpriteAnimationTemplateFrame[];
+  /** Frames of a non-directional clip. Mutually exclusive with directions. */
+  readonly frames?: readonly SpriteAnimationTemplateFrame[];
+  /** Per-direction frames. Every direction needs at least one frame. */
+  readonly directions?: SpriteAnimationTemplateDirections;
 }
+
+export type SpriteAnimationTemplateDirections = Readonly<
+  Record<SpriteAnimationDirectionName, readonly SpriteAnimationTemplateFrame[]>
+>;
 
 export interface SpriteAnimationTemplate {
   readonly format: typeof SPRITE_ANIMATION_TEMPLATE_FORMAT;
@@ -83,8 +96,14 @@ export interface ResolvedSpriteAnimationTemplateFrame extends SpriteAnimationTem
   readonly layers: readonly ResolvedSpriteAnimationTemplateLayer[];
 }
 
+export type ResolvedSpriteAnimationTemplateDirections = Readonly<
+  Record<SpriteAnimationDirectionName, readonly ResolvedSpriteAnimationTemplateFrame[]>
+>;
+
 export interface ResolvedSpriteAnimationTemplateClip extends SpriteAnimationTemplateClip {
+  /** Frames of a non-directional clip, or the default (down) direction of a directional clip. */
   readonly frames: readonly ResolvedSpriteAnimationTemplateFrame[];
+  readonly directions?: ResolvedSpriteAnimationTemplateDirections;
 }
 
 export interface ResolvedSpriteAnimationTemplate extends SpriteAnimationTemplate {
@@ -112,7 +131,7 @@ export type SpriteAnimationTemplateBindingValidationResult =
 
 const TEMPLATE_KEYS = ['format', 'version', 'id', 'name', 'description', 'imageParameters', 'clips'];
 const PARAMETER_KEYS = ['id', 'label', 'required', 'tags'];
-const CLIP_KEYS = ['name', 'fps', 'loop', 'canvasSize', 'frames'];
+const CLIP_KEYS = ['name', 'fps', 'loop', 'canvasSize', 'frames', 'directions'];
 const FRAME_KEYS = ['duration', 'markers', 'layers'];
 const LAYER_KEYS = ['parameter', 'source', 'visible', 'transform'];
 const SOURCE_KEYS = ['x', 'y', 'width', 'height'];
@@ -383,138 +402,22 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
         );
       } else checkKeys(canvas, ['width', 'height'], pointer(clipPath, 'canvasSize'), diagnostics);
 
-      const frames: ResolvedSpriteAnimationTemplateFrame[] = [];
-      if (!Array.isArray(rawClip.frames) || rawClip.frames.length === 0) {
+      const hasFrames = rawClip.frames !== undefined;
+      const hasDirections = rawClip.directions !== undefined;
+      let frames: ResolvedSpriteAnimationTemplateFrame[] | null = null;
+      let directions: ResolvedSpriteAnimationTemplateDirections | undefined;
+      if (hasFrames && hasDirections) {
         addDiagnostic(
           diagnostics,
-          pointer(clipPath, 'frames'),
-          'frame.list',
-          'Each clip must contain at least one frame.',
+          clipPath,
+          'clip.frames_or_directions',
+          'A clip must define either frames or directions, not both.',
         );
+      } else if (hasDirections) {
+        directions = validateDirections(rawClip.directions, pointer(clipPath, 'directions'), parameterIds, diagnostics);
+        if (directions !== undefined) frames = directions.down.slice();
       } else {
-        rawClip.frames.forEach((rawFrame, frameIndex) => {
-          const framePath = pointer(pointer(clipPath, 'frames'), frameIndex);
-          if (!isObject(rawFrame)) {
-            addDiagnostic(diagnostics, framePath, 'frame.object', 'Each frame must be a JSON object.');
-            return;
-          }
-          checkKeys(rawFrame, FRAME_KEYS, framePath, diagnostics);
-          if (rawFrame.duration !== undefined && (!isFiniteNumber(rawFrame.duration) || rawFrame.duration <= 0)) {
-            addDiagnostic(
-              diagnostics,
-              pointer(framePath, 'duration'),
-              'frame.duration',
-              'Frame duration must be finite and positive when present.',
-            );
-          }
-          let markers: string[] | undefined;
-          if (rawFrame.markers !== undefined) {
-            if (!Array.isArray(rawFrame.markers)) {
-              addDiagnostic(
-                diagnostics,
-                pointer(framePath, 'markers'),
-                'frame.markers',
-                'Frame markers must be an array of non-empty strings.',
-              );
-            } else {
-              markers = [];
-              rawFrame.markers.forEach((marker, markerIndex) => {
-                if (!validStableText(marker)) {
-                  addDiagnostic(
-                    diagnostics,
-                    pointer(pointer(framePath, 'markers'), markerIndex),
-                    'frame.marker',
-                    'Marker names must be non-empty, trimmed text without control characters.',
-                  );
-                } else markers?.push(marker);
-              });
-            }
-          }
-          const layers: ResolvedSpriteAnimationTemplateLayer[] = [];
-          if (!Array.isArray(rawFrame.layers) || rawFrame.layers.length === 0) {
-            addDiagnostic(
-              diagnostics,
-              pointer(framePath, 'layers'),
-              'layer.list',
-              'Each frame must contain at least one layer.',
-            );
-          } else {
-            rawFrame.layers.forEach((rawLayer, layerIndex) => {
-              const layerPath = pointer(pointer(framePath, 'layers'), layerIndex);
-              if (!isObject(rawLayer)) {
-                addDiagnostic(diagnostics, layerPath, 'layer.object', 'Each layer must be a JSON object.');
-                return;
-              }
-              checkKeys(rawLayer, LAYER_KEYS, layerPath, diagnostics);
-              const parameter = rawLayer.parameter;
-              if (!validStableText(parameter) || !parameterIds.has(parameter)) {
-                addDiagnostic(
-                  diagnostics,
-                  pointer(layerPath, 'parameter'),
-                  'layer.parameter',
-                  'Layer must reference a declared image parameter ID.',
-                );
-              }
-              const source = isObject(rawLayer.source) ? rawLayer.source : null;
-              if (
-                !source ||
-                !isNonNegativeInteger(source.x) ||
-                !isNonNegativeInteger(source.y) ||
-                !isPositiveInteger(source.width) ||
-                !isPositiveInteger(source.height)
-              ) {
-                addDiagnostic(
-                  diagnostics,
-                  pointer(layerPath, 'source'),
-                  'layer.source',
-                  'Layer source needs non-negative integer x/y and positive integer width/height.',
-                );
-              } else checkKeys(source, SOURCE_KEYS, pointer(layerPath, 'source'), diagnostics);
-              if (rawLayer.visible !== undefined && typeof rawLayer.visible !== 'boolean') {
-                addDiagnostic(
-                  diagnostics,
-                  pointer(layerPath, 'visible'),
-                  'layer.visible',
-                  'Layer visibility must be a boolean when present.',
-                );
-              }
-              const transformResult = normalizeTransform(
-                rawLayer.transform,
-                pointer(layerPath, 'transform'),
-                diagnostics,
-              );
-              if (
-                validStableText(parameter) &&
-                parameterIds.has(parameter) &&
-                source &&
-                isNonNegativeInteger(source.x) &&
-                isNonNegativeInteger(source.y) &&
-                isPositiveInteger(source.width) &&
-                isPositiveInteger(source.height) &&
-                transformResult !== null &&
-                (rawLayer.visible === undefined || typeof rawLayer.visible === 'boolean')
-              ) {
-                layers.push({
-                  parameter,
-                  source: { x: source.x, y: source.y, width: source.width, height: source.height },
-                  visible: rawLayer.visible === undefined ? true : rawLayer.visible,
-                  transform: transformResult,
-                });
-              }
-            });
-          }
-          if (
-            Array.isArray(rawFrame.layers) &&
-            rawFrame.layers.length > 0 &&
-            layers.length === rawFrame.layers.length
-          ) {
-            frames.push({
-              ...(rawFrame.duration === undefined ? {} : { duration: rawFrame.duration as number }),
-              ...(markers === undefined ? {} : { markers }),
-              layers,
-            });
-          }
-        });
+        frames = validateFrames(rawClip.frames, pointer(clipPath, 'frames'), parameterIds, diagnostics);
       }
       if (
         name.length > 0 &&
@@ -524,9 +427,7 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
         canvas &&
         isPositiveInteger(canvas.width) &&
         isPositiveInteger(canvas.height) &&
-        Array.isArray(rawClip.frames) &&
-        rawClip.frames.length > 0 &&
-        frames.length === rawClip.frames.length
+        frames !== null
       ) {
         clips.push({
           name,
@@ -534,6 +435,7 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
           loop: rawClip.loop,
           canvasSize: { width: canvas.width, height: canvas.height },
           frames,
+          ...(directions === undefined ? {} : { directions }),
         });
       }
     });
@@ -549,6 +451,162 @@ export function validateSpriteAnimationTemplate(input: unknown): SpriteAnimation
     imageParameters: parameters,
     clips,
   });
+}
+
+function validateFrames(
+  rawFrames: unknown,
+  framesPath: string,
+  parameterIds: ReadonlySet<string>,
+  diagnostics: SpriteAnimationTemplateDiagnostic[],
+): ResolvedSpriteAnimationTemplateFrame[] | null {
+  const frames: ResolvedSpriteAnimationTemplateFrame[] = [];
+  if (!Array.isArray(rawFrames) || rawFrames.length === 0) {
+    addDiagnostic(diagnostics, framesPath, 'frame.list', 'Each clip must contain at least one frame.');
+  } else {
+    rawFrames.forEach((rawFrame, frameIndex) => {
+      const framePath = pointer(framesPath, frameIndex);
+      if (!isObject(rawFrame)) {
+        addDiagnostic(diagnostics, framePath, 'frame.object', 'Each frame must be a JSON object.');
+        return;
+      }
+      checkKeys(rawFrame, FRAME_KEYS, framePath, diagnostics);
+      if (rawFrame.duration !== undefined && (!isFiniteNumber(rawFrame.duration) || rawFrame.duration <= 0)) {
+        addDiagnostic(
+          diagnostics,
+          pointer(framePath, 'duration'),
+          'frame.duration',
+          'Frame duration must be finite and positive when present.',
+        );
+      }
+      let markers: string[] | undefined;
+      if (rawFrame.markers !== undefined) {
+        if (!Array.isArray(rawFrame.markers)) {
+          addDiagnostic(
+            diagnostics,
+            pointer(framePath, 'markers'),
+            'frame.markers',
+            'Frame markers must be an array of non-empty strings.',
+          );
+        } else {
+          markers = [];
+          rawFrame.markers.forEach((marker, markerIndex) => {
+            if (!validStableText(marker)) {
+              addDiagnostic(
+                diagnostics,
+                pointer(pointer(framePath, 'markers'), markerIndex),
+                'frame.marker',
+                'Marker names must be non-empty, trimmed text without control characters.',
+              );
+            } else markers?.push(marker);
+          });
+        }
+      }
+      const layers: ResolvedSpriteAnimationTemplateLayer[] = [];
+      if (!Array.isArray(rawFrame.layers) || rawFrame.layers.length === 0) {
+        addDiagnostic(
+          diagnostics,
+          pointer(framePath, 'layers'),
+          'layer.list',
+          'Each frame must contain at least one layer.',
+        );
+      } else {
+        rawFrame.layers.forEach((rawLayer, layerIndex) => {
+          const layerPath = pointer(pointer(framePath, 'layers'), layerIndex);
+          if (!isObject(rawLayer)) {
+            addDiagnostic(diagnostics, layerPath, 'layer.object', 'Each layer must be a JSON object.');
+            return;
+          }
+          checkKeys(rawLayer, LAYER_KEYS, layerPath, diagnostics);
+          const parameter = rawLayer.parameter;
+          if (!validStableText(parameter) || !parameterIds.has(parameter)) {
+            addDiagnostic(
+              diagnostics,
+              pointer(layerPath, 'parameter'),
+              'layer.parameter',
+              'Layer must reference a declared image parameter ID.',
+            );
+          }
+          const source = isObject(rawLayer.source) ? rawLayer.source : null;
+          if (
+            !source ||
+            !isNonNegativeInteger(source.x) ||
+            !isNonNegativeInteger(source.y) ||
+            !isPositiveInteger(source.width) ||
+            !isPositiveInteger(source.height)
+          ) {
+            addDiagnostic(
+              diagnostics,
+              pointer(layerPath, 'source'),
+              'layer.source',
+              'Layer source needs non-negative integer x/y and positive integer width/height.',
+            );
+          } else checkKeys(source, SOURCE_KEYS, pointer(layerPath, 'source'), diagnostics);
+          if (rawLayer.visible !== undefined && typeof rawLayer.visible !== 'boolean') {
+            addDiagnostic(
+              diagnostics,
+              pointer(layerPath, 'visible'),
+              'layer.visible',
+              'Layer visibility must be a boolean when present.',
+            );
+          }
+          const transformResult = normalizeTransform(rawLayer.transform, pointer(layerPath, 'transform'), diagnostics);
+          if (
+            validStableText(parameter) &&
+            parameterIds.has(parameter) &&
+            source &&
+            isNonNegativeInteger(source.x) &&
+            isNonNegativeInteger(source.y) &&
+            isPositiveInteger(source.width) &&
+            isPositiveInteger(source.height) &&
+            transformResult !== null &&
+            (rawLayer.visible === undefined || typeof rawLayer.visible === 'boolean')
+          ) {
+            layers.push({
+              parameter,
+              source: { x: source.x, y: source.y, width: source.width, height: source.height },
+              visible: rawLayer.visible === undefined ? true : rawLayer.visible,
+              transform: transformResult,
+            });
+          }
+        });
+      }
+      if (Array.isArray(rawFrame.layers) && rawFrame.layers.length > 0 && layers.length === rawFrame.layers.length) {
+        frames.push({
+          ...(rawFrame.duration === undefined ? {} : { duration: rawFrame.duration as number }),
+          ...(markers === undefined ? {} : { markers }),
+          layers,
+        });
+      }
+    });
+  }
+  return Array.isArray(rawFrames) && rawFrames.length > 0 && frames.length === rawFrames.length ? frames : null;
+}
+
+function validateDirections(
+  rawDirections: unknown,
+  path: string,
+  parameterIds: ReadonlySet<string>,
+  diagnostics: SpriteAnimationTemplateDiagnostic[],
+): ResolvedSpriteAnimationTemplateDirections | undefined {
+  if (!isObject(rawDirections)) {
+    addDiagnostic(
+      diagnostics,
+      path,
+      'clip.directions',
+      'Directions must be an object with up, left, down, and right frame lists.',
+    );
+    return undefined;
+  }
+  checkKeys(rawDirections, SPRITE_ANIMATION_DIRECTIONS, path, diagnostics);
+  const resolved: Record<string, ResolvedSpriteAnimationTemplateFrame[]> = {};
+  let valid = true;
+  for (const direction of SPRITE_ANIMATION_DIRECTIONS) {
+    const frames = validateFrames(rawDirections[direction], pointer(path, direction), parameterIds, diagnostics);
+    if (frames === null) valid = false;
+    else resolved[direction] = frames;
+  }
+  if (!valid) return undefined;
+  return { up: resolved.up, left: resolved.left, down: resolved.down, right: resolved.right };
 }
 
 function normalizeTransform(
@@ -672,23 +730,69 @@ export function validateSpriteAnimationTemplateBinding(
 
   for (let clipIndex = 0; clipIndex < templateResult.value.clips.length; clipIndex++) {
     const clip = templateResult.value.clips[clipIndex];
-    for (let frameIndex = 0; frameIndex < clip.frames.length; frameIndex++) {
-      const frame = clip.frames[frameIndex];
-      for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
-        const layer = frame.layers[layerIndex];
-        const size = validSizes.get(layer.parameter);
-        if (!size) continue;
-        if (layer.source.x + layer.source.width > size.width || layer.source.y + layer.source.height > size.height) {
-          const path = pointer(pointer(pointer(pointer('/clips', clipIndex), 'frames'), frameIndex), 'layers');
-          addDiagnostic(
-            diagnostics,
-            pointer(pointer(path, layerIndex), 'source'),
-            'binding.crop',
-            `Crop for image parameter "${layer.parameter}" is outside its ${size.width}x${size.height} texture.`,
-          );
-        }
-      }
+    const clipPath = pointer('/clips', clipIndex);
+    const frameLists = clipFrameLists(clip);
+    for (const frameList of frameLists) {
+      const framesPath =
+        frameList.direction === null
+          ? pointer(clipPath, 'frames')
+          : pointer(pointer(clipPath, 'directions'), frameList.direction);
+      checkFrameCrops(frameList.frames, framesPath, validSizes, diagnostics);
     }
   }
   return diagnostics.length > 0 ? bindingFailure(diagnostics) : bindingSuccess();
+}
+
+/** Returns the JSON source form of a validated template: directional clips keep only their directions. */
+export function spriteAnimationTemplateSource(template: ResolvedSpriteAnimationTemplate): SpriteAnimationTemplate {
+  return {
+    ...template,
+    clips: template.clips.map((clip): SpriteAnimationTemplateClip => {
+      if (clip.directions === undefined) return clip;
+      return {
+        name: clip.name,
+        fps: clip.fps,
+        loop: clip.loop,
+        canvasSize: clip.canvasSize,
+        directions: clip.directions,
+      };
+    }),
+  };
+}
+
+/** Lists every frame list a clip plays: one for plain clips, one per direction for directional clips. */
+export function clipFrameLists(
+  clip: ResolvedSpriteAnimationTemplateClip,
+): {
+  readonly direction: SpriteAnimationDirectionName | null;
+  readonly frames: readonly ResolvedSpriteAnimationTemplateFrame[];
+}[] {
+  const directions = clip.directions;
+  if (directions === undefined) return [{ direction: null, frames: clip.frames }];
+  return SPRITE_ANIMATION_DIRECTIONS.map((direction) => ({ direction, frames: directions[direction] }));
+}
+
+function checkFrameCrops(
+  frames: readonly ResolvedSpriteAnimationTemplateFrame[],
+  framesPath: string,
+  validSizes: ReadonlyMap<string, SpriteAnimationTemplateImageSize>,
+  diagnostics: SpriteAnimationTemplateDiagnostic[],
+): void {
+  for (let frameIndex = 0; frameIndex < frames.length; frameIndex++) {
+    const frame = frames[frameIndex];
+    for (let layerIndex = 0; layerIndex < frame.layers.length; layerIndex++) {
+      const layer = frame.layers[layerIndex];
+      const size = validSizes.get(layer.parameter);
+      if (!size) continue;
+      if (layer.source.x + layer.source.width > size.width || layer.source.y + layer.source.height > size.height) {
+        const path = pointer(pointer(framesPath, frameIndex), 'layers');
+        addDiagnostic(
+          diagnostics,
+          pointer(pointer(path, layerIndex), 'source'),
+          'binding.crop',
+          `Crop for image parameter "${layer.parameter}" is outside its ${size.width}x${size.height} texture.`,
+        );
+      }
+    }
+  }
 }

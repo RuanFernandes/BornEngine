@@ -55,6 +55,17 @@ animator.play('walk');
 
 Call the game's usual `this.scenes.update(deltaTime)` from its loop. The renderer draws every visible layer in authored order, and the animator advances one shared frame schedule for the composite image.
 
+## Directional clips
+
+Turn on **4 directions** for a clip in BornEngineTools to author separate frames for up, left, down, and right. The JSON clip then stores `directions` (with `up`, `left`, `down`, and `right` frame lists) instead of `frames`. The editor's direction pad and the W, A, S, D keys switch the direction being edited, and **Copy this direction to** with **Mirror** builds the opposite side from the current one.
+
+At runtime the bound clip keeps one variant per direction. Set the facing direction on the animator with Graal `dir` values; the template renderer draws the matching variant:
+
+```ts
+animator.play('idle');
+animator.setDir(1); // 0 up, 1 left, 2 down (default), 3 right
+```
+
 ## Complete example
 
 This example reuses the checked-in fixture for two combinations of images. It flips a copy of the source atlas so each preview receives visibly different art. The fixture's `body_art` and `spark_art` keys are arbitrary template IDs; the code can substitute any compatible textures without copying the clip definitions.
