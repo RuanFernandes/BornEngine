@@ -7,7 +7,7 @@
     "synopsis": "bornengine create",
     "examples": ["bornengine create"],
     "options": ["-v, --verbose (repeatable)"],
-    "behavior": "Prompts for the project name, 2D/2.5D/3D game type, package manager, and stable engine version. It writes the selected native profile and refuses to overwrite populated or conflicting files.",
+    "behavior": "Requires an interactive terminal. Prompts for the project name, 2D/2.5D/3D game type, package manager, and stable engine version. It writes the selected native profile and refuses to overwrite populated or conflicting files.",
     "related": ["/docs/cli/project/", "/docs/getting-started/quickstart/"]
   },
   {
@@ -31,6 +31,17 @@
     "options": ["--game-type <2d|2.5d|3d>, --kind <2d|2.5d|3d> (defaults to 2d)", "--native-features <sqlite,scripting> (optional native capabilities)", "--package-manager <pnpm|npm|yarn>, --pm <pnpm|npm|yarn>", "--engine-version <version>, -e <version>", "--engine-path <path>, --engine <path>", "-v, --verbose (repeatable)"],
     "behavior": "Initializes the current directory with the selected native profile and optional features, installs dependencies, takes no project-name argument, and protects conflicting files.",
     "related": ["/docs/cli/project/", "/docs/getting-started/project-structure/"]
+  },
+  {
+    "id": "create/server",
+    "group": "project",
+    "title": "Scaffold a Colyseus server",
+    "summary": "Create a Colyseus multiplayer server inside the current BornEngine project and link it to the game.",
+    "synopsis": "bornengine create server [path] [--package-manager <pnpm|npm|yarn>]",
+    "examples": ["bornengine create server", "bornengine create server services/game-server --package-manager pnpm"],
+    "options": ["[path] is the server folder; it defaults to server/ and must be a new or empty folder inside the project", "--package-manager <pnpm|npm|yarn>, --pm <pnpm|npm|yarn> (defaults to the configured manager)", "-v, --verbose (repeatable)"],
+    "behavior": "Runs the Colyseus project generator through the package manager from the project root, then writes bornengine.server.json in the server folder. The marker is written only when the generator succeeds.",
+    "related": ["/docs/cli/project/", "/docs/guides/multiplayer/", "/docs/guides/blueprints/"]
   },
   {
     "id": "build",
@@ -62,7 +73,7 @@
     "synopsis": "bornengine dev <entry-file> [--name <output>] [--os <friendly-os> | --target <exact-target>] [--watch] [--release] [--jobs <n>]",
     "examples": ["bornengine dev main.ts --watch", "bornengine dev main.ts --os macos"],
     "options": ["--name <output>, -n <output>", "--os <friendly-os>, -o <friendly-os>", "--target <exact-target> (conflicts with --os)", "--watch", "--release selects optimized native output (default is fast/incremental)", "--jobs <n> sets a positive Cargo job limit", "-v, --verbose (repeatable)"],
-    "behavior": "Watch mode uses .perry-dev/ for its development artifacts. Use a native target for a local executable.",
+    "behavior": "Without --watch, dev behaves like run. Watch mode uses .perry-dev/ for its development artifacts. Use a native target for a local executable.",
     "related": ["/docs/cli/build/", "/docs/cli/diagnostics/"]
   },
   {
@@ -124,11 +135,11 @@
     "id": "doctor",
     "group": "diagnostics",
     "title": "Inspect the local setup",
-    "summary": "Check the tools and environment needed by BornEngine.",
+    "summary": "Check the programs and environment that BornEngine needs.",
     "synopsis": "bornengine doctor",
     "examples": ["bornengine doctor"],
     "options": ["-v, --verbose (repeatable)"],
-    "behavior": "Reports setup checks and points to the first failing dependency. Run it before diagnosing a build failure.",
+    "behavior": "Prints an [OK], [FAIL], [WARN], or [INFO] line for Perry, Rust, Cargo, the package manager, the Perry target, the Linux libraries, and the project files. Exits with 1 if any check fails. Run it before diagnosing a build failure.",
     "related": ["/docs/cli/diagnostics/", "/docs/getting-started/installation/", "/docs/troubleshooting/"]
   },
   {
@@ -139,7 +150,7 @@
     "synopsis": "bornengine info",
     "examples": ["bornengine info"],
     "options": ["-v, --verbose (repeatable)"],
-    "behavior": "Displays information useful for support reports without changing the project.",
+    "behavior": "Prints the CLI version, the host, the Perry and Rust versions, and, inside a project, its name and engine dependency. Outside a project it prints Project: none. It does not change the project.",
     "related": ["/docs/cli/diagnostics/", "/docs/cli/configuration/"]
   },
   {
@@ -150,7 +161,7 @@
     "synopsis": "bornengine version",
     "examples": ["bornengine version"],
     "options": ["-v, --verbose (repeatable)"],
-    "behavior": "Prints the CLI version and exits without touching project files.",
+    "behavior": "Prints the CLI version, the project's engine dependency when run inside a project, and the Perry version. It does not change project files.",
     "related": ["/docs/cli/diagnostics/", "/docs/getting-started/installation/"]
   },
   {
@@ -171,7 +182,7 @@
     "summary": "Set this project's BornEngine dependency to a stable release.",
     "synopsis": "bornengine engine install [version]",
     "examples": ["bornengine engine install 0.15.0", "bornengine engine install"],
-    "options": ["[version] selects a stable release; omit it to use the configured or latest release", "-v, --verbose (repeatable)"],
+    "options": ["[version] selects an exact stable release; omit it to select the latest stable release", "-v, --verbose (repeatable)"],
     "behavior": "Updates the project's BornEngine dependency and package-manager lockfile to the selected stable release.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]
   },
@@ -203,8 +214,8 @@
     "title": "Remove the project engine dependency",
     "summary": "Remove BornEngine from this project's package manifest.",
     "synopsis": "bornengine engine remove [version]",
-    "examples": ["bornengine engine remove 0.4.15"],
-    "options": ["[version] identifies the installed release", "-v, --verbose (repeatable)"],
+    "examples": ["bornengine engine remove", "bornengine engine remove 0.18.2"],
+    "options": ["[version], if given, must equal the version now in package.json; otherwise the command refuses", "-v, --verbose (repeatable)"],
     "behavior": "Removes the project's BornEngine dependency and updates the package manifest and lockfile.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]
   },
@@ -212,10 +223,10 @@
     "id": "engine/use",
     "group": "engine",
     "title": "Select an engine source",
-    "summary": "Choose an installed version or a local engine path for the project.",
+    "summary": "Choose a published stable version or a local engine checkout for the project.",
     "synopsis": "bornengine engine use <version-or-path>",
     "examples": ["bornengine engine use 0.15.0", "bornengine engine use ../BornEngine"],
-    "options": ["<version-or-path> can identify an installed release or local path", "-v, --verbose (repeatable)"],
+    "options": ["<version-or-path> is an exact stable version, or the path of a local engine checkout", "-v, --verbose (repeatable)"],
     "behavior": "Changes the project's BornEngine dependency to the selected release or local checkout and updates its lockfile.",
     "related": ["/docs/cli/engine/", "/docs/cli/configuration/"]
   },
@@ -270,8 +281,8 @@
     "summary": "Persist a named BornEngine CLI configuration value.",
     "synopsis": "bornengine config set <key> <value>",
     "examples": ["bornengine config set package-manager pnpm"],
-    "options": ["<key> is the configuration name", "<value> is stored as the selected value", "-v, --verbose (repeatable)"],
-    "behavior": "Writes a configuration value used by subsequent CLI operations.",
+    "options": ["<key> is package-manager or engine-version", "<value> is pnpm, npm, or yarn for package-manager; latest or an exact stable version for engine-version", "-v, --verbose (repeatable)"],
+    "behavior": "Validates the value and writes it to the user configuration file. The values are the defaults for create, new, and init.",
     "related": ["/docs/cli/configuration/", "/docs/cli/project/"]
   },
   {
@@ -281,7 +292,7 @@
     "summary": "Print the current value for one configuration key.",
     "synopsis": "bornengine config get <key>",
     "examples": ["bornengine config get package-manager"],
-    "options": ["<key> is the configuration name", "-v, --verbose (repeatable)"],
+    "options": ["<key> is package-manager or engine-version", "-v, --verbose (repeatable)"],
     "behavior": "Reads one configuration key without changing it.",
     "related": ["/docs/cli/configuration/", "/docs/cli/project/"]
   },
@@ -315,7 +326,7 @@
     "synopsis": "bornengine perry path",
     "examples": ["bornengine perry path"],
     "options": ["-v, --verbose (repeatable)"],
-    "behavior": "Prints the path from BORNENGINE_PERRY when set, otherwise the current managed install, otherwise perry from PATH.",
+    "behavior": "Prints the path from BORNENGINE_PERRY when set, otherwise the current managed install, otherwise perry from PATH. It does not check that the file exists, so it prints plain perry when nothing is installed; run bornengine doctor to confirm that Perry starts.",
     "related": ["/docs/cli/perry/", "/docs/cli/diagnostics/"]
   },
   {

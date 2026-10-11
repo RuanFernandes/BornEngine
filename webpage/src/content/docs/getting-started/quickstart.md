@@ -1,72 +1,109 @@
 ---
 title: Quickstart
-description: Create a BornEngine project and run a class-first TypeScript game.
+description: Create a BornEngine project with the CLI, run the starter game, and read the file it generates.
 section: Getting Started
 order: 3
 ---
 
-## Interactive setup
+This page creates a project and runs the starter game. Finish [Installation](../installation/) first, so that `bornengine`, Perry, and Rust are available in your terminal.
 
-The quickest first project uses the interactive `create` flow:
+## Create a project
+
+Run the interactive command in the folder where you keep your projects:
 
 ```sh
 bornengine create
-# Enter MyGame when prompted
+```
+
+The command asks four questions:
+
+1. **Project name.** The name is also the name of the folder it creates.
+2. **Game type.** Choose 2D, 2.5D, or 3D. 2D is the default. This choice sets the native profile in `perry.toml`, which decides which engine features the native build includes.
+3. **Package manager.** Choose pnpm, npm, or yarn. The first option is the default unless your CLI configuration names another one.
+4. **BornEngine version.** The CLI lists stable engine releases from the npm registry. The first release in the list is the default unless your configuration names another one.
+
+When the questions are answered, the CLI creates the folder, writes the starter files, and installs the engine package with your package manager. `create` needs an interactive terminal. For scripts, use `bornengine new` instead, described below.
+
+## Run the starter game
+
+Move into the new folder and run the entry file:
+
+```sh
 cd MyGame
 bornengine run main.ts
 ```
 
-`create` asks for the project name, game profile, package manager, and stable engine version from npm. It writes the starter files and a BornEngine native Rust profile in `perry.toml`, installs the selected engine package, and creates the package-manager lockfile. Choose 2D, 2.5D, or 3D based on the rendering and physics features your game needs. Use `bornengine build`, `run`, or `dev` to apply that profile to the native Rust build.
+A window titled `BornEngine Game` opens with a dark background and a blue rectangle. Close the window to end the run.
 
-## Scriptable setup
+The first run takes longer than later runs. The engine's native Rust library is compiled the first time for each combination of engine version, target, and feature set. The CLI keeps the compiled artifacts in a per-user cache, so later projects with the same setup reuse them. See [Native build cache](../../cli/cache/).
 
-For repeatable scripts or CI, use `new`:
+`run` builds a fast development executable. `bornengine build` builds an optimized one. Both write to `.bornengine/builds/<target>/<name>/`. See [Build and run](../../cli/build/).
 
-```sh
-bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.15.0
-bornengine build main.ts --name my-game --os linux
-```
+## Read the starter file
 
-`new` is the non-interactive path. `--game-type` accepts `2d`, `2.5d`, or `3d` and defaults to `2d`; it writes `[bornengine].native_profile` in `perry.toml`. The BornEngine CLI applies that profile when it builds the engine's native Rust crate. The Web target currently uses a prebuilt WASM package, so its artifact is not reduced by this setting. Scaffolding refuses to overwrite a populated or conflicting directory.
-
-The first native build for an engine version, target, Rust toolchain, or feature set still compiles its dependencies. The CLI streams compiler output and keeps compatible Cargo artifacts in a shared per-user cache for later projects. `run` and `dev` use a faster incremental profile by default; `build` is optimized. See [build and run](../../cli/build/) for `--release`, job limits, and `bornengine cache warm`.
-
-## The first source file
-
-A `Game` subclass owns the application lifecycle. Put startup, simulation, and rendering on the same class, then call `run()` to start the platform loop. The class-driven lifecycle disposes the Game after `onStop`:
+`main.ts` is the entry file named in `perry.toml`. The CLI writes it like this:
 
 ```ts
-import { Colors, Game, Texture } from '@bornengine/engine';
+import { Game } from "@bornengine/engine";
 
-class MyGame extends Game {
-  private player: Texture | null = null;
+class StarterGame extends Game {
+  private elapsed = 0;
 
   constructor() {
-    super({
-      window: { title: 'My Game', width: 800, height: 450 },
-      targetFps: 60,
-    });
-    if (!this.isReady) console.error(this.error || 'Engine startup failed');
+    super({ window: { width: 800, height: 450, title: "BornEngine Game" }, targetFps: 60 });
   }
 
   protected override onStart(): void {
-    this.player = this.assets.loadTexture('assets/player.png');
-    if (this.player === null || !this.player.isLoaded) {
-      console.error(this.player?.error || 'Unable to load player texture.');
-    }
+    this.elapsed = 0;
   }
 
   protected override loop(deltaTime: number): void {
-    // Update gameplay state in seconds.
+    this.elapsed += deltaTime;
   }
 
   protected override render(): void {
-    this.renderer.clear(Colors.SNOW);
-    if (this.player !== null && this.player.isLoaded) this.player.draw({ x: 190, y: 200 });
+    this.renderer.clear({ r: 22, g: 26, b: 36, a: 255 });
+    this.renderer.drawRectangle(
+      { x: 300, y: 160, width: 200, height: 130 },
+      { r: 72, g: 156, b: 220, a: 255 },
+    );
   }
 }
 
-new MyGame().run();
+new StarterGame().run();
 ```
 
-The engine opens and closes the drawing frame around your hooks. The same pattern works on native and Web/WASM; the platform supplies the frame schedule. `run()` resolves after `onStop()` and resource cleanup. Inspect `game.error` after it resolves when handling a runtime failure.
+- `class StarterGame extends Game` is your application. The engine calls its methods; you do not call them yourself.
+- `super({ ... })` passes the window size, the title, and a frame rate limit of 60 frames per second.
+- `onStart()` runs once before the first frame. The starter resets a timer there.
+- `loop(deltaTime)` runs every frame. `deltaTime` is the time since the previous frame in seconds. The starter adds it to `elapsed`.
+- `render()` runs after `loop`. It clears the screen to a dark color, then draws the rectangle. The renderer does not clear the screen by itself.
+- `new StarterGame().run()` creates the game and starts the loop.
+
+The [game loop](../../concepts/game-loop/) page explains each step in detail. [Your first player](../first-player/) replaces the rectangle with a moving object.
+
+## Build a native executable
+
+Build for your current system with `--os`:
+
+```sh
+bornengine build main.ts --name my-game --os linux
+```
+
+Other `--os` values are listed in the [build and run](../../cli/build/) reference. The executable is written to `.bornengine/builds/<target>/<name>/` inside the project. See [Project structure](../project-structure/).
+
+## Create a project without prompts
+
+Use `new` in scripts or continuous integration. It takes the same choices as flags:
+
+```sh
+bornengine new MyGame --game-type 2d --package-manager npm --engine-version <version>
+```
+
+Omit `--engine-version` to use the default release. The flags and their defaults are listed in the [project commands](../../cli/project/) reference.
+
+## Next steps
+
+- [Your first player](../first-player/) builds a moving player object step by step.
+- [Project structure](../project-structure/) explains each generated file.
+- [CLI overview](../../cli/) lists every command.

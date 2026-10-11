@@ -1,34 +1,43 @@
 ---
 title: Guides
-description: Focused paths for physics, assets, skeletal animation, and world files.
+description: Task-focused pages that combine several BornEngine modules, from physics and assets to complete game recipes.
 section: Guides
 order: 0
 ---
 
-Use these guides when the API reference is not enough context for a complete system.
+A guide shows how several parts of the engine work together to finish one job. The [API reference](../api/) describes each module on its own. A guide gives you working code for a task and explains the choices in it.
 
-- [Physics](physics/) — step the simulation and structure gameplay bodies.
-- [2D physics and tilemaps](physics2d-tilemap/) — combine a fixed-step 2D world, scene bodies, atlas tiles, and collision rectangles.
-- [Skeletal animation](skeletal-animation/) — export GLB assets and drive animation layers.
-- [World format](world-format/) — author versioned 3D worlds and 2D tilemap/object documents.
-- [Assets](assets/) — package runtime files across native and Web/WASM targets.
-- [Runtime debugging](debugging/) — enable the optional inspector and add diagnostic windows.
-- [Embedded JavaScript](../api/scripting/) — attach capability-limited JavaScript behavior components to game objects.
-- [2D production workflow](2d-production-workflow/) — author, validate, save, and package a 2D game world.
-- [Reusable sprite animation templates](sprite-animation-templates/) — bind different images to the same layered clips and playback timeline.
-- [Migrate the 2D API](migrating-2d-api/) — move gameplay into `Game`, `Scene`, `GameObject`, and `Vector2D`.
+## Start here
+
+If you are new to BornEngine, build the player in [Your first player](../getting-started/first-player/) first. It makes a player that moves with the keyboard, draws a sprite, and is followed by a camera. Along the way it introduces four ideas that every guide on this page assumes: `Game`, `Scene`, `GameObject`, and `GameComponent`.
+
+## Systems and formats
+
+- [Physics](physics/) steps a 3D Jolt world and covers queries, contacts, characters, vehicles, soft bodies, and joints.
+- [Skeletal animation](skeletal-animation/) exports a rigged character to GLB, loads it, and draws it with GPU skinning.
+- [World format](world-format/) documents the versioned JSON for 2D maps, 3D worlds, and prefabs.
+- [Asset pipeline](assets/) explains how asset paths resolve on desktop, mobile, Apple bundles, and the browser.
+- [Runtime debugging](debugging/) turns on the inspector and adds your own developer windows.
+- [Build a retained GUI](gui-controls/) organizes reusable controls, handles events, and styles them with profiles.
+- [Build a multiplayer game with Colyseus](multiplayer/) connects a client to an authoritative server.
+- [Embedded JavaScript](../api/scripting/) attaches capability-limited scripts to game objects.
+
+## 2D guides
+
+- [2D production workflow](2d-production-workflow/) takes a Tiled room to a tested, packaged 2D game.
+- [Migrating a 2D game to the class-first API](migrating-2d-api/) moves a function-driven loop to `Game`, `Scene`, and `GameObject`.
 
 ## Composition recipes
 
-These end-to-end paths show how the modules fit together in a real game loop:
+These end-to-end recipes show how the modules fit together in a real game loop.
 
-- [Build a 2D game](2d-game/) — class-first scenes, sprite animation, marker-driven effects, and a HUD.
-- [Build a 3D scene](3d-scene/) — cameras, primitives, scene nodes, and cleanup.
-- [Add physics gameplay](physics-gameplay/) — fixed stepping, contacts, and render synchronization.
-- [Organize assets and worlds](assets-and-worlds/) — stable paths, prefabs, model caches, and world lighting.
-- [Add audio and UI](audio-and-ui/) — music streaming, sound effects, measured text, and input-driven panels.
-- [Build a multiplayer game with Colyseus](multiplayer/) — set up the server and connect BornEngine clients to authoritative shared state.
-- [JSON blueprints](blueprints/) — define reusable typed templates and edit game-owned data and execution graphs in BornEngineTools.
-- [Reusable sprite animation templates](sprite-animation-templates/) — author layered clips once and bind character or equipment art by parameter ID.
+- [Build a 2D game](2d-game/) uses a `Game` subclass, scene components, sprite animation, and particle effects.
+- [2D physics and tilemaps](physics2d-tilemap/) builds a level from atlas tiles and a fixed-step physics world.
+- [Reusable sprite animation templates](sprite-animation-templates/) binds your own images to shared layered clips.
+- [Add physics gameplay](physics-gameplay/) steps an owned physics world and syncs bodies with game objects.
+- [Add audio and UI](audio-and-ui/) uses the game's audio and UI services for menus and HUDs.
+- [Build a 3D scene](3d-scene/) sets up a camera, models, and retained scene nodes.
+- [Organize assets and worlds](assets-and-worlds/) loads resources once and instantiates validated world data.
+- [JSON blueprints](blueprints/) defines data-driven game content with versioned templates.
 
-Start with the recipe closest to the game you are building, then return to the [API map](../api/) when you need the complete function surface.
+Pick the recipe closest to the game you are building. Return to the [API reference](../api/) when you need the full list of calls for a module.

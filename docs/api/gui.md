@@ -1,224 +1,378 @@
+`game.gui` is the retained 2D interface of a `Game`. You create each control as an object, attach it to a parent, and keep it between frames. A control remembers its position, size, value, and children, and it reports user input through methods you override. The engine submits the control tree after your `render()` method returns and delivers the results on the next frame.
 
-# Retained GUI controls
+`game.gui` is a `GUIManager`. Every control extends the `GUI` class. Import the classes from `@bornengine/engine` or from `@bornengine/engine/gui`.
 
-`game.gui` is BornEngine's retained, object-oriented 2D GUI. Create controls as
-objects, attach them to a parent, and keep their state between frames. The
-engine lays out and submits the tree after `Game.render()`; native responses
-are applied before the next `Game.loop()`.
+## Choose game.gui or game.ui
 
-## Choose `game.gui` or `game.ui`
-
-Use [`game.ui`](../ui/) when a small immediate-mode HUD is easiest to describe
-again during each `render()` call. Use `game.gui` when you want reusable
-controls, parent-child organization, subclass hooks, profiles, or persistent
-widget state. Both APIs render through the same egui context and surface. Their
-IDs and response stores stay separate, and the developer inspector remains on
-top when enabled.
+Use [`game.ui`](../ui/) when a small immediate-mode panel is easiest to describe again on every frame in `render()`. Use `game.gui` when you want reusable controls, parent and child organization, event hooks you can override, shared styles, or state that lives in the control. Both APIs draw through the same egui context and surface. Their IDs and responses stay separate, and the Dear ImGui developer overlay is drawn above both.
 
 ## Platform status
 
-> **watchOS:** GUI controls do not work on watchOS in the current release:
-> controls do not render and GUI input/events are unavailable. This limitation is temporary.
-> A future SwiftUI adapter is planned, with no delivery date
-> promised. Check `game.gui.isAvailable()` before building platform-specific
-> behavior.
+> **watchOS:** GUI controls do not work on watchOS in the current release: controls do not render and GUI input/events are unavailable. This limitation is temporary. A future SwiftUI adapter is planned, with no delivery date promised. `game.gui.isAvailable()` returns `false` on watchOS, so check it before you build platform-specific behavior.
+
+On every other target that runs the shared engine, which covers desktop, mobile, tvOS, visionOS, and Web/WASM, `game.gui.isAvailable()` is `true`.
 
 ## Import and attach controls
 
-Import from the package root or from the `gui` subpath:
+Create controls on their own, then attach one or more root controls to `game.gui`. A control can belong to one parent at a time.
 
 ```ts
-import { GUI, GuiButton, GuiPanel, GuiScroll, GuiText, Vector2D } from '@bornengine/engine';
-// Or: import { GUI, GuiButton, GuiPanel, GuiScroll, GuiText } from '@bornengine/engine/gui';
+import { Colors, Game, GuiPanel, GuiText } from '@bornengine/engine';
+
+class InventoryGame extends Game {
+  constructor() {
+    super({ window: { title: 'Inventory', width: 800, height: 480 }, targetFps: 60 });
+  }
+
+  protected override onStart(): void {
+    const panel = new GuiPanel({ x: 24, y: 24, width: 320, height: 180 });
+    const title = new GuiText({ x: 12, y: 10, width: 280, height: 28 });
+    title.setText('Inventory');
+    panel.addControl(title);
+    this.gui.addControl(panel);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.DARKGRAY);
+  }
+}
+
+new InventoryGame().run();
 ```
 
-Construct controls independently, then attach one or more roots to the
-Game-owned manager. A child can only belong to one parent at a time.
+The renderer does not clear the screen, so `render()` clears it first. The retained controls are drawn on top of whatever `render()` drew.
 
-```ts
-const panel = new GuiPanel({ position: new Vector2D(24, 24), width: 320, height: 180 });
-const title = new GuiText({ position: new Vector2D(12, 10), width: 280, height: 28 });
-title.setText('Inventory');
-panel.addControl(title);
-game.gui.addControl(panel);
-```
+### Constructor options
+
+Every control accepts an optional `GUIControlOptions` object:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `x`, `y` | 0 | Offset from the parent's content origin, in logical pixels. Logical pixels are the units of the window size you set in the `Game` options. |
+| `width`, `height` | 0 | Size in logical pixels. Both must be finite and not negative. |
+| `visible` | `true` | Whether the control and its children are drawn. |
+| `active` | `true` | Whether the control and its children take part in input and drawing. |
+| `clipChildren` | `false` | Clip children to this control's bounds. |
+| `clipToBounds` | `false` | Clip this control's own drawing to its bounds. |
+
+An invalid number throws a `RangeError`. Each control also has a read-only numeric `id`. It is assigned when the control is created, is unique in the process, and is never reused.
 
 ## Geometry and parent helpers
 
-`x` and `y` are logical-pixel offsets from the parent content origin, after the
-parent profile's padding. A `GuiWindow` also reserves its title bar above the
-child content. A root control uses the game viewport as its parent bounds.
-`center()` centers on both axes of the current parent content area;
-`centerHorizontal()` and `centerVertical()` anchor one axis. Anchors update
-after parent or viewport resize. Geometry setters return the control for
-chaining.
+`x` and `y` are offsets from the parent's content origin. The content origin is the parent's top-left corner moved inward by the parent's padding (`profile.spacing.padding`). A `GuiWindow` also reserves its title bar above its content. `GuiTab` and `GuiStretch` add no padding. A root control uses the game window as its parent.
+
+`center()` centers a control on both axes of its parent's content area. `centerHorizontal()` and `centerVertical()` center one axis. A centered axis follows the parent when the parent or the window changes size. Setters return the control, so calls can be chained.
 
 ```ts
-const scroll = new GuiScroll({ position: Vector2D.zero(), width: 420, height: 300 });
-scroll.center();
-scroll.moveBy(Vector2D.right().scale(24)).centerVertical();
-scroll.setSize(460, 320);
+import { GUI, GuiPanel, GuiScroll } from '@bornengine/engine';
 
-const child = new GUI({ position: new Vector2D(12, 16), width: 120, height: 32 });
-scroll.addControl(child);
-const parent = child.getParent();
-const screenPoint = child.localToGlobal(Vector2D.zero());
-const localPoint = child.globalToLocal(screenPoint);
-const position = child.getPosition();
-child.setPosition(position.add(new Vector2D(4, 0)));
+function buildScroll(): GuiScroll {
+  const scroll = new GuiScroll({ width: 420, height: 300 });
+  scroll.center();
+  scroll.setSize(460, 320);
+  scroll.setX(24);
+  scroll.addControl(new GuiPanel({ x: 12, y: 16, width: 380, height: 100 }));
+  return scroll;
+}
+
+function windowOrigin(control: GUI): { x: number; y: number } {
+  return control.localToGlobal({ x: 0, y: 0 });
+}
+
+function isInside(control: GUI, windowX: number, windowY: number): boolean {
+  const local = control.globalToLocal({ x: windowX, y: windowY });
+  const size = control.getSize();
+  return local.x >= 0 && local.y >= 0 && local.x < size.width && local.y < size.height;
+}
+
+function moveToScroll(control: GUI, scroll: GuiScroll): boolean {
+  const owner = control.getParent();
+  if (owner === null) return false;
+  owner.removeControl(control);
+  scroll.addControl(control);
+  return true;
+}
 ```
 
-Positions accept `Vector2D` or any `{ x, y }` value through `position` and
-`setPosition()`. `getPosition()`, `localToGlobal()`, and `globalToLocal()` return
-independent `Vector2D` snapshots. `moveBy(offset)` translates the control and
-clears both center anchors. Existing `x`/`y`, `setX()`/`setY()`, and
-`setPosition(x, y)` calls remain supported; explicit `x` or `y` options override
-only the matching component of `position`. Width and height remain separate
-dimensions.
-
-Common geometry and tree methods:
+In `buildScroll`, `center()` anchors both axes. `setX(24)` then clears only the horizontal anchor, so the scroll area stays centered vertically. `windowOrigin` returns where a control's top-left corner is on screen, and `isInside` tests a window position against a control. `moveToScroll` shows reparenting: remove a control from its owner before you add it to a new one.
 
 | Methods | Purpose |
 | --- | --- |
-| `getX()` / `setX(x)`, `getY()` / `setY(y)` | Read or set a parent-relative offset; setting one axis clears only that axis's center anchor. |
-| `position?: Vector2DLike`, `getPosition()` / `setPosition(position)` / `moveBy(offset)` | Set and read parent-relative position with `Vector2D`; numeric `x`/`y` and `setPosition(x, y)` are kept for convenience and compatibility. Returned positions are detached snapshots. |
-| `getSize()` / `setSize(width, height)`, `resize(x, y, width, height)` | Read or update dimensions. Width and height must be finite and non-negative. |
-| `center()`, `centerHorizontal()`, `centerVertical()` | Anchor the control to its parent's center. |
-| `getParent()`, `getRoot()`, `getControls()`, `addControl(control)`, `removeControl(control)`, `clearControls()` | Inspect and manage the retained tree. `parent` is a read-only getter. |
-| `localToGlobal(point)`, `globalToLocal(point)` | Accept vector-like positions and return `Vector2D` coordinates through the current ancestor chain. |
-| `show()`, `hide()`, `setVisible(value)`, `setActive(value)` | Control visibility and whether a subtree participates in GUI input/rendering. |
-| `setClipChildren(value)`, `setClipToBounds(value)` | Clip descendants or the control's own drawing to bounds. `GuiScroll` clips children to its viewport. |
-| `getProfile()` / `setProfile(profile)`, `setOwnProfile(profile?)` | Read, share, or clone a visual profile. |
-| `bringToFront()`, `pushToBack()` | Change sibling/root draw order. |
-| `destroy()` | Detach the control and its descendants permanently. |
+| `getX()`, `setX(x)`, `getY()`, `setY(y)` | Read or set one offset. Setting an axis clears that axis's center anchor and keeps the other. |
+| `getPosition()`, `setPosition(x, y)` | `getPosition()` returns a copy `{ x, y }`. `setPosition(x, y)` sets both offsets and clears both anchors. |
+| `getWidth()`, `setWidth(width)`, `getHeight()`, `setHeight(height)`, `getSize()`, `setSize(width, height)` | Read or change the size. A centered axis stays centered. |
+| `resize(x, y, width, height)` | Set offsets and size together and clear both anchors. |
+| `center()`, `centerHorizontal()`, `centerVertical()` | Anchor the control to the center of its parent's content area. |
+| `getMinimumSize()`, `setMinimumSize(width, height)` | The smallest size the control accepts. Setting it grows a smaller control. |
+| `getParent()`, `parent`, `getRoot()` | The owning control (`null` for a root), a read-only getter with the same value, and the root of the tree. |
+| `getControls()`, `addControl(control)`, `removeControl(control)`, `clearControls()` | Inspect and change the children. `getControls()` returns a copy. `addControl` returns the control it attached and throws if the control already has a parent or an owner, was destroyed, or would create a cycle. `removeControl` returns `false` when the control is not a child. |
+| `localToGlobal(point)`, `globalToLocal(point)` | Convert `{ x, y }` points between this control's own space and window coordinates through the whole ancestor chain. |
+| `isVisible()`, `setVisible(value)`, `show()`, `hide()`, `isActive()`, `setActive(value)` | Draw or skip a subtree, and let it take input or not. A hidden or inactive control is not drawn and receives no events. |
+| `setClipChildren(value)`, `getClipChildren()`, `setClipToBounds(value)`, `getClipToBounds()` | Clip the children to this control's bounds, or clip this control's own drawing. `clipToBounds` does not clip children unless `clipChildren` is also on. |
+| `getProfile()`, `setProfile(profile)`, `setOwnProfile(profile)` | Read, share, or copy the visual style. See Profiles below. |
+| `focus()`, `blur()`, `isFocused()`, `makeFirstResponder(enabled)`, `isFirstResponder()`, `tabFirst()` | Keyboard focus. `tabFirst()` focuses the first descendant that can take input. |
+| `bringToFront()`, `pushToBack()` | Change the draw order among siblings, or among the roots of `game.gui`. The last control is drawn on top. |
+| `getHint()`, `setHint(text)`, `getCursor()`, `setCursor(cursor)` | Store a hint string and a cursor name on the control. The current renderer does not show hints or change the pointer shape. |
+| `destroy()` | Detach the control and remove all its children. A destroyed control cannot be attached again. |
 
-`GUIManager` also exposes `getControls()`, `isAvailable()`,
-`wantsPointerInput()`, and `wantsKeyboardInput()`. Check input-capture methods
-when deciding whether gameplay should react to the same pointer or keyboard
-input; the GUI does not automatically consume game input.
+`setOwnProfile` returns the profile it created, `removeControl` returns a boolean, and `clearControls` and `destroy` return nothing. `addControl` returns the control it attached. The other setters return the control they were called on.
 
 ## Profiles
 
-`GuiProfile` holds normal, hover, disabled, text, and selection colors; font and
-alignment; spacing, border, opacity, background texture, shadow, focus and
-modality settings, cursor, and optional button sounds. Profiles are shared by
-reference until cloned. `setOwnProfile()` gives one control an independent
-copy.
+A `GuiProfile` describes how a control looks. Controls share a profile by reference until you copy it, so changing a shared profile changes every control that uses it.
 
 ```ts
-import { GUIProfiles } from '@bornengine/engine/gui';
+import { GUIProfiles, GuiButton, GuiProfile } from '@bornengine/engine';
 
-const button = new GuiButton({ width: 160, height: 36 });
-const profile = button.setOwnProfile(GUIProfiles.get('button'));
-profile.normalColor = { r: 0.08, g: 0.24, b: 0.5, a: 1 };
-button.setText('Continue');
+function createButtons(): GuiButton[] {
+  GUIProfiles.register(
+    'danger',
+    new GuiProfile({
+      normalColor: { r: 0.55, g: 0.1, b: 0.1, a: 1 },
+      textColor: { r: 1, g: 1, b: 1, a: 1 },
+      font: { size: 16, bold: true },
+      border: { width: 2, radius: 6 },
+    }),
+  );
+
+  const remove = new GuiButton({ width: 160, height: 36 });
+  remove.setText('Delete save').setProfile(GUIProfiles.get('danger'));
+
+  const quiet = new GuiButton({ width: 160, height: 36 });
+  quiet.setText('Close');
+  quiet.setOwnProfile(GUIProfiles.get('button')).opacity = 0.8;
+
+  return [remove, quiet];
+}
 ```
 
-Built-in names include `default`, `text`, `button`, `window`, `scroll`,
-`checkbox`, `radio`, `popup`, `slider`, `progress`, `tree`, `list`, and `blue`.
-Use `GUIProfiles.register(name, profile)` for an application-wide profile;
-duplicate names and unknown lookups throw. Use `GUIProfiles.clone(name)` or
-`control.setOwnProfile()` before changing a profile for one control.
+- `GUIProfiles.get(name)` returns the shared profile. `GUIProfiles.clone(name)` returns an independent copy. `GUIProfiles.register(name, profile)` adds a profile, and it throws for an empty or duplicate name. An unknown name in `get` throws.
+- `control.setProfile(profile)` assigns a shared profile. `control.setProfile(null)` removes the control's own profile. `control.setOwnProfile(profile)` copies `profile` and assigns the copy, so you can change one control without touching the others. Without an argument it copies the control's own profile, or `default` when it has none.
+- A control without its own profile is drawn with the profile of its parent, and a root control without one uses `default`. `getProfile()` returns the control's own profile, or `default` if it has none.
+- The built-in names are `default`, `text`, `button`, `window`, `scroll`, `checkbox`, `radio`, `popup`, `slider`, `progress`, `tree`, `list`, `blue`, `blue-button`, and `blue-window`.
+
+Each control class assigns a profile when you create it:
+
+| Control | Default profile |
+| --- | --- |
+| `GuiButton`, `GuiBitmapButton` | `button` |
+| `GuiText`, `GuiMLText`, `GuiTextEdit`, `GuiMLTextEdit`, `GuiTextEditSlider` | `text` |
+| `GuiWindow` | `window` |
+| `GuiScroll` | `scroll` |
+| `GuiCheckBox`, `GuiRadioButton` | `checkbox` |
+| `GuiSlider` | `slider` |
+| `GuiPopUpMenu`, `GuiPopUpEdit`, `GuiMenu`, `GuiContextMenu` | `popup` |
+| `GuiTreeView` | `tree` |
+| `GuiTextList` | `list` |
+| `GuiProgress` | `progress` |
+| `GuiTab` | `default` |
+| `GUI`, `GuiPanel`, `GuiBitmapBorder`, `GuiStretch`, `GuiFrameSet`, `GuiBitmap`, `GuiShowImg`, `GuiDrawingPanel` | None. They use their parent's profile. |
+
+The profile fields are:
+
+| Field | Default | Used by the renderer in this release |
+| --- | --- | --- |
+| `normalColor` | dark gray | The control's fill. |
+| `hoverColor` | lighter gray | The title bar of a `GuiWindow`, and hovered tab and menu items. |
+| `selectionColor` | blue | The selected tab or menu item. |
+| `textColor` | near white | Text. |
+| `font` | `{ family: null, size: 14, bold: false, italic: false }` | `size`, `bold`, and `italic`. The size is limited to 1 through 128. `family` is not used. |
+| `spacing` | `{ item: 4, padding: 6, inner: 2 }` | `padding` places children inside the parent. `item` and `inner` are not used. |
+| `border` | `{ color, width: 1, radius: 3 }` | Border color, width, and corner radius. |
+| `opacity` | 1 | Multiplies the alpha of the fill, text, and border. |
+| `background` | `null` | A loaded `Texture` that fills the control. `GuiBitmapBorder` draws it along its edges. |
+| `disabledColor`, `alignment`, `shadow`, `focusable`, `modal`, `cursor`, `buttonSounds` | | Stored and copied with the profile, but not used yet. In particular, the engine does not play `buttonSounds`. Play sounds from your event hooks instead. |
+
+Profile colors are `{ r, g, b, a }`. Channels from 0 to 1 are the normal form. Values from 0 to 255, like `Colors.*`, are also accepted, but a color whose four channels are all 1 or less is read as 0 to 1.
 
 ## Built-in controls
 
-Every concrete control extends `GUI`; add it to a parent with `addControl()`
-or to the root with `game.gui.addControl()`. Controls accept optional
-`GUIControlOptions` for geometry, visibility, clipping, and activity.
+Every control extends `GUI`. To add behavior, extend the closest control and override its hooks. A plain `GUI` draws only its fill and border.
 
-### Base and layout
+### Containers and layout
 
-| Class | Methods and purpose |
+| Class | What it is and its methods |
 | --- | --- |
-| `GUI` | Extensible base/container. Geometry, tree, visibility, focus, cursor, hints, minimum size, z-order, and lifecycle helpers are available on every control. |
-| `GuiPanel` | Basic rectangular container. Add children and choose whether they clip to its bounds. |
-| `GuiWindow` | Titled, movable, resizable panel. `getTitle()` / `setTitle(title)` manage its title; `setMovable(enabled)` and `setResizable(enabled)` enable native dragging and resizing. `setClosable(enabled)` adds a close button that hides the window; call `show()` to reopen it. |
-| `GuiScroll` | Scrollable container with child clipping. Set horizontal/vertical scrollbar modes to `'alwaysOn'`, `'alwaysOff'`, or `'dynamic'`; configure `setScrollBarThickness(pixels)`. |
-| `GuiBitmapBorder` | Draws the profile background bitmap on its four edges and keeps the interior on `normalColor`. `profile.border.width` sets edge thickness; `setTiled(true)` repeats the bitmap along each edge at its native length, while the edge thickness is fitted to the control. With tiling off, each edge stretches the bitmap. |
-| `GuiStretch` | Stretches its children from the virtual area set by `setClientSize(width, height)` to the control's physical size. Child geometry and pointer-local coordinates use the same scale. |
-| `GuiFrameSet` | Lays out direct children in row-major cells. `setColumnCount(n)`, `setRowCount(n)`, and `setSplitterWidth(pixels)` configure the grid; drag a splitter to resize adjacent cells. |
+| `GUI` | The base class of every control. It holds the geometry, tree, visibility, focus, profile, and lifecycle methods described above. |
+| `GuiPanel` | A rectangular container. |
+| `GuiWindow` | A titled container the player can drag and resize. `getTitle()` and `setTitle(title)` manage the title. `setMovable(enabled)`, `setResizable(enabled)`, and `setClosable(enabled)` switch the abilities, and `isMovable()`, `isResizable()`, and `isClosable()` read them. All three are on by default. Dragging or resizing updates the control's `x`, `y`, `width`, and `height` on the next frame and calls `onMove` and `onResize`. The close button hides the window; call `show()` to open it again. |
+| `GuiScroll` | A container that clips its children and scrolls them. `setHorizontalScrollBarMode(mode)` and `setVerticalScrollBarMode(mode)` take `'alwaysOn'`, `'alwaysOff'`, or `'dynamic'` (the default), and the matching getters return them. `setScrollBarThickness(pixels)` and `getScrollBarThickness()` manage the bar width (12 by default). The scroll position is kept per control. |
+| `GuiBitmapBorder` | Draws the profile's `background` texture along its four edges and fills the inside with `normalColor`. `profile.border.width` sets the edge thickness. `setTiled(true)` repeats the texture along each edge at its native length, and `isTiled()` reads the setting. With tiling off, each edge stretches the texture. |
+| `GuiStretch` | Scales its children from a virtual area to its real size. `setClientSize(width, height)` sets the virtual area and `getClientSize()` reads it. Child sizes, positions, and pointer coordinates use the same scale. With no client size, children are not scaled. |
+| `GuiFrameSet` | Places its direct children into a grid of cells in row-major order. `setColumnCount(count)`, `setRowCount(count)`, and `setSplitterWidth(pixels)` configure the grid, and `getGridSize()` and `getSplitterWidth()` read it. The player can drag a splitter to resize the cells next to it. |
 
 ### Buttons and values
 
-| Class | Methods and purpose |
+| Class | What it is and its methods |
 | --- | --- |
-| `GuiButtonBase` | Abstract button base with `getText()` / `setText(text)`. |
-| `GuiButton` | Clickable text button. Override `onAction(event)` for an action. |
-| `GuiCheckBox` | Boolean choice. Use `getValue()` / `setValue(value)`; changes call `onChange(event)`. |
-| `GuiRadioButton` | Boolean choice with optional sibling exclusivity through `setGroup(groupId)`. |
-| `GuiBitmapButton` | Button with `setTextures({ normal, hover, pressed, disabled })` and `getTextures()`. Textures must be loaded by the same Game. |
-| `GuiSlider` | Numeric value input. Set its range with `setRange(minimum, maximum)` and access `getValue()` / `setValue(value)`. |
+| `GuiButtonBase` | The abstract base of buttons. `getText()` and `setText(text)` manage the label. You cannot create it directly. |
+| `GuiButton` | A clickable text button. Override `onAction` to react to a click. |
+| `GuiCheckBox` | A boolean choice. `getValue()` and `setValue(value)` read and set it. The check box draws no label of its own; put a `GuiText` beside it. |
+| `GuiRadioButton` | A check box that can share a group. `setGroup(groupId)` and `getGroup()` manage the group, and selecting one button clears the other buttons with the same group that share its parent. |
+| `GuiBitmapButton` | A button drawn from textures. `setTextures({ normal, hover, pressed, disabled })` and `getTextures()` manage them. Textures must be loaded by the same `Game`. The `disabled` texture is stored but not selected yet. If the texture for the current state (normal, hover, or pressed) is missing, the control draws as a plain button. |
+| `GuiSlider` | A numeric slider. `setRange(minimum, maximum)` and `getRange()` manage the range, which starts at 0 to 1, and `getValue()` and `setValue(value)` read and set the value. `setValue` clamps to the range. |
 
 ### Text and editing
 
-| Class | Methods and purpose |
+| Class | What it is and its methods |
 | --- | --- |
-| `GuiText` | Single or wrapped text with `getText()` / `setText(text)`. |
-| `GuiMLText` | Multi-line text control. |
-| `GuiTextEdit` | Editable single-line text. `selectAll()`, `clear()`, `setMaxLength(n)`, `setPassword(enabled)`, `setNumbersOnly(enabled)`, and `getSelection()` configure the editor. |
-| `GuiMLTextEdit` | Multi-line editable text with the same length, password, numeric-only, and selection methods. |
-| `GuiTextEditSlider` | Text edit paired with a numeric value. Use `setRange(minimum, maximum)` and `getValue()` / `setValue(value)` alongside text-edit options. |
+| `GuiText` | Wrapped text. `getText()` and `setText(text)` manage it. |
+| `GuiMLText` | Multi-line text with the same methods. |
+| `GuiTextEdit` | An editable single line. `selectAll()`, `clear()`, `setMaxLength(length)`, `setPassword(enabled)`, and `setNumbersOnly(enabled)` configure it, and `getMaxLength()`, `isPassword()`, `isNumbersOnly()`, and `getSelection()` read it. Numbers-only keeps the characters `0` through `9`, `.`, `+`, and `-`. `selectAll()` records a range that `getSelection()` returns; the renderer does not apply that range and does not report the player's own selection. |
+| `GuiMLTextEdit` | An editable block of lines with the same methods. Password masking applies to single-line editors only. |
+| `GuiTextEditSlider` | A text field paired with a number. `setRange(minimum, maximum)`, `getRange()`, `getValue()`, and `setValue(value)` manage the number, and the text edit methods apply. Typed text is parsed as a number and clamped to the range. |
 
 ### Selection and navigation
 
-| Class | Methods and purpose |
+| Class | What it is and its methods |
 | --- | --- |
-| `GuiArray` | Abstract base for controls backed by a typed item list. `getItems()` and `getItemCount()` inspect the list. |
-| `GuiPopUpMenu` | `add(label, id)`, `clear()`, `setSelected(id)`, `getSelected()`, and `getSelectedText()` manage choices. |
-| `GuiPopUpEdit` | Editable text field with an item popup; adds `getText()` / `setText(text)`. Native text edits return to TypeScript before the next `Game.loop`. |
-| `GuiTreeView` | `addNode(label, value?)`, `addNodeByPath(path, value?)`, `clearNodes()`, `getSelected()`, and `getSelectedPath()` build and inspect a bounded tree. |
-| `GuiTextList` | `addRow(id, text)`, `removeRow(id)`, `clearRows()`, and `getSelected()` manage rows. |
-| `GuiTab` | Horizontal tab bar with pages below it. `addTab(label, id)`, `setSelected(id)`, and `getSelected()` choose a page. |
-| `GuiMenu` | Horizontal menu bar that invokes the selected item's callback and bubbles an action event. |
-| `GuiContextMenu` | Context menu that opens at the pointer on a secondary click inside its parent, invokes the selected item's callback, bubbles an action event, and closes after activation. `openAt(position, button)` accepts a vector-like position; the numeric `openAt(x, y, button)` form remains supported. |
+| `GuiArray` | The abstract base of controls that hold a list of items. `getItems()` returns a copy of the `{ id, label }` entries and `getItemCount()` returns their number. Item IDs are non-empty strings or safe integers, and they must be unique. |
+| `GuiPopUpMenu` | A drop-down list. `add(label, id)` adds a choice, `clear()` removes all, `setSelected(id)` selects one or `null` for none, and `getSelected()` and `getSelectedText()` read the choice. `setSelected` throws for an unknown ID. |
+| `GuiPopUpEdit` | An editable text field with a drop-down list. It adds `getText()` and `setText(text)`. |
+| `GuiTreeView` | A tree of text nodes, drawn as rows indented by depth. `addNode(label, value)` adds a root node, `addNodeByPath(path, value)` adds a node at a path such as `'Inventory/Weapons/Sword'`, and both select the new node. `clearNodes()`, `setSelectedPath(path)`, `getSelected()`, `getSelectedPath()`, and `getRootNodes()` manage and read the tree. Paths have at most `GUI_TREE_MAX_PATH_LENGTH` characters (4096) and `GUI_TREE_MAX_PATH_SEGMENTS` parts (128), and labels cannot be empty. |
+| `GuiTextList` | A list of rows. `addRow(id, text)`, `removeRow(id)`, and `clearRows()` change the rows, `setSelected(id)` selects one, and `getSelected()`, `getSelectedText()`, and `getRowCount()` read the list. |
+| `GuiTab` | A tab bar with one page for each tab. `addTab(label, id)` creates a tab and returns its `GuiPanel` page, `setSelected(id)` and `getSelected()` manage the current tab, and `getTab(id)` returns a page. The bar is 28 pixels high and only the selected page is visible. |
+| `GuiMenu` | A horizontal menu bar. `add(label, id, callback)` adds an item with an optional callback, and `activateItem(id)` selects an item, runs its callback, and raises an action event. |
+| `GuiContextMenu` | A menu that opens at the pointer when the player right-clicks inside its parent. It starts hidden. It closes after an item is activated. `openAt(x, y, button)` opens it by hand (the button must be `MouseButton.RIGHT`), and `isOpen()` reports its state. Its width is 160 unless you set one. |
 
 ### Images, progress, and custom drawing
 
-| Class | Methods and purpose |
+| Class | What it is and its methods |
 | --- | --- |
-| `GuiBitmap` | Displays a Game-owned texture. `setTexture(texture)`, `setTint(color)`, `setOpacity(value)`, `setRotation(degrees)`, and `setZoom(value)` configure it. |
-| `GuiShowImg` | Image-display control with the same texture, tint, opacity, rotation, and zoom methods. |
-| `GuiProgress` | Unit-interval progress value; `setValue(value)` clamps to `[0, 1]`. |
-| `GuiDrawingPanel` | Ordered, panel-clipped `drawLine`, `drawRect`, `drawCircle`, `drawText`, `drawImage`, `drawPolyline`, `drawPolygon`, and `clearDrawing` commands. |
+| `GuiBitmap` | Shows a texture. `setTexture(texture)`, `setTint(color)`, `setOpacity(value)` (0 to 1), `setRotation(degrees)`, and `setZoom(value)` (greater than 0) configure it, and the matching getters read the values. |
+| `GuiShowImg` | An image control with the same methods as `GuiBitmap`. |
+| `GuiProgress` | A progress bar. `setValue(value)` clamps to 0 through 1, and `getValue()` reads it. |
+| `GuiDrawingPanel` | A panel that draws ordered shapes, clipped to its bounds, with coordinates measured from its top-left corner. `drawLine(start, end, color, thickness)`, `drawRect(rect, color, filled)`, `drawCircle(center, radius, color, thickness)`, `drawText(text, position, size, color)`, `drawImage(texture, destination, tint, rotation)`, `drawPolyline(points, color, thickness)`, and `drawPolygon(points, color)` add shapes, `clearDrawing()` removes them, and `getDrawingCommands()` returns copies. Circles, polylines, and polygons are drawn as outlines. |
 
-Textures are accepted only when they are loaded and owned by the current Game.
-Foreign or unloaded images are omitted. Background and control textures are
-registered through the same egui texture path as `game.ui.image()`.
+Textures reach the renderer only when they are loaded and owned by the same `Game` as the GUI. A foreign or unloaded texture is skipped. Textures are registered through the same path as `game.ui.image()`.
+
+The next example builds a small options window from several of these controls:
+
+```ts
+import {
+  Colors,
+  Game,
+  GuiCheckBox,
+  GuiPopUpMenu,
+  GuiSlider,
+  GuiTab,
+  GuiText,
+  GuiTextEdit,
+  GuiWindow,
+} from '@bornengine/engine';
+
+class OptionsGame extends Game {
+  protected override onStart(): void {
+    const dialog = new GuiWindow({ x: 40, y: 40, width: 420, height: 340 });
+    dialog.setTitle('Options').setClosable(true);
+
+    const tabs = new GuiTab({ x: 0, y: 0, width: 400, height: 280 });
+    const audioPage = tabs.addTab('Audio', 'audio');
+    const playerPage = tabs.addTab('Player', 'player');
+
+    const volume = new GuiSlider({ x: 8, y: 8, width: 200, height: 24 });
+    volume.setRange(0, 100).setValue(70);
+    const mute = new GuiCheckBox({ x: 8, y: 40, width: 24, height: 24 });
+    const muteLabel = new GuiText({ x: 40, y: 40, width: 120, height: 24 });
+    muteLabel.setText('Mute');
+    audioPage.addControl(volume);
+    audioPage.addControl(mute);
+    audioPage.addControl(muteLabel);
+
+    const nameField = new GuiTextEdit({ x: 8, y: 8, width: 200, height: 28 });
+    nameField.setText('Player 1').setMaxLength(16);
+    const quality = new GuiPopUpMenu({ x: 8, y: 48, width: 200, height: 28 });
+    quality.add('Low', 'low').add('High', 'high').setSelected('high');
+    playerPage.addControl(nameField);
+    playerPage.addControl(quality);
+
+    dialog.addControl(tabs);
+    this.gui.addControl(dialog);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.DARKGRAY);
+  }
+}
+
+new OptionsGame().run();
+```
 
 ## Events, focus, and response timing
 
-Override only the hooks a control needs: `onAction`, `onChange`, `onFocus`,
-`onBlur`, `onPointerEnter`, `onPointerLeave`, `onPointerMove`,
-`onPointerDown`, `onPointerUp`, `onPointerDrag`, `onWheel`, `onKeyDown`, and
-`onKeyUp`. Lifecycle hooks include `onAdd`, `onRemove`, `onShow`, `onHide`,
-`onWake`, `onSleep`, `onMove`, and `onResize`.
+Override only the hooks a control needs. All of them are `protected` methods on `GUI` that do nothing by default.
+
+| Hooks | When they run |
+| --- | --- |
+| `onAction(event)` | The player clicks a button, check box, or radio button, or picks an item in a menu, list, tree, tab bar, or pop-up. |
+| `onChange(event)` | The player changes a value: check box, radio button, slider, text editor, or a pop-up, list, or tree selection. |
+| `onFocus(event)`, `onBlur(event)` | The control gains or loses keyboard focus. |
+| `onPointerEnter(event)`, `onPointerLeave(event)`, `onPointerMove(event)` | The pointer enters, leaves, or moves over the control. |
+| `onPointerDown(event)`, `onPointerUp(event)`, `onPointerDrag(event)` | A pointer button goes down or up over the control, or the control is dragged. |
+| `onWheel(event)` | The wheel moves while the pointer is over the control. |
+| `onKeyDown(event)`, `onKeyUp(event)` | A key goes down or up while the control has focus. |
+| `onAdd()`, `onRemove()` | The control is attached to or removed from a parent or from `game.gui`. |
+| `onShow()`, `onHide()` | The control becomes visible or hidden. |
+| `onWake()`, `onSleep()` | The control becomes both visible and active (wake), or stops being so (sleep). |
+| `onMove()`, `onResize()` | The control's position or size changes. |
+
+Changing a value from your own code, with `setValue()`, `setText()`, or `setSelected()`, does not call `onChange`. Only the player's edits do.
 
 ```ts
-class ApplyButton extends GuiButton {
+import { GUIEvent, GuiButton, GuiPanel } from '@bornengine/engine';
+
+class ShopButton extends GuiButton {
+  protected override onPointerEnter(event: GUIEvent): void {
+    console.log('hover at', event.localX, event.localY);
+  }
+}
+
+class ShopPanel extends GuiPanel {
+  lastPurchase = '';
+
   protected override onAction(event: GUIEvent): void {
-    console.log(event.target === this, event.currentTarget === this);
+    if (!(event.target instanceof ShopButton)) return;
+    this.lastPurchase = event.target.getText();
+    event.stopPropagation();
   }
 }
 ```
 
-GUI events carry `target`, `currentTarget`, `localPosition` and `globalPosition`
-as `Vector2D` snapshots, plus the compatible scalar `localX`/`localY` and
-`globalX`/`globalY` fields, key/button/wheel data, and modifiers when present.
-They bubble from the target to its parents; call `event.stopPropagation()` to stop bubbling. Use
-`focus()`, `blur()`, `isFocused()`, `makeFirstResponder()`, and `isFirstResponder()`
-for keyboard focus. Hidden, inactive, detached, or destroyed controls do not
-receive stale input responses.
+Every hook that takes an event receives a `GUIEvent`:
 
-The native backend evaluates both UI APIs after game rendering. `game.gui`
-applies the completed response snapshot during the next frame's service update,
-before `Game.loop()`. Value setters made in TypeScript take precedence over an
-older pending native value. Use `game.gui.isAvailable()` before relying on GUI
-rendering or input; unavailable targets return `false` and dispatch no GUI
-events.
+- `type` is one of the `GUIEventType` values: `Action`, `Change`, `Focus`, `Blur`, `PointerEnter`, `PointerLeave`, `PointerMove`, `PointerDown`, `PointerUp`, `PointerDrag`, `Wheel`, `KeyDown`, and `KeyUp`.
+- `target` is the control the event is about. `currentTarget` is the control whose hook is running now.
+- `localX` and `localY` are the pointer position relative to the target. `globalX` and `globalY` are window coordinates. Both are in logical pixels. They are `undefined` when the event did not come from pointer input, such as a focus change made by `focus()`.
+- `key` is a key code to compare with `Key.*`, and `button` is a button number to compare with `MouseButton.*`. `wheelX` and `wheelY` are the wheel amounts.
+- `modifiers` is a bit mask: Shift is 1, Ctrl is 2, Alt is 4, and Super is 8.
+- An event starts at its target and bubbles to each parent in turn, calling the same hook on each. `event.stopPropagation()` ends the trip after the current hook, and `isPropagationStopped()` tells you if it was called. A hidden, inactive, detached, or destroyed control does not receive events, and bubbling stops at one.
 
-## Related pages
+The engine evaluates `game.gui` and `game.ui` together after your `render()` method. The results reach you on the next frame, before `loop()` runs: controls update their values, then the queued events run in the order they happened. So a click on frame 10 calls `onAction` at the start of frame 11. Value setters you call in code take precedence over a native value from an earlier frame. When `game.gui.isAvailable()` is `false`, the GUI skips all of this work and dispatches no events.
 
-- [Immediate `game.ui` API](../ui/)
-- [GUI controls guide](../../guides/gui-controls/)
-- [Debug UI](../debug-ui/)
-- [Apple platform notes](../../platforms/apple/)
+Use `focus()` and `blur()` to move keyboard focus yourself, and `getFocusedControl()` on the manager to see which control has it. `game.gui.wantsPointerInput()` and `wantsKeyboardInput()` report whether the GUI is using the pointer or the keyboard. The GUI does not consume the input of your game, so check these methods to decide what gameplay should ignore.
+
+## The GUIManager
+
+`game.gui` is the `GUIManager`. It owns the root controls and the focus.
+
+| Member | Purpose |
+| --- | --- |
+| `addControl(control)` | Attach a root control. It throws if the control already has a parent or an owner, or was destroyed. |
+| `removeControl(control)` | Detach a root control. It returns `false` if the control is not a root of this manager. |
+| `clearControls()` | Detach every root control. |
+| `getControls()` | A copy of the root controls, in draw order. |
+| `getFocusedControl()` | The control that has focus, or `null`. |
+| `dispatchEvent(target, type, options)` | Build a `GUIEvent` and bubble it from `target`. It returns the event, or `null` when the target cannot receive input. The engine uses it for native input. You can call it to simulate input in a test. |
+| `isAvailable()`, `wantsPointerInput()`, `wantsKeyboardInput()` | Whether the GUI works on this target, and whether it is using the pointer or the keyboard. |
+| `game` | The owning `Game`. |
+
+The `Game` calls the manager's frame methods. Do not call `updateFrame()` or `renderFrame()` yourself.
+
+The GUI sends at most 16,384 commands to the renderer each frame. A control uses two commands, each list item uses one, and each `GuiDrawingPanel` shape uses two. Commands past the limit are dropped, so very large trees, lists, and drawings can lose their last controls.
+
+## Next steps
+
+- [Build a retained GUI](../../guides/gui-controls/) walks through a scrolling panel with events, a profile, and a sound.
+- [UI](../ui/) documents the immediate-mode widgets that share the display.
+- [Debug tools](../debug-ui/) shows the developer overlay that is drawn above the GUI.
+- [Apple platform notes](../../platforms/apple/) explain the watchOS limitation.

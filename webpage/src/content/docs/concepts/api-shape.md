@@ -1,51 +1,72 @@
 ---
 title: API shape
-description: Understand Game ownership, class-based services, and resource lifecycle.
+description: Where engine names are imported from, what each object owns, and which values are plain data.
 section: Concepts
-order: 11
+order: 12
 ---
 
-BornEngine uses a class-first TypeScript API. Extend `Game` to keep startup, simulation, and rendering with the services they use. The runtime exposes `renderer`, `input`, `audio`, `scenes`, and `sceneGraph` on the same instance. Create shared resources through `game.assets`; create scene-lifetime resources through `scene.assets` and effects through `scene.vfx`.
+BornEngine's API is organized around a few owners. The `Game` owns the services a program needs. A `Scene` owns the objects in one level. A game object owns its components. Most of the names you use come from the package root, and the less common modules come from subpaths.
+
+## Imports
+
+Import the common names from the package root:
 
 ```ts
-import { Colors, Game, Texture } from '@bornengine/engine';
-
-class SpriteGame extends Game {
-  private player: Texture | null = null;
-
-  constructor() {
-    super({ window: { title: 'Sprite demo' } });
-  }
-
-  protected override onStart(): void {
-    this.player = this.assets.loadTexture('assets/player.png');
-  }
-
-  protected override loop(deltaTime: number): void {
-    // Move the player by deltaTime, measured in seconds.
-  }
-
-  protected override render(): void {
-    this.renderer.clear(Colors.BLACK);
-    if (this.player !== null && this.player.isLoaded) this.player.draw({ x: 100, y: 120 });
-  }
-}
-
-new SpriteGame().run();
+import { Colors, Game, GameComponent, GameObject, Key, Renderer, Scene, Texture, Vec3 } from '@bornengine/engine';
 ```
 
-`run()` calls `onStart` once, then `loop(deltaTime)` and `render()` for each frame. When the game stops, `onStop()` runs before the runtime disposes its owned resources. An embedded host with its own frame scheduler can drive `runFrame(deltaTime, callbacks)`.
+Import specialized modules from a subpath. Each subpath is a module with a narrower set of names:
+
+| Import | Use it for |
+| --- | --- |
+| `@bornengine/engine/annotations` | `@Asset` and `@GameComponent()` field decorators |
+| `@bornengine/engine/audio` | `SoundManager`, sound and music helpers, buses |
+| `@bornengine/engine/camera2d` | `CameraRig2D`, `Viewport2D`, parallax layers |
+| `@bornengine/engine/colyseus` | Multiplayer client and rooms |
+| `@bornengine/engine/input` | `InputActionMap` and input helpers |
+| `@bornengine/engine/physics2d` | `PhysicsWorld2D`, `PhysicsBody2D`, `CharacterBody2D` |
+| `@bornengine/engine/physics` | 3D physics world, bodies, and characters |
+| `@bornengine/engine/scene` | The 3D `SceneGraph` and `SceneNode` |
+| `@bornengine/engine/sprites` | `SpriteSheet`, `SpriteRenderer`, `SpriteAnimator` |
+| `@bornengine/engine/storage` | `GameDatabase` and schema helpers |
+| `@bornengine/engine/tilemap` | `Tilemap` |
+
+The full list is in [API overview](../../api/).
+
+Two names appear in more than one place, so check the import when you add a line:
+
+- `GameComponent` is the base class you extend. It is exported from the root and from `@bornengine/engine/game`.
+- `GameComponent()` is the decorator exported from `@bornengine/engine/annotations`. A file that uses `@GameComponent()` imports the decorator from there. Keep the base class in a different file, or import one of the two under another name.
+
+`@bornengine/engine/scene` is the 3D scene graph. The `Scene` class you extend for levels comes from the root or from `@bornengine/engine/game`.
 
 ## Ownership
 
-A `Game` is the root owner for one engine context. Today the native runtime is process-global, so only one active `Game` can run at a time. Services and resources created for another game are rejected instead of silently crossing runtime boundaries. Game asset scopes live until shutdown; Scene scopes release their resources on unload.
+- **Game.** One `Game` owns the window, renderer, input, audio, scene manager, assets, and scripting runtime. Only one `Game` can be active in a process. Services and resources created for another game are rejected.
+- **Scene.** A scene owns its objects, its components, and its scene assets. Unloading the scene releases them.
+- **Game object.** An object belongs to one scene, or to no scene before it is added. An object belongs to one parent, or to the scene directly.
+- **Component.** A component belongs to exactly one game object.
 
-## Classes and values
+Shared resources such as a UI font belong to `game.assets`. Level resources belong to `scene.assets`. The [assets concept](../assets/) explains the difference.
 
-Stateful engine objects use classes: `Texture`, `Sound`, `Model`, `PhysicsWorld`, `SceneNode`, and `ColyseusClient` keep context and lifecycle alongside their operations. Value-only data such as `Vec3`, colors, rectangles, and camera descriptions stays plain or uses small math classes. This makes ownership visible without forcing value data into runtime objects.
+## Create resources through the owner
 
-## Public imports
+Create textures, sounds, fonts, and models through the asset manager, not with `new`. From a `Game` subclass, `this.assets.loadTexture('assets/player.png')` returns the texture for that path. The asset manager knows which game and scope the resource belongs to, and it caches the result by path. `Texture` has a private constructor, so `new` is not available for it.
 
-Import from `@bornengine/engine` for the common application surface, or use documented subpaths such as `@bornengine/engine/physics` and `@bornengine/engine/colyseus`. Those barrels expose the supported TypeScript API. Native operation declarations and numeric handle registries are internal implementation details.
+## Classes and plain values
 
-See the [Game API](../../api/game/) for gameplay lifecycle and [core API](../../api/core/) for the frame owner.
+Objects that hold native state are classes with methods, such as `Texture`, `Sound`, `Model`, `PhysicsWorld2D`, and `ColyseusClient`. They have a lifecycle, so release them through their owner or with the `release` methods.
+
+Plain data stays plain. A `Color` is an object with `r`, `g`, `b`, and `a` fields. A `Rect` is an object with `x`, `y`, `width`, and `height`. A `Vector2DLike` is any object with `x` and `y`. Pass object literals wherever these types are accepted.
+
+`Vector2D` and `Vec3` are small mutable classes for math. Their fields are public, so you can write `position.x += speed`.
+
+## Checking results
+
+Loaders do not throw for missing files. A texture from `loadTexture` can exist with `isLoaded === false` and an `error` message. Check `isLoaded` before you draw it, or use the `@Asset` decorator, which throws during scene attachment instead. See [Assets](../assets/).
+
+## Next steps
+
+- [Scenes, objects, and components](../scenes-and-objects/) shows the lifecycle hooks.
+- [Assets](../assets/) explains paths, caching, and release.
+- [Core API](../../api/core/) lists the `Game` members.

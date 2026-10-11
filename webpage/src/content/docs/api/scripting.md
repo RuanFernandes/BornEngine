@@ -1,115 +1,217 @@
 ---
 title: Embedded JavaScript
-description: Attach capability-limited JavaScript behavior modules to BornEngine game objects.
-section: API / Scripting
+description: Run capability-limited JavaScript behavior modules next to your game objects.
+section: API
 order: 36
 ---
 
-`Game.scripting` owns embedded JavaScript behaviors. Attach a `ScriptComponent` to a `GameObject` to run a self-contained ES module during that object's lifecycle. Each component gets a private runtime and heap; the guest receives only capabilities that the host explicitly grants.
+A `ScriptComponent` runs a small JavaScript module, called the guest, next to one `GameObject`. Use it for behavior that content authors or players may supply, such as an enemy routine loaded from a data file. The guest runs in its own QuickJS runtime, a small JavaScript engine, with its own memory and globals, and it can use only the capabilities you grant.
 
-QuickJS is opt-in for native builds. To include it on Linux, scaffold with `bornengine new MyGame --native-features scripting`, or add `native_features = ["scripting"]` under `[bornengine]` in `perry.toml`, then build with the BornEngine CLI. The default native 2D profile keeps the FFI API but does not compile QuickJS; creation then reports an unsupported runtime. Web/WASM keeps its existing scripting behavior without this native feature. Other native targets may retain an unsupported runtime stub; check `game.scripting.isSupported` before enabling script-driven content.
+`game.scripting` is the `ScriptRuntime` that every script component of a `Game` belongs to. Scripts are not available on every platform, so read "Platform support and security" at the end of this page before you plan around them. Check `game.scripting.isSupported` at run time.
+
+On native Linux, scripting needs the `scripting` native feature. Add it when you create a project, or add it to `native_features` under `[bornengine]` in `perry.toml`:
+
+```sh
+bornengine new MyGame --native-features scripting
+```
 
 ## Attach a behavior
 
-`ScriptComponent` accepts JavaScript source text and an optional capability list. It must use the `ScriptRuntime` owned by the same `Game` as the target scene.
+`new ScriptComponent(runtime, source, options)` takes the runtime from the same `Game` that owns the scene, the module source as a string, and an options object. `options.permissions` lists the capabilities the guest receives. The default is none.
 
 ```ts
-import { Game, GameObject, Scene, ScriptComponent } from '@bornengine/engine';
+import { Colors, Game, GameComponent, GameObject, Renderer, Scene, ScriptComponent, Vec3 } from '@bornengine/engine';
 
-const game = new Game();
 const guestSource = `export default {
   onStart(ctx) {
-    ctx.log('Player behavior started');
+    ctx.log('Started object ' + ctx.self.id);
   },
   update(ctx, deltaTime) {
     ctx.self.moveBy(48 * deltaTime, 0, 0);
   },
 };`;
 
-if (game.isReady) {
-  const player = new GameObject({ name: 'Player' });
-  const behavior = new ScriptComponent(game.scripting, guestSource, {
-    permissions: ['log', 'self.read', 'self.transform.write'],
-  });
-  player.addComponent(behavior);
-
-  const scene = new Scene(game, { name: 'Level' });
-  scene.add(player);
-  game.scenes.changeTo(scene);
+class Square extends GameComponent {
+  override render(renderer: Renderer): void {
+    const owner = this.gameObject;
+    if (owner === null) return;
+    const position = owner.transform.worldPosition;
+    renderer.drawRectangle({ x: position.x, y: position.y, width: 32, height: 32 }, Colors.ORANGE);
+  }
 }
+
+class Level extends Scene {
+  constructor(game: Game) {
+    super(game, { name: 'level' });
+
+    const actor = new GameObject({ name: 'Actor', position: new Vec3(40, 200, 0) });
+    actor.addComponent(new Square());
+
+    const behavior = new ScriptComponent(game.scripting, guestSource, {
+      permissions: ['log', 'self.read', 'self.transform.write'],
+    });
+    if (behavior.status === 'ready') {
+      actor.addComponent(behavior);
+    } else {
+      console.error('Script not attached:', behavior.error);
+      behavior.dispose();
+    }
+    this.addNode(actor);
+  }
+}
+
+class ScriptDemo extends Game {
+  constructor() {
+    super({ window: { title: 'Scripted actor', width: 800, height: 450 }, targetFps: 60 });
+  }
+
+  protected override onStart(): void {
+    this.scenes.changeTo(new Level(this));
+  }
+
+  protected override loop(deltaTime: number): void {
+    this.scenes.update(deltaTime);
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.DARKBLUE);
+    super.render();
+  }
+}
+
+new ScriptDemo().run();
 ```
 
-The component becomes active with its `GameObject`. `onStart(ctx)` runs once when the component starts, `update(ctx, deltaTime)` runs each active scene update, and `onDestroy(ctx)` runs when a started component is destroyed or disposed. Delta time is in seconds. The host still advances scene components explicitly from `Game.loop()` using `this.scenes.update(deltaTime)`.
+How the pieces work:
 
-Inspect `behavior.status`, `behavior.error`, `behavior.memoryUsed`, and `behavior.lastCallbackMs` from host TypeScript. Call `behavior.dispose()` if you created a component that will not be attached; it is safe to call more than once. Disposing a `Game` releases its script runtimes.
+- The constructor never throws. It loads the module right away and reports problems through `status` and `error`. If the status is `'error'` or `'unsupported'` right after construction, the component has no runtime and cannot be attached: `addNode` returns `null` for an object that carries it.
+- The component runs with its object. The guest's `onStart` runs once, before its first `update`. The guest's `update` runs each time the scene updates the component, so your `loop()` must call `this.scenes.update(deltaTime)`. A disabled component or an inactive object does not update.
+- When the object is destroyed or its scene unloads, the guest's `onDestroy` runs, if `onStart` ran, and then the runtime is freed. Call `behavior.dispose()` yourself for a component you never attach. It is safe to call more than once. Disposing the `Game` releases every script runtime it owns.
+- A component works only with scenes of the `Game` that owns its `ScriptRuntime`.
+- `ScriptRuntime` also has `isSupported`, `isDisposed`, `scriptCount` (the components it currently tracks), and `dispose()`.
 
 ## Guest module hooks
 
-A guest file is a self-contained JavaScript ES module with a default export object. All hooks are optional. Hooks may be ordinary functions; they receive the capability-filtered context as their first parameter, and `update` also receives `deltaTime`.
+The guest is a self-contained ES module with a default export object. The export has up to three optional hooks. A hook that is present must be a function.
 
 ```js
 export default {
   onStart(ctx) {
-    ctx.log('Module ready for object ' + ctx.self.id);
+    ctx.log('Ready: object ' + ctx.self.id);
     ctx.particles.emitBurst(10, 0, -1);
   },
   update(ctx, deltaTime) {
     ctx.self.moveBy(30 * deltaTime, 0, 0);
   },
   onDestroy(ctx) {
-    ctx.log('Module stopped');
+    ctx.log('Stopped');
   },
 };
 ```
 
-Module evaluation errors and hook failures are exposed through `status` and `error`; they do not escape through Perry's native boundary. Guest module state remains private to that component's runtime.
+- `onStart(ctx)` runs once when the component starts.
+- `update(ctx, deltaTime)` runs on each scene update. `deltaTime` is in seconds and is limited to the range 0 to 60.
+- `onDestroy(ctx)` runs when a started component is destroyed or disposed.
+- Hooks must be synchronous. A hook that returns a Promise, such as an `async` function, fails with an error.
+- The module has no way to import other modules, and `import` statements fail to load. Put everything in one file.
+- Module-level variables and properties of the exported object keep their values between calls. Each component has its own copy.
+- `ctx` is built fresh for every callback. Do not store it for later.
+
+`ctx` contains only what the component's permissions allow. The next section lists what each permission adds. Calling a method you were not granted fails, because the method does not exist. In TypeScript helper code, `ScriptContext` describes the shape of `ctx`, with each capability optional.
 
 ## Capabilities
 
-Capabilities are denied by default. The host passes a list to `ScriptComponent`; methods that the list does not grant are not installed in the guest context.
+Capabilities are denied by default. Each entry in `permissions` adds one group of methods to `ctx`:
 
-| Capability | Guest API | Effect |
+| Permission | Guest API | Effect |
 | --- | --- | --- |
-| `log` | `ctx.log(message)` | Queue a message for the host logger. |
-| `self.read` | `ctx.self.id`, `ctx.self.position` | Read the object's identifier and a copied world-position snapshot. |
-| `self.transform.write` | `ctx.self.setPosition(x, y, z)`, `ctx.self.moveBy(x, y, z)` | Queue changes to the owning object's world position. |
-| `self.particles.emit` | `ctx.particles.emitBurst(count, directionX?, directionY?)` | Request a burst from a `ParticleEmitter2D` on the same `GameObject`. |
+| `log` | `ctx.log(message)` | Queues a message. The host prints it with `console.log` as `[BornEngine script <id>] message`. Messages are cut at 4096 characters. |
+| `self.read` | `ctx.self.id`, `ctx.self.position` | `id` is the object's ID as a string. `position` is a `{ x, y, z }` copy of its world position taken when the callback starts. |
+| `self.transform.write` | `ctx.self.setPosition(x, y, z)`, `ctx.self.moveBy(x, y, z)` | Queues a change to the object's world position. Values must be finite numbers within 1,000,000,000 of zero, or the call is ignored. |
+| `self.particles.emit` | `ctx.particles.emitBurst(count, directionX?, directionY?)` | Asks the first `ParticleEmitter2D` on the same object for a burst. `count` is capped at 4096. Nothing happens if the object has no such emitter. |
 
-Commands are buffered while guest code runs and applied after a synchronous callback succeeds. Hooks that throw or return a Promise report an error and discard commands queued during that hook. A particle request has no target unless that object owns a `ParticleEmitter2D`. To emit through the existing 3D `ParticleSystem`, call it from trusted host TypeScript; v1 does not give guest scripts 3D VFX access.
+Guest calls do not change the game while the hook runs. They are queued and applied after the hook returns, in order, up to 1024 queued calls per callback. If the hook throws or returns a Promise, everything it queued is discarded. Reading `ctx.self.position` after a `moveBy` in the same callback still returns the position from the start of the callback.
 
-The guest does not receive the `Game`, renderer, native resource handles, or other engine services. Node APIs, QuickJS `std` and `os`, filesystem, process, network, workers, dynamic imports, and external module loading are not enabled.
+The guest never receives the `Game`, the renderer, native handles, or any other engine service. Node APIs, the QuickJS `std` and `os` modules, files, network access, workers, and module loading are not provided. To trigger the 3D `ParticleSystem`, call it from your own TypeScript; scripts have no access to 3D effects.
 
 ## Execution limits and failures
 
-Each component owns an isolated QuickJS runtime. Default limits are 16 MiB of guest heap, 256 KiB of stack, and 10,000 execution interrupt checks per hook. The host may override these in `limits`; maxima are 64 MiB, 256 KiB, and 1,000,000 checks. The stack maximum is also the default to leave host stack headroom on supported targets; hosts may select a smaller stack. Source is limited to 1 MiB. Hooks must be synchronous. `ScriptComponent` reports invalid limits, syntax errors, runtime failures, memory exhaustion, and interrupted execution as status/error data. Failed components remain visible to the Inspector until disposed or removed.
+Each component has three limits. Set any of them with `options.limits`:
+
+| Option | Default | Allowed range |
+| --- | --- | --- |
+| `maxMemoryBytes` | 16 MiB | 64 KiB to 64 MiB |
+| `maxStackBytes` | 256 KiB | 16 KiB to 256 KiB |
+| `maxInterruptChecks` | 10,000 | 1 to 1,000,000 |
+
+All three must be whole numbers. `DEFAULT_SCRIPT_LIMITS` holds the defaults. The execution budget, `maxInterruptChecks`, counts how often QuickJS stops to check for an interrupt. It is refilled before the module loads and before every hook, so an endless loop in a hook ends with an error instead of freezing the game. The module source must be a non-empty string of at most 1 MiB.
 
 ```ts
-const behavior = new ScriptComponent(game.scripting, guestSource, {
-  permissions: ['self.read'],
-  limits: {
-    maxMemoryBytes: 8 * 1024 * 1024,
-    maxStackBytes: 128 * 1024,
-    maxInterruptChecks: 5_000,
-  },
-});
+import { Game, ScriptComponent } from '@bornengine/engine';
+
+function createBehavior(game: Game, source: string): ScriptComponent | null {
+  if (!game.scripting.isSupported) return null;
+
+  const behavior = new ScriptComponent(game.scripting, source, {
+    permissions: ['self.read'],
+    limits: {
+      maxMemoryBytes: 8 * 1024 * 1024,
+      maxStackBytes: 128 * 1024,
+      maxInterruptChecks: 5_000,
+    },
+  });
+  if (behavior.status === 'error') {
+    console.error('Script rejected:', behavior.error);
+    behavior.dispose();
+    return null;
+  }
+  return behavior;
+}
+
+function reportScript(behavior: ScriptComponent): void {
+  console.log(behavior.status, behavior.memoryUsed + ' bytes', behavior.lastCallbackMs + ' ms');
+  if (behavior.error !== null) console.warn(behavior.error);
+}
 ```
 
-To inspect scripts during development, enable the optional Dear ImGui panel in the `Game` options:
+Failures never reach the game as exceptions. They show up on the component:
 
-```ts
-const game = new Game({
-  debug: { enabled: true, scripts: true },
-});
-```
+| `status` | Meaning |
+| --- | --- |
+| `ready` | The module loaded. No hook has run yet. |
+| `running` | `onStart` has run and the component is updating. |
+| `error` | Creating, loading, or running the module failed. `error` holds the message. |
+| `unsupported` | This target has no script runtime. |
+| `disposed` | The component was disposed or its object was destroyed. |
 
-The Scripts panel lists each known component's owner, status, guest memory use, most recent callback cost, and current error. It is part of the desktop debug UI and is not available on every target.
+- `error` holds the reason: invalid permissions or limits, a syntax error, an exception thrown by a hook (with the guest stack), `script execution exceeded its instruction budget`, `script exceeded its memory limit`, or a hook that returned a Promise. Guest messages are cut at 1024 bytes.
+- After a failure the guest's `update` hook is not called again. Remove the object or call `dispose()`.
+- `memoryUsed` is the guest heap in bytes after the latest callback, and `lastCallbackMs` is how long that callback took, including the time to apply its queued calls.
+- A failed component stays registered with `game.scripting`, and the inspector keeps listing it, until you dispose or remove it. With `debug: { enabled: true, scripts: true }` in the `Game` options, the inspector's Scripts panel lists each component's owner, status, memory, callback time, and error. See [Debug tools](../debug-ui/) for the build requirements.
 
 ## Loading script source
 
-Scripting v1 accepts JavaScript source text in `ScriptComponent`; the engine does not resolve package directories or load a script manifest. The BornEngine CLI currently has no `script check` or `script pack` commands. Your project is responsible for validating, loading, or embedding the source and passing the resulting string to the component. The [scripted actor example](https://github.com/RuanFernandes/BornEngine/tree/main/examples/scripted-actor) keeps a guest `.js` file and uses a small build step to embed its source for Perry.
+`ScriptComponent` accepts the module source as a string. The engine does not resolve script packages or read a script manifest. You decide how the string reaches the component:
+
+- Embed the source in your TypeScript build. The `scripted-actor` example (`examples/scripted-actor/main.ts`) keeps its module in `scripts/actor.js` and runs a small Node step, `npm run prepare:script`, that writes the source into `src/actor-script.ts` as a string constant. This works on every target that supports scripting.
+- Read a text file when the game starts. `game.input.readFile(path)` returns the file's text, or an empty string when it cannot read the file. On Linux the path is relative to the working directory. On Web the file is fetched from the page's server. `ScriptComponent` rejects an empty source, so the failure shows up in `status`.
+
+The BornEngine CLI currently has no `script check` or `script pack` commands. Your project is responsible for validating, loading, or embedding the source. The `bornengine.script.json` file in the example is project metadata only. The CLI does not read it, and the permissions that apply are the ones you pass to `ScriptComponent` in your code.
 
 ## Platform support and security
 
-Linux native and Web/WASM are the validated v1 targets. Other native targets and watchOS report scripting as unsupported through `game.scripting.isSupported` until their runtime links are verified. Check this property before offering script-driven content.
+| Target | Scripts available |
+| --- | --- |
+| Web/WASM | Yes. |
+| Linux | Yes, when the game is built with the `scripting` native feature. |
+| macOS, Windows, Android, iOS, tvOS, visionOS, watchOS | No. `game.scripting.isSupported` is `false` and components report `unsupported`. |
 
-This is an in-process containment layer for game content, not a formally secure boundary against a JavaScript VM vulnerability or a modified multiplayer client. Do not treat a guest callback as an authority boundary: multiplayer servers still need to validate gameplay actions.
+Check `game.scripting.isSupported` before you offer script-driven content, and keep a path that works without it.
+
+The guest runs inside the game process. The runtime is a containment layer for untrusted or accidental content, with limited capabilities and strict budgets. It is not a security boundary against a flaw in the JavaScript engine, and it does not protect a multiplayer game from a modified client. Do not treat what a guest does as proof that a rule was followed. An authoritative server must still validate every gameplay action.
+
+## Next steps
+
+- [Scenes, objects, and components](../../concepts/scenes-and-objects/) explains the lifecycle that script hooks follow.
+- [Debug tools](../debug-ui/) shows the inspector that lists script components.
+- [Sprites](../sprites/) covers `ParticleEmitter2D`, the target of `ctx.particles.emitBurst`.

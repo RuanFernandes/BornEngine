@@ -1,11 +1,11 @@
 ---
 title: Asset audit
-description: Validate project asset references, media signatures, budgets, and package inventories.
-section: CLI / Assets
+description: Validate asset references, file formats, and size budgets, and copy assets with a checksum manifest.
+section: CLI
 order: 24
 ---
 
-The BornEngine CLI can inspect project assets before a build and create a deterministic asset pack. Both commands use the same inventory: `assets/`, `public/`, and `static/` directories, plus assets referenced by supported `.world2d.json` documents.
+Two commands look at your project's assets. `assets validate` checks references, file formats, and size limits. `assets pack` copies the assets to a folder and writes a manifest with a SHA-256 checksum for each file. `build` and `run` use the same code: they validate first and then pack the assets next to the executable.
 
 ```sh
 bornengine assets validate
@@ -13,11 +13,28 @@ bornengine assets validate . --json
 bornengine assets pack --output dist/game
 ```
 
-Pass an optional project root after `validate` or `pack`. `pack` requires `--output <directory>`. `validate` also accepts `--json`, `--orphan-policy {ignore,warn,error}`, `--max-file-bytes`, `--max-total-bytes`, `--max-image-dimension`, and `--max-total-image-pixels`. Explicit limits override the matching project-manifest value; an omitted flag leaves the manifest setting in place. No size or image limit is enabled implicitly.
+Both commands take an optional project folder. Without it they use the current folder. They do not search upward for the project root.
 
-## Project manifest
+## What counts as an asset
 
-An optional `bornengine.assets.json` in the project root lets a team state its dynamic asset paths and audit budget:
+The audit works on one list of files, the inventory:
+
+- Every file under `assets/`, `public/`, and `static/` in the project root.
+- Every file named in the `assets` array of a `bornengine.world2d` document of version 1. The CLI finds these documents by their `.world2d.json` file name anywhere in the project, except in top-level `.git`, `.bornengine`, `.perry-dev`, `node_modules`, `target`, `dist`, and `.cache` folders.
+
+Symbolic links are followed when they stay inside the project. A link that leads outside the project is an error.
+
+The audit reads only version 1 world documents. A `.world2d.json` document that declares the `bornengine.world2d` format with another version stops the command with `unsupported world format version`. A `.world2d.json` file with another format value is ignored, and one that is not valid JSON also stops the command. This limit applies to `build` and `run` too, because they validate first. See [World format](../../guides/world-format/) and [Import maps](../import/).
+
+## References and orphans
+
+An asset is referenced when a world document lists it or when you declare it in `dynamic_paths` in the project manifest. The audit does not read your TypeScript. A texture that your code loads with `game.assets.loadTexture('assets/player.png')` has no known reference, so the audit reports an `orphan_asset` warning for it unless you declare the path.
+
+An orphan warning therefore means "no known reference", not "unused". Only files under `assets/`, `public/`, and `static/` can be orphans. To remove the warnings, declare the paths your code loads in `dynamic_paths`, list generated folders in `ignored_paths`, or set `orphan_severity` to `ignore`.
+
+## The project manifest
+
+An optional file named `bornengine.assets.json` in the project root states the dynamic paths and the budgets of your project:
 
 ```json
 {
@@ -32,30 +49,60 @@ An optional `bornengine.assets.json` in the project root lets a team state its d
 }
 ```
 
-`dynamic_paths` contains exact existing project-relative files loaded through computed paths that static reference analysis cannot see. A missing declared file is an error. `ignored_paths` removes matches from orphan and budget diagnostics, but files remain in the inventory and pack; media signature checks still run. In ignore patterns, `*` matches inside one path component and `**` spans whole components. Absolute paths, traversal, duplicate entries, and other glob syntax are rejected.
+| Field | Meaning |
+| --- | --- |
+| `version` | Must be `1`. |
+| `dynamic_paths` | Exact files that your code loads through computed paths. Each one must exist with exactly the letter case on disk. |
+| `ignored_paths` | Patterns for files that are left out of the orphan check and the size and pixel budgets. |
+| `orphan_severity` | `ignore`, `warn` (or `warning`), or `error`. The default is `warning`. |
+| `max_file_bytes` | The largest size of one file, in bytes. |
+| `max_total_bytes` | The largest combined size of all files, in bytes. |
+| `max_image_dimension` | The largest width or height of one image, in pixels. |
+| `max_total_image_pixels` | The largest combined image area, as width times height summed over all images. |
 
-`orphan_severity` accepts `ignore`, `warn`/`warning`, or `error`; the default is `warning`. Each limit is a positive integer: file and total limits are bytes, image dimension is pixels per side, and total image pixels sums width × height for supported, nonignored images.
+The rules for the manifest:
+
+- Every limit is a positive integer. No limit is set unless you set one.
+- The file may contain only the fields above. Any other field is rejected.
+- Paths use forward slashes and are relative to the project root. Absolute paths, `.` and `..` segments, backslashes, colons, and duplicate entries are rejected.
+- In `ignored_paths`, `*` matches characters inside one path segment, and `**` as a whole segment matches any number of segments. The characters `?`, `[`, `]`, `{`, and `}` are rejected.
+- A dynamic path only marks a file as referenced. It does not add the file to the inventory, so keep these files under `assets/`, `public/`, or `static/`.
+- Ignored files stay in the inventory, are copied by `assets pack`, and still get the format checks.
+
+The options of `assets validate` override the manifest for one run: `--orphan-policy` takes `ignore`, `warn`, or `error`, and `--max-file-bytes`, `--max-total-bytes`, `--max-image-dimension`, and `--max-total-image-pixels` take positive integers. An option you leave out keeps the manifest value. `build` and `run` have no such options and always use the manifest.
 
 ## What validation checks
 
-The CLI checks missing world references, unsafe paths, case mismatches, and symlinks that escape the project. It reads media headers without decoding complete assets and recognizes PNG, JPEG, GIF, BMP, WebP, WAV, MP3, Ogg, and FLAC. Invalid signatures and signature/extension mismatches are reported. Reference scanning understands supported `.world2d.json` declarations and `dynamic_paths`; it cannot prove whether an arbitrary TypeScript path is used at runtime. An orphan warning means that the validator found no known reference, not that the file is definitely unused.
+- **References.** Every path in a world document must be a safe relative path to an existing file inside the project, with the same letter case as on disk, even on a file system that ignores case. A path that fails these tests stops the command with an error and no report.
+- **File formats.** The audit reads the start of each file and checks its signature. It recognizes PNG, JPEG, GIF, BMP, WebP, WAV, MP3, Ogg, and FLAC. It does not decode the files. It takes image sizes from the headers of PNG, JPEG, GIF, BMP, and WebP files.
+- **Budgets.** The limits from the manifest or the options, applied to every file that is not ignored.
 
-Stable diagnostic codes are:
+These are the diagnostic codes:
 
-| Code | Meaning |
-| --- | --- |
-| `orphan_asset` | No supported static or declared dynamic reference was found. |
-| `invalid_media_header` | A supported media extension has an invalid or unreadable header. |
-| `extension_mismatch` | The media signature does not match the file extension. |
-| `file_size_limit` | One nonignored file exceeds `max_file_bytes`. |
-| `total_size_limit` | Combined nonignored files exceed `max_total_bytes`. |
-| `image_dimension_limit` | A supported image exceeds the configured width or height. |
-| `total_image_pixels_limit` | Combined supported image area exceeds the configured pixel budget. |
-| `declared_dynamic_path_missing` | A `dynamic_paths` entry does not name an existing file with exact case. |
+| Code | Severity | Meaning |
+| --- | --- | --- |
+| `orphan_asset` | warning, or error with the `error` policy | No world document or `dynamic_paths` entry references the file. |
+| `invalid_media_header` | warning | A file with a media extension has a header that is invalid or unreadable. |
+| `extension_mismatch` | warning | The signature of the file does not match its extension. |
+| `file_size_limit` | error | One file is larger than `max_file_bytes`. |
+| `total_size_limit` | error | The files together are larger than `max_total_bytes`. |
+| `image_dimension_limit` | error | One image is wider or taller than `max_image_dimension`. |
+| `total_image_pixels_limit` | error | The images together have more pixels than `max_total_image_pixels`. |
+| `declared_dynamic_path_missing` | error | A `dynamic_paths` entry names a file that does not exist. |
 
-## Output and exit status
+A `dynamic_paths` entry whose letter case differs from the file on disk is not this diagnostic. It stops the command with an error.
 
-Human mode prints `Validated N project assets (B bytes)` to stdout and diagnostics to stderr. With `--json`, stdout contains exactly one newline-terminated report object and no human summary:
+## Read the results
+
+By default, `assets validate` prints one line per diagnostic to standard error, and a summary line to standard output:
+
+```text
+warning orphan_asset assets/unused.png: asset has no known static or declared dynamic reference
+error file_size_limit assets/music/theme.wav: asset exceeds file byte limit
+Validated 14 project assets (5242880 bytes)
+```
+
+The summary counts every file in the inventory, including ignored files. With `--json`, standard output holds exactly one compact JSON object and a newline, and nothing is printed to standard error:
 
 ```json
 {
@@ -75,6 +122,45 @@ Human mode prints `Validated N project assets (B bytes)` to stdout and diagnosti
 }
 ```
 
-Diagnostics have a stable sort order: path, code, severity, message, measured value, then limit. Aggregate diagnostics use an empty path; unrelated `measured` and `limit` fields are `null`. Warnings alone exit `0`; any error diagnostic exits `1`. Invalid manifests, unsafe paths, missing world references, and other hard validation failures also exit `1` and do not produce a completed JSON report.
+Diagnostics are sorted by path. Diagnostics about the whole project, `total_size_limit` and `total_image_pixels_limit`, have an empty path and come first. For the same path, they follow the order of the table above. `measured` and `limit` are bytes for the size codes, the larger side in pixels for `image_dimension_limit`, and pixels for `total_image_pixels_limit`. They are `null` for other codes.
 
-`assets pack` copies exact file bytes under project-relative paths and writes a sorted `bornengine-assets-v1` manifest with sizes and SHA-256 digests. Audit warnings do not change the default inventory. Build and run stop before packing if hard validation fails or the selected orphan policy/configured diagnostics contain errors. See the CLI repository's [asset-audit reference](https://github.com/RuanFernandes/bornengine-cli#asset-audit-configuration) for the full manifest and JSON contract.
+The exit status is `0` when the report holds no errors, even if it holds warnings. It is `1` when any diagnostic has the severity `error`. Invalid manifests, unsafe or mismatched paths, missing world references, and unreadable files are hard failures. They print `Error:` and exit with `1`, and a hard failure never produces a JSON report. In a continuous integration job, run `bornengine assets validate --json > asset-report.json` and fail the job on a non-zero status.
+
+## Validation in builds
+
+`build`, `run`, and `dev --watch` validate the project with the manifest before they compile. An error diagnostic stops the command with `asset validation failed`, followed by the code, the path, and the message. A hard failure stops it with its own error message. Warnings are not printed, so run `assets validate` to see them. `check` does not validate assets.
+
+## Pack assets
+
+```sh
+bornengine assets pack --output dist/game
+```
+
+`pack` copies every file of the inventory into the output folder. It keeps the project-relative paths, so `assets/player.png` ends up at `dist/game/assets/player.png`. It also writes `assets.manifest.json`, with the files sorted by path:
+
+```json
+{
+  "format": "bornengine-assets-v1",
+  "files": [
+    {
+      "path": "assets/player.png",
+      "sha256": "<64 hexadecimal characters>",
+      "size": 1024
+    }
+  ]
+}
+```
+
+`pack` does not apply the budgets from the manifest. Run `assets validate` first, or rely on `build`, which does. The output rules protect your files:
+
+- The output folder cannot be inside `assets/`, `public/`, or `static/`, and its path cannot contain a symbolic link.
+- Files from an earlier pack are replaced, and files that the earlier manifest lists but the project no longer has are removed. Other files in the folder are left alone.
+- If a file that the earlier manifest does not list already exists at a target path, `pack` stops with `refusing to replace untracked output file`.
+- `pack` stages the new copy first. If publishing fails, it restores the previous output.
+
+## Next steps
+
+- [Build and run](../build/) shows where the packed assets end up.
+- [Import maps](../import/) creates world documents from Tiled maps.
+- [World format](../../guides/world-format/) describes the `bornengine.world2d` documents the audit reads.
+- [Assets](../../concepts/assets/) explains how a running game loads assets.

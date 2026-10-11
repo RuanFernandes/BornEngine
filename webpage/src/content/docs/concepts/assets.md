@@ -1,51 +1,100 @@
 ---
 title: Assets
-description: Organize portable asset paths and manage resources through Game and Scene scopes.
+description: How asset paths work, how loading and caching behave, and when a game or scene releases its resources.
 section: Concepts
-order: 12
+order: 13
 ---
 
-Keep assets under the project directory and use relative paths. The same layout works for native bundles and Web/WASM output:
-
-```text
-assets/
-├── audio/
-├── fonts/
-├── models/
-└── textures/
-```
-
-Create resources from an asset scope instead of passing a Game to each constructor. Shared resources live in `game.assets`; level-specific resources live in `scene.assets` and are released when that Scene unloads.
-
-```ts
-import { Game } from '@bornengine/engine';
-import type { Sound, Texture } from '@bornengine/engine';
-
-class MyGame extends Game {
-  private player: Texture | null = null;
-  private jump: Sound | null = null;
-
-  protected override onStart(): void {
-    this.player = this.assets.loadTexture('assets/textures/player.png');
-    this.jump = this.assets.loadSound('assets/audio/jump.wav');
-    const level = this.assets.loadModel('assets/models/scene.glb');
-    const uiFont = this.assets.loadFont('assets/fonts/ui.ttf', 20);
-
-    if (this.player === null || !this.player.isLoaded) console.error(this.player?.error);
-    if (level === null || !level.isLoaded) console.error(level?.error);
-    if (uiFont === null || !uiFont.isLoaded) console.error(uiFont?.error);
-  }
-}
-```
+An asset is a file your game loads, such as an image, a sound, a font, or a 3D model. You refer to assets by path, and the asset manager loads each file once and returns the same object for the same path.
 
 ## Keep paths portable
 
-Native Apple targets resolve reads against the app bundle. Web builds fetch assets from the served output. Place files below `assets/` and let the CLI package them rather than using machine-specific absolute paths.
+Keep assets inside the project folder, usually in `assets/`, and write paths with forward slashes:
 
-## Loading strategy
+```text
+assets/player.png
+assets/sounds/jump.wav
+assets/fonts/title.ttf
+```
 
-Load textures, fonts, audio, and models during startup or a loading phase, not repeatedly during rendering. Filtering is configured on the Texture instance with `texture.setFilter(...)`; renderer post-processing is configured through the owning `game.renderer`. Neither operation uses global state.
+Three rules prevent most path problems:
 
-Use `game.assets` for assets intentionally shared by multiple scenes. When a resource belongs only to one level, create it through that scene's asset scope; leaving the scene releases it automatically. Use `scene.vfx` for scene-owned 3D particle and decal systems.
+- Use paths relative to the project, not absolute paths such as `/home/you/game/assets/player.png`.
+- Match the case of the file name. `Player.png` and `player.png` are different files on Linux and on web servers, even though some desktop systems ignore case.
+- Use `/` as the separator on every platform.
 
-For authored levels, use the versioned [world format](../../guides/world-format/) so editor data and runtime share one serialization shape. `WorldData` owns validation and loading; `WorldInstance` owns the runtime nodes it creates.
+The platform pages describe how the files reach each target, including app bundles and the browser build.
+
+## Game and scene scopes
+
+Every asset belongs to one scope:
+
+- **`game.assets`** is shared by the whole game. Its assets stay loaded until the game stops. Use it for assets that many scenes use, such as a UI font or a common sound.
+- **`scene.assets`** belongs to one scene. Its assets are released when the scene unloads, which happens when another scene replaces it with `scenes.changeTo(...)`. Use it for level art.
+
+For example, `this.assets.loadFont('assets/fonts/ui.ttf', 16)` loads a font into the game scope, and `scene.assets.loadTexture('assets/level.png')` loads a texture into a scene scope.
+
+If a scene loads an asset that the next scene also needs, move the load to `game.assets` so it is not loaded twice.
+
+## Loading and checking
+
+`loadTexture(path)` returns a `Texture`. The call does not throw when the file is missing. Instead, the texture reports the failure:
+
+```ts
+import { Colors, Game, Texture } from '@bornengine/engine';
+
+class AssetDemo extends Game {
+  private logo: Texture | null = null;
+
+  constructor() {
+    super({ window: { title: 'Assets', width: 800, height: 450 } });
+  }
+
+  protected override onStart(): void {
+    this.logo = this.assets.loadTexture('assets/logo.png');
+    if (this.logo === null || !this.logo.isLoaded) {
+      console.error(this.logo?.error ?? 'Could not load assets/logo.png');
+    }
+  }
+
+  protected override render(): void {
+    this.renderer.clear(Colors.BLACK);
+    if (this.logo !== null && this.logo.isLoaded) this.renderer.drawTexture(this.logo, { x: 20, y: 20 });
+  }
+}
+
+new AssetDemo().run();
+```
+
+Check `isLoaded` before you draw. `loadTexture` returns `null` when the asset manager can no longer create assets, for example after its scene has unloaded.
+
+Other loaders follow the same pattern: `loadFont(path, size)`, `loadSound(path)`, `loadMusic(path)`, and `loadModel(path)`. `getTexture`, `getModel`, and `getFont` return a cached asset without loading it. `releaseTexture`, `releaseModel`, `releaseSound`, and `releaseMusic` remove a cached asset.
+
+## Caching and retries
+
+The asset manager caches each path. A second call for the same path returns the cached object, including a failed one. If you fix the file and want to load it again, release the cached entry first:
+
+Call `this.assets.releaseTexture('assets/player.png')`, then `this.assets.loadTexture('assets/player.png')` again. `releaseTexture` removes the entry and disposes the texture, so do not keep using the old object after you release it.
+
+## Loading with `@Asset`
+
+Inside a `GameObject` subclass, the `@Asset` decorator loads a texture into a field when the object is added to a scene:
+
+```ts
+import { GameObject, Texture } from '@bornengine/engine';
+import { Asset } from '@bornengine/engine/annotations';
+
+class Player extends GameObject {
+  @Asset('assets/player.png')
+  readonly image!: Texture;
+}
+```
+
+If the file cannot be loaded, the default behavior throws while the object is being added. You get the failure at startup instead of when the field is first used. The [game API](../../api/game/) page describes the optional error callback and its limits.
+
+## Next steps
+
+- [API shape](../api-shape/) explains which owner creates and releases each kind of object.
+- [Textures](../../api/textures/) lists the texture members, sampling, and render textures.
+- [Assets API](../../api/assets/) covers the cache, hot reload, and shutdown.
+- [Assets and worlds](../../guides/assets-and-worlds/) loads a shared set of resources for a level.

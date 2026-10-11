@@ -1,60 +1,114 @@
 ---
 title: Game loop
-description: Use Game lifecycle hooks for simulation, rendering, and orderly shutdown across native and web.
+description: How BornEngine calls your loop and render code each frame, how errors and shutdown work, and how embedded hosts drive frames.
 section: Concepts
 order: 10
 ---
 
-`Game.run()` owns frame setup and teardown. Extend `Game` and override `loop(deltaTime)` for simulation and `render()` for drawing; the engine opens and closes each frame around those hooks. `onStart()` runs once before the first frame, and `onStop()` runs when the loop ends.
+A game runs as a loop. Each pass through the loop is one **frame**. BornEngine reads input, calls your `loop` method to update the game state, calls your `render` method to draw, and then presents the picture. The engine repeats this until the game stops.
+
+You do not write the loop yourself. You write methods, and BornEngine calls them in order.
+
+## Frame order
+
+Each frame runs these steps in this order:
+
+1. The renderer starts the frame.
+2. Input is read, then frame services, audio, and touch controls update.
+3. Your `loop(deltaTime)` runs. Update positions, timers, and game rules here.
+4. Your `render()` runs. Clear the screen and draw here.
+5. The retained GUI draws, if you use it.
+6. The debug inspector draws, if it is enabled.
+
+Input is read before `loop` runs, so `loop` sees the keys that were pressed in this frame.
 
 ```ts
 import { Colors, Game } from '@bornengine/engine';
 
-class LoopSample extends Game {
-  private elapsed = 0;
+class LoopOrder extends Game {
+  private frames = 0;
 
   constructor() {
-    super({ window: { title: 'Loop sample', width: 960, height: 540 } });
+    super({ window: { title: 'Loop order', width: 800, height: 450 } });
   }
 
   protected override loop(deltaTime: number): void {
-    this.elapsed += deltaTime;
+    this.frames += 1;
+    if (this.frames === 1) console.log(`first frame, deltaTime ${deltaTime}`);
   }
 
   protected override render(): void {
-    this.renderer.clear(Colors.BLACK);
-    this.renderer.drawText('Time: ' + this.elapsed.toFixed(2) + 's', { x: 24, y: 24 }, 22, Colors.WHITE);
+    this.renderer.clear(Colors.DARKGRAY);
   }
 }
 
-new LoopSample().run();
+new LoopOrder().run();
 ```
 
-## Frame order
+## Delta time
 
-BornEngine updates platform input, Colyseus callbacks, audio streams, and mobile controls before calling `loop(deltaTime)`. It then calls `render()`. Keep gameplay state changes in `loop`, and draw only in `render`. Use `deltaTime` as elapsed seconds rather than assuming a fixed refresh interval.
+`deltaTime` is the number of seconds since the previous frame. Multiply every speed by it so the motion stays the same whether the game runs at 30 or 120 frames per second. For example, `this.x += 200 * deltaTime` moves a value 200 units per second.
 
-If you use gameplay scenes, call `this.scenes.update(deltaTime)` in `loop`. Physics is explicit: create a `PhysicsWorld` and call `physics.step(deltaTime)` once per loop.
+Do not treat `deltaTime` as a number of frames, and do not assume it is constant. Read it on every frame.
+
+## Clearing and drawing
+
+The renderer does not clear the screen for you. Call `this.renderer.clear(color)` at the start of `render()`. If you override `render()` and do not call `super.render()`, the scene is not drawn. Call `super.render()` when you want the scene's components to draw, as in the [first player tutorial](../../getting-started/first-player/).
+
+## Frame rate
+
+Set `targetFps` in the `Game` options to choose the frame rate the loop aims for. For example, `{ window: { width: 800, height: 450 }, targetFps: 60 }`. The value must be a positive, finite number. Otherwise the game does not start and `game.error` describes the problem. Leave it out to keep the engine's default.
+
+## Errors
+
+An exception thrown from `onStart`, `loop`, or `render` stops the game. The engine records the message, closes the window, and resolves the `Promise` returned by `run()`. Check `game.error` after the run:
+
+```ts
+import { Game } from '@bornengine/engine';
+
+const game = new Game({ window: { width: 800, height: 450 } });
+
+game.run().then(() => {
+  if (game.error !== null) console.error(game.error);
+});
+```
+
+Handle recoverable problems in your own code, such as a missing optional file, and report only the unrecoverable ones by throwing.
 
 ## Stop and dispose
 
-`this.stop()` requests orderly shutdown. The current frame completes before `onStop()` runs. The Game disposes its services and resources after `onStop()`. `run()` returns a Promise that resolves after cleanup, including when a hook fails; lifecycle errors are recorded in `game.error`, and the Promise does not reject for those hook failures. Inspect `game.error` after awaiting it. Stop and dispose are idempotent.
+`this.stop()` asks the game to end. The current frame finishes first, then the engine runs these steps in order:
 
-## Another standalone loop
+1. `onStop()` runs. Save state and release your own resources here.
+2. The game disposes the resources it owns, such as textures, scenes, and audio.
+3. The `Promise` returned by `run()` resolves.
 
-Keep frame behavior in subclass hooks even when the game state lives beside the class:
+Closing the window has the same effect as calling `stop()`. You can call `stop()` from `loop` or from input handling.
 
-```ts
-class ExampleGame extends Game {
-  protected override loop(deltaTime: number): void { /* Advance state. */ }
-
-  protected override render(): void { this.renderer.clear(Colors.BLACK); }
-}
-
-const game = new ExampleGame({ window: { title: 'Standalone loop', width: 960, height: 540 } });
-game.run();
-```
+Only one `Game` can be active at a time in a process. A second instance reports an error instead of starting.
 
 ## Embedded hosts
 
-For an embedded native host that already owns the platform surface and scheduler, create `new Game({ window: { mode: 'embedded' } })`, attach the host handle using `game.window.attachNativeSurface(handle, width, height)`, and drive each frame with `game.runFrame(deltaTime, callbacks)`. This is an embedding API; a standalone game should use subclass hooks and `game.run()`. The host remains responsible for scheduling frames and closing the surface.
+Some hosts already own a frame loop, such as an editor view that calls back into your code. These hosts create the game with `window: { mode: 'embedded' }` and call `runFrame` once per frame from their own scheduler:
+
+```ts
+import { Colors, Game } from '@bornengine/engine';
+
+const game = new Game({ window: { mode: 'embedded', width: 800, height: 450 } });
+
+export function frame(deltaTime: number): boolean {
+  return game.runFrame(deltaTime, {
+    update: () => undefined,
+    render: () => game.renderer.clear(Colors.BLACK),
+    onStop: () => undefined,
+  });
+}
+```
+
+`runFrame` returns `false` when the game has finished. With an embedded window, `run()` does not start a loop, so do not call both. Standalone games should use `run()`.
+
+## Next steps
+
+- [Scenes, objects, and components](../scenes-and-objects/) explains the hooks that `loop` and `render` drive.
+- [Core API](../../api/core/) lists the frame, input, and runtime members.
+- [Troubleshooting](../../troubleshooting/) lists common startup and runtime failures.

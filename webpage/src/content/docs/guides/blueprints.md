@@ -55,13 +55,9 @@ A blueprint stores its identity, the exact template reference, field values, gra
 
 Deploy the server blueprint together with the exact template revision it references. For example, place a template copy in `server/blueprint-templates/ember.blueprint-template.json` and create a blueprint at `server/blueprints/ember.blueprint.json`. The shared authoring copy stays in the game project's `.bornengine/blueprint-templates/`; include the server copy in the server's version control and deployment so the server can resolve each `definitionId` to its `operationId`.
 
-This Colyseus room example loads both files, checks their format and exact reference, and dispatches only IDs that the game has explicitly implemented. Add runtime schema validation for the full document before executing it, and validate gameplay values in each handler:
+The TypeScript below is plain logic. It dispatches only IDs that the game has explicitly registered, and it never evaluates template data. Add runtime schema validation for the full document before you execute it, and validate gameplay values inside each handler:
 
 ```ts
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { Room } from '@colyseus/core';
-
 type Pin = { id: string; branch?: 'true' | 'false' };
 type EventDefinition = { id: string; operationId: string; outputPin: Pin };
 type NodeDefinition = {
@@ -97,39 +93,14 @@ type Blueprint = {
 };
 type SpellContext = { target?: { health: number } };
 type OperationResult = string | undefined;
-type OperationHandler = (context: SpellContext, parameters: Record<string, unknown>) => OperationResult;
 
-const handlers: Record<string, OperationHandler> = {
-  'spell.cast': () => undefined,
-  'spell.damage': (context, parameters) => {
-    const amount = parameters.amount;
-    if (!context.target || typeof amount !== 'number' || !Number.isFinite(amount)) return undefined;
-    context.target.health = Math.max(0, context.target.health - Math.max(0, Math.min(amount, 500)));
-    return undefined;
-  },
-  'spell.hasTarget': (context) => context.target ? 'true' : 'false',
-};
+// Provided by the game. The table of handlers is shown in the next block.
+declare function dispatch(operationId: string, context: SpellContext, parameters: Record<string, unknown>): OperationResult;
 
-function dispatch(operationId: string, context: SpellContext, parameters: Record<string, unknown>): OperationResult {
-  const handler = Object.hasOwn(handlers, operationId) ? handlers[operationId] : undefined;
-  if (!handler) throw new Error(`No game handler is registered for '${operationId}'.`);
-  return handler(context, parameters);
-}
-
-async function loadPair(): Promise<{ blueprint: Blueprint; template: Template }> {
-  const root = process.cwd();
-  const [blueprintText, templateText] = await Promise.all([
-    readFile(path.join(root, 'blueprints', 'ember.blueprint.json'), 'utf8'),
-    readFile(path.join(root, 'blueprint-templates', 'ember.blueprint-template.json'), 'utf8'),
-  ]);
-  const blueprint = JSON.parse(blueprintText) as Blueprint;
-  const template = JSON.parse(templateText) as Template;
-  if (blueprint.format !== 'bornengine.blueprint' || blueprint.version !== 1
-      || template.format !== 'bornengine.blueprint-template' || template.version !== 1
-      || blueprint.template.id !== template.id || blueprint.template.revision !== template.revision) {
-    throw new Error('Blueprint and template formats or revisions do not match.');
-  }
-  return { blueprint, template };
+function operationForNode(template: Template, node: GraphNode): string {
+  const definition = template.nodes.find((item) => item.id === node.definitionId);
+  if (!definition) throw new Error(`Node '${node.definitionId}' is not declared by this template.`);
+  return definition.operationId;
 }
 
 function runEvent(blueprint: Blueprint, template: Template, eventId: string, context: SpellContext): void {
@@ -160,6 +131,55 @@ function runEvent(blueprint: Blueprint, template: Template, eventId: string, con
   }
   throw new Error('Blueprint graph exceeded the game handler step limit.');
 }
+```
+
+The game supplies `dispatch`. It maps each registered ID to a handler and rejects every other ID:
+
+```ts
+type SpellContext = { target?: { health: number } };
+type OperationResult = string | undefined;
+type OperationHandler = (context: SpellContext, parameters: Record<string, unknown>) => OperationResult;
+
+const handlers: Record<string, OperationHandler> = {
+  'spell.cast': () => undefined,
+  'spell.damage': (context, parameters) => {
+    const amount = parameters.amount;
+    if (!context.target || typeof amount !== 'number' || !Number.isFinite(amount)) return undefined;
+    context.target.health = Math.max(0, context.target.health - Math.max(0, Math.min(amount, 500)));
+    return undefined;
+  },
+  'spell.hasTarget': (context) => (context.target ? 'true' : 'false'),
+};
+
+export function dispatch(operationId: string, context: SpellContext, parameters: Record<string, unknown>): OperationResult {
+  const handler = Object.hasOwn(handlers, operationId) ? handlers[operationId] : undefined;
+  if (!handler) throw new Error(`No game handler is registered for '${operationId}'.`);
+  return handler(context, parameters);
+}
+```
+
+The Colyseus room below runs on the server. It loads both files, checks their format and exact reference, and then calls `runEvent` from the block above. It imports Node and Colyseus modules, so it is shown as text rather than checked against the engine types:
+
+```text
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { Room } from '@colyseus/core';
+
+async function loadPair(): Promise<{ blueprint: Blueprint; template: Template }> {
+  const root = process.cwd();
+  const [blueprintText, templateText] = await Promise.all([
+    readFile(path.join(root, 'blueprints', 'ember.blueprint.json'), 'utf8'),
+    readFile(path.join(root, 'blueprint-templates', 'ember.blueprint-template.json'), 'utf8'),
+  ]);
+  const blueprint = JSON.parse(blueprintText) as Blueprint;
+  const template = JSON.parse(templateText) as Template;
+  if (blueprint.format !== 'bornengine.blueprint' || blueprint.version !== 1
+      || template.format !== 'bornengine.blueprint-template' || template.version !== 1
+      || blueprint.template.id !== template.id || blueprint.template.revision !== template.revision) {
+    throw new Error('Blueprint and template formats or revisions do not match.');
+  }
+  return { blueprint, template };
+}
 
 export class SpellRoom extends Room {
   private blueprint!: Blueprint;
@@ -180,18 +200,7 @@ export class SpellRoom extends Room {
 }
 ```
 
-After loading the exact template revision, resolve node definitions by their IDs. The returned operation ID is the key your server code registers:
-
-```ts
-function operationForNode(template: Template, node: GraphNode): string {
-  const definition = template.nodes.find((item) => item.id === node.definitionId);
-  if (!definition) throw new Error(`Node '${node.definitionId}' is not declared by this template.`);
-  return definition.operationId;
-}
-
-const operationId = operationForNode(template, instance);
-dispatch(operationId, context, instance.parameters);
-```
+To run a single node, call `operationForNode(template, instance)` after loading the exact template revision, then pass the returned ID to `dispatch` with the node's `parameters`.
 
 The IDs `spell.cast`, `spell.damage`, `spell.hasTarget`, and `onCast` are examples: your template author chooses IDs that your game registers. Keep multiplayer effects authoritative in the server. A client blueprint can drive client-side presentation, but never trust a client to decide damage, inventory, currency, or another shared game result.
 

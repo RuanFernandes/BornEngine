@@ -6,15 +6,15 @@
     },
     {
       "goal": "Install the BornEngine CLI",
-      "required": ["Rust and Cargo through rustup"]
+      "required": ["Node.js 18 or newer with npm, or Rust 1.85 or newer with Cargo"]
     },
     {
       "goal": "Create and build a native game",
-      "required": ["BornEngine CLI", "Perry", "Rust and Cargo", "One package manager: pnpm, npm, or Yarn", "Native linker/backend dependencies for the host"]
+      "required": ["BornEngine CLI", "Perry", "Rust and Cargo", "Node.js 22.18 or newer", "One package manager: pnpm, npm, or Yarn", "Native linker/backend dependencies for the host"]
     },
     {
       "goal": "Build for Web/WASM",
-      "required": ["Native-game setup", "wasm-pack", "wasm-opt is optional for size optimization"]
+      "required": ["Native-game setup", "wasm-pack", "The wasm32-unknown-unknown Rust target", "wasm-opt is optional for size optimization"]
     },
     {
       "goal": "Build for Apple platforms",
@@ -27,28 +27,38 @@
   ],
   "entries": [
     {
+      "id": "bornengine-cli",
+      "title": "BornEngine CLI",
+      "scope": "Creating, building, and running projects",
+      "docsUrl": "https://github.com/RuanFernandes/bornengine-cli#install",
+      "docsLabel": "BornEngine CLI installation",
+      "verify": "bornengine --version",
+      "install": "npm install --global @bornengine/cli",
+      "notes": "The npm launcher needs Node.js 18 or newer and downloads a checksum-verified native program on first use. Downloads exist for Linux x86-64, Windows x86-64, and macOS (Intel and Apple silicon). To build from source instead, use Rust 1.85 or newer: cargo install --git https://github.com/RuanFernandes/bornengine-cli"
+    },
+    {
       "id": "rust",
       "title": "Rust and Cargo",
-      "scope": "CLI and native",
+      "scope": "Native builds and source install of the CLI",
       "docsUrl": "https://rustup.rs/",
       "docsLabel": "rustup installation",
       "verify": "rustc --version && cargo --version",
       "install": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh",
-      "notes": "The Rust installation guide is also available at https://www.rust-lang.org/tools/install."
+      "notes": "The Rust installation guide is also available at https://www.rust-lang.org/tools/install. Native builds compile the engine's Rust library with Cargo. Installing the CLI from source needs Rust 1.85 or newer."
     },
     {
       "id": "node",
       "title": "Node.js",
-      "scope": "Project package installation",
+      "scope": "CLI launcher and project package installation",
       "docsUrl": "https://nodejs.org/en/download",
       "docsLabel": "Node.js downloads",
       "verify": "node --version",
-      "notes": "Use the current Node.js LTS line for game-project package installation."
+      "notes": "The CLI's npm launcher needs Node.js 18 or newer. The @bornengine/engine package declares Node.js 22.18 or newer, so use that for game projects."
     },
     {
       "id": "npm",
       "title": "npm",
-      "scope": "Project package installation",
+      "scope": "CLI install and project package installation",
       "docsUrl": "https://docs.npmjs.com/downloading-and-installing-node-js-and-npm",
       "docsLabel": "npm installation guide",
       "verify": "npm --version"
@@ -77,18 +87,19 @@
       "scope": "Native, Apple, Android, and Web targets",
       "docsUrl": "https://docs.perryts.com/getting-started/installation.html",
       "docsLabel": "Perry installation guide",
-      "verify": "bornengine perry path",
+      "verify": "bornengine doctor",
       "install": "bornengine perry install",
-      "notes": "The BornEngine CLI downloads a Perry build that matches its release. Set BORNENGINE_PERRY to use another binary."
+      "notes": "bornengine perry install downloads the Perry build attached to a BornEngine GitHub release (the latest by default) for Linux x86-64, Windows x86-64, or macOS. Set BORNENGINE_PERRY to use another binary. bornengine perry path prints plain perry when nothing is installed, so use bornengine doctor to confirm that Perry starts."
     },
     {
       "id": "wasm-pack",
       "title": "wasm-pack",
       "scope": "Web/WASM",
-      "docsUrl": "https://rustwasm.github.io/wasm-pack/installer/",
+      "docsUrl": "https://wasm-bindgen.github.io/wasm-pack/installer/",
       "docsLabel": "wasm-pack installation",
       "verify": "wasm-pack --version",
-      "install": "cargo install wasm-pack"
+      "install": "cargo install wasm-pack",
+      "notes": "Web builds also need the WebAssembly Rust target: rustup target add wasm32-unknown-unknown."
     },
     {
       "id": "xcode",
@@ -97,7 +108,7 @@
       "docsUrl": "https://developer.apple.com/xcode/",
       "docsLabel": "Apple Xcode",
       "verify": "xcodebuild -version",
-      "notes": "Xcode provides the Apple SDKs and simulators required by the selected target."
+      "notes": "Xcode provides the Apple SDKs and simulators required by the selected target. Native macOS builds need at least the Command Line Tools: xcode-select --install."
     },
     {
       "id": "android-studio",
@@ -115,17 +126,17 @@
       "docsUrl": "https://visualstudio.microsoft.com/visual-cpp-build-tools/",
       "docsLabel": "Microsoft C++ Build Tools",
       "verify": "where cl",
-      "notes": "Use the Developer Command Prompt when checking cl.exe. Perry's setup may also require LLVM components."
+      "notes": "Use the Developer Command Prompt when checking cl.exe. Install the Desktop development with C++ workload. Perry also supports a lighter LLVM-based setup described in its installation guide. When lld-link.exe is on PATH, the CLI passes it to Perry and Cargo as the linker."
     },
     {
       "id": "linux-backend",
       "title": "Linux backend packages",
       "scope": "Linux native",
-      "docsUrl": "https://www.rust-lang.org/tools/install",
-      "docsLabel": "Rust installation guide",
+      "docsUrl": "https://github.com/RuanFernandes/bornengine-cli#troubleshooting",
+      "docsLabel": "BornEngine CLI troubleshooting",
       "verify": "pkg-config --exists x11 xi alsa",
-      "install": "sudo apt install pkg-config libx11-dev libxi-dev libasound2-dev",
-      "notes": "This is the minimum Debian/Ubuntu backend set documented by BornEngine; other distributions may use different package names."
+      "install": "sudo apt install build-essential pkg-config libx11-dev libxi-dev libasound2-dev",
+      "notes": "pkg-config with the X11, XI, and ALSA development files is the set that bornengine doctor checks. A C compiler and linker are also required (build-essential on Debian and Ubuntu). On Fedora: sudo dnf install gcc gcc-c++ glibc-devel pkgconf-pkg-config libX11-devel libXi-devel alsa-lib-devel. Other distributions use different package names."
     }
   ]
 }

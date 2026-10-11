@@ -17,13 +17,16 @@ export const navigation: NavigationGroup[] = [
       { title: 'Overview', href: '/docs/getting-started/' },
       { title: 'Installation', href: '/docs/getting-started/installation/' },
       { title: 'Quickstart', href: '/docs/getting-started/quickstart/' },
+      { title: 'Your first player', href: '/docs/getting-started/first-player/' },
       { title: 'Project structure', href: '/docs/getting-started/project-structure/' },
     ],
   },
   {
     title: 'Concepts',
     children: [
+      { title: 'Overview', href: '/docs/concepts/' },
       { title: 'Game loop', href: '/docs/concepts/game-loop/' },
+      { title: 'Scenes, objects, and components', href: '/docs/concepts/scenes-and-objects/' },
       { title: 'API shape', href: '/docs/concepts/api-shape/' },
       { title: 'Assets', href: '/docs/concepts/assets/' },
     ],

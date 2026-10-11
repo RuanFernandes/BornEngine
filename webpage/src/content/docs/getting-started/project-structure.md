@@ -1,40 +1,75 @@
 ---
 title: Project structure
-description: Understand the files the BornEngine CLI creates and the directories used during builds.
+description: What each file in a new BornEngine project does, which folders the CLI creates, and where build output goes.
 section: Getting Started
-order: 4
+order: 5
 ---
 
-A newly scaffolded project is intentionally small. The entry file is yours; the generated package metadata tells Perry how to compile it and the package manager how to resolve the engine.
+A BornEngine project is a normal TypeScript package with a few extra files for the native build. This page describes what `bornengine create` writes, and what appears later as you build and run the game.
+
+## Files in a new project
+
+| File | Purpose |
+| --- | --- |
+| `main.ts` | The entry file. It contains your `Game` subclass and the `new ...().run()` call. |
+| `package.json` | The package name, the engine dependency, and the `perry` setting that lets the native build use the engine's native library. |
+| `perry.toml` | Build settings. `entry` names the entry file. The `[bornengine]` table holds `native_profile`, and optionally `native_features`. |
+| `.gitignore` | Keeps generated folders out of version control: `node_modules/`, `.perry-cache/`, `.perry-dev/`, `.bornengine/`, `target/`, and `dist/`. |
+| `README.md` | The run and build commands for the project. |
+| `AGENTS.md` | The BornEngine guide for AI coding agents. `create` and `new` write it. `init` does not. |
+
+`perry.toml` for a 2D project looks like this:
+
+```toml
+[project]
+name = "my-game"
+entry = "main.ts"
+
+[bornengine]
+native_profile = "2d"
+```
+
+The profile is `2d`, `2.5d`, or `3d`. It is chosen when you create the project, and you can change it later in this file. The profile decides which engine modules the native build includes. The [project commands](../../cli/project/) reference lists the options that affect the profile.
+
+## Folders you add
+
+The starter does not include an `assets/` folder. Create one next to `main.ts` for images, sounds, fonts, and models:
 
 ```text
 MyGame/
-├── main.ts                 # game entry point
-├── package.json            # engine dependency and project scripts
-├── <lockfile>              # npm, pnpm, or Yarn resolution
-├── assets/                 # textures, sounds, fonts, models, worlds
-└── perry.toml              # Perry entry plus BornEngine native profile
+  assets/
+    player.png
+  main.ts
+  perry.toml
+  package.json
 ```
 
-The CLI writes Perry's native-library allowlist to `package.json` and stores the BornEngine profile under `[bornengine].native_profile` in `perry.toml`. Optional native capabilities such as SQLite and embedded scripting go in `[bornengine].native_features`; add them at project creation with `--native-features sqlite,scripting` when needed. `bornengine build`, `run`, and `dev` apply the selected profile and features to the native engine crate; `bornengine dev main.ts --watch` enables native watch-and-restart development. The profile is 2D, 2.5D, or 3D, and optional features such as `debug-ui` can be configured separately. Direct Perry commands use the package's default features. The Web target currently uses a prebuilt WASM package and is not profile-pruned. Native Cargo artifacts are shared across projects in a per-user cache, unless `CARGO_TARGET_DIR` is set. The exact lockfile name varies with the selected package manager. Use `bornengine info` to inspect the resolved project and toolchain instead of assuming a global engine install.
+Paths in your code are relative to the project folder, such as `assets/player.png`. See [Assets](../../concepts/assets/) for the rules.
 
-## Generated build directories
+If you use an asset manifest, `bornengine.assets.json`, the CLI validates it and reports missing files. See the [asset audit](../../cli/assets/) reference.
 
-- `.bornengine/builds/` contains build artifacts recorded by the CLI.
-- `.perry-dev/` contains watch-mode output and is excluded from the source watcher.
-- `clean` removes only files recorded in the CLI manifest. It does not delete dependencies, source files, or unrelated untracked files.
+## Folders the CLI creates
 
-## Assets
+These folders appear when you build or run. You do not create them by hand.
 
-Keep runtime assets under the project directory so the platform build can package them. Native and mobile targets resolve files from their application bundle; Web/WASM copies the `assets/` directory into the served output. See [assets as a concept](../../concepts/assets/) and the [Web/WASM guide](../../platforms/web-wasm/) for path behavior.
+| Folder | Created by | Contents |
+| --- | --- | --- |
+| `node_modules/` | Your package manager | Installed packages, including the engine. |
+| `.bornengine/builds/<target>/<name>/<stamp>/` | `bornengine build`, `bornengine run`, and `bornengine dev` | The executable for each build. Each build gets its own `<stamp>` folder. |
+| `.perry-dev/<name>/` | `bornengine dev --watch` | Executables for the watch mode. |
 
-## Local engine development
+The CLI records the files it writes into `.bornengine/`, so `bornengine clean` removes only what it created. See [Build and run](../../cli/build/) and [Native build cache](../../cli/cache/).
 
-Projects normally use a published exact engine version. For engine work, point a project at a checkout:
+## Changing the engine version
 
-```sh
-bornengine new EngineTest --engine-path ../BornEngine
-bornengine engine use ../BornEngine
-```
+The engine version is the dependency in `package.json`. To change it, use the engine commands instead of editing the file by hand. `bornengine engine update` moves to the latest stable release, and `bornengine upgrade` upgrades the current project's engine dependency. The [engine versions](../../cli/engine/) reference lists the full set of commands.
 
-An explicit `--engine-path` takes precedence over `BORNENGINE_PATH`. The package manager uses `link:` for pnpm and `file:` for npm/Yarn, while the checkout's package name controls the generated import and Perry allowlist.
+## Using a local engine checkout
+
+To develop the engine and a game side by side, point a project at a local checkout with `--engine-path`. `bornengine new` and `bornengine init` accept the flag. The CLI then writes a `link:` dependency for pnpm or a `file:` dependency for npm and yarn, with a path relative to the project.
+
+## Next steps
+
+- [Quickstart](../quickstart/) creates a project and runs it.
+- [Your first player](../first-player/) edits `main.ts` into a small game.
+- [Build and run](../../cli/build/) explains the build targets and options.
