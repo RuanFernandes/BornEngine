@@ -64,7 +64,6 @@ export type {
   SpriteAnimationTemplateBindingSuccess,
   SpriteAnimationTemplateBoundFrame,
   SpriteAnimationTemplateBoundLayer,
-  SpriteAnimationTemplateLoadOptions,
   SpriteAnimationTemplateRendererOptions,
 } from './sprite-animation-template-runtime';
 export { SpriteAnimator } from './sprite-animator';

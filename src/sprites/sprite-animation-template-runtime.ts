@@ -27,7 +27,6 @@ import type {
 } from './sprite-animation';
 import type { SpriteAnimationTarget } from './sprite-animation-target';
 import type { Texture } from '../textures/texture';
-import type { GameScene } from '../game/game-scene';
 import { readFile } from '../core/internal';
 
 export interface SpriteAnimationTemplateBindingSuccess {
@@ -649,28 +648,13 @@ function freezeValue<T>(input: T): T {
   return Object.freeze(input);
 }
 
-export interface SpriteAnimationTemplateLoadOptions {
-  /** Texture filter applied to every loaded texture, for example FILTER_NEAREST. */
-  readonly filter?: number;
-}
-
-/** Reads a template file, loads its textures by path, and binds them. Throws on any failure. */
+/** Reads a template file and binds the given textures. Throws on a missing file or an invalid binding. */
 export function loadSpriteAnimationTemplate(
-  scene: GameScene,
   path: string,
-  textures: Readonly<Record<string, string>>,
-  options: SpriteAnimationTemplateLoadOptions = {},
+  images: Readonly<Record<string, Texture>>,
 ): SpriteAnimationTemplateBoundAnimation {
   const json = readFile(path);
   if (json === '') throw new Error(`Could not read ${path}`);
-  const images: Record<string, Texture> = Object.create(null);
-  for (const id of Object.keys(textures)) {
-    const texturePath = textures[id];
-    const texture = scene._loadTexture(texturePath);
-    if (texture === null || !texture.isLoaded) throw new Error(`Could not load texture ${texturePath}`);
-    if (options.filter !== undefined) texture.setFilter(options.filter);
-    images[id] = texture;
-  }
   const binding = new SpriteAnimationTemplateAsset(JSON.parse(json)).bind(images);
   if (!binding.ok) throw new Error(binding.diagnostics[0].message);
   return binding.value;

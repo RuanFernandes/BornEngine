@@ -473,7 +473,7 @@ function checkTemplate(text: string): boolean {
 
 ### Bind and play a template
 
-`loadSpriteAnimationTemplate(scene, path, textures, options?)` reads the template file, loads each texture by path, and binds them. It returns a `SpriteAnimationTemplateBoundAnimation` and throws if the file is missing, a texture fails to load, or the binding is invalid. `textures` maps image parameter IDs to file paths, and `options.filter` (for example `FILTER_NEAREST`) applies to every loaded texture. Each object chooses its own textures, so one template serves many images.
+`loadSpriteAnimationTemplate(path, images)` reads the template file and binds it to textures you already have. `images` maps image parameter IDs to loaded `Texture` objects, for example from `@Asset` fields. It returns a `SpriteAnimationTemplateBoundAnimation` and throws if the file is missing or the binding is invalid. Each object chooses its own textures, so one template serves many images.
 
 To validate a document yourself, parse it and give it to `new SpriteAnimationTemplateAsset(document)`. The asset exposes `error`, `diagnostics`, and the validated `definition`. It does not throw.
 

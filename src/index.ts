@@ -68,7 +68,6 @@ export type {
   SpriteAnimationTemplateBindingSuccess,
   SpriteAnimationTemplateBoundFrame,
   SpriteAnimationTemplateBoundLayer,
-  SpriteAnimationTemplateLoadOptions,
   SpriteAnimationTemplateRendererOptions,
   ResolvedSpriteAnimationTemplate,
   ResolvedSpriteAnimationTemplateClip,
