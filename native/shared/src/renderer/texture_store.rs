@@ -17,6 +17,13 @@ impl Renderer {
         self.register_texture_kind(width, height, data, false)
     }
 
+    /// Colour image (PNG/JPEG/ImageData) bound as Rgba8UnormSrgb so sampling
+    /// returns linear values, matching linear 2D vertex colours and the sRGB
+    /// swapchain encode.
+    pub fn register_color_texture(&mut self, width: u32, height: u32, data: &[u8]) -> u32 {
+        self.register_texture_with_format(width, height, data, false, wgpu::TextureFormat::Rgba8UnormSrgb)
+    }
+
     /// Replace the GPU resource behind a stable bind-group index. Scene
     /// materials and immediate draws can keep their existing texture refs.
     pub fn replace_texture(&mut self, index: u32, width: u32, height: u32, data: &[u8]) -> bool {
@@ -24,7 +31,7 @@ impl Renderer {
         if !self.can_replace_texture_slot(slot) {
             return false;
         }
-        let replacement = self.register_texture(width, height, data);
+        let replacement = self.register_color_texture(width, height, data);
         self.replace_texture_slot(index, replacement)
     }
 
@@ -158,6 +165,17 @@ impl Renderer {
         data: &[u8],
         is_normal_map: bool,
     ) -> u32 {
+        self.register_texture_with_format(width, height, data, is_normal_map, wgpu::TextureFormat::Rgba8Unorm)
+    }
+
+    fn register_texture_with_format(
+        &mut self,
+        width: u32,
+        height: u32,
+        data: &[u8],
+        is_normal_map: bool,
+        format: wgpu::TextureFormat,
+    ) -> u32 {
         let max_dim = if width > height { width } else { height };
         // On Android/Vulkan, multi-level mipmap upload was observed to
         // fail silently (black textures) when this path was written.
@@ -271,7 +289,7 @@ impl Renderer {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    format,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                     view_formats: &[],
                 },
@@ -286,7 +304,7 @@ impl Renderer {
                 mip_level_count: mip_count,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
+                format,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
@@ -492,13 +510,12 @@ impl Renderer {
             return None;
         }
         let surface = image_dds::Surface::from_dds(dds).ok()?;
-        // Engine convention: game textures bind as non-sRGB (the
-        // pipeline applies the transfer itself — see register_texture's
-        // Rgba8Unorm). Both BC7 variants therefore map to the Unorm
-        // view; the sRGB flag in the DDS only records authoring intent.
+        // Colour textures bind as sRGB, like register_color_texture, so a
+        // cooked asset samples the same as its raw PNG. Both BC7 variants
+        // map to the sRGB view; the DDS flag only records authoring intent.
         let format = match surface.image_format {
             image_dds::ImageFormat::BC7RgbaUnormSrgb
-            | image_dds::ImageFormat::BC7RgbaUnorm => wgpu::TextureFormat::Bc7RgbaUnorm,
+            | image_dds::ImageFormat::BC7RgbaUnorm => wgpu::TextureFormat::Bc7RgbaUnormSrgb,
             // Other BCn variants can map here as the cook tool grows.
             _ => return None,
         };

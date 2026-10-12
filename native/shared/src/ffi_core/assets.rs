@@ -436,7 +436,7 @@ macro_rules! __bloom_ffi_assets {
                 };
                 let source_path = staged.source_path.clone();
                 let mut eng = engine();
-                let bind_group_idx = eng.renderer.register_texture(staged.width, staged.height, &staged.data);
+                let bind_group_idx = eng.renderer.register_color_texture(staged.width, staged.height, &staged.data);
                 let handle = eng.textures.textures.alloc($crate::textures::TextureData {
                     bind_group_idx, width: staged.width, height: staged.height,
                 });

@@ -75,7 +75,7 @@ function marker(clientProjectRoot = '..', extra = {}) {
   });
 }
 
-function loadTreeProvider(servers) {
+function loadTreeProvider(servers, assets = []) {
   const providerPath = path.join(extensionRoot, 'src/views/bornEngineToolsProvider.ts');
   const source = readFileSync(providerPath, 'utf8');
   const { code } = transformSync(source, { loader: 'ts', format: 'cjs', target: 'node18' });
@@ -91,6 +91,7 @@ function loadTreeProvider(servers) {
       CREATE_SPRITE_ANIMATION_TEMPLATE_COMMAND: 'bornengine.createSpriteAnimationTemplate',
       CREATE_WORLD2D_COMMAND: 'bornengineTools.createWorld2D',
       RUN_BORNENGINE_CLI_COMMAND: 'bornengineTools.runCli',
+      SPRITE_ANIMATION_TEMPLATE_EDITOR_VIEW_TYPE: 'bornengine.animationTemplate',
       WORLD2D_EDITOR_VIEW_TYPE: 'bornengineTools.world2dEditor',
     },
     '../cli/bornEngineCli': {
@@ -103,7 +104,7 @@ function loadTreeProvider(servers) {
       workspaceFolderForDocument: (uri, folders) => folders.find((folder) => uri.path.startsWith(folder.uri.path)) ?? null,
     },
     './bornEngineProject': { isBornEngineProjectManifest: () => true },
-    './bornEngineAssets': { discoverBornEngineAssets: async () => [] },
+    './bornEngineAssets': { discoverBornEngineAssets: async () => assets },
     './bornEngineServers': { discoverBornEngineServers: async () => servers },
   };
   const sourceRequire = (specifier) => mocks[specifier] ?? localRequire(specifier);
@@ -128,6 +129,7 @@ function loadTreeProvider(servers) {
     Uri: { joinPath: (base, ...parts) => makeUri(path.posix.join(base.path, ...parts)) },
     workspace: {
       workspaceFolders: [folder],
+      getWorkspaceFolder: () => folder,
       fs: { readFile: async () => Buffer.from('{"dependencies":{"@bornengine/engine":"1.0.0"}}') },
       onDidChangeWorkspaceFolders: () => ({ dispose() {} }),
       createFileSystemWatcher: () => ({
@@ -308,6 +310,25 @@ test('offers a separate sprite animation template workflow in the BornEngine too
   assert.ok(createItem);
   assert.equal(createItem.command.command, 'bornengine.createSpriteAnimationTemplate');
   assert.deepEqual(createItem.command.arguments, [{ workspaceFolderUri: folder.uri }]);
+});
+
+test('lists sprite animation templates under their own group in the BornEngine tools tree', async () => {
+  const folder = { uri: makeUri('/game'), name: 'game', index: 0 };
+  const templateAsset = {
+    kind: 'animationTemplate',
+    uri: makeUri('/game/assets/anis/idle.spriteanim-template.json'),
+    name: 'idle',
+  };
+  const { provider } = loadTreeProvider([], [templateAsset]);
+  const [workspaceItem] = await provider.getChildren();
+  const rootItems = await provider.getChildren(workspaceItem);
+  const groupItem = rootItems.find((item) => item.label === 'Sprite Animation Templates');
+  assert.ok(groupItem);
+  const [assetItem] = await provider.getChildren(groupItem);
+
+  assert.equal(assetItem.label, 'idle');
+  assert.equal(assetItem.command.command, 'vscode.openWith');
+  assert.deepEqual(assetItem.command.arguments, [templateAsset.uri, 'bornengine.animationTemplate']);
 });
 
 test('shows each valid server destination in the BornEngine tools tree', async () => {

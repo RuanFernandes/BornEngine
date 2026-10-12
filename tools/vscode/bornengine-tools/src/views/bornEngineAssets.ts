@@ -14,6 +14,7 @@ const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bm
 export type BornEngineWorkspaceAsset =
   | { kind: 'map'; uri: vscode.Uri; name: string }
   | { kind: 'animation'; uri: vscode.Uri; name: string }
+  | { kind: 'animationTemplate'; uri: vscode.Uri; name: string }
   | {
       kind: 'spriteMetadata';
       uri: vscode.Uri;
@@ -29,6 +30,10 @@ function isMap(uri: vscode.Uri): boolean {
 
 function isAnimation(uri: vscode.Uri): boolean {
   return uri.path.endsWith('.spriteanim.json');
+}
+
+function isAnimationTemplate(uri: vscode.Uri): boolean {
+  return uri.path.endsWith('.spriteanim-template.json');
 }
 
 function isRasterImage(uri: vscode.Uri): boolean {
@@ -61,14 +66,16 @@ export async function discoverBornEngineAssets(
     EXCLUDED_DIRECTORIES,
   );
 
-  const [foundMapUris, foundAnimationUris, foundJsonUris, foundImageUris] = await Promise.all([
+  const [foundMapUris, foundAnimationUris, foundTemplateUris, foundJsonUris, foundImageUris] = await Promise.all([
     findFiles('**/*.world2d.json'),
     findFiles('**/*.spriteanim.json'),
+    findFiles('**/*.spriteanim-template.json'),
     findFiles('**/*.json'),
     findFiles(IMAGE_GLOB),
   ]);
   const mapUris = foundMapUris.filter(belongsToFolder);
   const animationUris = foundAnimationUris.filter(belongsToFolder);
+  const templateUris = foundTemplateUris.filter(belongsToFolder);
   const jsonUris = foundJsonUris.filter(belongsToFolder);
   const imageUris = foundImageUris.filter(belongsToFolder);
 
@@ -78,6 +85,9 @@ export async function discoverBornEngineAssets(
   }
   for (const uri of animationUris) {
     assets.push({ kind: 'animation', uri, name: displayName(uri, '.spriteanim.json') });
+  }
+  for (const uri of templateUris) {
+    assets.push({ kind: 'animationTemplate', uri, name: displayName(uri, '.spriteanim-template.json') });
   }
 
   const animationSources = new Map<string, vscode.Uri>();
@@ -92,7 +102,7 @@ export async function discoverBornEngineAssets(
 
   const referencedImages: vscode.Uri[] = [];
   for (const uri of jsonUris) {
-    if (isMap(uri) || isAnimation(uri)) continue;
+    if (isMap(uri) || isAnimation(uri) || isAnimationTemplate(uri)) continue;
     const document = await readJson(api, uri);
     if (document === null) continue;
 

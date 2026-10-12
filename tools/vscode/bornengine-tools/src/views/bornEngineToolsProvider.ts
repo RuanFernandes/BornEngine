@@ -9,6 +9,7 @@ import {
   CREATE_SPRITE_ANIMATION_TEMPLATE_COMMAND,
   CREATE_WORLD2D_COMMAND,
   RUN_BORNENGINE_CLI_COMMAND,
+  SPRITE_ANIMATION_TEMPLATE_EDITOR_VIEW_TYPE,
   WORLD2D_EDITOR_VIEW_TYPE,
 } from '../shared/extensionIds';
 import { BORNENGINE_CLI_SHORTCUTS } from '../cli/bornEngineCli';
@@ -21,7 +22,7 @@ const JSON_WATCH_GLOB = '**/*.json';
 const IMAGE_WATCH_GLOB = '**/*.{png,jpg,jpeg,gif,webp,bmp,tif,tiff,PNG,JPG,JPEG,GIF,WEBP,BMP,TIF,TIFF}';
 const IGNORED_PATH_SEGMENTS = new Set(['.git', 'node_modules', 'dist', 'build', 'out']);
 
-type AssetGroup = 'maps' | 'animations' | 'metadata' | 'images';
+type AssetGroup = 'maps' | 'animations' | 'animationTemplates' | 'metadata' | 'images';
 
 type TreeNode =
   | { kind: 'workspace'; folder: vscode.WorkspaceFolder }
@@ -41,6 +42,7 @@ type TreeNode =
 const GROUPS: Array<{ key: AssetGroup; label: string; kind: BornEngineWorkspaceAsset['kind'] }> = [
   { key: 'maps', label: 'World2D Maps', kind: 'map' },
   { key: 'animations', label: 'Sprite Animations', kind: 'animation' },
+  { key: 'animationTemplates', label: 'Sprite Animation Templates', kind: 'animationTemplate' },
   { key: 'metadata', label: 'Sprite Metadata', kind: 'spriteMetadata' },
   { key: 'images', label: 'Graphics', kind: 'image' },
 ];
@@ -264,9 +266,11 @@ export class BornEngineToolsTreeProvider implements vscode.TreeDataProvider<vsco
       ? { command: 'vscode.openWith', title: 'Open Map', arguments: [asset.uri, WORLD2D_EDITOR_VIEW_TYPE] }
       : asset.kind === 'animation'
         ? { command: 'vscode.openWith', title: 'Open Animation', arguments: [asset.uri, SPRITE_ANIMATION_EDITOR_VIEW_TYPE] }
-        : asset.kind === 'spriteMetadata'
-          ? { command: 'vscode.open', title: 'Open Metadata', arguments: [asset.uri] }
-          : { command: 'vscode.open', title: 'Open Image', arguments: [asset.uri] };
+        : asset.kind === 'animationTemplate'
+          ? { command: 'vscode.openWith', title: 'Open Animation Template', arguments: [asset.uri, SPRITE_ANIMATION_TEMPLATE_EDITOR_VIEW_TYPE] }
+          : asset.kind === 'spriteMetadata'
+            ? { command: 'vscode.open', title: 'Open Metadata', arguments: [asset.uri] }
+            : { command: 'vscode.open', title: 'Open Image', arguments: [asset.uri] };
     const workspaceFolder = this.api.workspace.getWorkspaceFolder(asset.uri);
     const relativePath = workspaceFolder ? path.posix.relative(workspaceFolder.uri.path, asset.uri.path) : asset.uri.path;
     const kind = asset.kind === 'spriteMetadata' ? 'spriteMetadata' : asset.kind;

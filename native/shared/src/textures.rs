@@ -158,7 +158,7 @@ impl TextureManager {
         let height = img.height();
         let data = img.into_raw();
 
-        let bind_group_idx = renderer.register_texture(width, height, &data);
+        let bind_group_idx = renderer.register_color_texture(width, height, &data);
         self.textures.alloc(TextureData { bind_group_idx, width, height })
     }
 
@@ -277,13 +277,13 @@ impl TextureManager {
         // No BC support on this adapter (mobile GL): CPU-decode the top
         // mip and feed the regular RGBA path (which regenerates mips).
         let Some((pixels, width, height)) = decode_dds_top_mip(&dds) else { return 0.0 };
-        let bind_group_idx = renderer.register_texture(width, height, &pixels);
+        let bind_group_idx = renderer.register_color_texture(width, height, &pixels);
         self.textures.alloc(TextureData { bind_group_idx, width, height })
     }
 
     pub fn load_texture_from_image(&mut self, handle: f64, renderer: &mut Renderer) -> f64 {
         if let Some(img_data) = self.images.get(handle) {
-            let bind_group_idx = renderer.register_texture(img_data.width, img_data.height, &img_data.data);
+            let bind_group_idx = renderer.register_color_texture(img_data.width, img_data.height, &img_data.data);
             self.textures.alloc(TextureData { bind_group_idx, width: img_data.width, height: img_data.height })
         } else {
             0.0
