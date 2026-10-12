@@ -52,7 +52,8 @@ export function Asset(path: string, onError?: AssetErrorHandler): PropertyAnnota
   };
 }
 
-export function GameComponent<O extends object = object>(options?: O): PropertyAnnotation {
+/** Attaches a component of the field's declared class. Pass the class as the type argument to type `options`. */
+export function GameComponent<T extends Component = Component>(options?: T['__options']): PropertyAnnotation {
   return (target, key) => {
     const name = String(key);
     const type = Reflect.getMetadata('design:type', target, name);

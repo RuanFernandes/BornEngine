@@ -6,6 +6,8 @@ import type { Renderer } from '../core/renderer';
 export type GameComponentType<T extends GameComponent> = new (...args: any[]) => T;
 
 export class GameComponent {
+  /** Type-only: the options `@GameComponent<T>(options)` accepts for this class. Subclasses redeclare it. */
+  declare readonly __options: object;
   enabled = true;
   renderOrder = 0;
   private owner: GameObject | null = null;
