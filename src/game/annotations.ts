@@ -63,6 +63,11 @@ export function GameComponent<T extends Component = Component>(options?: T['__op
     const name = String(key);
     const type = Reflect.getMetadata('design:type', target, name);
     if (typeof type !== 'function') throw new TypeError(`@GameComponent "${name}" needs a class type`);
+    if (type.length > 1) {
+      throw new TypeError(
+        `@GameComponent "${name}": ${type.name} takes runtime objects, so attach it with addComponent instead`,
+      );
+    }
     addAnnotation(target, {
       kind: 'component',
       key: name,

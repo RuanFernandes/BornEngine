@@ -9,6 +9,8 @@
     "lint": "biome lint src types",
     "check:side-effects": "node tools/check-side-effects.mjs",
     "check:jsdoc": "node tools/check-jsdoc.mjs",
+    "test:fast": "npm run typecheck && npm run lint && npm run check:side-effects && npm run check:jsdoc && npm run test:unit && npm run test:tools",
+    "native:build": "cargo build --release --manifest-path native/linux/Cargo.toml",
     "format:check": "biome format src types",
     "test:unit": "node --import ./tests/world2d/register-ts-resolution.mjs --test \"tests/*.test.mjs\"",
     "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
