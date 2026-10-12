@@ -259,21 +259,21 @@ const VIEW_HEIGHT = 180;
 const WORLD_WIDTH = 640;
 const WORLD_HEIGHT = 360;
 
-function addFollowCamera(scene: Scene, target: GameObject): void {
-  scene.viewport2D = new Viewport2D({ width: VIEW_WIDTH, height: VIEW_HEIGHT, mode: 'integer' });
+class FollowCamera extends GameObject {
+  readonly rig: CameraRig2D;
 
-  const cameraObject = new GameObject({ name: 'Camera' });
-  const rig = new CameraRig2D({
-    target,
-    offset: new Vector2D(VIEW_WIDTH / 2, VIEW_HEIGHT / 2),
-    cameraTarget: new Vector2D(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
-    smoothing: 0.12,
-    bounds: { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
-  });
-  if (rig.error !== null) throw new Error(rig.error);
-  cameraObject.addComponent(rig);
-  scene.addNode(cameraObject);
-  if (!scene.bindCameraRig2D(rig)) throw new Error('Could not bind the camera to the scene.');
+  constructor(target: GameObject) {
+    super({ name: 'Camera' });
+    this.rig = this.addRequiredComponent(
+      new CameraRig2D({
+        target,
+        offset: new Vector2D(VIEW_WIDTH / 2, VIEW_HEIGHT / 2),
+        cameraTarget: new Vector2D(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
+        smoothing: 0.12,
+        bounds: { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
+      }),
+    );
+  }
 }
 ```
 
@@ -452,21 +452,21 @@ class Hero extends GameObject {
   }
 }
 
-function addFollowCamera(scene: Scene, target: GameObject): void {
-  scene.viewport2D = new Viewport2D({ width: VIEW_WIDTH, height: VIEW_HEIGHT, mode: 'integer' });
+class FollowCamera extends GameObject {
+  readonly rig: CameraRig2D;
 
-  const cameraObject = new GameObject({ name: 'Camera' });
-  const rig = new CameraRig2D({
-    target,
-    offset: new Vector2D(VIEW_WIDTH / 2, VIEW_HEIGHT / 2),
-    cameraTarget: new Vector2D(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
-    smoothing: 0.12,
-    bounds: { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
-  });
-  if (rig.error !== null) throw new Error(rig.error);
-  cameraObject.addComponent(rig);
-  scene.addNode(cameraObject);
-  if (!scene.bindCameraRig2D(rig)) throw new Error('Could not bind the camera to the scene.');
+  constructor(target: GameObject) {
+    super({ name: 'Camera' });
+    this.rig = this.addRequiredComponent(
+      new CameraRig2D({
+        target,
+        offset: new Vector2D(VIEW_WIDTH / 2, VIEW_HEIGHT / 2),
+        cameraTarget: new Vector2D(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
+        smoothing: 0.12,
+        bounds: { x: 0, y: 0, width: WORLD_WIDTH, height: WORLD_HEIGHT },
+      }),
+    );
+  }
 }
 
 class Arena extends Scene {
@@ -479,7 +479,11 @@ class Arena extends Scene {
 
     const hero = new Hero(controls, frames);
     this.addNode(hero);
-    addFollowCamera(this, hero);
+    this.viewport2D = new Viewport2D({ width: VIEW_WIDTH, height: VIEW_HEIGHT, mode: 'integer' });
+    const camera = new FollowCamera(hero);
+    this.addNode(camera);
+    if (camera.rig.error !== null) throw new Error(camera.rig.error);
+    if (!this.bindCameraRig2D(camera.rig)) throw new Error('Could not bind the camera to the scene.');
   }
 }
 
