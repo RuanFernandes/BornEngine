@@ -35,25 +35,25 @@ export interface SpriteAnimationTransition {
 }
 
 /** A named state of the animator state machine. It plays one clip and lists its outgoing transitions. */
-export interface SpriteAnimatorState {
+export interface SpriteAnimatorState<TClip extends string = string> {
   /** Unique state name. */
   readonly name: string;
   /** Name of the clip played while the state is active. */
-  readonly clip: string;
+  readonly clip: TClip;
   /** Transitions are tested in declaration order. */
   readonly transitions?: readonly SpriteAnimationTransition[];
 }
 
 /** Options for `SpriteAnimator`: the clips to play and an optional state machine. */
-export interface SpriteAnimatorOptions {
+export interface SpriteAnimatorOptions<TClip extends string = string> {
   /** Defaults to every clip of a template renderer. Required for a SpriteRenderer. */
-  readonly clips?: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
+  readonly clips?: Readonly<Record<TClip, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
   /** State machine definition. State names must be unique and every transition must target a defined state. */
-  readonly states?: readonly SpriteAnimatorState[];
+  readonly states?: readonly SpriteAnimatorState<TClip>[];
   /** State to enter immediately. Takes precedence over autoplay. */
   readonly initialState?: string;
   /** Clip to play immediately, without a state machine. Ignored when initialState is set. */
-  readonly autoplay?: string;
+  readonly autoplay?: TClip;
 }
 
 /** Options for `SpriteAnimator.play`. */
@@ -130,7 +130,7 @@ function validCondition(condition: SpriteTransitionCondition): boolean {
 }
 
 /** Plays concrete or layered clips on one animation target and evaluates an optional state machine. */
-export class SpriteAnimator extends GameComponent {
+export class SpriteAnimator<TClip extends string = string> extends GameComponent {
   /** Assign to receive frame markers as playback enters frames. Null disables it. */
   onMarker: SpriteMarkerCallback | null = null;
   /** Assign to be told when a `once` clip finishes. Null disables it. */
@@ -172,9 +172,10 @@ export class SpriteAnimator extends GameComponent {
    * thrown.
    * Playback starts immediately when `initialState` or `autoplay` is given.
    */
-  constructor(renderer: SpriteRenderer | SpriteAnimationTemplateRenderer, options: SpriteAnimatorOptions) {
+  constructor(renderer: SpriteRenderer | SpriteAnimationTemplateRenderer, options: SpriteAnimatorOptions<TClip>) {
     super();
-    const settings: SpriteAnimatorOptions = options === null || options === undefined ? { clips: {} } : options;
+    const settings: SpriteAnimatorOptions<TClip> =
+      options === null || options === undefined ? ({ clips: {} } as SpriteAnimatorOptions<TClip>) : options;
     this.animationTarget = renderer;
 
     if (
@@ -189,7 +190,7 @@ export class SpriteAnimator extends GameComponent {
           : renderer.error || 'SpriteAnimator requires a valid animation target.';
       return;
     }
-    const clipRecord =
+    const clipRecord: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>> | undefined =
       settings.clips !== undefined
         ? settings.clips
         : renderer instanceof SpriteAnimationTemplateRenderer
@@ -408,7 +409,7 @@ export class SpriteAnimator extends GameComponent {
   }
 
   /** Plays a clip. The current clip only restarts when restart is true. */
-  play(name: string, options: SpritePlayOptions = {}): boolean {
+  play(name: TClip, options: SpritePlayOptions = {}): boolean {
     const settings: SpritePlayOptions = options === null || options === undefined ? {} : options;
     const fade = settings.fade === undefined ? 0 : settings.fade;
     if (!isNonNegative(fade)) {

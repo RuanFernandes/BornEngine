@@ -475,7 +475,7 @@ function checkTemplate(text: string): boolean {
 
 `loadSpriteAnimationTemplate(path, images)` reads the template file and binds it to textures you already have. `images` maps image parameter IDs to loaded `Texture` objects, for example from `@Asset` fields. It returns a `SpriteAnimationTemplateBoundAnimation` and throws if the file is missing or the binding is invalid. Each object chooses its own textures, so one template serves many images.
 
-`SpriteAnimationComponent` wraps both steps for a GameObject. Attach it with `@GameComponent<SpriteAnimationComponent<'idle' | 'walk'>>({ template, images, filter?, autoplay? })`. It loads the template and textures when it wakes, adds the renderer and animator to the object, and exposes `play`, `setDir`, `setBool`, `setNumber`, and `setTrigger`. The type argument lists the clip names, so `play` rejects unknown names at compile time.
+`SpriteAnimator` takes the clip names as a type argument when you pass `clips`, so `play` rejects unknown names at compile time: `new SpriteAnimator<'idle' | 'walk'>(renderer, { clips: { idle, walk } })`. `SpriteAnimationComponent` wraps both steps for a GameObject. Attach it with `@GameComponent<SpriteAnimationComponent<'idle' | 'walk'>>({ template, images, filter?, autoplay? })`. It loads the template and textures when it wakes, adds the renderer and animator to the object, and exposes `play`, `setDir`, `setBool`, `setNumber`, and `setTrigger`. The type argument lists the clip names, so `play` rejects unknown names at compile time.
 
 To validate a document yourself, parse it and give it to `new SpriteAnimationTemplateAsset(document)`. The asset exposes `error`, `diagnostics`, and the validated `definition`. It does not throw.
 

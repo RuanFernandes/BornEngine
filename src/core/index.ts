@@ -1,5 +1,5 @@
 export { Game } from './game';
-export type { GameOptions, GameRenderMode, EmbeddedFrameCallbacks, GameDebugOptions } from './game';
+export type { GameOptions, GameRenderMode, GameTextureFilter, EmbeddedFrameCallbacks, GameDebugOptions } from './game';
 export { ScriptRuntime } from '../scripting/script-runtime';
 export { ScriptComponent, DEFAULT_SCRIPT_LIMITS } from '../scripting/script-component';
 export type {

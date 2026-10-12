@@ -37,6 +37,9 @@ export interface GameStats {
   activeComponentCount: number;
 }
 
+/** Sampling filter for textures loaded through a Game's assets. */
+export type GameTextureFilter = 'linear' | 'nearest';
+
 /** Options for constructing a Game. */
 export interface GameOptions {
   /** Options for the Game window. */
@@ -49,6 +52,11 @@ export interface GameOptions {
    * Defaults to the full scene renderer.
    */
   renderMode?: GameRenderMode;
+  /**
+   * Sampling filter for textures loaded through `game.assets` and scene assets. `nearest` keeps pixel art sharp.
+   * Defaults to `nearest` in `2d` render mode and `linear` otherwise.
+   */
+  textureFilter?: GameTextureFilter;
   /** Opt-in engine inspector backed by the optional Dear ImGui desktop build. */
   debug?: boolean | GameDebugOptions;
 }
@@ -105,6 +113,8 @@ function dispatchGameStop(game: any): void {
 export class Game {
   /** Window or host surface of this Game. */
   readonly window: Window;
+  /** Sampling filter applied to textures loaded through this Game's assets. */
+  readonly textureFilter: GameTextureFilter;
   /** Draw commands, render passes, and post-processing. */
   readonly renderer: Renderer;
   /** Keyboard, mouse, and other input state. */
@@ -168,6 +178,7 @@ export class Game {
     this.ui = new Ui(this);
     this.gui = new GUIManager(this);
     this.debugUi = new DebugUi(this);
+    this.textureFilter = options.textureFilter ?? (options.renderMode === '2d' ? 'nearest' : 'linear');
     this.assets = new AssetManager(this);
     this.scripting = new ScriptRuntime(this);
     this.inspector = new GameInspector(this, options.debug);

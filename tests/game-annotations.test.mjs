@@ -194,6 +194,18 @@ test('@GameComponent throws when the component cannot attach', () => {
   assert.throws(() => bindAnnotations(new Stuck(), sceneWith(loadedTexture)), /Could not attach "health" component/);
 });
 
+test('@GameComponent rejects classes whose constructor needs runtime objects', () => {
+  class NeedsWorld extends Component {
+    constructor(world, options) {
+      super();
+      this.world = world;
+      this.options = options;
+    }
+  }
+  class Holder extends FakeObject {}
+  assert.throws(() => annotate(Holder.prototype, 'body', GameComponent(), NeedsWorld), /takes runtime objects/);
+});
+
 test('@GameComponent requires a class design type', () => {
   class Untyped extends FakeObject {}
   assert.throws(() => GameComponent()(Untyped.prototype, 'health'), /needs a class type/);
