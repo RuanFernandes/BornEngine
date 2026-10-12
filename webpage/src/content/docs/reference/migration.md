@@ -143,8 +143,11 @@ class Level extends Scene {
     super(game, { name: 'level' });
     this.viewport2D = new Viewport2D({ width: 800, height: 450, mode: 'fit' });
 
+    const player = new GameObject({ name: 'Player' });
+    this.addNode(player);
+
     const camera = new GameObject({ name: 'Camera' });
-    const rig = new CameraRig2D({ smoothing: 0.1 });
+    const rig = new CameraRig2D({ target: player, smoothing: 0.1 });
     camera.addComponent(rig);
     this.addNode(camera);
     this.bindCameraRig2D(rig);

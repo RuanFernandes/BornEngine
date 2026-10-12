@@ -1618,6 +1618,10 @@ pub fn bloom_commit_music(staging_handle: f64) -> f64 {
 // Platform detection
 // ============================================================
 
+/// No-op on web: the browser event loop drains microtasks between frames.
+#[wasm_bindgen]
+pub fn bloom_run_microtasks() {}
+
 #[wasm_bindgen]
 pub fn bloom_get_platform() -> f64 {
     7.0 // Web platform ID

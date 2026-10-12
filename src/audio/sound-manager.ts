@@ -261,7 +261,8 @@ export class SoundManager {
     this.audio.setBusGain(bus, gain);
   }
 
-  update(dt: number): void {
+  /** @internal Advances cooldowns. Driven only by AudioSystem, never by a scene. */
+  _advance(dt: number): void {
     if (this.disposed) return;
     if (finiteNumber(dt) && dt > 0) {
       for (let index = 0; index < this.sounds.length; index++) {

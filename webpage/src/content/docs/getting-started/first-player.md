@@ -123,7 +123,7 @@ import {
   Vec3,
   Viewport2D,
 } from '@bornengine/engine';
-import { Asset } from '@bornengine/engine/annotations';
+import { Asset, GameComponent as AddComponent } from '@bornengine/engine/annotations';
 
 const SPEED = 180;
 const ROOM_WIDTH = 1600;
@@ -160,6 +160,9 @@ class Player extends GameObject {
   @Asset('assets/player.png')
   readonly image!: Texture;
 
+  @AddComponent({ smoothing: 0.1, bounds: { x: 0, y: 0, width: ROOM_WIDTH, height: ROOM_HEIGHT } })
+  readonly playerCamera!: CameraRig2D;
+
   private readonly input: InputSystem;
 
   constructor(input: InputSystem) {
@@ -189,19 +192,7 @@ class Level extends Scene {
     room.addComponent(new RoomView());
     this.addNode(room);
 
-    const player = new Player(game.input);
-    this.addNode(player);
-
-    const camera = new GameObject({ name: 'Camera' });
-    const rig = new CameraRig2D({
-      target: player,
-      offset: { x: 400, y: 225 },
-      smoothing: 0.1,
-      bounds: { x: 0, y: 0, width: ROOM_WIDTH, height: ROOM_HEIGHT },
-    });
-    camera.addComponent(rig);
-    this.addNode(camera);
-    this.bindCameraRig2D(rig);
+    this.addNode(new Player(game.input));
   }
 }
 
@@ -235,7 +226,9 @@ game.run().then(() => {
 - `@Asset('assets/player.png')` on the `image` field loads the texture when the `Player` is added to the scene. The field is filled before the object's `onAwake()` runs.
 - `PlayerView` keeps a reference to its player and draws the player's texture at the player's position.
 - `RoomView` draws the floor and a grid. The room is 1600 by 900 units, twice the width of the window.
-- `CameraRig2D` follows `target` and keeps the view inside `bounds`. `offset` is the screen position where the target appears. `{ x: 400, y: 225 }` puts it in the middle of the 800 by 450 view. Without it, the target appears in the top-left corner. `bindCameraRig2D` must be called after the camera's object has been added to the scene.
+- `@AddComponent({...})` attaches a `CameraRig2D` to the player when the player is added to the scene. The options object is passed to the rig's constructor. With no `target`, the rig follows the object it is attached to, which here is the player. This is one use of the rig. The [camera page](../../api/camera2d/) shows a rig that follows another object.
+- `offset` defaults to the middle of the viewport, so the player appears in the center of the 800 by 450 view. `bounds` keeps the view inside the room.
+- The rig binds itself to the scene, because the scene has no camera yet. The player is added after `viewport2D` is set, so the centering uses the right size.
 - `viewport2D` scales the logical 800 by 450 view to the window.
 
 ### Decorators and editor support
@@ -251,7 +244,7 @@ game.run().then(() => {
 }
 ```
 
-`@GameComponent()` reads the field's class type at runtime, so it needs `emitDecoratorMetadata`. Only `GameObject` subclasses can use `@Asset` and `@GameComponent()`. Components do not bind annotations.
+The `GameComponent` decorator, imported here as `AddComponent`, reads the field's class type at runtime, so it needs `emitDecoratorMetadata`. Only `GameObject` subclasses can use `@Asset` and `@GameComponent()`. Components do not bind annotations.
 
 ### If the sprite fails to load
 

@@ -218,7 +218,7 @@ A `Viewport2D` fixes the logical size of your game, for example 320 by 180. You 
 - `integer` keeps the aspect ratio and uses the largest whole-number scale that fits, so pixel art stays sharp. When the window is smaller than the logical view, it falls back to `fit`.
 - `stretch` fills the window and changes the aspect ratio.
 
-Assign the viewport to `scene.viewport2D`. For a camera that follows the player, add a `CameraRig2D` to a game object, and call `scene.bindCameraRig2D(rig)` after that object is in the scene. The rig's `offset` is the point of the logical view where the target appears, so use half the logical size to center it. `bounds` keeps the view inside the room, and `smoothing` softens the movement.
+Assign the viewport to `scene.viewport2D`. For a camera that follows the player, add a `CameraRig2D` to a game object, and call `scene.bindCameraRig2D(rig)` after that object is in the scene. The rig's `offset` is the point of the logical view where the target appears. It defaults to the center of the viewport, so you can leave it out once `viewport2D` is set. `bounds` keeps the view inside the room, and `smoothing` softens the movement.
 
 Pointer input uses the same mapping in reverse. A mouse position starts in window pixels. `game.input.screenToWorld()` removes the bars and the scale to get a logical position, and then undoes the camera's offset, zoom, and rotation to get a world position. It returns `null` when the pointer is on a bar, or when the scene has neither a camera nor a viewport.
 

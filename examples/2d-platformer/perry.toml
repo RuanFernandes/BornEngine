@@ -1,0 +1,7 @@
+[project]
+name = "bornengine-2d-platformer"
+entry = "main.ts"
+
+[bornengine]
+native_profile = "2d"
+native_features = ["sqlite"]

@@ -128,6 +128,7 @@ setting the bar. ([design overview](docs/design-api.md))
 | **Core** | `@bornengine/engine/core` | Game, window, game loop, timing |
 | **Input** | `@bornengine/engine/input` | Keyboard, mouse, gamepad, action maps |
 | **Game** | `@bornengine/engine/game` | GameObjects, components, transforms, scenes, and native-handle adapters ([docs](docs/game-objects.md)) |
+| **Annotations** | `@bornengine/engine/annotations` | Field decorators: `@Asset` (textures, with `errCallback` and `retry`) and `@GameComponent` ([docs](webpage/src/content/docs/api/game.md)) |
 | **Shapes** | `@bornengine/engine/shapes` | 2D drawing + collision detection |
 | **Textures** | `@bornengine/engine/textures` | Image loading, sprite batching |
 | **Text** | `@bornengine/engine/text` | TTF/OTF font loading and rendering |

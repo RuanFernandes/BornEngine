@@ -1,6 +1,6 @@
 {
   "name": "@bornengine/engine",
-  "version": "0.18.2",
+  "version": "0.19.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
     "test": "npm run typecheck && npm run lint && npm run check:side-effects && npm run test:unit && npm run test:harnesses && npm run test:tools && npm run test:runtime && npm run test:scripting && npm run examples:check:static",
@@ -46,6 +46,7 @@
     "./world2d/editor": "./src/world2d/editor.ts",
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
+    "./annotations": "./src/game/annotations.ts",
     "./scripting": "./src/scripting/index.ts",
     "./input": "./src/input/index.ts",
     "./storage": "./src/storage/index.ts",
@@ -2810,6 +2811,11 @@
           "returns": "void"
         },
         {
+          "name": "bloom_run_microtasks",
+          "params": [],
+          "returns": "void"
+        },
+        {
           "name": "bloom_add_directional_light",
           "params": [
             "f64",
@@ -4288,12 +4294,15 @@
         },
         {
           "name": "bloom_physics_contact_count",
-          "params": [],
+          "params": [
+            "f64"
+          ],
           "returns": "f64"
         },
         {
           "name": "bloom_physics_contact_field",
           "params": [
+            "f64",
             "f64",
             "f64"
           ],

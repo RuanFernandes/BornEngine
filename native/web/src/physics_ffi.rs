@@ -210,9 +210,9 @@ extern "C" {
     #[wasm_bindgen(js_name = constraintSetEnabled)]
     fn jb_constraint_set_enabled(a0: f64, a1: f64);
     #[wasm_bindgen(js_name = contactCount)]
-    fn jb_contact_count() -> f64;
+    fn jb_contact_count(a0: f64) -> f64;
     #[wasm_bindgen(js_name = contactField)]
-    fn jb_contact_field(a0: f64, a1: f64) -> f64;
+    fn jb_contact_field(a0: f64, a1: f64, a2: f64) -> f64;
     #[wasm_bindgen(js_name = clearContacts)]
     fn jb_clear_contacts(a0: f64);
     #[wasm_bindgen(js_name = characterCreate)]
@@ -547,10 +547,10 @@ pub fn bloom_physics_constraint_destroy(a0: f64) { jb_constraint_destroy(a0) }
 pub fn bloom_physics_constraint_set_enabled(a0: f64, a1: f64) { jb_constraint_set_enabled(a0, a1) }
 #[cfg(feature = "jolt")]
 #[wasm_bindgen]
-pub fn bloom_physics_contact_count() -> f64 { jb_contact_count() }
+pub fn bloom_physics_contact_count(a0: f64) -> f64 { jb_contact_count(a0) }
 #[cfg(feature = "jolt")]
 #[wasm_bindgen]
-pub fn bloom_physics_contact_field(a0: f64, a1: f64) -> f64 { jb_contact_field(a0, a1) }
+pub fn bloom_physics_contact_field(a0: f64, a1: f64, a2: f64) -> f64 { jb_contact_field(a0, a1, a2) }
 #[cfg(feature = "jolt")]
 #[wasm_bindgen]
 pub fn bloom_physics_clear_contacts(a0: f64) { jb_clear_contacts(a0) }

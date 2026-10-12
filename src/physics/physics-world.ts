@@ -70,7 +70,10 @@ export class PhysicsWorld implements ContextResource {
         numThreads: options.numThreads,
       });
     }
-    this.error = handle !== 0 ? null : 'The Game must be ready to create a PhysicsWorld.';
+    this.error =
+      handle !== 0
+        ? null
+        : 'PhysicsWorld could not be created. Check that the Game is ready and that this native profile includes Jolt physics (native_profile 2.5d or 3d).';
     if (handle !== 0) {
       registerNativeHandle(this, handle);
       this.context.register(this);
@@ -211,11 +214,11 @@ export class PhysicsWorld implements ContextResource {
   }
 
   get contactCount(): number {
-    return this.isReady ? native.contactCount() : 0;
+    return this.isReady ? native.contactCount(getNativeHandle(this)) : 0;
   }
   popContacts(): PhysicsContact[] {
     if (!this.isReady) return [];
-    const contacts = native.popContacts();
+    const contacts = native.popContacts(getNativeHandle(this));
     const out: PhysicsContact[] = [];
     for (let index = 0; index < contacts.length; index++) {
       const contact = contacts[index];
@@ -243,16 +246,16 @@ export class PhysicsWorld implements ContextResource {
     return new RigidBody(this, collider, options);
   }
   createJoint(kind: JointKind, options: JointOptions): Joint {
-    return new Joint(this, kind, options);
+    return new Joint({ ...options, world: this, kind });
   }
   createCharacter(collider: Collider, options: CharacterControllerOptions = {}): CharacterController {
-    return new CharacterController(this, collider, options);
+    return new CharacterController({ ...options, world: this, collider });
   }
   createSoftBody(options: native.SoftBodyConfig): SoftBody {
     return new SoftBody(this, options);
   }
   createVehicle(options: VehicleOptions): Vehicle {
-    return new Vehicle(this, options);
+    return new Vehicle({ ...options, world: this });
   }
 
   /** @internal */ _registerCollider(value: Collider): void {

@@ -5,6 +5,7 @@ import type { PhysicsWorld } from '../physics';
 import type { Camera2D } from '../core/types';
 import type { CameraRig2D } from '../camera2d/camera-rig-2d';
 import type { Viewport2D } from '../camera2d/viewport-2d';
+import type { Texture } from '../textures/texture';
 import { SceneAssetManager } from '../assets/asset-manager';
 import { SceneVfx } from '../vfx/scene-vfx';
 
@@ -55,6 +56,14 @@ export class Scene extends GameScene {
     this.name = options.name === undefined ? '' : options.name;
     this.assets = new SceneAssetManager(owner);
     this.vfx = new SceneVfx(owner, this);
+  }
+
+  override _loadTexture(path: string): Texture | null {
+    return this.assets.loadTexture(path);
+  }
+
+  override _reloadTexture(path: string): Texture | null {
+    return this.assets._reloadTexture(path);
   }
 
   get camera2D(): Camera2D | null {

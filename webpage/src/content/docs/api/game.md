@@ -153,7 +153,10 @@ Override a hook with the `override` keyword. The base implementations do nothing
 Two annotations fill fields on a `GameObject` subclass when the object is attached to a scene. They run before the object's `onAwake()`, so the fields are ready there. They do not run in the constructor, so do not read the fields there.
 
 - `@Asset(path, errCallback?)` loads the texture at `path` through the scene's `assets` and stores the `Texture` in the field.
-- `@GameComponent()` creates a component from the field's class and attaches it to the object. The class needs a constructor with no arguments.
+- `@GameComponent()` creates a component from the field's class and attaches it to the object. Without options, the constructor gets no argument.
+- `@GameComponent(options)` passes `options` as the single constructor argument. TypeScript does not check these options against the component's constructor, so keep them in step with it. Runtime references such as a physics world cannot go in the decorator, because decorators run when the class is defined. Pass them through the component's own options with `addComponent` instead.
+- Engine components that take only options can use the decorator, for example `CameraRig2D`, `ParallaxLayer2D`, and `AudioListener2D`. Components that need a runtime object first, such as `CharacterController`, `Vehicle`, and `Joint`, take their world in the options, so attach them with `addComponent`.
+- A component that holds native resources releases them in `onDestroy()`. Removing the component or destroying its object runs that hook.
 
 Annotations apply to fields of game objects only. Components are not bound. Annotated fields of a base class are bound too, before those of the subclass. The scene must be a `Scene`. A plain `GameScene` has no asset manager, so `@Asset` fails there with `scene has no asset manager`.
 
@@ -544,7 +547,7 @@ Three components connect a game object to a resource that lives outside the scen
 | `RigidBodyComponent` | `(body, { ownership? })` | Links a [physics](../physics/) body to the object's transform around `PhysicsWorld.step()`. See [Physics step](#physics-step). |
 | `AudioSourceComponent` | `(sound, { looping?, refDist?, maxDist?, rolloff? })` | `play()` starts the sound at the object's position and `stop()` ends it. While the sound plays, the voice follows the object. Defaults: `looping` false, `refDist` 1, `maxDist` 0, `rolloff` 1. |
 
-`SceneNodeComponent` sends the world matrix of the object to its node. When the parent object also has a `SceneNodeComponent`, it parents the node to the parent's node and sends the local matrix instead. The renderer does not combine parent and child node transforms (see [Scene graph](../scene/)), so a child node of a rendered parent is drawn at its local position. Keep objects that carry this component unparented until that changes.
+`SceneNodeComponent` sends the world matrix of the object to its node. When the parent object also has a `SceneNodeComponent`, it parents the node to the parent's node and sends the local matrix instead. The renderer combines parent and child node transforms (see [Scene graph](../scene/)), so the child node is drawn at the parent's world position plus its local offset.
 
 `ownership` is `'borrowed'` (the default) or `'owned'`. A borrowed resource stays alive when the component is destroyed. A borrowed scene node is only detached from its parent. An owned resource is disposed with the component. An owned scene node is disposed after its child nodes are detached, so the children survive. An owned body is disposed.
 

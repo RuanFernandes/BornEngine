@@ -25,7 +25,7 @@ npm test
 npm start
 ```
 
-The server listens on `127.0.0.1:2568` by default. `npm test` starts its own
+The server listens on port `2568` on all network interfaces by default. `HOST` does not restrict the bind address yet. `npm test` starts its own
 temporary server and connects two real Colyseus SDK clients; it does not need
 the separately running server from `npm start`.
 

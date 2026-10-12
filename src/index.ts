@@ -142,6 +142,7 @@ export type {
   ManagedSoundOptions,
   SpatialSoundOptions,
   AudioEmitter2DOptions,
+  AudioListener2DOptions,
 } from './audio';
 export { BUS_SFX, BUS_MUSIC, BUS_UI } from './audio';
 
@@ -276,8 +277,11 @@ export type {
   RigidBodyOptions,
   JointKind,
   JointOptions,
+  JointComponentOptions,
   CharacterControllerOptions,
+  CharacterControllerComponentOptions,
   VehicleOptions,
+  VehicleComponentOptions,
   WorldConfig,
   BodyConfig,
   SoftBodyConfig,

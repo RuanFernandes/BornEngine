@@ -1,4 +1,5 @@
 import type { GameContext, ContextResource } from '../core/context';
+import { GameComponent } from '../game/game-component';
 import type { Vec3 } from '../core/types';
 import * as native from './internal';
 import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './handles';
@@ -18,14 +19,19 @@ export interface JointOptions {
   worldSpace?: boolean;
 }
 
+export type JointComponentOptions = JointOptions & { world: PhysicsWorld; kind: JointKind };
+
 /** Constraint joining two bodies in one PhysicsWorld. */
-export class Joint implements ContextResource {
+export class Joint extends GameComponent implements ContextResource {
   readonly world: PhysicsWorld;
   readonly context: GameContext;
   readonly error: string | null;
   private disposed = false;
 
-  constructor(world: PhysicsWorld, kind: JointKind, options: JointOptions) {
+  constructor(options: JointComponentOptions) {
+    super();
+    const world = options.world;
+    const kind = options.kind;
     this.world = world;
     this.context = world.context;
     const valid =
@@ -69,6 +75,10 @@ export class Joint implements ContextResource {
     if (!this.isLoaded) return false;
     native.setConstraintEnabled(getNativeHandle(this), enabled);
     return true;
+  }
+
+  onDestroy(): void {
+    this.dispose();
   }
 
   dispose(): void {

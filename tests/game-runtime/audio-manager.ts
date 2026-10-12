@@ -51,7 +51,7 @@ manager.setBusGain(2, 0.7);
 expect(manager.playSound('ui'), 'registered sound plays');
 expect(!manager.playSound('ui') && manager.play3D('ui', { x: 0, y: 0, z: -1 }) === null,
   'cooldown is shared by 2D and 3D playback');
-manager.update(0.25);
+manager._advance(0.25);
 expect(manager.play3D('ui', { x: 0, y: 0, z: -1 }) !== null,
   '3D sound plays after cooldown advances');
 expect(manager.stopSound('ui'), 'named sound stops');

@@ -1,4 +1,5 @@
 import type { GameContext, ContextResource } from '../core/context';
+import { GameComponent } from '../game/game-component';
 import type { Quat, Vec3 } from '../core/types';
 import * as native from './internal';
 import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './handles';
@@ -21,15 +22,23 @@ export interface CharacterControllerOptions {
   rotation?: Quat;
 }
 
+export type CharacterControllerComponentOptions = CharacterControllerOptions & {
+  world: PhysicsWorld;
+  collider: Collider;
+};
+
 /** Kinematic, slope-aware character controller owned by a PhysicsWorld. */
-export class CharacterController implements ContextResource {
+export class CharacterController extends GameComponent implements ContextResource {
   readonly context: GameContext;
   readonly world: PhysicsWorld;
   readonly error: string | null;
   private colliderValue: Collider;
   private disposed = false;
 
-  constructor(world: PhysicsWorld, collider: Collider, options: CharacterControllerOptions = {}) {
+  constructor(options: CharacterControllerComponentOptions) {
+    super();
+    const world = options.world;
+    const collider = options.collider;
     this.world = world;
     this.context = world.context;
     this.colliderValue = collider;
@@ -78,6 +87,13 @@ export class CharacterController implements ContextResource {
   update(deltaTime: number, gravity?: Vec3): boolean {
     if (!this.isLoaded) return false;
     native.updateCharacter(getNativeHandle(this), deltaTime, gravity || this.world.gravity);
+    const owner = this.gameObject;
+    if (owner !== null) {
+      const position = native.getCharacterPosition(getNativeHandle(this));
+      owner.transform.setWorldPosition(position);
+      const rotation = native.getCharacterRotation(getNativeHandle(this));
+      owner.transform.setWorldRotation(rotation);
+    }
     return true;
   }
   setPosition(value: Vec3): boolean {
@@ -103,6 +119,10 @@ export class CharacterController implements ContextResource {
   }
   get collider(): Collider {
     return this.colliderValue;
+  }
+
+  onDestroy(): void {
+    this.dispose();
   }
 
   dispose(): void {

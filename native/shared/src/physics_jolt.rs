@@ -69,7 +69,8 @@ pub struct JoltPhysics {
 
     ray_hit_cache: RayHitCache,
     overlap_cache: OverlapCache,
-    contact_cache: ContactCache,
+    /// Per-world contact events, keyed by the raw bj_world handle.
+    contact_caches: std::collections::HashMap<u64, ContactCache>,
 
     /// Scratch streams for variable-size shape inputs (convex hull points,
     /// mesh vertices/indices, heightfield samples). The TS layer pushes
@@ -147,7 +148,7 @@ impl JoltPhysics {
             vehicles: HandleRegistry::new(),
             ray_hit_cache: RayHitCache::default(),
             overlap_cache: OverlapCache::default(),
-            contact_cache: ContactCache::default(),
+            contact_caches: std::collections::HashMap::new(),
             scratch_f32: Vec::with_capacity(1024),
             scratch_u32: Vec::with_capacity(512),
             compound_children: Vec::with_capacity(16),
@@ -273,6 +274,7 @@ impl JoltPhysics {
                 }
             }
             self.step_states.remove(&world);
+            self.contact_caches.remove(&world);
             unsafe { bj_world_destroy(world); }
         }
     }
@@ -311,14 +313,15 @@ impl JoltPhysics {
     /// the whole batch's events.
     fn drain_contacts(&mut self, world: bj_world) {
         let count = unsafe { bj_world_contact_count(world) };
+        let cache = self.contact_caches.entry(world).or_default();
         if count > 0 {
-            self.contact_cache.events.resize(count as usize, unsafe { std::mem::zeroed() });
+            cache.events.resize(count as usize, unsafe { std::mem::zeroed() });
             let drained = unsafe {
-                bj_world_pop_contacts(world, self.contact_cache.events.as_mut_ptr(), count)
+                bj_world_pop_contacts(world, cache.events.as_mut_ptr(), count)
             };
-            self.contact_cache.events.truncate(drained as usize);
+            cache.events.truncate(drained as usize);
         } else {
-            self.contact_cache.events.clear();
+            cache.events.clear();
         }
     }
 
@@ -1036,12 +1039,19 @@ impl JoltPhysics {
 
     // -------------------------------------------------------- Contacts
 
-    pub fn contact_count(&self) -> u32 { self.contact_cache.events.len() as u32 }
+    fn contact_events(&self, world_h: f64) -> Option<&[BjContact]> {
+        let world = self.worlds.get(world_h)?;
+        self.contact_caches.get(world).map(|c| c.events.as_slice())
+    }
+
+    pub fn contact_count(&self, world_h: f64) -> u32 {
+        self.contact_events(world_h).map_or(0, |e| e.len() as u32)
+    }
 
     /// field: 0=event, 1=bodyA, 2=bodyB, 3..5=pointA.xyz, 6..8=pointB.xyz,
     ///        9..11=normal.xyz, 12=depth, 13=friction, 14=restitution
-    pub fn contact_field(&self, i: usize, field: u32) -> f64 {
-        let c = match self.contact_cache.events.get(i) { Some(v) => v, None => return 0.0 };
+    pub fn contact_field(&self, world_h: f64, i: usize, field: u32) -> f64 {
+        let c = match self.contact_events(world_h).and_then(|e| e.get(i)) { Some(v) => v, None => return 0.0 };
         let bj_to_bloom = |bj: bj_body| -> f64 {
             self.bodies.iter().find(|(_, (_, b))| *b == bj).map(|(h, _)| h).unwrap_or(0.0)
         };
@@ -1059,7 +1069,10 @@ impl JoltPhysics {
         }
     }
 
-    pub fn clear_contacts(&mut self) { self.contact_cache.events.clear(); }
+    pub fn clear_contacts(&mut self, world_h: f64) {
+        let Some(&world) = self.worlds.get(world_h) else { return };
+        if let Some(cache) = self.contact_caches.get_mut(&world) { cache.events.clear(); }
+    }
 
     // -------------------------------------------------------- Character controller
 
@@ -1629,9 +1642,9 @@ macro_rules! define_physics_ffi {
 
         // --- Contact events ---
 
-        #[no_mangle] pub extern "C" fn bloom_physics_contact_count() -> f64 { bloom_jolt_ffi_physics().contact_count() as f64 }
-        #[no_mangle] pub extern "C" fn bloom_physics_contact_field(i: f64, field: f64) -> f64 { bloom_jolt_ffi_physics().contact_field(i as usize, field as u32) }
-        #[no_mangle] pub extern "C" fn bloom_physics_clear_contacts(world: f64) { let _ = world; bloom_jolt_ffi_physics().clear_contacts(); }
+        #[no_mangle] pub extern "C" fn bloom_physics_contact_count(world: f64) -> f64 { bloom_jolt_ffi_physics().contact_count(world) as f64 }
+        #[no_mangle] pub extern "C" fn bloom_physics_contact_field(world: f64, i: f64, field: f64) -> f64 { bloom_jolt_ffi_physics().contact_field(world, i as usize, field as u32) }
+        #[no_mangle] pub extern "C" fn bloom_physics_clear_contacts(world: f64) { bloom_jolt_ffi_physics().clear_contacts(world); }
 
         // --- Character controller (Tier 2) ---
 
@@ -1905,5 +1918,79 @@ mod step_tests {
         );
 
         p.destroy_world(w);
+    }
+}
+
+#[cfg(test)]
+mod contact_tests {
+    use super::*;
+
+    /// Static ground plus a dynamic sphere resting just above it.
+    fn world_with_touching_sphere(p: &mut JoltPhysics) -> f64 {
+        let world = p.create_world(0.0, -9.81, 0.0, 1024, 1);
+        assert_ne!(world, 0.0);
+        let ground_shape = p.create_box_shape(50.0, 0.5, 50.0, 0.05);
+        let sphere_shape = p.create_sphere_shape(0.5);
+        #[rustfmt::skip]
+        let ground = p.create_body(
+            world, ground_shape, 0 /* static */,
+            0.0, -0.5, 0.0, 0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0, false, false, false, true,
+            0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0,
+        );
+        assert_ne!(ground, 0.0);
+        #[rustfmt::skip]
+        let sphere = p.create_body(
+            world, sphere_shape, 2 /* dynamic */,
+            0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            1, false, false, false, true,
+            0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0,
+        );
+        assert_ne!(sphere, 0.0);
+        p.optimize_broadphase(world);
+        world
+    }
+
+    fn empty_world(p: &mut JoltPhysics) -> f64 {
+        let world = p.create_world(0.0, -9.81, 0.0, 1024, 1);
+        assert_ne!(world, 0.0);
+        world
+    }
+
+    /// Contacts produced in one world are invisible to another, and
+    /// clearing one world's queue leaves the other's intact.
+    #[test]
+    fn contact_queue_is_per_world() {
+        let mut p = JoltPhysics::new();
+        let a = world_with_touching_sphere(&mut p);
+        let b = world_with_touching_sphere(&mut p);
+        let idle = empty_world(&mut p);
+
+        for _ in 0..10 {
+            p.step(a, 1.0 / 60.0, 1);
+        }
+        assert!(p.contact_count(a) > 0, "world A produced no contacts");
+        assert_eq!(p.contact_count(b), 0, "world A contacts leaked into world B");
+        assert_eq!(p.contact_count(idle), 0, "world A contacts leaked into idle world");
+        assert_eq!(p.contact_field(b, 0, 0), 0.0);
+
+        for _ in 0..10 {
+            p.step(b, 1.0 / 60.0, 1);
+        }
+        let count_b = p.contact_count(b);
+        assert!(count_b > 0, "world B produced no contacts");
+
+        let count_a = p.contact_count(a);
+        p.clear_contacts(a);
+        assert_eq!(p.contact_count(a), 0, "clear_contacts did not empty world A");
+        assert_eq!(p.contact_count(b), count_b, "clearing world A touched world B");
+        assert!(count_a > 0);
+
+        p.destroy_world(a);
+        p.destroy_world(b);
+        p.destroy_world(idle);
+        assert_eq!(p.contact_count(a), 0);
     }
 }

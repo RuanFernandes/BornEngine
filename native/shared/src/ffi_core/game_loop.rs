@@ -17,6 +17,20 @@ macro_rules! __bloom_ffi_game_loop {
         #[no_mangle]
         pub extern "C" fn bloom_run_game(_callback: extern "C" fn(f64)) {}
 
+        // Drains the Perry promise microtask queue. runGame()'s blocking
+        // native loop never returns to Perry's event loop, so without this
+        // call promise continuations and awaits never resume. The symbol is
+        // provided by the Perry runtime linked into the final binary.
+        #[no_mangle]
+        pub extern "C" fn bloom_run_microtasks() {
+            extern "C" {
+                fn js_promise_run_microtasks() -> i32;
+            }
+            $crate::ffi::guard("bloom_run_microtasks", move || {
+                unsafe { js_promise_run_microtasks(); }
+            })
+        }
+
         #[no_mangle]
         pub extern "C" fn bloom_register_frame_callback(priority: f64, callback: extern "C" fn(f64)) -> f64 {
             $crate::ffi::guard("bloom_register_frame_callback", move || {
