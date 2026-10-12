@@ -31,6 +31,11 @@ on:
       tag:
         description: "Existing tag to (re-)publish a release for (e.g. v0.3.2)"
         required: true
+      npm_only:
+        description: "Publish @bornengine/engine from the tag only, skipping Tests, native builds, and the GitHub Release"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.ref }}
@@ -47,6 +52,7 @@ jobs:
   # Tests failed so we don't ship a known-broken tag.
   # ---------------------------------------------------------------------------
   await-tests:
+    if: github.event.inputs.npm_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -177,6 +183,7 @@ jobs:
   # ---------------------------------------------------------------------------
   perry:
     needs: await-tests
+    if: github.event.inputs.npm_only != 'true'
     uses: ./.github/workflows/perry-artifacts.yml
 
   # ---------------------------------------------------------------------------
@@ -195,6 +202,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build-jolt-prebuilt:
     needs: await-tests
+    if: github.event.inputs.npm_only != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -411,6 +419,56 @@ jobs:
           VERSION: ${{ steps.tag.outputs.version }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "::error::Tag $TAG ($VERSION) does not match package.json ($PKG_VERSION) — refusing to publish."
+            exit 1
+          fi
+
+      - name: Check if version already published
+        id: check
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if npm view "$PKG_NAME@$PKG_VERSION" version >/dev/null 2>&1; then
+            echo "$PKG_NAME@$PKG_VERSION is already on the registry — skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$PKG_NAME@$PKG_VERSION not yet published — will publish."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.check.outputs.skip == 'false'
+        run: npm publish --provenance --access public
+
+  # Manual publish of @bornengine/engine from an existing tag, without the
+  # Tests gate, native builds, or the GitHub Release. Dispatch with npm_only=true.
+  publish-npm-only:
+    if: github.event.inputs.npm_only == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # trusted publishing, same as publish-npm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ github.event.inputs.tag }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify package.json version matches tag
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag $TAG is not a release tag (vX.Y.Z)."
+            exit 1
+          fi
+          VERSION="${TAG#v}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$PKG_VERSION" != "$VERSION" ]; then
             echo "::error::Tag $TAG ($VERSION) does not match package.json ($PKG_VERSION) — refusing to publish."
