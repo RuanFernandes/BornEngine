@@ -24,7 +24,7 @@ import { GameComponent } from '@bornengine/engine/annotations';
 import { CameraRig2D } from '@bornengine/engine/camera2d';
 
 class Player extends GameObject {
-  @GameComponent({ smoothing: 0.12, bounds: { x: 0, y: 0, width: 1600, height: 900 } })
+  @GameComponent<CameraRig2D>({ smoothing: 0.12, bounds: { x: 0, y: 0, width: 1600, height: 900 } })
   private readonly playerCamera!: CameraRig2D;
 
   constructor() {
@@ -33,11 +33,11 @@ class Player extends GameObject {
 }
 ```
 
-Set `scene.viewport2D` before you add the player, so the rig can center the target in the view. If the scene has no camera yet, the rig binds itself when the player is added. The decorator reads the class at runtime, so import `CameraRig2D` as a value, not with `import type`. Its options are the same as the constructor's options, passed as one object. Set `target: null` in them to keep the camera fixed at `cameraTarget`.
+Set `scene.viewport2D` before you add the player, so the rig can center the target in the view. If the scene has no camera yet, the rig binds itself when the player is added. The decorator reads the class at runtime, so import `CameraRig2D` as a value, not with `import type`. Its options are the same as the constructor's options, passed as one object. The type argument `<CameraRig2D>` checks those options and gives you autocomplete. Without it, the options are not checked. Set `target: null` in them to keep the camera fixed at `cameraTarget`.
 
 ### Create the rig in code
 
-Use this form when the camera belongs to its own object, or when the target is picked at run time. Here the camera object follows `player`:
+Use this form when the camera belongs to its own object, or when the target is picked at run time. The camera is a `GameObject` subclass, so the scene only adds it and binds its rig:
 
 ```ts
 import { CameraRig2D, GameObject, Scene, Vec3, Viewport2D } from '@bornengine/engine';
@@ -45,6 +45,25 @@ import type { Game } from '@bornengine/engine';
 
 const VIEW_WIDTH = 480;
 const VIEW_HEIGHT = 270;
+
+class FollowCamera extends GameObject {
+  readonly rig: CameraRig2D;
+
+  constructor(target: GameObject) {
+    super({ name: 'Camera' });
+    this.rig = this.addRequiredComponent(
+      new CameraRig2D({
+        target,
+        offset: { x: VIEW_WIDTH / 2, y: VIEW_HEIGHT / 2 },
+        smoothing: 0.12,
+        deadZone: { x: -24, y: -16, width: 48, height: 32 },
+        bounds: { x: 0, y: 0, width: 1600, height: 900 },
+        minZoom: 0.75,
+        maxZoom: 2,
+      }),
+    );
+  }
+}
 
 class Level extends Scene {
   constructor(game: Game) {
@@ -54,20 +73,9 @@ class Level extends Scene {
     const player = new GameObject({ name: 'Player', position: new Vec3(200, 150, 0) });
     this.addNode(player);
 
-    const rig = new CameraRig2D({
-      target: player,
-      offset: { x: VIEW_WIDTH / 2, y: VIEW_HEIGHT / 2 },
-      smoothing: 0.12,
-      deadZone: { x: -24, y: -16, width: 48, height: 32 },
-      bounds: { x: 0, y: 0, width: 1600, height: 900 },
-      minZoom: 0.75,
-      maxZoom: 2,
-    });
-    const cameraObject = new GameObject({ name: 'Camera' });
-    cameraObject.addComponent(rig);
-    this.addNode(cameraObject);
-
-    if (!this.bindCameraRig2D(rig)) console.error(rig.error ?? 'The camera rig could not be bound.');
+    const camera = new FollowCamera(player);
+    this.addNode(camera);
+    if (!this.bindCameraRig2D(camera.rig)) console.error(camera.rig.error ?? 'The camera rig could not be bound.');
   }
 }
 ```

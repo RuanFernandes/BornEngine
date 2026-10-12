@@ -223,31 +223,26 @@ Assign the viewport to `scene.viewport2D`. For a camera that follows the player,
 Pointer input uses the same mapping in reverse. A mouse position starts in window pixels. `game.input.screenToWorld()` removes the bars and the scale to get a logical position, and then undoes the camera's offset, zoom, and rotation to get a world position. It returns `null` when the pointer is on a bar, or when the scene has neither a camera nor a viewport.
 
 ```ts
-import { CameraRig2D, GameObject, Scene, Vector2D, Viewport2D } from '@bornengine/engine';
-import type { Game } from '@bornengine/engine';
+import { CameraRig2D, GameObject, Vector2D } from '@bornengine/engine';
 
 const VIEW_SIZE = new Vector2D(320, 180);
 const ROOM_SIZE = new Vector2D(640, 360);
 const TILE_SIZE = 32;
 
-export function addFollowCamera(scene: Scene, target: GameObject): boolean {
-  scene.viewport2D = new Viewport2D({ width: VIEW_SIZE.x, height: VIEW_SIZE.y, mode: 'integer' });
+export class FollowCamera extends GameObject {
+  readonly rig: CameraRig2D;
 
-  const rig = new CameraRig2D({
-    target,
-    offset: new Vector2D(VIEW_SIZE.x / 2, VIEW_SIZE.y / 2),
-    smoothing: 0.12,
-    bounds: { x: 0, y: 0, width: ROOM_SIZE.x, height: ROOM_SIZE.y },
-  });
-  if (rig.error !== null) {
-    console.error(rig.error);
-    return false;
+  constructor(target: GameObject) {
+    super({ name: 'Camera' });
+    this.rig = this.addRequiredComponent(
+      new CameraRig2D({
+        target,
+        offset: new Vector2D(VIEW_SIZE.x / 2, VIEW_SIZE.y / 2),
+        smoothing: 0.12,
+        bounds: { x: 0, y: 0, width: ROOM_SIZE.x, height: ROOM_SIZE.y },
+      }),
+    );
   }
-
-  const cameraObject = new GameObject({ name: 'Camera' });
-  cameraObject.addComponent(rig);
-  if (scene.addNode(cameraObject) === null) return false;
-  return scene.bindCameraRig2D(rig);
 }
 
 export function pointerToTile(game: Game): { column: number; row: number } | null {
