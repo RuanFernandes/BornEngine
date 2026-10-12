@@ -22,14 +22,17 @@ abstract class GuiImageBase extends GUI {
     this.syncCommand();
   }
 
+  /** Sets the image shown by the control. Pass null to clear it. Returns this for chaining. */
   setTexture(texture: Texture | null): this {
     this.texture = texture;
     this.syncCommand();
     return this;
   }
+  /** Returns the image shown by the control, or null when none is set. */
   getTexture(): Texture | null {
     return this.texture;
   }
+  /** Sets the color multiplied into the image. Throws RangeError when a channel is not finite. */
   setTint(tint: Color): this {
     validateGuiCoordinate(tint.r, 'tint.r');
     validateGuiCoordinate(tint.g, 'tint.g');
@@ -39,9 +42,11 @@ abstract class GuiImageBase extends GUI {
     this.syncCommand();
     return this;
   }
+  /** Returns a copy of the tint color. */
   getTint(): Color {
     return { ...this.tint };
   }
+  /** Sets opacity from 0 (invisible) to 1 (opaque). Throws RangeError when not finite, negative, or above 1. */
   setOpacity(opacity: number): this {
     validateGuiDimension(opacity, 'opacity');
     if (opacity > 1) throw new RangeError('Opacity must be between zero and one.');
@@ -49,18 +54,22 @@ abstract class GuiImageBase extends GUI {
     this.syncCommand();
     return this;
   }
+  /** Returns the opacity from 0 to 1. */
   getOpacity(): number {
     return this.opacity;
   }
+  /** Sets the rotation applied to the image. Throws RangeError when not finite. */
   setRotation(rotation: number): this {
     validateGuiCoordinate(rotation, 'rotation');
     this.rotation = rotation;
     this.syncCommand();
     return this;
   }
+  /** Returns the rotation applied to the image. */
   getRotation(): number {
     return this.rotation;
   }
+  /** Sets the image scale. Throws RangeError when not finite, negative, or zero. */
   setZoom(zoom: number): this {
     validateGuiDimension(zoom, 'zoom');
     if (zoom === 0) throw new RangeError('Zoom must be greater than zero.');
@@ -68,6 +77,7 @@ abstract class GuiImageBase extends GUI {
     this.syncCommand();
     return this;
   }
+  /** Returns the image scale. */
   getZoom(): number {
     return this.zoom;
   }

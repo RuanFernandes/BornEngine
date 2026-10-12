@@ -215,6 +215,16 @@ export class GameObject {
     return component;
   }
 
+  /**
+   * Attaches a component like addComponent, but throws instead of returning null.
+   * @throws Error when the component cannot be attached.
+   */
+  addRequiredComponent<T extends GameComponent>(component: T): T {
+    const attached = this.addComponent(component);
+    if (attached === null) throw new Error('Could not add component to GameObject');
+    return attached;
+  }
+
   /** Returns the first attached component that is an instance of the given class, or null. */
   getComponent<T extends GameComponent>(type: GameComponentType<T>): T | null {
     for (let index = 0; index < this.components.length; index++) {

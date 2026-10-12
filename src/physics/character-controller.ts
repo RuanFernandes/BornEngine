@@ -31,6 +31,8 @@ export type CharacterControllerComponentOptions = CharacterControllerOptions & {
 
 /** Kinematic, slope-aware character controller owned by a PhysicsWorld. */
 export class CharacterController extends GameComponent implements ContextResource {
+  declare readonly __options: CharacterControllerComponentOptions;
+
   /** Game context that owns this controller. */
   readonly context: GameContext;
   /** World that owns this controller. */

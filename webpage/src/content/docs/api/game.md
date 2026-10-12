@@ -116,6 +116,7 @@ Methods:
 | `addChild(child, options?)` | the child, or `null` | Attaches `child` under this object. See [Transforms and hierarchy](#transforms-and-hierarchy). |
 | `removeChild(child, options?)` | `boolean` | Detaches a direct child. The child stays in the scene as a root object. |
 | `addComponent(component)` | the component, or `null` | Attaches a component. It returns `null` when this object or the component is destroyed, when the component already has an owner, or, for an object that is already in a scene, when an adapter component belongs to a different `Game`. |
+| `addRequiredComponent(component)` | the component | Same as `addComponent`, but throws `Error` instead of returning `null`. Use it when attaching is required for the object to work. |
 | `getComponent(Type)` | the first match, or `null` | Finds a component with `instanceof`, so subclasses match. |
 | `getComponents(Type)` | an array | Finds every match. |
 | `removeComponent(component)` | `boolean` | Runs the component's `onDestroy` and detaches it. |
@@ -154,7 +155,7 @@ Two annotations fill fields on a `GameObject` subclass when the object is attach
 
 - `@Asset(path, errCallback?)` loads the texture at `path` through the scene's `assets` and stores the `Texture` in the field.
 - `@GameComponent()` creates a component from the field's class and attaches it to the object. Without options, the constructor gets no argument.
-- `@GameComponent(options)` passes `options` as the single constructor argument. TypeScript does not check these options against the component's constructor, so keep them in step with it. Runtime references such as a physics world cannot go in the decorator, because decorators run when the class is defined. Pass them through the component's own options with `addComponent` instead.
+- `@GameComponent(options)` passes `options` as the single constructor argument. Declare the options type on the decorator, as in `@GameComponent<CameraRig2D>({ ... })`, and TypeScript checks the options and offers autocomplete. Without the type argument the options are not checked. Runtime references such as a physics world cannot go in the decorator, because decorators run when the class is defined. Pass them through the component's own options with `addComponent` instead.
 - Engine components that take only options can use the decorator, for example `CameraRig2D`, `ParallaxLayer2D`, and `AudioListener2D`. Components that need a runtime object first, such as `CharacterController`, `Vehicle`, and `Joint`, take their world in the options, so attach them with `addComponent`.
 - A component that holds native resources releases them in `onDestroy()`. Removing the component or destroying its object runs that hook.
 

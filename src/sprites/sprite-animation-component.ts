@@ -19,8 +19,10 @@ export interface SpriteAnimationComponentOptions {
 /**
  * Draws a layered template animation on its GameObject and plays it.
  * Textures load from the owning scene's assets when the component wakes.
+ * Pass the clip names as the type argument, for example `SpriteAnimationComponent<'idle' | 'walk'>`,
+ * so `play` rejects unknown names at compile time.
  */
-export class SpriteAnimationComponent extends GameComponent {
+export class SpriteAnimationComponent<TClip extends string = string> extends GameComponent {
   declare readonly __options: SpriteAnimationComponentOptions;
 
   private readonly settings: SpriteAnimationComponentOptions;
@@ -63,16 +65,14 @@ export class SpriteAnimationComponent extends GameComponent {
     }
 
     const animation = loadSpriteAnimationTemplate(this.settings.template, images);
-    const renderer = owner.addComponent(new SpriteAnimationTemplateRenderer(animation));
-    if (renderer === null) throw new Error('Could not attach sprite renderer');
-    const animator = owner.addComponent(new SpriteAnimator(renderer, { autoplay: this.settings.autoplay }));
-    if (animator === null) throw new Error('Could not attach sprite animator');
+    const renderer = owner.addRequiredComponent(new SpriteAnimationTemplateRenderer(animation));
+    const animator = owner.addRequiredComponent(new SpriteAnimator(renderer, { autoplay: this.settings.autoplay }));
     this.rendererValue = renderer;
     this.animatorValue = animator;
   }
 
   /** Plays a clip by name. Returns `false` if the animator is not ready or the clip is unknown. */
-  play(name: string, options?: SpritePlayOptions): boolean {
+  play(name: TClip, options?: SpritePlayOptions): boolean {
     return this.animatorValue === null ? false : this.animatorValue.play(name, options);
   }
 

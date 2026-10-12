@@ -34,6 +34,8 @@ export type JointComponentOptions = JointOptions & { world: PhysicsWorld; kind: 
 
 /** Constraint joining two bodies in one PhysicsWorld. */
 export class Joint extends GameComponent implements ContextResource {
+  declare readonly __options: JointComponentOptions;
+
   /** World that owns this joint. */
   readonly world: PhysicsWorld;
   /** Game context that owns this joint. */

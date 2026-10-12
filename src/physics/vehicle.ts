@@ -30,6 +30,8 @@ class VehicleChassis extends PhysicsBody {
 
 /** Four-wheel vehicle constraint and its engine-owned chassis body. */
 export class Vehicle extends GameComponent implements ContextResource {
+  declare readonly __options: VehicleComponentOptions;
+
   /** World that owns this vehicle. */
   readonly world: PhysicsWorld;
   /** Game context that owns this vehicle. */

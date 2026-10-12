@@ -111,6 +111,8 @@ function validTarget(value: GameObject | null | undefined): value is GameObject 
  * camera yet, it binds itself as the scene camera.
  */
 export class CameraRig2D extends GameComponent {
+  declare readonly __options: CameraRig2DOptions;
+
   /** Message describing why the options were rejected, or null. A rig with an error does not move the camera. */
   readonly error: string | null;
   /** Object the camera follows, or null. Assign to change it. */

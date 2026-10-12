@@ -33,6 +33,8 @@ function factorPoint(value: number | Vector2DLike | undefined): Vector2D {
 
 /** Provides a camera-relative offset for a layer and its child sprites. */
 export class ParallaxLayer2D extends GameComponent {
+  declare readonly __options: ParallaxLayer2DOptions;
+
   private readonly factorValue: Vector2DLike;
   /** Message describing why the options were rejected, or null. */
   readonly error: string | null;

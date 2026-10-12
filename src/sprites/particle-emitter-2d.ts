@@ -133,6 +133,8 @@ function rotationZRadians(rotation: { x: number; y: number; z: number; w: number
 
 /** Native-pool 2D particles rendered automatically with their owning scene. */
 export class ParticleEmitter2D extends GameComponent {
+  declare readonly __options: ParticleEmitter2DOptions;
+
   /** Maximum number of particles alive at once. */
   readonly capacity: number;
   /** Message from the last failed call or construction problem, or null. */

@@ -24,6 +24,8 @@ function finite(value: number): boolean {
 
 /** 2D-plane listener that follows its owner object, or the active Scene camera for the Game-wide listener. */
 export class AudioListener2D extends GameComponent {
+  declare readonly __options: AudioListener2DOptions;
+
   private explicitPosition: Position2D | null = null;
   private disposed = false;
   private readonly game: Game | null;
