@@ -35,9 +35,12 @@ export interface SpriteAnimatorState {
 }
 
 export interface SpriteAnimatorOptions {
-  readonly clips: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
+  /** Defaults to every clip of a template renderer. Required for a SpriteRenderer. */
+  readonly clips?: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
   readonly states?: readonly SpriteAnimatorState[];
   readonly initialState?: string;
+  /** Clip to play immediately, without a state machine. Ignored when initialState is set. */
+  readonly autoplay?: string;
 }
 
 export interface SpritePlayOptions {
@@ -155,19 +158,25 @@ export class SpriteAnimator extends GameComponent {
           : renderer.error || 'SpriteAnimator requires a valid animation target.';
       return;
     }
-    if (settings.clips === null || settings.clips === undefined || typeof settings.clips !== 'object') {
+    const clipRecord =
+      settings.clips !== undefined
+        ? settings.clips
+        : renderer instanceof SpriteAnimationTemplateRenderer
+          ? renderer.animation.clips
+          : undefined;
+    if (clipRecord === null || clipRecord === undefined || typeof clipRecord !== 'object') {
       this.animationError = 'SpriteAnimator clips must be a name-to-animation object.';
       return;
     }
 
-    const names = Object.keys(settings.clips);
+    const names = Object.keys(clipRecord);
     if (names.length === 0) {
       this.animationError = 'SpriteAnimator requires at least one clip.';
       return;
     }
     for (let index = 0; index < names.length; index++) {
       const name = names[index];
-      const clip = settings.clips[name];
+      const clip = clipRecord[name];
       if (
         !isValidName(name) ||
         clip === null ||
@@ -266,6 +275,8 @@ export class SpriteAnimator extends GameComponent {
         return;
       }
       this.startState(initialState, 0, false);
+    } else if (settings.autoplay !== undefined) {
+      this.play(settings.autoplay);
     }
   }
 

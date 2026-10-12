@@ -313,6 +313,8 @@ class Hero extends GameObject {
 
 The constructor of `SpriteAnimator` does not throw either. It sets `error` if the renderer has an error, if a clip is invalid, or if a state names an unknown clip or an unknown target state.
 
+`clips` is optional for a `SpriteAnimationTemplateRenderer`. It defaults to every clip of the bound animation. `autoplay: 'idle'` plays one clip right away, without a state machine, so a template with one clip needs only `new SpriteAnimator(renderer, { autoplay: 'idle' })`.
+
 ### Control playback directly
 
 You can skip the state machine and play clips by name:
@@ -471,7 +473,9 @@ function checkTemplate(text: string): boolean {
 
 ### Bind and play a template
 
-The engine has no loader for template files. Read the text, for example with `game.input.readFile(path)`, which returns an empty string when it fails, parse it with `JSON.parse`, and give the result to `new SpriteAnimationTemplateAsset(document)`. The asset validates the document and exposes `error`, `diagnostics`, and the validated `definition`.
+`loadSpriteAnimationTemplate(scene, path, textures, options?)` reads the template file, loads each texture by path, and binds them. It returns a `SpriteAnimationTemplateBoundAnimation` and throws if the file is missing, a texture fails to load, or the binding is invalid. `textures` maps image parameter IDs to file paths, and `options.filter` (for example `FILTER_NEAREST`) applies to every loaded texture. Each object chooses its own textures, so one template serves many images.
+
+To validate a document yourself, parse it and give it to `new SpriteAnimationTemplateAsset(document)`. The asset exposes `error`, `diagnostics`, and the validated `definition`. It does not throw.
 
 `template.bind(images)` connects the template to textures. `images` is an object whose keys are image parameter IDs and whose values are loaded textures. It returns `{ ok: true, value }` or `{ ok: false, diagnostics }`. It reports problems in `diagnostics` instead of throwing. A binding fails when:
 

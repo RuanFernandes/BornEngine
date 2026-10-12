@@ -371,4 +371,13 @@ dirAnimator.play('idle', { restart: true });
 expect(dirAnimator.currentClipData === idleClip.directions?.[0] && dirAnimator.currentFrameIndex === 0,
   'restarting a directional clip uses the current dir');
 
+const defaultClipsAnimator = new SpriteAnimator(new SpriteAnimationTemplateRenderer(bindingA.value), { autoplay: 'idle' });
+expect(defaultClipsAnimator.error === null && defaultClipsAnimator.currentClip === 'idle',
+  'a template renderer defaults to all of its clips and autoplays the named clip');
+const unknownAutoplay = new SpriteAnimator(new SpriteAnimationTemplateRenderer(bindingA.value), { autoplay: 'missing' });
+expect(unknownAutoplay.error !== null && unknownAutoplay.currentClip === null,
+  'an unknown autoplay clip reports an error and does not play');
+expect(new SpriteAnimator(new SpriteAnimationTemplateRenderer(bindingA.value), { clips: bindingA.value.clips, autoplay: 'walk' }).currentClip === 'walk',
+  'explicit clips still accept autoplay');
+
 console.log('PASS: sprite animation template binding and playback');
