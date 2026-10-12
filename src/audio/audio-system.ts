@@ -153,7 +153,7 @@ export class AudioSystem {
   update(deltaTime: number): void {
     if (!this.isReady) return;
     if (this.listener2DValue !== null) this.listener2DValue.update();
-    for (let index = 0; index < this.managers.length; index++) this.managers[index]._advance(deltaTime);
+    for (let index = 0; index < this.managers.length; index++) this.managers[index].update(deltaTime);
     for (let index = 0; index < this.musics.length; index++) this.musics[index].update();
   }
 
