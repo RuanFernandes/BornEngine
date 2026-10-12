@@ -27,7 +27,6 @@ import type {
 } from './sprite-animation';
 import type { SpriteAnimationTarget } from './sprite-animation-target';
 import type { Texture } from '../textures/texture';
-import { readFile } from '../core/internal';
 
 /** Successful result of binding textures to a template, carrying the bound animation. */
 export interface SpriteAnimationTemplateBindingSuccess {
@@ -695,16 +694,4 @@ function freezeValue<T>(input: T): T {
   if (input === null || typeof input !== 'object' || Object.isFrozen(input)) return input;
   for (const key of Object.keys(input as object)) freezeValue((input as Record<string, unknown>)[key]);
   return Object.freeze(input);
-}
-
-/** Reads a template file and binds the given textures. Throws on a missing file or an invalid binding. */
-export function loadSpriteAnimationTemplate(
-  path: string,
-  images: Readonly<Record<string, Texture>>,
-): SpriteAnimationTemplateBoundAnimation {
-  const json = readFile(path);
-  if (json === '') throw new Error(`Could not read ${path}`);
-  const binding = new SpriteAnimationTemplateAsset(JSON.parse(json)).bind(images);
-  if (!binding.ok) throw new Error(binding.diagnostics[0].message);
-  return binding.value;
 }
