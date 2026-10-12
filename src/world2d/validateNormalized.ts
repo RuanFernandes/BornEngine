@@ -756,6 +756,7 @@ export function validateNormalizedWorld2D(input: unknown): World2DValidationResu
   return { ok: diagnostics.length === 0, diagnostics };
 }
 
+/** Formats diagnostics as one line each in the form `path [code]: message`. */
 export function formatWorld2DDiagnostics(diagnostics: World2DDiagnostic[]): string {
   let output = '';
   for (let index = 0; index < diagnostics.length; index++) {

@@ -11,11 +11,13 @@ import type { InstantiateResult } from './loader';
 import type { PrefabLibrary } from './prefab-library';
 import type { WorldDocument } from './types';
 
+/** Options for `WorldData.instantiate`. */
 export interface WorldInstantiateOptions {
   getModel(path: string): Model | null;
   prefabs?: PrefabLibrary | null;
 }
 
+/** Pairs a world entity id with the scene node spawned for it. */
 export interface WorldEntityNode {
   id: string;
   node: SceneNode;
@@ -23,8 +25,11 @@ export interface WorldEntityNode {
 
 /** Runtime scene nodes and environment created from one WorldData document. */
 export class WorldInstance implements ContextResource {
+  /** Game context that owns this instance. */
   readonly context: GameContext;
+  /** Reason instantiation failed, or `null` on success. */
   readonly error: string | null;
+  /** Non-fatal problems found while instantiating, such as missing models or prefabs. */
   readonly warnings: string[];
   private nodes: SceneNode[] = [];
   private nodeHandles: number[] = [];
@@ -35,6 +40,12 @@ export class WorldInstance implements ContextResource {
   private worldDocument: WorldDocument | null;
   private disposed = false;
 
+  /**
+   * Instantiates a loaded world in the given game. On failure, `error` is set and no nodes are created.
+   * @param owner Game that will own the created nodes.
+   * @param data Loaded world data.
+   * @param options Callbacks used to resolve model and prefab references.
+   */
   constructor(owner: Game, data: WorldData, options: WorldInstantiateOptions) {
     this.context = getGameContext(owner);
     this.worldDocument = data.document;
@@ -89,22 +100,28 @@ export class WorldInstance implements ContextResource {
     this.error = null;
   }
 
+  /** True while the instance has been created successfully and not disposed. */
   get isLoaded(): boolean {
     return !this.disposed && this.worldDocument !== null && this.context.isReady;
   }
+  /** A copy of the list of spawned entity nodes. */
   get entityNodes(): WorldEntityNode[] {
     return this.entities.slice();
   }
+  /** Scene node of the terrain, or `null` if the world has none. */
   get terrain(): SceneNode | null {
     return this.terrainNode;
   }
+  /** A copy of the list of water volume nodes. */
   get water(): SceneNode[] {
     return this.waterNodes.slice();
   }
+  /** A copy of the list of river nodes. */
   get rivers(): SceneNode[] {
     return this.riverNodes.slice();
   }
 
+  /** Returns the scene node spawned for an entity id, or `null` if it was not spawned. */
   getEntityNode(id: string): SceneNode | null {
     for (let index = 0; index < this.entities.length; index++) {
       if (this.entities[index].id === id) return this.entities[index].node;
@@ -112,6 +129,10 @@ export class WorldInstance implements ContextResource {
     return null;
   }
 
+  /**
+   * Applies the world ambient light, sun, fog, and point lights; call it every frame.
+   * @returns False if the instance is not loaded.
+   */
   applyLighting(): boolean {
     if (!this.isLoaded || this.worldDocument === null) return false;
     applyWorldEnvironment(this.worldDocument);
@@ -122,6 +143,7 @@ export class WorldInstance implements ContextResource {
     return this.context === context;
   }
 
+  /** Disposes all scene nodes created for this world. */
   dispose(): void {
     if (this.disposed) return;
     for (let index = this.nodes.length - 1; index >= 0; index--) this.nodes[index].dispose();

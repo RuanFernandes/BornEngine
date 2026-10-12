@@ -15,6 +15,7 @@ export class SceneVfx {
   private effects: SceneEffect[] = [];
   private disposed = false;
 
+  /** Binds the effect factories to a Game and the Scene that owns the effects. */
   constructor(
     private readonly game: Game,
     private readonly scene: Scene,

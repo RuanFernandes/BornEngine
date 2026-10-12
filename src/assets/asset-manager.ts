@@ -44,6 +44,7 @@ export class AssetManager implements ContextResource {
   private disposed = false;
   private generation = 0;
 
+  /** Creates an asset manager for `game`. Use `game.assets` or a Scene's `assets` rather than constructing one. */
   constructor(private readonly game: Game) {
     this.context = getGameContext(game);
     if (this.context.isReady) this.context.register(this);
@@ -285,6 +286,7 @@ export class AssetManager implements ContextResource {
     this.disposeResources();
   }
 
+  /** True once the manager has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }

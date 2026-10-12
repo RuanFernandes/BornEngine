@@ -3,6 +3,7 @@ import type { Rect, Vector2DLike } from '../core/types';
 import { Vector2D } from '../math/vector2d';
 import type { Texture } from '../textures/texture';
 
+/** Atlas trim metadata of a frame whose transparent border was cut away. */
 export interface SpriteFrameTrim {
   /** Top-left offset of the packed pixels inside the original, untrimmed frame. */
   readonly offset: Readonly<Vector2D>;
@@ -10,6 +11,7 @@ export interface SpriteFrameTrim {
   readonly originalSize: Readonly<Vector2D>;
 }
 
+/** Atlas trim metadata supplied when defining a frame. */
 export interface SpriteFrameTrimDefinition {
   /** Top-left offset of the packed pixels inside the original, untrimmed frame. */
   offset: Readonly<Vector2DLike>;
@@ -17,11 +19,15 @@ export interface SpriteFrameTrimDefinition {
   originalSize: Readonly<Vector2DLike>;
 }
 
+/** Describes one named frame to add to a `SpriteSheet`. */
 export interface SpriteFrameDefinition {
+  /** Unique non-empty frame name. */
   name: string;
+  /** Pixel rectangle of the frame inside the texture. */
   source: Readonly<Rect>;
   /** Normalized pivot in the original, untrimmed frame. Values outside 0..1 are allowed. */
   pivot?: Readonly<Vector2DLike>;
+  /** Trim metadata when the atlas packer cut transparent pixels away. */
   trim?: SpriteFrameTrimDefinition;
 }
 
@@ -35,6 +41,7 @@ export interface SpriteFrame {
   readonly originalSize: Readonly<Vector2D>;
 }
 
+/** Options for `SpriteSheet`: a regular grid, named frames, or both. */
 export interface SpriteSheetOptions {
   /** Grid cell width in texture pixels. Pair with frameHeight to enable gridFrame(). */
   frameWidth?: number;
@@ -115,10 +122,13 @@ class AtlasSpriteFrame implements SpriteFrame {
 
 /** Reusable named or grid-based frames over one Game-owned texture. */
 export class SpriteSheet {
+  /** The loaded texture the frames are cut from. */
   readonly texture: Texture;
   private readonly marginValue: Vector2D;
   private readonly spacingValue: Vector2D;
+  /** Grid cell width in pixels, or 0 when no grid is configured. */
   readonly frameWidth: number;
+  /** Grid cell height in pixels, or 0 when no grid is configured. */
   readonly frameHeight: number;
   private columnCount = 0;
   private rowCount = 0;
@@ -127,6 +137,10 @@ export class SpriteSheet {
   private namedFrames: SpriteFrame[] = [];
   private gridFrames: GridFrameEntry[] = [];
 
+  /**
+   * Creates frames over a loaded texture from a grid, named frames, or both. Invalid input is reported through `error`,
+   * not thrown.
+   */
   constructor(texture: Texture, options: SpriteSheetOptions = {}) {
     const settings: SpriteSheetOptions = options === null || options === undefined ? {} : options;
     this.texture = texture;
@@ -228,18 +242,23 @@ export class SpriteSheet {
     }
   }
 
+  /** Message describing why the sheet is invalid, or null. */
   get error(): string | null {
     return this.frameError;
   }
+  /** Number of grid columns that fit in the texture, or 0 without a grid. */
   get columns(): number {
     return this.columnCount;
   }
+  /** Number of grid rows that fit in the texture, or 0 without a grid. */
   get rows(): number {
     return this.rowCount;
   }
+  /** Edge inset of the grid in pixels, as a copy. */
   get margin(): Readonly<Vector2D> {
     return this.marginValue.clone();
   }
+  /** Gap between grid cells in pixels, as a copy. */
   get spacing(): Readonly<Vector2D> {
     return this.spacingValue.clone();
   }

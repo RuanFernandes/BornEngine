@@ -5,21 +5,29 @@ import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Renderer } from '../core/renderer';
 
+/** Holds the current Scene of a game and handles switching, pausing and unloading it. */
 export class SceneManager implements ContextResource {
+  /** The game runtime this manager belongs to. */
   readonly context: GameContext;
   private scene: Scene | null = null;
   private transitioning = false;
 
+  /** Creates a manager bound to the given game. */
   constructor(owner: Game) {
     this.context = getGameContext(owner);
     this.context.register(this);
   }
 
+  /** The loaded scene, or null when none is active or paused. */
   get currentScene(): Scene | null {
     if (this.scene === null || this.scene.state === 'unloaded') return null;
     return this.scene;
   }
 
+  /**
+   * Unloads the current scene and activates the replacement, calling its onEnter.
+   * @returns true when the replacement is active; false when a transition is in progress, the scene is not fresh or belongs to another game, or the current scene refused to unload.
+   */
   changeTo<T extends Scene>(replacement: T): boolean {
     if (this.transitioning) return false;
     const previous = this.currentScene;
@@ -39,6 +47,10 @@ export class SceneManager implements ContextResource {
     return activated;
   }
 
+  /**
+   * Pauses the current scene, calling its onPause. Paused scenes still render but do not update.
+   * @returns false when there is no active scene.
+   */
   pause(): boolean {
     if (this.transitioning) return false;
     const scene = this.currentScene;
@@ -49,6 +61,10 @@ export class SceneManager implements ContextResource {
     return paused;
   }
 
+  /**
+   * Resumes a paused scene, calling its onResume.
+   * @returns false when there is no paused scene.
+   */
   resume(): boolean {
     if (this.transitioning) return false;
     const scene = this.currentScene;
@@ -59,6 +75,10 @@ export class SceneManager implements ContextResource {
     return resumed;
   }
 
+  /**
+   * Updates the current scene's owned resources and objects. Does nothing unless the scene is active.
+   * @param dt Time elapsed since the previous frame.
+   */
   update(dt: number): void {
     if (this.transitioning) return;
     const scene = this.currentScene;
@@ -77,6 +97,7 @@ export class SceneManager implements ContextResource {
     scene.render(renderer, scene.camera2D, scene.viewport2D);
   }
 
+  /** Runs the fixed-timestep update of the current scene when it is active. */
   updateFixed(fixedDt: number): void {
     if (this.transitioning) return;
     const scene = this.currentScene;
@@ -84,6 +105,7 @@ export class SceneManager implements ContextResource {
     scene.updateFixed(fixedDt);
   }
 
+  /** Pushes the active scene's component state into the physics world; call it before stepping. */
   syncPhysicsBeforeStep(world: PhysicsWorld, fixedDt: number): void {
     if (this.transitioning) return;
     const scene = this.currentScene;
@@ -91,6 +113,7 @@ export class SceneManager implements ContextResource {
     scene._syncPhysicsBeforeStep(this, world, fixedDt);
   }
 
+  /** Pulls simulated physics state into the active scene's components; call it after stepping. */
   syncPhysicsAfterStep(world: PhysicsWorld): void {
     if (this.transitioning) return;
     const scene = this.currentScene;
@@ -98,6 +121,10 @@ export class SceneManager implements ContextResource {
     scene._syncPhysicsAfterStep(this, world);
   }
 
+  /**
+   * Unloads the current scene, calling its onExit and onUnload.
+   * @returns false when there is no scene or the unload was refused.
+   */
   unloadCurrent(): boolean {
     if (this.transitioning) return false;
     const scene = this.currentScene;
@@ -113,6 +140,7 @@ export class SceneManager implements ContextResource {
     return unloaded;
   }
 
+  /** Unloads the current scene and unregisters the manager. */
   dispose(): void {
     this.unloadCurrent();
     this.context.unregister(this);

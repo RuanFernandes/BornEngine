@@ -11,6 +11,10 @@ import { WORLD_SCHEMA_VERSION, WorldDocument, PrefabData, LightData, Vec3Lit } f
 // same object (mutated in place) for convenience. Logs a warning when the
 // input is from a future version — in that case we proceed anyway and hope
 // the extra fields are ignored, since we can't forward-migrate.
+/**
+ * Upgrades a parsed world document to the current schema version, mutating and returning it.
+ * Documents from a newer version are returned unchanged.
+ */
 export function migrateWorldData(raw: WorldDocument): WorldDocument {
   const from = raw.schemaVersion | 0;
 
@@ -86,6 +90,10 @@ function parseNumber(s: string | undefined, fallback: number): number {
   return v === v ? v : fallback;
 }
 
+/**
+ * Upgrades a parsed prefab document to the current schema version, mutating and returning it.
+ * Missing bounds are filled with a zero-size box.
+ */
 export function migratePrefabData(raw: PrefabData): PrefabData {
   // Prefabs saved before 2026-07-15 are missing `schemaVersion` and `bounds`
   // outright — serializePrefab dropped both (fixed the same day). Backfill

@@ -1,21 +1,35 @@
 import type { ColumnDescriptor, DatabaseRow, DatabaseSchema } from './schema';
 import { validColumnValue } from './schema';
 
+/** Comparison operators for one column. A filter entry must use exactly one of them. */
 export type Comparison<T> = { eq?: T; ne?: T; gt?: T; gte?: T; lt?: T; lte?: T; in?: readonly T[]; isNull?: boolean };
+/** Row filter: per-column comparisons combined with optional `and`, `or`, and `not`. */
 export type DatabaseFilter<R> = {
   [K in keyof R]?: Comparison<R[K]>;
 } & { and?: readonly DatabaseFilter<R>[]; or?: readonly DatabaseFilter<R>[]; not?: DatabaseFilter<R> };
+/** Sort key for a select. */
 export interface DatabaseOrder<R> {
+  /** Column to sort by. */
   column: Extract<keyof R, string>;
+  /** Sort direction. Defaults to ascending. */
   direction?: 'asc' | 'desc';
 }
+/** Options for `GameDatabase.select`. */
 export interface DatabaseSelect<R> {
+  /** Filter selecting which rows to return. All rows when omitted. */
   where?: DatabaseFilter<R>;
+  /** Sort keys, applied in order. */
   orderBy?: readonly DatabaseOrder<R>[];
+  /** Maximum number of rows to return. Must be a non-negative integer. */
   limit?: number;
+  /** Number of matching rows to skip. Must be a non-negative integer. */
   offset?: number;
 }
 
+/**
+ * Checks that `values` only names columns of the table and that each value has the column's type.
+ * With `requireRequired`, also checks that every required column without a default is present.
+ */
 export function validateValues<S extends DatabaseSchema, T extends keyof S>(
   schema: S,
   tableName: T,
@@ -51,6 +65,7 @@ export function validateValues<S extends DatabaseSchema, T extends keyof S>(
   return true;
 }
 
+/** Checks that `filter` is well-formed for the table: known columns, one comparison per column, correctly typed operands. */
 export function validateFilter<S extends DatabaseSchema, T extends keyof S>(
   schema: S,
   tableName: T,
@@ -117,6 +132,7 @@ function validCompared(column: ColumnDescriptor, value: unknown): boolean {
   return value === null ? !(column.options.notNull || column.options.primaryKey) : validColumnValue(column.kind, value);
 }
 
+/** Checks that select options use only known keys, a valid filter, non-negative integer limit and offset, and known sort columns. */
 export function validateSelect<S extends DatabaseSchema, T extends keyof S>(
   schema: S,
   tableName: T,

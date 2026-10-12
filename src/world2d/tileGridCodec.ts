@@ -5,23 +5,27 @@ import { compressTileGridBytes, decompressTileGridBytes } from './tileGridLz';
 const MAX_WORLD2D_TILE_CELLS = 1_000_000;
 const MAX_SAFE_INTEGER_VALUE = 9007199254740991;
 
+/** Run-length encoded tile grid, stored as count and tile code pairs. */
 export interface EncodedWorld2DRleTileGrid {
   encoding: 'rle';
   values: number[];
 }
 
+/** Sparse tile grid filled with the `base` code (default 0), with overrides stored as gap and tile code pairs. */
 export interface EncodedWorld2DSparseTileGrid {
   encoding: 'sparse';
   base?: number;
   values: number[];
 }
 
+/** Bit-packed tile grid with a code palette and Base64 payload, optionally LZ-compressed. */
 export interface EncodedWorld2DPackedTileGrid {
   encoding: 'bits' | 'lz';
   palette: number[];
   values: string;
 }
 
+/** Any supported tile grid encoding: a plain code array or one of the codec objects. */
 export type EncodedWorld2DTileGrid =
   | number[]
   | EncodedWorld2DRleTileGrid

@@ -27,6 +27,10 @@ export class SpriteAnimationComponent extends GameComponent {
   private rendererValue: SpriteAnimationTemplateRenderer | null = null;
   private animatorValue: SpriteAnimator | null = null;
 
+  /**
+   * Creates the component from a template path, image paths and an optional autoplay clip. Nothing loads until the
+   * component wakes.
+   */
   constructor(options: SpriteAnimationComponentOptions) {
     super();
     this.settings = options;

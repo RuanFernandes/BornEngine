@@ -5,14 +5,20 @@ import { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 import type { PhysicsWorld2D } from './physics-world-2d';
 
+/** Body kind: `static` never moves, `dynamic` is fully simulated, `kinematic` is moved by code. */
 export type PhysicsBodyType2D = 'static' | 'dynamic' | 'kinematic';
 
+/**
+ * Collision shape: box, circle, segment, or convex polygon.
+ * Segment and convex shapes require a static body.
+ */
 export type PhysicsShape2D =
   | { type: 'box'; width: number; height: number }
   | { type: 'circle'; radius: number }
   | { type: 'segment'; start: Vector2DLike; end: Vector2DLike }
   | { type: 'convex'; vertices: ReadonlyArray<Vector2DLike> };
 
+/** Makes a static body solid only from one side, such as a jump-through platform. */
 export interface OneWaySurface2D {
   /** Unit outward normal; bodies must approach from this side. */
   normal: Vector2DLike;
@@ -20,19 +26,31 @@ export interface OneWaySurface2D {
   tolerance?: number;
 }
 
+/** Type, shape, and physical settings used to create a `PhysicsBody2D`. */
 export interface PhysicsBody2DOptions {
+  /** Body kind. Defaults to `dynamic`. */
   type?: PhysicsBodyType2D;
+  /** Collision shape. */
   shape: PhysicsShape2D;
   /** Initial world position for standalone bodies; an attached GameObject transform takes precedence. */
   position?: Vector2DLike;
+  /** Initial velocity. */
   velocity?: Vector2DLike;
+  /** Mass of a dynamic body. Defaults to 1. */
   mass?: number;
+  /** Multiplier applied to world gravity. Defaults to 1. */
   gravityScale?: number;
+  /** Friction coefficient, zero or greater. Defaults to 0.2. */
   friction?: number;
+  /** Bounciness from 0 to 1. Defaults to 0. */
   restitution?: number;
+  /** When true the body reports trigger contacts without blocking other bodies. */
   isSensor?: boolean;
+  /** Collision layer bit mask of this body; must not be 0. Defaults to 1. */
   layer?: number;
+  /** Layers this body collides with. Defaults to all layers. */
   mask?: number;
+  /** One-way surface settings; requires a static body. */
   oneWay?: OneWaySurface2D;
   /** Enables swept collision against static bodies. */
   ccd?: boolean;
@@ -40,29 +58,42 @@ export interface PhysicsBody2DOptions {
   ccdThreshold?: number;
 }
 
+/** Stage of a contact: `enter` on first touch, `stay` while touching, `exit` when contact ends. */
 export type PhysicsContactPhase2D = 'enter' | 'stay' | 'exit';
 
 /** Pair-oriented contact record returned by PhysicsWorld2D.popContacts(). */
 export interface PhysicsContact2D {
+  /** Contact stage. */
   readonly phase: PhysicsContactPhase2D;
   /** Stable pair ordering: the body created first is bodyA. */
   readonly bodyA: PhysicsBody2D;
+  /** Second body of the pair. */
   readonly bodyB: PhysicsBody2D;
   /** Unit vector pointing from bodyA toward bodyB. */
   readonly normal: Readonly<Vector2D>;
+  /** Contact point. */
   readonly point: Readonly<Vector2D>;
+  /** Overlap depth. */
   readonly penetration: number;
+  /** True when the contact involves a sensor body. */
   readonly isTrigger: boolean;
 }
 
 /** Contact view oriented from the receiving body toward the other body. */
 export interface PhysicsBodyContact2D {
+  /** Contact stage. */
   readonly phase: PhysicsContactPhase2D;
+  /** Body that receives the callback. */
   readonly self: PhysicsBody2D;
+  /** Body that `self` is touching. */
   readonly other: PhysicsBody2D;
+  /** Unit vector pointing from `self` toward `other`. */
   readonly normal: Readonly<Vector2D>;
+  /** Contact point. */
   readonly point: Readonly<Vector2D>;
+  /** Overlap depth. */
   readonly penetration: number;
+  /** True when the contact involves a sensor body. */
   readonly isTrigger: boolean;
 }
 
@@ -98,10 +129,14 @@ let nextBodyId = 1;
 
 /** A 2D rigid body component owned and stepped by one PhysicsWorld2D. */
 export class PhysicsBody2D extends GameComponent {
+  /** Unique numeric id of this body. */
   readonly id: number;
+  /** World that owns this body. */
   readonly world: PhysicsWorld2D;
+  /** Body kind, fixed at creation. */
   readonly type: PhysicsBodyType2D;
   private shapeValue: PhysicsShape2D;
+  /** Creation error message, or null if the body is valid. A body with an error is disabled. */
   readonly error: string | null;
 
   private positionValue: Vector2DLike;
@@ -122,13 +157,23 @@ export class PhysicsBody2D extends GameComponent {
   private lastWrittenX = 0;
   private lastWrittenY = 0;
 
+  /** Called when this body starts touching another non-sensor body. */
   onCollisionEnter: ((contact: PhysicsBodyContact2D) => void) | null = null;
+  /** Called each step while this body keeps touching another non-sensor body. */
   onCollisionStay: ((contact: PhysicsBodyContact2D) => void) | null = null;
+  /** Called when this body stops touching another non-sensor body. */
   onCollisionExit: ((contact: PhysicsBodyContact2D) => void) | null = null;
+  /** Called when this body starts overlapping a sensor body. */
   onTriggerEnter: ((contact: PhysicsBodyContact2D) => void) | null = null;
+  /** Called each step while this body keeps overlapping a sensor body. */
   onTriggerStay: ((contact: PhysicsBodyContact2D) => void) | null = null;
+  /** Called when this body stops overlapping a sensor body. */
   onTriggerExit: ((contact: PhysicsBodyContact2D) => void) | null = null;
 
+  /**
+   * Creates a body in a world; prefer `PhysicsWorld2D.createBody`.
+   * Check `error` for invalid settings; a body with an error is disabled.
+   */
   constructor(world: PhysicsWorld2D, options: PhysicsBody2DOptions) {
     super();
     this.id = nextBodyId++;
@@ -167,51 +212,66 @@ export class PhysicsBody2D extends GameComponent {
     else this.enabled = false;
   }
 
+  /** True once the body has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Current world position. */
   get position(): Vector2D {
     return Vector2D.from(this.positionValue);
   }
+  /** Current velocity. */
   get velocity(): Vector2D {
     return Vector2D.from(this.velocityValue);
   }
+  /** Body mass. */
   get mass(): number {
     return this.massValue;
   }
+  /** Multiplier applied to world gravity. */
   get gravityScale(): number {
     return this.gravityScaleValue;
   }
+  /** Friction coefficient. */
   get friction(): number {
     return this.frictionValue;
   }
+  /** Bounciness from 0 to 1. */
   get restitution(): number {
     return this.restitutionValue;
   }
+  /** True if the body reports trigger contacts without blocking other bodies. */
   get isSensor(): boolean {
     return this.sensorValue;
   }
+  /** Collision layer bit mask of this body. */
   get layer(): number {
     return this.layerValue;
   }
+  /** Layers this body collides with. */
   get mask(): number {
     return this.maskValue;
   }
+  /** Copy of the collision shape. */
   get shape(): PhysicsShape2D {
     return this.copyShape(this.shapeValue);
   }
+  /** Copy of the one-way surface settings, or null if the body is solid from all sides. */
   get oneWay(): OneWaySurface2D | null {
     return this.oneWayValue === null
       ? null
       : { normal: copyVec(this.oneWayValue.normal), tolerance: this.oneWayValue.tolerance };
   }
+  /** True if swept collision detection is enabled. */
   get ccd(): boolean {
     return this.ccdValue;
   }
+  /** Minimum travel per fixed step that activates continuous collision detection, in world units. */
   get ccdThreshold(): number {
     return this.ccdThresholdValue;
   }
 
+  /** Teleports the body and its game object; returns false if the body is disposed or the value is not finite. */
   setPosition(value: Vector2DLike): boolean {
     if (this.disposed || !validVec(value)) return false;
     this.positionValue = copyVec(value);
@@ -221,42 +281,49 @@ export class PhysicsBody2D extends GameComponent {
     return true;
   }
 
+  /** Sets the velocity; returns false if the body is disposed or the value is not finite. */
   setVelocity(value: Vector2DLike): boolean {
     if (this.disposed || !validVec(value)) return false;
     this.velocityValue = copyVec(value);
     return true;
   }
 
+  /** Sets the mass of a dynamic body; returns false for other body types or a non-positive value. */
   setMass(value: number): boolean {
     if (this.disposed || this.type !== 'dynamic' || !finite(value) || value <= 0) return false;
     this.massValue = value;
     return true;
   }
 
+  /** Sets the gravity multiplier; returns false if the body is disposed or the value is not finite. */
   setGravityScale(value: number): boolean {
     if (this.disposed || !finite(value)) return false;
     this.gravityScaleValue = value;
     return true;
   }
 
+  /** Sets the friction coefficient; returns false for a negative or non-finite value. */
   setFriction(value: number): boolean {
     if (this.disposed || !finite(value) || value < 0) return false;
     this.frictionValue = value;
     return true;
   }
 
+  /** Sets the bounciness; returns false unless the value is between 0 and 1. */
   setRestitution(value: number): boolean {
     if (this.disposed || !finite(value) || value < 0 || value > 1) return false;
     this.restitutionValue = value;
     return true;
   }
 
+  /** Turns sensor behavior on or off; returns false if the body is disposed. */
   setSensor(value: boolean): boolean {
     if (this.disposed) return false;
     this.sensorValue = value;
     return true;
   }
 
+  /** Sets the layer and mask bit masks; returns false if either is invalid or the layer is 0. */
   setCollisionFilter(layer: number, mask: number): boolean {
     if (this.disposed || !validBits(layer) || layer === 0 || !validBits(mask)) return false;
     this.layerValue = layer;
@@ -264,6 +331,7 @@ export class PhysicsBody2D extends GameComponent {
     return true;
   }
 
+  /** Adds a force applied over the next step; returns false unless the body is dynamic and the value is finite. */
   applyForce(force: Vector2DLike): boolean {
     if (this.disposed || this.type !== 'dynamic' || !validVec(force)) return false;
     this.forceValue.x += force.x;
@@ -271,6 +339,7 @@ export class PhysicsBody2D extends GameComponent {
     return true;
   }
 
+  /** Instantly changes velocity by impulse divided by mass; returns false unless the body is dynamic and the value is finite. */
   applyImpulse(impulse: Vector2DLike): boolean {
     if (this.disposed || this.type !== 'dynamic' || !validVec(impulse)) return false;
     this.velocityValue.x += impulse.x / this.massValue;
@@ -371,6 +440,7 @@ export class PhysicsBody2D extends GameComponent {
     this.dispose();
   }
 
+  /** Removes the body from its world. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

@@ -20,6 +20,7 @@ declare function bloom_gui_event_field(index: number, field: number): number;
 declare function bloom_gui_is_available(): number;
 declare function bloom_gui_wants_input(kind: number): number;
 
+/** Functions the bridge calls on the native GUI layer; pass an implementation to `GuiNativeBridge` to replace the real one. */
 export interface GuiNativeApi {
   command(opcode: number, id: number, a: number, b: number, c: number, d: number, text: string): number;
   scratchReset(): void;
@@ -33,6 +34,7 @@ export interface GuiNativeApi {
   wantsInput(kind: number): number;
 }
 
+/** Latest native state of a control: interaction flags, value, text, and laid-out rectangle. `present` is false when the native layer has no record of the control. */
 export interface GuiNativeResponse {
   present: boolean;
   clicked: boolean;
@@ -45,6 +47,7 @@ export interface GuiNativeResponse {
   rect: { x: number; y: number; width: number; height: number };
 }
 
+/** One event reported by the native GUI layer for a control. */
 export interface GuiNativeEvent {
   type: number;
   controlId: number;
@@ -124,13 +127,16 @@ function profileValues(command: GuiControlCommand): number[] {
   ];
 }
 
+/** Connects GUI controls to the native GUI layer: submits control commands and reads back responses and events. */
 export class GuiNativeBridge {
   private readonly api: GuiNativeApi;
 
+  /** Creates a bridge over the given native API, defaulting to the engine's native functions. */
   constructor(api: GuiNativeApi = nativeApi()) {
     this.api = api;
   }
 
+  /** Sends the given control commands, including items and drawings, to the native layer. */
   submit(commands: readonly GuiControlCommand[]): void {
     for (const command of commands) {
       this.api.command(
@@ -188,6 +194,7 @@ export class GuiNativeBridge {
     }
   }
 
+  /** Reads the latest native response for the control with the given id. */
   response(id: number): GuiNativeResponse {
     const field = (index: number): number => this.api.response(id, index);
     const present = field(6) > 0.5;
@@ -206,6 +213,7 @@ export class GuiNativeBridge {
     };
   }
 
+  /** Reads the pending native events, up to 16384. */
   events(): GuiNativeEvent[] {
     const count = Math.max(0, Math.min(16_384, Math.trunc(this.api.eventCount())));
     const read = (index: number, field: number): number => this.api.eventField(index, field);
@@ -228,12 +236,15 @@ export class GuiNativeBridge {
     return events;
   }
 
+  /** Returns whether the native GUI layer is available. */
   isAvailable(): boolean {
     return this.api.isAvailable() > 0.5;
   }
+  /** Returns whether the native GUI layer wants to handle pointer input. */
   wantsPointerInput(): boolean {
     return this.api.wantsInput(0) > 0.5;
   }
+  /** Returns whether the native GUI layer wants to handle keyboard input. */
   wantsKeyboardInput(): boolean {
     return this.api.wantsInput(1) > 0.5;
   }

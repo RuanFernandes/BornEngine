@@ -4,6 +4,7 @@ import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './han
 import type { PhysicsWorld } from './physics-world';
 import type { Quat, Vec3 } from '../core/types';
 
+/** Position and rotation pair. */
 export interface PhysicsTransform {
   position: Vec3;
   rotation: Quat;
@@ -11,8 +12,11 @@ export interface PhysicsTransform {
 
 /** Reusable, context-owned collision geometry. */
 export abstract class Collider implements ContextResource {
+  /** Game context that owns this collider. */
   readonly context: GameContext;
+  /** World that owns this collider. */
   readonly world: PhysicsWorld;
+  /** Creation error message, or null if the collider was created. */
   readonly error: string | null;
   private disposed = false;
   private sources: Collider[] = [];
@@ -29,25 +33,31 @@ export abstract class Collider implements ContextResource {
     }
   }
 
+  /** True while the collider exists in a ready world and has not been disposed. */
   get isLoaded(): boolean {
     return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0;
   }
+  /** True once the collider has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
 
+  /** Axis-aligned bounds (min and max corners) of the shape, or null when not loaded. */
   get bounds(): { min: Vec3; max: Vec3 } | null {
     const handle = getNativeHandle(this);
     return this.isLoaded ? native.shapeBounds(handle) : null;
   }
 
+  /** Volume of the shape, or 0 when not loaded. */
   get volume(): number {
     return this.isLoaded ? native.shapeVolume(getNativeHandle(this)) : 0;
   }
 
+  /** Creates a new collider that applies a scale to this one. */
   scaled(scale: Vec3): ScaledCollider {
     return new ScaledCollider(this.world, this, scale);
   }
+  /** Creates a new collider that shifts the center of mass of this one by an offset. */
   offsetCenterOfMass(offset: Vec3): OffsetCollider {
     return new OffsetCollider(this.world, this, offset);
   }
@@ -62,6 +72,7 @@ export abstract class Collider implements ContextResource {
     }
   }
 
+  /** Releases the collider along with colliders built from it and bodies that use it. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     const dependents = this.dependents.slice();
@@ -83,7 +94,9 @@ export abstract class Collider implements ContextResource {
   }
 }
 
+/** Box collision shape. */
 export class BoxCollider extends Collider {
+  /** Creates a box from its half extents. */
   constructor(world: PhysicsWorld, halfExtents: Vec3, convexRadius = 0.05) {
     super(
       world,
@@ -93,7 +106,9 @@ export class BoxCollider extends Collider {
   }
 }
 
+/** Sphere collision shape. */
 export class SphereCollider extends Collider {
+  /** Creates a sphere from its radius. */
   constructor(world: PhysicsWorld, radius: number) {
     super(
       world,
@@ -103,7 +118,9 @@ export class SphereCollider extends Collider {
   }
 }
 
+/** Capsule collision shape. */
 export class CapsuleCollider extends Collider {
+  /** Creates a capsule from the half height of its cylindrical section and its radius. */
   constructor(world: PhysicsWorld, halfHeight: number, radius: number) {
     super(
       world,
@@ -113,7 +130,9 @@ export class CapsuleCollider extends Collider {
   }
 }
 
+/** Cylinder collision shape. */
 export class CylinderCollider extends Collider {
+  /** Creates a cylinder from its half height and radius. */
   constructor(world: PhysicsWorld, halfHeight: number, radius: number, convexRadius = 0.05) {
     super(
       world,
@@ -123,7 +142,9 @@ export class CylinderCollider extends Collider {
   }
 }
 
+/** Convex collision shape built from a point cloud. */
 export class ConvexHullCollider extends Collider {
+  /** Creates a convex hull around the given points. */
   constructor(world: PhysicsWorld, points: Vec3[], convexRadius = 0.05) {
     super(
       world,
@@ -133,7 +154,9 @@ export class ConvexHullCollider extends Collider {
   }
 }
 
+/** Triangle mesh collision shape. */
 export class MeshCollider extends Collider {
+  /** Creates a mesh from vertex positions and triangle indices. */
   constructor(world: PhysicsWorld, vertices: Vec3[], indices: number[]) {
     super(
       world,
@@ -143,7 +166,9 @@ export class MeshCollider extends Collider {
   }
 }
 
+/** Terrain collision shape built from height samples. */
 export class HeightfieldCollider extends Collider {
+  /** Creates a heightfield from height samples, placed with an offset and scale. */
   constructor(world: PhysicsWorld, samples: number[], sampleCount: number, offset: Vec3, scale: Vec3, blockSize = 4) {
     super(
       world,
@@ -153,12 +178,18 @@ export class HeightfieldCollider extends Collider {
   }
 }
 
+/** Child shape and its local transform within a compound collider. */
 export interface CompoundColliderChild {
   collider: Collider;
   local: PhysicsTransform;
 }
 
+/** Collision shape made of several child colliders. */
 export class CompoundCollider extends Collider {
+  /**
+   * Creates a compound shape from children that are all loaded by the same world.
+   * Check `error` if a child is invalid.
+   */
   constructor(world: PhysicsWorld, children: CompoundColliderChild[]) {
     const valid = world.isReady && children.length > 0;
     let handle = 0;
@@ -185,7 +216,9 @@ export class CompoundCollider extends Collider {
   }
 }
 
+/** Collider that applies a scale to another collider. */
 export class ScaledCollider extends Collider {
+  /** Creates a scaled version of a collider from the same world. */
   constructor(world: PhysicsWorld, base: Collider, scale: Vec3) {
     const valid = world.isReady && base.world === world && base.isLoaded;
     super(
@@ -197,7 +230,9 @@ export class ScaledCollider extends Collider {
   }
 }
 
+/** Collider that shifts the center of mass of another collider. */
 export class OffsetCollider extends Collider {
+  /** Creates a version of a collider from the same world with its center of mass offset. */
   constructor(world: PhysicsWorld, base: Collider, offset: Vec3) {
     const valid = world.isReady && base.world === world && base.isLoaded;
     super(

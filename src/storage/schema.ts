@@ -1,5 +1,6 @@
 /** SQLite column declarations. Identifiers are validated before any backend request. */
 export type ColumnKind = 'integer' | 'real' | 'text' | 'blob' | 'boolean';
+/** TypeScript type of a value stored in a column of the given kind. */
 export type ColumnValue<K extends ColumnKind> = K extends 'blob'
   ? Uint8Array
   : K extends 'text'
@@ -8,15 +9,23 @@ export type ColumnValue<K extends ColumnKind> = K extends 'blob'
       ? boolean
       : number;
 
+/** Constraints and defaults for a column. */
 export interface ColumnOptions<K extends ColumnKind> {
+  /** Marks the column as the table's primary key. A table may have at most one. */
   primaryKey?: boolean;
+  /** Lets the database assign the value. Only valid on an integer primary key. */
   autoIncrement?: boolean;
+  /** Disallows null values. */
   notNull?: boolean;
+  /** Explicitly allows null values. Cannot be combined with `notNull` or `primaryKey`. */
   nullable?: boolean;
+  /** Requires values to be unique across rows. */
   unique?: boolean;
+  /** Value used when an insert omits the column. */
   default?: ColumnValue<K> | null;
 }
 
+/** Declaration of one column: its kind and options. */
 export interface ColumnDescriptor<K extends ColumnKind = ColumnKind, O = ColumnOptions<K>> {
   kind: K;
   options: O;
@@ -26,6 +35,7 @@ function column<K extends ColumnKind, const O extends ColumnOptions<K>>(kind: K,
   return { kind, options };
 }
 
+/** Factories for column descriptors, one per `ColumnKind`. Each accepts optional `ColumnOptions`. */
 export const columns = {
   integer: <const O extends ColumnOptions<'integer'>>(options: O = {} as O) => column('integer', options),
   real: <const O extends ColumnOptions<'real'>>(options: O = {} as O) => column('real', options),
@@ -34,23 +44,31 @@ export const columns = {
   boolean: <const O extends ColumnOptions<'boolean'>>(options: O = {} as O) => column('boolean', options),
 };
 
+/** Declaration of an index over one or more columns of a table. */
 export interface IndexDescriptor<C extends string = string> {
+  /** Index name. Must be unique across the schema and must not match a table name. */
   name: string;
+  /** Indexed column names. */
   columns: readonly C[];
+  /** Whether the index enforces uniqueness. */
   unique?: boolean;
 }
 
+/** Declaration of a table: its columns and optional indexes. */
 export interface TableDescriptor<C extends Record<string, ColumnDescriptor> = Record<string, ColumnDescriptor>> {
   columns: C;
   indexes?: readonly IndexDescriptor<Extract<keyof C, string>>[];
 }
 
+/** Map of table name to table declaration. */
 export type DatabaseSchema = Record<string, TableDescriptor<any>>;
 
+/** Returns `table` unchanged, preserving its column types for inference. */
 export function defineTable<C extends Record<string, ColumnDescriptor>>(table: TableDescriptor<C>): TableDescriptor<C> {
   return table;
 }
 
+/** Returns `schema` unchanged, preserving its table types for inference. */
 export function defineSchema<S extends DatabaseSchema>(schema: S): S {
   return schema;
 }
@@ -60,6 +78,7 @@ type InferredColumn<C> =
     ? ColumnValue<K> | (O extends { notNull: true } | { primaryKey: true } ? never : null)
     : never;
 
+/** Row type of a table. A column is nullable unless it is `notNull` or `primaryKey`. */
 export type DatabaseRow<S extends DatabaseSchema, T extends keyof S> = {
   [K in keyof S[T]['columns']]: InferredColumn<S[T]['columns'][K]>;
 };
@@ -73,6 +92,7 @@ type OptionalInsertKey<C> =
         : true
     : false;
 
+/** Values accepted when inserting into a table. Columns that are `notNull` or `primaryKey` without a default or auto-increment are required; others are optional. */
 export type DatabaseInsert<S extends DatabaseSchema, T extends keyof S> = {
   [K in keyof S[T]['columns'] as OptionalInsertKey<S[T]['columns'][K]> extends true ? never : K]: InferredColumn<
     S[T]['columns'][K]
@@ -83,12 +103,15 @@ export type DatabaseInsert<S extends DatabaseSchema, T extends keyof S> = {
   >;
 };
 
+/** Values accepted when updating a table: any subset of its columns. */
 export type DatabaseUpdate<S extends DatabaseSchema, T extends keyof S> = Partial<DatabaseRow<S, T>>;
 
+/** True when `name` is a valid table, column, or index name: 1 to 64 characters of letters, digits, and underscores, not starting with a digit. */
 export function validIdentifier(name: string): boolean {
   return typeof name === 'string' && name.length > 0 && name.length <= 64 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
 }
 
+/** True when `name` is a valid application or database name: 1 to 128 characters of letters, digits, `.`, `_`, and `-`, starting with a letter or digit and containing no `..`. */
 export function validNamespace(name: string): boolean {
   return (
     typeof name === 'string' &&
@@ -99,6 +122,7 @@ export function validNamespace(name: string): boolean {
   );
 }
 
+/** True when the schema has at least one table and every table, column, option, and index is valid. */
 export function validateSchema(schema: DatabaseSchema): boolean {
   if (schema === null || typeof schema !== 'object') return false;
   let tableCount = 0;
@@ -165,6 +189,7 @@ export function validateSchema(schema: DatabaseSchema): boolean {
   return tableCount > 0;
 }
 
+/** True when `value` is valid for a column of the given kind. */
 export function validColumnValue(kind: ColumnKind, value: unknown): boolean {
   if (kind === 'blob') return typeof value === 'object' && value !== null && value instanceof Uint8Array;
   if (kind === 'text') return typeof value === 'string';

@@ -7,7 +7,9 @@ import { Texture } from './texture';
 
 /** Offscreen target owned by a Game or Scene asset scope. Renderer controls its contents. */
 export class RenderTexture implements ContextDrawable {
+  /** Discriminator identifying this resource as a render texture. */
   readonly resourceKind = 'render-texture';
+  /** Creation failure message, or null when the render texture was created. */
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
@@ -35,24 +37,32 @@ export class RenderTexture implements ContextDrawable {
     context.register(this);
   }
 
+  /** True while the render texture is usable: created, not disposed, and its Game is ready. */
   get isLoaded(): boolean {
     return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
   }
+  /** True once the render texture has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
 
+  /** Texture view of the rendered contents, created on first access and disposed with this render texture. */
   get texture(): Texture {
     if (this.textureValue === null) this.textureValue = Texture._create(this.game, this);
     return this.textureValue;
   }
 
+  /** Starts redirecting drawing into this target. Returns false if not loaded or the target cannot be activated. */
   begin(): boolean {
     return this.isLoaded && this.context.beginRenderTarget(this);
   }
+  /** Stops redirecting drawing into this target. Returns false if not loaded or the target cannot be deactivated. */
   end(): boolean {
     return this.isLoaded && this.context.endRenderTarget(this);
   }
+  /**
+   * Draws the rendered contents at `position`, multiplied by `tint` (white by default). Returns false if not loaded.
+   */
   draw(position: Vector2DLike, tint: Color = Colors.WHITE): boolean {
     if (!this.isLoaded) return false;
     return this.context.draw(this, position, tint);
@@ -81,6 +91,7 @@ export class RenderTexture implements ContextDrawable {
     return true;
   }
 
+  /** Ends the render target if active and releases it with its texture view. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     this.context.endRenderTarget(this);

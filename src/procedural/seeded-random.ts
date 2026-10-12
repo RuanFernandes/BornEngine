@@ -14,6 +14,10 @@ function isInteger(value: number): boolean {
 export class SeededRandom {
   private state: number;
 
+  /**
+   * Creates a generator from `seed`; the same seed always produces the same sequence. Fractional seeds are floored.
+   * @throws If `seed` is not finite.
+   */
   constructor(seed: number) {
     if (!isFiniteNumber(seed)) throw new Error('SeededRandom seed must be finite');
     let state = Math.floor(seed) % PARK_MILLER_MODULUS;

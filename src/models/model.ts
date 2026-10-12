@@ -8,9 +8,13 @@ type ModelData = { handle: number; meshCount: number; materialCount: number; tra
 
 /** A 3D model loaded from a supported asset file and owned by an asset scope. */
 export class Model implements ContextResource {
+  /** Load failure message, or null when the model loaded. */
   readonly error: string | null;
+  /** Number of meshes in the model; 0 if it failed to load. */
   readonly meshCount: number;
+  /** Number of materials in the model; 0 if it failed to load. */
   readonly materialCount: number;
+  /** The model's 4x4 transform matrix, column-major. */
   readonly transform: Mat4;
   private handleValue = 0;
   private disposed = false;
@@ -43,21 +47,26 @@ export class Model implements ContextResource {
     context.register(this);
   }
 
+  /** True while the model is usable: loaded, not disposed, and its Game is ready. */
   get isLoaded(): boolean {
     return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
   }
+  /** True once the model has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
 
+  /** Draws the model through `renderer` at `position`, optionally tinted and rotated around the Y axis. */
   draw(renderer: Renderer, position: Vec3, scale = 1, tint?: Color, rotationY?: number): boolean {
     return renderer.drawModel(this, position, scale, tint, rotationY);
   }
 
+  /** Returns the model bounding box, or null if not loaded. */
   getBounds(): BoundingBox | null {
     return this.isLoaded ? operations.getModelBounds(this.toNativeModel()) : null;
   }
 
+  /** Sets the foliage wind strength applied to this model. Returns false if not loaded. */
   setFoliageWind(amount: number): boolean {
     if (!this.isLoaded) return false;
     operations.setModelFoliageWind(this.toNativeModel(), amount);
@@ -88,6 +97,7 @@ export class Model implements ContextResource {
     };
   }
 
+  /** Unloads the model. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     if (this.handleValue !== 0) operations.unloadModel(this.toNativeModel());
@@ -99,6 +109,7 @@ export class Model implements ContextResource {
 
 /** Standalone indexed mesh data owned by one Game. */
 export class Mesh implements ContextResource {
+  /** Creation failure message, or null when the mesh was created. */
   readonly error: string | null;
   private handleValue = 0;
   private meshCount = 0;
@@ -128,13 +139,16 @@ export class Mesh implements ContextResource {
     context.register(this);
   }
 
+  /** True while the mesh is usable: created, not disposed, and its Game is ready. */
   get isLoaded(): boolean {
     return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
   }
+  /** True once the mesh has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
 
+  /** Draws the mesh through `renderer` at `position`, optionally tinted and rotated around the Y axis. */
   draw(renderer: Renderer, position: Vec3, scale = 1, tint?: Color, rotationY?: number): boolean {
     return renderer.drawModel(this, position, scale, tint, rotationY);
   }
@@ -164,6 +178,7 @@ export class Mesh implements ContextResource {
     };
   }
 
+  /** Unloads the mesh. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     if (this.handleValue !== 0) operations.unloadModel(this.toNativeModel());

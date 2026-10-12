@@ -20,21 +20,31 @@ declare function bloom_colyseus_room_id(room: number): string;
 declare function bloom_colyseus_room_session_id(room: number): string;
 declare function bloom_colyseus_room_reconnection_token(room: number): string;
 
+/** Options for a room request. */
 export interface RoomRequestOptions {
+  /** Milliseconds to wait for the reply before the request fails. Defaults to 10000. */
   timeout?: number;
 }
+/** Error reported by Colyseus operations. */
 export interface ColyseusError extends Error {
+  /** Numeric error code supplied by the server or transport, when available. */
   code?: number;
+  /** Payload sent by the server when it rejected a request. */
   reason?: unknown;
 }
+/** Callbacks receiving the result of `Room.requestWithCallbacks`. */
 export interface RoomRequestCallbacks<T = any> {
+  /** Called with the server's reply. */
   onSuccess(value: T): void;
+  /** Called when the request fails, is rejected, or times out. */
   onError(error: ColyseusError): void;
 }
 
 /** Join callbacks delivered while the owning Game polls native network events. */
 export interface RoomJoinCallbacks<TState = any> {
+  /** Called with the room once it has joined. */
   onJoin(room: Room<TState>): void;
+  /** Called when joining fails. */
   onError(error: ColyseusError): void;
 }
 
@@ -146,6 +156,10 @@ export class ColyseusClient implements ContextResource {
   private disposed = false;
 
   // biome-ignore format: tests/game-runtime/colyseus-timeout-harness.cjs matches this signature text
+  /**
+   * Creates a client for the Colyseus server at `endpoint`. The client is polled by `owner` and disposed with it.
+   * Check `isLoaded` and `error` afterwards.
+   */
   constructor(owner: Game, readonly endpoint: string) {
     this.context = getGameContext(owner);
     if (!this.context.isReady || this.context.isDisposed) {
@@ -173,6 +187,7 @@ export class ColyseusClient implements ContextResource {
     runtime.add(this);
   }
 
+  /** True while the client is usable: not disposed, its Game is ready, and the native client was created. */
   get isLoaded(): boolean {
     return (
       !this.disposed &&
@@ -182,25 +197,32 @@ export class ColyseusClient implements ContextResource {
       this.handleValue !== 0
     );
   }
+  /** True once the client has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Reason the client could not be created, or null. */
   get error(): string | null {
     return this.errorValue;
   }
 
+  /** Joins an available room of the given name, or creates one. Resolves with the joined room and rejects on failure. */
   joinOrCreate<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> {
     return this.startJoin<TState>(0, roomName, options);
   }
+  /** Creates a new room of the given name and joins it. Resolves with the joined room and rejects on failure. */
   create<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> {
     return this.startJoin<TState>(1, roomName, options);
   }
+  /** Joins an existing room of the given name. Resolves with the joined room and rejects on failure. */
   join<TState = any>(roomName: string, options: object = {}): Promise<Room<TState>> {
     return this.startJoin<TState>(2, roomName, options);
   }
+  /** Joins an existing room by its id. Resolves with the joined room and rejects on failure. */
   joinById<TState = any>(roomId: string, options: object = {}): Promise<Room<TState>> {
     return this.startJoin<TState>(3, roomId, options);
   }
+  /** Rejoins a room using a token from `Room.reconnectionToken`. Resolves with the room and rejects on failure. */
   reconnect<TState = any>(token: string): Promise<Room<TState>> {
     return this.startJoin<TState>(4, token, {});
   }
@@ -217,18 +239,22 @@ export class ColyseusClient implements ContextResource {
     return this.startJoinWithCallbacks<TState>(0, roomName, options, callbacks);
   }
 
+  /** Callback form of `create`. Returns false, after calling `onError`, when matchmaking could not start. */
   createWithCallbacks<TState = any>(roomName: string, options: object, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(1, roomName, options, callbacks);
   }
 
+  /** Callback form of `join`. Returns false, after calling `onError`, when matchmaking could not start. */
   joinWithCallbacks<TState = any>(roomName: string, options: object, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(2, roomName, options, callbacks);
   }
 
+  /** Callback form of `joinById`. Returns false, after calling `onError`, when matchmaking could not start. */
   joinByIdWithCallbacks<TState = any>(roomId: string, options: object, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(3, roomId, options, callbacks);
   }
 
+  /** Callback form of `reconnect`. Returns false, after calling `onError`, when matchmaking could not start. */
   reconnectWithCallbacks<TState = any>(token: string, callbacks: RoomJoinCallbacks<TState>): boolean {
     return this.startJoinWithCallbacks<TState>(4, token, {}, callbacks);
   }
@@ -239,6 +265,7 @@ export class ColyseusClient implements ContextResource {
     if (this.isLoaded && runtime !== null) runtime.updateFrame(0);
   }
 
+  /** Disposes the client and its rooms. Pending joins and requests fail with an error. */
   dispose(): void {
     this.disposeInternal(true);
   }
@@ -346,6 +373,7 @@ export class Room<TState = any> {
   private roomIdValue = '';
   private sessionIdValue = '';
   private reconnectionTokenValue = '';
+  /** Latest room state received from the server, or null before the first state arrives. */
   state: TState | null = null;
 
   private readonly handle: NativeRoomHandle;
@@ -361,35 +389,46 @@ export class Room<TState = any> {
   private errorListeners: Array<(error: ColyseusError) => void> = [];
   private pendingRequests: PendingRequest[] = [];
 
+  /** Created by the `ColyseusClient` join methods; not meant to be constructed directly. */
   constructor(handle: NativeRoomHandle, client: ColyseusClient) {
     this.handle = handle;
     this.client = client;
   }
 
+  /** Server id of the room. Empty until the room has joined. */
   get roomId(): string {
     return this.roomIdValue;
   }
 
+  /** Id of this client's session in the room. Empty until the room has joined. */
   get sessionId(): string {
     return this.sessionIdValue;
   }
 
+  /** Token for `ColyseusClient.reconnect`. Empty until the room has joined. */
   get reconnectionToken(): string {
     return this.reconnectionTokenValue;
   }
 
+  /** True while the room and its client have not been disposed. */
   get isLoaded(): boolean {
     return !this.disposed && this.client.isLoaded;
   }
 
+  /** True while the room is joined and its connection is open. */
   get isConnected(): boolean {
     return this.isLoaded && this.connected && bloom_colyseus_room_is_connected(this.handle.value) !== 0;
   }
 
+  /** True while a dropped connection is being re-established. */
   get reconnectionPending(): boolean {
     return this.isLoaded && bloom_colyseus_room_is_reconnecting(this.handle.value) !== 0;
   }
 
+  /**
+   * Listens for messages of the given type.
+   * @returns A function that removes the listener.
+   */
   onMessage<T = any>(type: string | number, callback: (message: T) => void): () => void {
     if (!this.isLoaded) return () => {};
     const listener = { type: String(type), callback: callback as (message: any) => void };
@@ -400,6 +439,10 @@ export class Room<TState = any> {
     };
   }
 
+  /**
+   * Listens for messages of every type.
+   * @returns A function that removes the listener.
+   */
   onMessageAny(callback: (type: string | number, message: any) => void): () => void {
     if (!this.isLoaded) return () => {};
     this.anyMessageListeners.push(callback);
@@ -409,6 +452,10 @@ export class Room<TState = any> {
     };
   }
 
+  /**
+   * Listens for room state updates.
+   * @returns A function that removes the listener.
+   */
   onStateChange(callback: (state: TState) => void): () => void {
     if (!this.isLoaded) return () => {};
     this.stateListeners.push(callback);
@@ -418,6 +465,10 @@ export class Room<TState = any> {
     };
   }
 
+  /**
+   * Listens for connection drops, called with the close code and reason.
+   * @returns A function that removes the listener.
+   */
   onDrop(callback: (code: number, reason: string) => void): () => void {
     if (!this.isLoaded) return () => {};
     this.dropListeners.push(callback);
@@ -427,6 +478,10 @@ export class Room<TState = any> {
     };
   }
 
+  /**
+   * Listens for a dropped connection being re-established.
+   * @returns A function that removes the listener.
+   */
   onReconnect(callback: () => void): () => void {
     if (!this.isLoaded) return () => {};
     this.reconnectListeners.push(callback);
@@ -436,6 +491,10 @@ export class Room<TState = any> {
     };
   }
 
+  /**
+   * Listens for the room being left, called with the close code and reason.
+   * @returns A function that removes the listener.
+   */
   onLeave(callback: (code: number, reason: string) => void): () => void {
     if (!this.isLoaded) return () => {};
     this.leaveListeners.push(callback);
@@ -445,6 +504,10 @@ export class Room<TState = any> {
     };
   }
 
+  /**
+   * Listens for room errors.
+   * @returns A function that removes the listener.
+   */
   onError(callback: (error: ColyseusError) => void): () => void {
     if (!this.isLoaded) return () => {};
     this.errorListeners.push(callback);

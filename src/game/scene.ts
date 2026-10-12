@@ -9,12 +9,16 @@ import type { Texture } from '../textures/texture';
 import { SceneAssetManager } from '../assets/asset-manager';
 import { SceneVfx } from '../vfx/scene-vfx';
 
+/** Lifecycle state of a Scene: created, running, paused by its manager, or torn down. */
 export type SceneState = 'ready' | 'active' | 'paused' | 'unloaded';
 
+/** Options for creating a Scene. */
 export interface SceneOptions {
+  /** Display name. Defaults to an empty string. */
   name?: string;
 }
 
+/** A resource whose lifetime follows a Scene: it is updated each frame and disposed when the scene unloads. */
 export interface SceneOwnedResource {
   update?(dt: number): void;
   dispose(): void;
@@ -34,10 +38,15 @@ function removeAt<T>(values: T[], index: number): void {
   values.pop();
 }
 
+/** A GameScene managed by a SceneManager, with lifecycle hooks, asset loading, VFX and a 2D camera. Subclass it and override the hooks to build a level or screen. */
 export class Scene extends GameScene {
+  /** Display name given at construction. */
   readonly name: string;
+  /** Loads assets that are released when the scene unloads. */
   readonly assets: SceneAssetManager;
+  /** Visual effects owned by the scene, disposed on unload. */
   readonly vfx: SceneVfx;
+  /** Viewport used when rendering the scene in 2D; null uses the full target. */
   viewport2D: Viewport2D | null = null;
   private cameraValue: Camera2D | null = null;
   private fallbackCameraValue: Camera2D | null = null;
@@ -51,6 +60,7 @@ export class Scene extends GameScene {
   private hasEntered = false;
   private hasExited = false;
 
+  /** Creates a scene in the 'ready' state; hand it to SceneManager.changeTo() to run it. */
   constructor(owner: Game, options: SceneOptions = {}) {
     super(owner);
     this.name = options.name === undefined ? '' : options.name;
@@ -66,6 +76,7 @@ export class Scene extends GameScene {
     return this.assets._reloadTexture(path);
   }
 
+  /** Camera used to render the scene in 2D. An active bound CameraRig2D takes precedence over the value set here. */
   get camera2D(): Camera2D | null {
     const rig = this.boundCameraRig;
     if (
@@ -80,6 +91,7 @@ export class Scene extends GameScene {
     return this.boundCameraRig === null ? this.cameraValue : this.fallbackCameraValue;
   }
 
+  /** Sets the fallback 2D camera; null renders without a camera. */
   set camera2D(camera: Camera2D | null) {
     this.cameraValue = camera;
     if (this.boundCameraRig !== null) this.fallbackCameraValue = camera;
@@ -104,15 +116,24 @@ export class Scene extends GameScene {
     return true;
   }
 
+  /** Current lifecycle state. */
   get state(): SceneState {
     return this.currentState;
   }
 
+  /**
+   * Adds a root object to the scene, like add(), but refuses while the scene is unloading or unloaded.
+   * @returns the node, or null when it cannot be added.
+   */
   addNode<T extends GameObject>(node: T): T | null {
     if (this.unloading || this.currentState === 'unloaded') return null;
     return super.add(node);
   }
 
+  /**
+   * Hands a resource to the scene so it is updated each frame and disposed on unload, in reverse order.
+   * @returns the resource, or null when the scene is unloading, the resource belongs to another game or scene, or is incompatible.
+   */
   own<T extends SceneOwnedResource>(resource: T): T | null {
     if (this.unloading || this.currentState === 'unloaded') return null;
     const boundResource: any = resource;
@@ -126,6 +147,10 @@ export class Scene extends GameScene {
     return resource;
   }
 
+  /**
+   * Tears the scene down: calls onExit and onUnload, destroys its objects and disposes its assets, VFX and owned resources.
+   * @returns false when called from inside a lifecycle hook or when the scene is already unloading or unloaded.
+   */
   unload(): boolean {
     if (this.inLifecycleHook || this.unloading || this.currentState === 'unloaded') return false;
     this.unloading = true;
@@ -164,14 +189,20 @@ export class Scene extends GameScene {
     return true;
   }
 
+  /** Same as unload(). */
   destroy(): void {
     this.unload();
   }
 
+  /** Override to build the scene. Called when a SceneManager activates it. */
   onEnter(): void {}
+  /** Override to react to the manager pausing the scene. */
   onPause(): void {}
+  /** Override to react to the manager resuming the scene. */
   onResume(): void {}
+  /** Override for cleanup when the scene is replaced or unloaded after having been entered. */
   onExit(): void {}
+  /** Override to free scene-specific data. Called during unload, after onExit and before objects are destroyed. */
   onUnload(): void {}
 
   /** @internal Assigns the scene to one manager and runs its enter hook. */

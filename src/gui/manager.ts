@@ -23,7 +23,9 @@ type NativeValueControl = GUI & {
   getValue?: () => number | boolean;
 };
 
+/** Owns the root GUI controls of a game, tracks keyboard focus, dispatches events, and submits controls for rendering each frame. */
 export class GUIManager implements ContextFrameService {
+  /** Game this manager belongs to. */
   readonly game: Game;
   private controls: GUI[] = [];
   private focusedControl: GUI | null = null;
@@ -37,6 +39,10 @@ export class GUIManager implements ContextFrameService {
   >();
   private pendingNativeFocus: { controlId: number; focused: boolean } | null = null;
 
+  /**
+   * Creates a manager for `game`.
+   * @param bridge Native bridge to use; defaults to the engine's native GUI layer.
+   */
   constructor(game: Game, bridge: GuiNativeBridge = new GuiNativeBridge()) {
     this.game = game;
     this.bridge = bridge;
@@ -47,13 +53,19 @@ export class GUIManager implements ContextFrameService {
     }
   }
 
+  /** Returns a copy of the list of root controls, in draw order. */
   getControls(): readonly GUI[] {
     return this.controls.slice();
   }
+  /** Returns the control that currently has keyboard focus, or `null`. */
   getFocusedControl(): GUI | null {
     return this.focusedControl;
   }
 
+  /**
+   * Adds a control as a root and returns it.
+   * @throws Error if the control already has a parent or owner, or has been destroyed.
+   */
   addControl(control: GUI): GUI {
     if (control.parent !== null || control._getManager() !== null) {
       throw new Error('GUI control already has a parent or owner.');
@@ -66,6 +78,10 @@ export class GUIManager implements ContextFrameService {
     return control;
   }
 
+  /**
+   * Removes a root control.
+   * @returns `true` if the control was a root of this manager, otherwise `false`.
+   */
   removeControl(control: GUI): boolean {
     const index = this.controls.indexOf(control);
     if (index < 0) return false;
@@ -75,10 +91,12 @@ export class GUIManager implements ContextFrameService {
     return true;
   }
 
+  /** Removes all root controls. */
   clearControls(): void {
     for (const control of this.controls.slice()) this.removeControl(control);
   }
 
+  /** Applies native responses to controls and dispatches pending native events. Does nothing when the manager is disposed or the native layer is unavailable. */
   updateFrame(_deltaTime: number): void {
     if (this.disposed || !this.bridge.isAvailable()) return;
     const readbackManagedControls = new Set<number>();
@@ -131,6 +149,7 @@ export class GUIManager implements ContextFrameService {
     }
   }
 
+  /** Submits all visible controls to the native layer for drawing. Does nothing when the manager is disposed or the native layer is unavailable. */
   renderFrame(): void {
     if (this.disposed || !this.bridge.isAvailable()) return;
     const commands: import('./commands').GuiControlCommand[] = [];
@@ -182,16 +201,24 @@ export class GUIManager implements ContextFrameService {
     if (focusRequestSubmitted) this.pendingNativeFocus = null;
   }
 
+  /** Returns whether the manager is active and the native GUI layer is available. */
   isAvailable(): boolean {
     return !this.disposed && this.bridge.isAvailable();
   }
+  /** Returns whether the GUI wants to handle pointer input, so game code can skip its own handling. */
   wantsPointerInput(): boolean {
     return !this.disposed && this.bridge.wantsPointerInput();
   }
+  /** Returns whether the GUI wants to handle keyboard input, so game code can skip its own handling. */
   wantsKeyboardInput(): boolean {
     return !this.disposed && this.bridge.wantsKeyboardInput();
   }
 
+  /**
+   * Dispatches an event to `target`, bubbling to its parents until propagation is stopped.
+   * @param type One of the `GUIEventType` values.
+   * @returns The dispatched event, or `null` if the manager is disposed or the target is not attached, visible, and active.
+   */
   dispatchEvent(target: GUI, type: number, options: GUIEventOptions = {}): GUIEvent | null {
     if (this.disposed || target._getManager() !== this || !target._isInputEligible()) return null;
     const event = new GUIEvent(type, target, options);
@@ -206,6 +233,7 @@ export class GUIManager implements ContextFrameService {
     return event;
   }
 
+  /** Removes all controls and stops the manager. Further calls do nothing. */
   dispose(): void {
     if (this.disposed) return;
     this.clearControls();

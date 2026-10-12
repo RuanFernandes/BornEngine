@@ -1,23 +1,31 @@
 import type { Rect } from '../core/types';
 
+/**
+ * A physical input that counts as "down" for an action: a key, mouse button, gamepad button, or a touch inside a screen rectangle.
+ */
 export type ActionButtonBinding =
   | { kind: 'key'; key: number }
   | { kind: 'mouse'; button: number }
   | { kind: 'gamepad'; button: number }
   | { kind: 'touch-region'; rect: Rect };
 
+/**
+ * Binding for an analog axis built from negative and positive button groups and/or a gamepad axis. The result is clamped to -1..1.
+ */
 export interface ActionAxisBinding {
   negative?: ActionButtonBinding[];
   positive?: ActionButtonBinding[];
   gamepadAxis?: { axis: number; scale?: number; deadzone?: number };
 }
 
+/** Position of one touch slot at the time an input snapshot was taken. */
 export interface TouchSample {
   active: boolean;
   x: number;
   y: number;
 }
 
+/** Device state sampled once per update and used to evaluate action and axis bindings. */
 export interface ActionInputSnapshot {
   keys: number[];
   mouseButtons: number[];
@@ -28,6 +36,7 @@ export interface ActionInputSnapshot {
   touches: Array<TouchSample | null>;
 }
 
+/** Per-frame state of an action: whether it is held and whether it was pressed or released this frame. */
 export interface ActionState {
   isDown: boolean;
   wasPressed: boolean;
@@ -41,6 +50,7 @@ function containsIndex(indices: number[], value: number): boolean {
   return false;
 }
 
+/** Returns true when the binding is active in the given input snapshot. */
 export function evaluateButtonBinding(binding: ActionButtonBinding, snapshot: ActionInputSnapshot): boolean {
   if (binding.kind === 'key') return containsIndex(snapshot.keys, binding.key);
   if (binding.kind === 'mouse') return containsIndex(snapshot.mouseButtons, binding.button);
@@ -64,6 +74,7 @@ export function evaluateButtonBinding(binding: ActionButtonBinding, snapshot: Ac
   return false;
 }
 
+/** Returns true when at least one of the bindings is active in the given input snapshot. */
 export function evaluateActionBindings(bindings: ActionButtonBinding[], snapshot: ActionInputSnapshot): boolean {
   for (let index = 0; index < bindings.length; index++) {
     if (evaluateButtonBinding(bindings[index], snapshot)) return true;
@@ -71,6 +82,9 @@ export function evaluateActionBindings(bindings: ActionButtonBinding[], snapshot
   return false;
 }
 
+/**
+ * Computes the axis value in -1..1 from button groups and the optional gamepad axis, applying its deadzone (default 0.15) and scale.
+ */
 export function evaluateAxisBinding(binding: ActionAxisBinding, snapshot: ActionInputSnapshot): number {
   const negative = binding.negative === undefined ? false : evaluateActionBindings(binding.negative, snapshot);
   const positive = binding.positive === undefined ? false : evaluateActionBindings(binding.positive, snapshot);
@@ -108,6 +122,9 @@ export function evaluateAxisBinding(binding: ActionAxisBinding, snapshot: Action
   return value;
 }
 
+/**
+ * Returns the next action state from the previous and current down values. When `suppressEdge` is true, no pressed or released edge is reported.
+ */
 export function advanceActionState(previous: boolean, current: boolean, suppressEdge: boolean): ActionState {
   return {
     isDown: current,

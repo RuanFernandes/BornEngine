@@ -141,11 +141,13 @@ function hasName(names: string[], candidate: string): boolean {
   return names.indexOf(candidate) >= 0;
 }
 
+/** Serialized form of one action: its name and its button bindings. */
 export interface InputActionMapActionData {
   name: string;
   bindings: ActionButtonBinding[];
 }
 
+/** Serialized form of one axis: its name and its axis binding. */
 export interface InputActionMapAxisData {
   name: string;
   binding: ActionAxisBinding;
@@ -210,6 +212,7 @@ export class InputActionMap {
   private actions: ActionEntry[] = [];
   private axes: AxisEntry[] = [];
 
+  /** Creates an action map that reads state from the given input system. Prefer `InputSystem.createActionMap()`. */
   constructor(private readonly input: InputSystem) {}
 
   /** Add one or more physical bindings to a named action. */

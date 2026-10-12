@@ -91,21 +91,27 @@ abstract class GuiImageBase extends GUI {
   }
 }
 
+/** Control that displays a texture with optional tint, opacity, rotation, and zoom. */
 export class GuiBitmap extends GuiImageBase {
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options, GuiControlKind.Bitmap);
   }
 }
 
+/** Image control that displays a texture with optional tint, opacity, rotation, and zoom. */
 export class GuiShowImg extends GuiImageBase {
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options, GuiControlKind.ShowImg);
   }
 }
 
+/** Progress bar whose value is clamped between 0 and 1. */
 export class GuiProgress extends GUI {
   private value = 0;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.Progress;
@@ -113,6 +119,7 @@ export class GuiProgress extends GUI {
     this.syncCommand();
   }
 
+  /** Sets the progress, clamped between 0 (empty) and 1 (full). */
   setValue(value: number): this {
     validateGuiCoordinate(value, 'progress value');
     this.value = Math.max(0, Math.min(1, value));
@@ -120,6 +127,7 @@ export class GuiProgress extends GUI {
     return this;
   }
 
+  /** Returns the progress between 0 and 1. */
   getValue(): number {
     return this.value;
   }
@@ -128,6 +136,7 @@ export class GuiProgress extends GUI {
   }
 }
 
+/** Recorded line drawing command. */
 export interface GuiDrawingLine {
   kind: 'line';
   start: GuiPoint;
@@ -136,6 +145,7 @@ export interface GuiDrawingLine {
   thickness: number;
 }
 
+/** Recorded rectangle drawing command. */
 export interface GuiDrawingRect {
   kind: 'rect';
   rect: GuiRect;
@@ -143,6 +153,7 @@ export interface GuiDrawingRect {
   filled: boolean;
 }
 
+/** Recorded circle drawing command. */
 export interface GuiDrawingCircle {
   kind: 'circle';
   center: GuiPoint;
@@ -151,6 +162,7 @@ export interface GuiDrawingCircle {
   thickness: number;
 }
 
+/** Recorded text drawing command. */
 export interface GuiDrawingText {
   kind: 'text';
   text: string;
@@ -159,6 +171,7 @@ export interface GuiDrawingText {
   color: Color;
 }
 
+/** Recorded texture drawing command. */
 export interface GuiDrawingImage {
   kind: 'image';
   texture: Texture;
@@ -167,6 +180,7 @@ export interface GuiDrawingImage {
   rotation: number;
 }
 
+/** Recorded polyline or polygon drawing command, depending on kind. */
 export interface GuiDrawingPolyline {
   kind: 'polyline' | 'polygon';
   points: GuiPoint[];
@@ -174,6 +188,7 @@ export interface GuiDrawingPolyline {
   thickness: number;
 }
 
+/** Any drawing command recorded by a GuiDrawingPanel. */
 export type GuiDrawingCommand =
   | GuiDrawingLine
   | GuiDrawingRect
@@ -203,15 +218,18 @@ function copyRect(rect: GuiRect, name: string): GuiRect {
   };
 }
 
+/** Panel that renders a list of retained 2D drawing commands, clipped to its bounds. */
 export class GuiDrawingPanel extends GUI {
   private drawings: GuiDrawingCommand[] = [];
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.DrawingPanel;
     this.setClipToBounds(true);
   }
 
+  /** Adds a line between two points. */
   drawLine(start: GuiPoint, end: GuiPoint, color: Color, thickness = 1): this {
     this.drawings.push({
       kind: 'line',
@@ -224,12 +242,14 @@ export class GuiDrawingPanel extends GUI {
     return this;
   }
 
+  /** Adds a rectangle, filled by default or as an outline. */
   drawRect(rect: GuiRect, color: Color, filled = true): this {
     this.drawings.push({ kind: 'rect', rect: copyRect(rect, 'rect'), color: copyColor(color), filled });
     this.syncDrawings();
     return this;
   }
 
+  /** Adds a circle outline with the given center, radius, and line thickness. */
   drawCircle(center: GuiPoint, radius: number, color: Color, thickness = 1): this {
     this.drawings.push({
       kind: 'circle',
@@ -242,6 +262,7 @@ export class GuiDrawingPanel extends GUI {
     return this;
   }
 
+  /** Adds a text string at the given position and size. */
   drawText(text: string, position: GuiPoint, size: number, color: Color): this {
     this.drawings.push({
       kind: 'text',
@@ -254,6 +275,7 @@ export class GuiDrawingPanel extends GUI {
     return this;
   }
 
+  /** Adds a texture drawn into the destination rectangle, with an optional tint and rotation. */
   drawImage(texture: Texture, destination: GuiRect, tint: Color = WHITE, rotation = 0): this {
     validateGuiCoordinate(rotation, 'rotation');
     this.drawings.push({
@@ -267,6 +289,11 @@ export class GuiDrawingPanel extends GUI {
     return this;
   }
 
+  /**
+   * Adds a connected line through the given points.
+   *
+   * @throws RangeError if fewer than two points are given.
+   */
   drawPolyline(points: GuiPoint[], color: Color, thickness = 1): this {
     if (points.length < 2) throw new RangeError('A polyline requires at least two points.');
     this.drawings.push({
@@ -279,6 +306,11 @@ export class GuiDrawingPanel extends GUI {
     return this;
   }
 
+  /**
+   * Adds a polygon through the given points.
+   *
+   * @throws RangeError if fewer than three points are given.
+   */
   drawPolygon(points: GuiPoint[], color: Color): this {
     if (points.length < 3) throw new RangeError('A polygon requires at least three points.');
     this.drawings.push({
@@ -291,12 +323,14 @@ export class GuiDrawingPanel extends GUI {
     return this;
   }
 
+  /** Removes all recorded drawing commands. */
   clearDrawing(): this {
     this.drawings = [];
     this.syncDrawings();
     return this;
   }
 
+  /** Returns copies of the recorded drawing commands in draw order. */
   getDrawingCommands(): readonly GuiDrawingCommand[] {
     return this.drawings.map((command) => {
       if (command.kind === 'line')

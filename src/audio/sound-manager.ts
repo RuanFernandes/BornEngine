@@ -5,24 +5,39 @@ import type { AudioSystem } from './audio-system';
 import { randomFloat } from '../math/internal';
 import { BUS_MUSIC, BUS_SFX, BUS_UI } from './internal';
 
+/** Options for SoundManager.loadSound. */
 export interface ManagedSoundOptions {
+  /** Mix bus to route the sound to: `BUS_SFX` (default), `BUS_MUSIC` or `BUS_UI`. */
   bus?: number;
+  /** Base volume, 0 or greater. Defaults to 1. */
   volume?: number;
+  /** Share of the sound sent to the reverb, 0..1. Defaults to 0. */
   reverbSend?: number;
+  /** Low-pass cutoff in Hz; 0 disables the filter. Defaults to 0. */
   lowpassHz?: number;
+  /** Minimum time between plays of this sound. Defaults to 0. */
   cooldownSeconds?: number;
+  /** Min and max volume; each play picks a random value in range. Defaults to [1, 1]. */
   volumeRange?: [number, number];
+  /** Min and max pitch (within 0.25..4); each play picks a random value in range. Defaults to [1, 1]. */
   pitchRange?: [number, number];
 }
 
+/** Options for SoundManager.loadMusic. */
 export interface ManagedMusicOptions {
+  /** Base volume, 0 or greater. Defaults to 1. */
   volume?: number;
 }
 
+/** Options for SoundManager.play3D. */
 export interface SpatialSoundOptions {
+  /** Whether playback repeats until stopped. Defaults to false. */
   looping?: boolean;
+  /** Distance range that plays at full volume. Defaults to 1. */
   refDist?: number;
+  /** Distance past which the voice is culled; 0 means never. Defaults to 0. */
   maxDist?: number;
+  /** How quickly volume falls past `refDist`; 1 is the physical inverse law. Defaults to 1. */
   rolloff?: number;
 }
 
@@ -75,10 +90,15 @@ export class SoundManager {
   private currentMusicName: string | null = null;
   private disposed = false;
 
+  /** Creates a manager bound to `audio`. Prefer `AudioSystem.createSoundManager()`. */
   constructor(private readonly audio: AudioSystem) {
     this.audio.registerManager(this);
   }
 
+  /**
+   * Loads and registers a sound under `name`.
+   * @returns The Sound, the existing one if `name` is already registered with the same path, or null on invalid options, a path conflict, or a load failure.
+   */
   loadSound(name: string, path: string, options: ManagedSoundOptions = {}): Sound | null {
     if (this.disposed || name.length === 0 || path.length === 0) return null;
 
@@ -135,6 +155,10 @@ export class SoundManager {
     return sound;
   }
 
+  /**
+   * Loads and registers a music track under `name`.
+   * @returns The Music, the existing one if `name` is already registered with the same path, or null on invalid options, a path conflict, or a load failure.
+   */
   loadMusic(name: string, path: string, options: ManagedMusicOptions = {}): Music | null {
     if (this.disposed || name.length === 0 || path.length === 0) return null;
 
@@ -156,6 +180,9 @@ export class SoundManager {
     return music;
   }
 
+  /**
+   * Plays the named sound with a random volume and pitch from its ranges. Returns false if unknown, on cooldown, or not playable.
+   */
   playSound(name: string): boolean {
     const entry = this.findSound(name);
     if (this.disposed || entry === null || entry.cooldownRemaining > 0) return false;
@@ -167,6 +194,7 @@ export class SoundManager {
     return true;
   }
 
+  /** Stops all playback of the named sound, including its 3D voices. Returns false if the name is unknown. */
   stopSound(name: string): boolean {
     const entry = this.findSound(name);
     if (this.disposed || entry === null) return false;
@@ -175,12 +203,14 @@ export class SoundManager {
     return true;
   }
 
+  /** Sets the base volume of the named sound. Returns false if the name is unknown or the sound is not loaded. */
   setSoundVolume(name: string, volume: number): boolean {
     const entry = this.findSound(name);
     if (this.disposed || entry === null) return false;
     return entry.sound.setVolume(volume);
   }
 
+  /** Stops, disposes and unregisters the named sound. Returns false if the name is unknown. */
   unloadSound(name: string): boolean {
     const index = this.findSoundIndex(name);
     if (this.disposed || index < 0) return false;
@@ -192,6 +222,7 @@ export class SoundManager {
     return true;
   }
 
+  /** Plays the named music track, stopping the previously played one. Returns false if the name is unknown. */
   playMusic(name: string): boolean {
     const entry = this.findMusic(name);
     if (this.disposed || entry === null) return false;
@@ -205,6 +236,9 @@ export class SoundManager {
     return true;
   }
 
+  /**
+   * Stops the named music track, or every registered track when `name` is omitted. Returns false if the name is unknown.
+   */
   stopMusic(name?: string): boolean {
     if (this.disposed) return false;
     if (name === undefined) {
@@ -222,12 +256,14 @@ export class SoundManager {
     return true;
   }
 
+  /** Sets the volume of the named music track. Returns false if the name is unknown or the music is not loaded. */
   setMusicVolume(name: string, volume: number): boolean {
     const entry = this.findMusic(name);
     if (this.disposed || entry === null) return false;
     return entry.music.setVolume(volume);
   }
 
+  /** Disposes and unregisters the named music track. Returns false if the name is unknown. */
   unloadMusic(name: string): boolean {
     const index = this.findMusicIndex(name);
     if (this.disposed || index < 0) return false;
@@ -238,6 +274,7 @@ export class SoundManager {
     return true;
   }
 
+  /** Plays the named sound at a 3D position and returns its voice, or null if unknown, on cooldown, or not playable. */
   play3D(name: string, position: Vec3, options: SpatialSoundOptions = {}): SoundVoice | null {
     const entry = this.findSound(name);
     if (this.disposed || entry === null || !entry.sound.isLoaded || entry.cooldownRemaining > 0) return null;
@@ -251,16 +288,19 @@ export class SoundManager {
     return voice;
   }
 
+  /** Sets the global output volume. */
   setMasterVolume(volume: number): void {
     if (this.disposed) return;
     this.audio.setMasterVolume(volume);
   }
 
+  /** Sets the gain of a mix bus (`BUS_SFX`, `BUS_MUSIC` or `BUS_UI`). */
   setBusGain(bus: number, gain: number): void {
     if (this.disposed) return;
     this.audio.setBusGain(bus, gain);
   }
 
+  /** Advances sound cooldown timers by `dt` seconds. AudioSystem calls this every frame. */
   update(dt: number): void {
     if (this.disposed) return;
     if (finiteNumber(dt) && dt > 0) {
@@ -272,6 +312,7 @@ export class SoundManager {
     }
   }
 
+  /** Stops and disposes every registered sound and music track. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

@@ -33,7 +33,9 @@ function removeAt<T>(values: T[], index: number): void {
   values.pop();
 }
 
+/** Container that runs a set of GameObjects and dispatches their lifecycle, update and render calls. */
 export class GameScene implements ContextResource {
+  /** The game runtime this scene belongs to. */
   readonly context: GameContext;
   private sceneObjects: GameObject[] = [];
   private pendingAwakeRoots: GameObject[] = [];
@@ -42,11 +44,13 @@ export class GameScene implements ContextResource {
   private nextAttachmentGeneration = 1;
   private wasDestroyed = false;
 
+  /** Creates an empty scene bound to the given game. */
   constructor(owner: Game) {
     this.context = getGameContext(owner);
     this.context.register(this);
   }
 
+  /** A copy of the list of all objects attached to the scene, including children. */
   get objects(): readonly GameObject[] {
     return this.sceneObjects.slice();
   }
@@ -74,6 +78,10 @@ export class GameScene implements ContextResource {
     };
   }
 
+  /**
+   * Adds a root object and its subtree to the scene, calling onAwake on them. Resolves @Asset and @GameComponent fields first; with an async @Asset errCallback the object attaches once loading finishes.
+   * @returns the object, or null when it is destroyed, already in a scene or parented, or contains an incompatible component.
+   */
   add<T extends GameObject>(object: T): T | null {
     if (
       this.wasDestroyed ||
@@ -92,6 +100,10 @@ export class GameScene implements ContextResource {
     return object;
   }
 
+  /**
+   * Detaches an object and its subtree from the scene without destroying them.
+   * @returns false when the object is not in this scene.
+   */
   remove(object: GameObject): boolean {
     const pendingIndex = this.pendingRoots.indexOf(object);
     if (pendingIndex >= 0) {
@@ -114,6 +126,10 @@ export class GameScene implements ContextResource {
     return true;
   }
 
+  /**
+   * Runs one frame: calls onStart once per object and component, then update on every active object and enabled component.
+   * @param dt Time elapsed since the previous frame.
+   */
   update(dt: number): void {
     if (this.wasDestroyed) return;
     const objects = this.sceneObjects.slice();
@@ -210,6 +226,10 @@ export class GameScene implements ContextResource {
     }
   }
 
+  /**
+   * Runs fixedUpdate on every active object and enabled component.
+   * @param fixedDt Length of the fixed timestep.
+   */
   updateFixed(fixedDt: number): void {
     if (this.wasDestroyed) return;
     const objects = this.sceneObjects.slice();
@@ -239,6 +259,7 @@ export class GameScene implements ContextResource {
     this._syncRuntimeAdapters();
   }
 
+  /** Pushes component state (such as transforms) into the physics world; call it before stepping the world. */
   syncPhysicsBeforeStep(world: PhysicsWorld, fixedDt: number): void {
     if (this.wasDestroyed) return;
     const objects = this.sceneObjects.slice();
@@ -255,6 +276,7 @@ export class GameScene implements ContextResource {
     }
   }
 
+  /** Pulls simulated state from the physics world back into components; call it after stepping the world. */
   syncPhysicsAfterStep(world: PhysicsWorld): void {
     if (this.wasDestroyed) return;
     const objects = this.sceneObjects.slice();
@@ -272,6 +294,7 @@ export class GameScene implements ContextResource {
     this._syncRuntimeAdapters();
   }
 
+  /** Destroys every root object in the scene and unregisters the scene. Does nothing if already destroyed. */
   destroy(): void {
     if (this.wasDestroyed) return;
     this.wasDestroyed = true;
@@ -283,6 +306,7 @@ export class GameScene implements ContextResource {
     this.context.unregister(this);
   }
 
+  /** Same as destroy(). */
   dispose(): void {
     this.destroy();
   }

@@ -1,26 +1,43 @@
 import type { Camera2D, Rect, Vector2DLike } from '../core/types';
 import { Vector2D } from '../math/vector2d';
 
+/**
+ * How the logical area is scaled to the screen: `fit` letterboxes uniformly, `integer` uses a whole-number scale when
+ * it can, `stretch` fills the screen.
+ */
 export type ViewportScalingMode2D = 'fit' | 'integer' | 'stretch';
 
+/** Options for `Viewport2D`. */
 export interface Viewport2DOptions {
   /** Width in logical world-screen units before camera zoom. */
   width: number;
   /** Height in logical world-screen units before camera zoom. */
   height: number;
+  /** Scaling mode. Defaults to `fit`. */
   mode?: ViewportScalingMode2D;
 }
 
+/** Mapping from logical coordinates to screen pixels for one screen size. */
 export interface ViewportTransform2D {
+  /** Screen width in pixels. */
   readonly screenWidth: number;
+  /** Screen height in pixels. */
   readonly screenHeight: number;
+  /** Logical width. */
   readonly logicalWidth: number;
+  /** Logical height. */
   readonly logicalHeight: number;
+  /** Screen pixels per logical unit horizontally. */
   readonly scaleX: number;
+  /** Screen pixels per logical unit vertically. */
   readonly scaleY: number;
+  /** Left edge of the logical area on screen, in pixels. */
   readonly offsetX: number;
+  /** Top edge of the logical area on screen, in pixels. */
   readonly offsetY: number;
+  /** Width of the logical area on screen, in pixels. */
   readonly contentWidth: number;
+  /** Height of the logical area on screen, in pixels. */
   readonly contentHeight: number;
 }
 
@@ -75,11 +92,16 @@ function worldToScreen(position: Vector2DLike, camera: Camera2D): Vector2D | nul
 
 /** A resize-safe logical-to-screen mapping shared by scene rendering and input. */
 export class Viewport2D {
+  /** Width in logical units. */
   readonly logicalWidth: number;
+  /** Height in logical units. */
   readonly logicalHeight: number;
+  /** Scaling mode. */
   readonly mode: ViewportScalingMode2D;
+  /** Message describing why the options were rejected, or null. */
   readonly error: string | null;
 
+  /** Creates a viewport. Invalid options are reported through `error`, not thrown. */
   constructor(options: Viewport2DOptions) {
     const settings = options === null || options === undefined ? ({} as Viewport2DOptions) : options;
     this.logicalWidth = settings.width;
@@ -95,6 +117,7 @@ export class Viewport2D {
     this.error = error;
   }
 
+  /** True when the options were accepted. */
   get isValid(): boolean {
     return this.error === null;
   }
@@ -160,6 +183,7 @@ export class Viewport2D {
     };
   }
 
+  /** Converts a screen pixel to logical coordinates. Returns null outside the letterboxed area or for invalid input. */
   screenToLogical(position: Vector2DLike, screenWidth: number, screenHeight: number): Vector2D | null {
     if (!validPoint(position)) return null;
     const transform = this.getTransform(screenWidth, screenHeight);
@@ -178,6 +202,7 @@ export class Viewport2D {
     return validPoint(logical) ? logical : null;
   }
 
+  /** Converts logical coordinates to a screen pixel. Returns null for invalid input. */
   logicalToScreen(position: Vector2DLike, screenWidth: number, screenHeight: number): Vector2D | null {
     if (!validPoint(position)) return null;
     const transform = this.getTransform(screenWidth, screenHeight);
@@ -189,11 +214,16 @@ export class Viewport2D {
     return validPoint(screen) ? screen : null;
   }
 
+  /**
+   * Converts a screen pixel to world coordinates through the viewport and camera. Returns null outside the letterboxed
+   * area or for invalid input.
+   */
   screenToWorld(position: Vector2DLike, camera: Camera2D, screenWidth: number, screenHeight: number): Vector2D | null {
     const logical = this.screenToLogical(position, screenWidth, screenHeight);
     return logical === null ? null : screenToWorld(logical, camera);
   }
 
+  /** Converts world coordinates to a screen pixel through the camera and viewport. Returns null for invalid input. */
   worldToScreen(position: Vector2DLike, camera: Camera2D, screenWidth: number, screenHeight: number): Vector2D | null {
     const logical = worldToScreen(position, camera);
     return logical === null ? null : this.logicalToScreen(logical, screenWidth, screenHeight);

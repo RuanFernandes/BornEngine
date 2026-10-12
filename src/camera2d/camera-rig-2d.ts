@@ -5,33 +5,55 @@ import type { GameObject } from '../game/game-object';
 import type { Viewport2D } from './viewport-2d';
 import type { Scene } from '../game/scene';
 
+/** Options for `CameraRig2D`. Every field is optional. */
 export interface CameraRig2DOptions {
+  /** Object to follow. Omit it to follow the owning GameObject; null follows nothing. */
   target?: GameObject | null;
+  /** World offset added to the followed position. */
   targetOffset?: Vector2DLike;
+  /** Initial world point the camera looks at. */
   cameraTarget?: Vector2DLike;
+  /** Screen point that the camera target is drawn at. Defaults to the center of the view. */
   offset?: Vector2DLike;
+  /** Camera rotation in degrees. */
   rotation?: number;
+  /** Initial zoom, clamped to `minZoom` and `maxZoom`. Defaults to 1. */
   zoom?: number;
+  /** Follow smoothing time in seconds. 0 snaps to the target. */
   smoothing?: number;
+  /** Rectangle, relative to the camera target, inside which the followed object moves without moving the camera. */
   deadZone?: Rect;
+  /** World rectangle that the visible area is kept inside. */
   bounds?: Rect;
+  /** Visible area in world units at zoom 1, used for centering and bounds. Defaults to the scene viewport size. */
   viewSize?: Vector2DLike;
+  /** Lowest allowed zoom. Defaults to 0.01. */
   minZoom?: number;
+  /** Highest allowed zoom. Defaults to 100. */
   maxZoom?: number;
 }
 
+/** Options for `CameraRig2D.shake`. */
 export interface CameraShake2DOptions {
+  /** Maximum shake offset per axis in world units. Defaults to (1, 1). */
   amplitude?: Vector2DLike;
+  /** Shake length in seconds. Must be positive. */
   duration: number;
+  /** Seed of the generated shake pattern. Defaults to 1. */
   seed?: number;
+  /** At least two offset samples interpolated over the duration. They replace the generated shake pattern. */
   envelope?: readonly Vector2DLike[];
 }
 
 /** Detached camera state snapshot with Vector2D values for runtime math. */
 export interface Camera2DSnapshot {
+  /** Screen point that the target is drawn at. */
   readonly offset: Readonly<Vector2D>;
+  /** World point the camera looks at. */
   readonly target: Readonly<Vector2D>;
+  /** Rotation in degrees. */
   readonly rotation: number;
+  /** Zoom factor. */
   readonly zoom: number;
 }
 
@@ -89,13 +111,21 @@ function validTarget(value: GameObject | null | undefined): value is GameObject 
  * camera yet, it binds itself as the scene camera.
  */
 export class CameraRig2D extends GameComponent {
+  /** Message describing why the options were rejected, or null. A rig with an error does not move the camera. */
   readonly error: string | null;
+  /** Object the camera follows, or null. Assign to change it. */
   target: GameObject | null;
+  /** Follow smoothing time in seconds. */
   readonly smoothing: number;
+  /** Dead zone rectangle relative to the camera target, or null. */
   readonly deadZone: Rect | null;
+  /** World rectangle the visible area is kept inside, or null. */
   readonly bounds: Rect | null;
+  /** Explicit view size in world units, or null to use the scene viewport. */
   readonly viewSize: Vector2D | null;
+  /** Lowest allowed zoom. */
   readonly minZoom: number;
+  /** Highest allowed zoom. */
   readonly maxZoom: number;
 
   private cameraValue: Camera2D;
@@ -106,6 +136,7 @@ export class CameraRig2D extends GameComponent {
   private followsOwner: boolean;
   private offsetFromView: boolean;
 
+  /** Creates a rig. Invalid options are reported through `error`, not thrown. */
   constructor(options: CameraRig2DOptions = {}) {
     super();
     const settings = options === null || options === undefined ? {} : options;
@@ -186,10 +217,12 @@ export class CameraRig2D extends GameComponent {
     };
   }
 
+  /** World offset added to the followed position, as a copy. */
   get targetOffset(): Vector2D {
     return copyPoint(this.targetOffsetValue);
   }
 
+  /** Changes the followed object. Null stops following. Returns false for a destroyed object. */
   setTarget(target: GameObject | null): boolean {
     if (target === undefined || !validTarget(target)) return false;
     this.target = target;
@@ -197,12 +230,14 @@ export class CameraRig2D extends GameComponent {
     return true;
   }
 
+  /** Sets the zoom, clamped to `minZoom` and `maxZoom`. Returns false for a non-positive or non-finite value. */
   setZoom(zoom: number): boolean {
     if (this.error !== null || !finite(zoom) || zoom <= 0) return false;
     this.cameraValue.zoom = clamp(zoom, this.minZoom, this.maxZoom);
     return true;
   }
 
+  /** Sets the screen point that the target is drawn at and stops centering it in the view. */
   setOffset(offset: Vector2DLike): boolean {
     if (this.error !== null || !point(offset)) return false;
     this.cameraValue.offset = copyPoint(offset);
@@ -210,12 +245,17 @@ export class CameraRig2D extends GameComponent {
     return true;
   }
 
+  /** Makes this rig the scene camera when the scene does not have one yet. */
   override onAwake(): void {
     const scene = this.gameObject?.scene as Scene | null | undefined;
     if (scene === null || scene === undefined || typeof scene.bindCameraRig2D !== 'function') return;
     if (scene.camera2D === null) scene.bindCameraRig2D(this);
   }
 
+  /**
+   * Moves the camera toward the target, applying smoothing, dead zone, bounds and shake. Called each frame by the
+   * scene.
+   */
   update(dt: number): void {
     if (this.error !== null || !finite(dt) || dt < 0) return;
     if (this.offsetFromView) this.syncOffsetToView();
@@ -251,6 +291,7 @@ export class CameraRig2D extends GameComponent {
     };
   }
 
+  /** Starts a camera shake, replacing any active one. Returns false for invalid options. */
   shake(options: CameraShake2DOptions): boolean {
     if (
       this.error !== null ||
@@ -286,6 +327,7 @@ export class CameraRig2D extends GameComponent {
     return true;
   }
 
+  /** Stops the active shake and puts the camera back on its unshaken position. */
   stopShake(): void {
     this.shakeState = null;
     this.shakeOffsetValue = { x: 0, y: 0 };

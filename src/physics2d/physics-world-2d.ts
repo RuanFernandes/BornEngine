@@ -6,21 +6,33 @@ import { Vector2D } from '../math/vector2d';
 import { PhysicsBody2D } from './physics-body-2d';
 import type { PhysicsBodyContact2D, PhysicsBody2DOptions, PhysicsContact2D, PhysicsShape2D } from './physics-body-2d';
 
+/** Gravity and fixed-step settings for a 2D physics world. */
 export interface PhysicsWorld2DOptions {
+  /** Gravity vector. Defaults to (0, 980). */
   gravity?: Vector2DLike;
+  /** Simulation step length in seconds. Defaults to 1/60. */
   fixedTimeStep?: number;
+  /** Maximum fixed steps run per `step` call. Defaults to 5. */
   maxSubSteps?: number;
 }
 
+/** Result of a 2D ray cast. */
 export interface PhysicsRayHit2D {
+  /** Body that was hit. */
   readonly body: PhysicsBody2D;
+  /** World-space hit point. */
   readonly point: Readonly<Vector2D>;
+  /** Surface normal at the hit point. */
   readonly normal: Readonly<Vector2D>;
+  /** Distance from the ray origin to the hit point. */
   readonly distance: number;
 }
 
+/** Filters for raycasts and overlap queries. */
 export interface PhysicsQueryOptions2D {
+  /** Layers to include. Defaults to all layers. */
   layerMask?: number;
+  /** Whether sensor bodies are included. Defaults to true. */
   includeSensors?: boolean;
 }
 
@@ -220,7 +232,9 @@ function removeAt<T>(values: T[], index: number): void {
  * Call step() from the active Scene.update() and dispose it with Scene.own().
  */
 export class PhysicsWorld2D implements ContextResource {
+  /** Game context that owns this world. */
   readonly context: GameContext;
+  /** Creation error message, or null if the world was created. */
   readonly error: string | null;
 
   private gravityValue: Vector2DLike;
@@ -240,6 +254,11 @@ export class PhysicsWorld2D implements ContextResource {
   private narrowphaseTestCount = 0;
   private queryCandidateCount = 0;
 
+  /**
+   * Creates a 2D physics world for a game.
+   * Check `error` if the game is not ready or the options are invalid.
+   * @param owner Game that owns the world.
+   */
   constructor(owner: Game, options: PhysicsWorld2DOptions = {}) {
     this.context = getGameContext(owner);
     const settings: PhysicsWorld2DOptions = options === null || options === undefined ? {} : options;
@@ -270,27 +289,35 @@ export class PhysicsWorld2D implements ContextResource {
     this.error = this.context.register(this) ? null : 'Unable to register PhysicsWorld2D with the Game.';
   }
 
+  /** True while the world has no error and neither it nor its game has been disposed. */
   get isReady(): boolean {
     return !this.disposed && this.error === null && this.context.isReady && !this.context.isDisposed;
   }
+  /** True once the world has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Current gravity vector. */
   get gravity(): Vector2D {
     return Vector2D.from(this.gravityValue);
   }
+  /** Simulation step length in seconds. */
   get fixedTimeStep(): number {
     return this.fixedTimeStepValue;
   }
+  /** Maximum fixed steps run per `step` call. */
   get maxSubSteps(): number {
     return this.maxSubStepsValue;
   }
+  /** Number of bodies registered in the world. */
   get bodyCount(): number {
     return this.bodies.length;
   }
+  /** Number of queued contact records waiting for `popContacts`. */
   get contactCount(): number {
     return this.contactEvents.length;
   }
+  /** Total frame time in seconds discarded because `step` exceeded the sub-step limit. */
   get droppedTime(): number {
     return this.elapsedDroppedTime;
   }
@@ -307,12 +334,14 @@ export class PhysicsWorld2D implements ContextResource {
     return this.queryCandidateCount;
   }
 
+  /** Sets world gravity; returns false if the world is not ready or the value is not finite. */
   setGravity(value: Vector2DLike): boolean {
     if (!this.isReady || !validVec(value)) return false;
     this.gravityValue = copyVec(value);
     return true;
   }
 
+  /** Sets the step length in seconds and the maximum sub-steps per frame; returns false for invalid values. */
   setFixedTimeStep(value: number, maxSubSteps = this.maxSubStepsValue): boolean {
     if (
       !this.isReady ||
@@ -329,6 +358,7 @@ export class PhysicsWorld2D implements ContextResource {
     return true;
   }
 
+  /** Creates a body in this world. Check the returned body `error` for invalid options. */
   createBody(options: PhysicsBody2DOptions): PhysicsBody2D {
     return new PhysicsBody2D(this, options);
   }
@@ -396,6 +426,7 @@ export class PhysicsWorld2D implements ContextResource {
     return closest;
   }
 
+  /** Returns bodies that contain a point. */
   overlapPoint(point: Vector2DLike, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
     if (!this.isReady || !validVec(point)) return [];
     const layerMask = options.layerMask === undefined ? 0x7fffffff : options.layerMask;
@@ -410,6 +441,7 @@ export class PhysicsWorld2D implements ContextResource {
     return result;
   }
 
+  /** Returns bodies overlapping a circle. */
   overlapCircle(center: Vector2DLike, radius: number, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
     if (!this.isReady || !validVec(center) || !finite(radius) || radius <= 0) return [];
     const layerMask = options.layerMask === undefined ? 0x7fffffff : options.layerMask;
@@ -430,6 +462,10 @@ export class PhysicsWorld2D implements ContextResource {
     return result;
   }
 
+  /**
+   * Returns bodies overlapping an axis-aligned box.
+   * @param size Full width and height of the box.
+   */
   overlapBox(center: Vector2DLike, size: Vector2DLike, options: PhysicsQueryOptions2D = {}): PhysicsBody2D[] {
     if (!this.isReady || !validVec(center) || !validVec(size) || size.x <= 0 || size.y <= 0) return [];
     const layerMask = options.layerMask === undefined ? 0x7fffffff : options.layerMask;
@@ -460,6 +496,7 @@ export class PhysicsWorld2D implements ContextResource {
     return result;
   }
 
+  /** Discards active contacts and queued contact records without emitting exit events. */
   clearContacts(): void {
     this.activeContacts = [];
     this.contactEvents = [];
@@ -540,6 +577,7 @@ export class PhysicsWorld2D implements ContextResource {
     return { position: copyVec(position), normals, exhausted: surfaceResult !== null && surfaceResult.exhausted };
   }
 
+  /** Disposes the world and every body in it. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

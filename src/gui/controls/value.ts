@@ -6,12 +6,19 @@ import type { GuiControlKindCode } from '../commands';
 import { validateGuiCoordinate } from '../layout';
 import type { GUIControlOptions } from '../types';
 
+/** Base class for controls that hold a numeric or boolean value and report changes made by the user. */
 export class GuiNumberValueControl<TValue extends number | boolean> extends GUI {
   private value: TValue;
   private minimum = 0;
   private maximum = 1;
   private revision = 0;
 
+  /**
+   * @param options Initial control options.
+   * @param initialValue Starting value.
+   * @param kind Native control kind sent to the renderer.
+   * @param profile Name of the style profile to apply.
+   */
   constructor(
     options: GUIControlOptions = {},
     initialValue: TValue,
@@ -25,10 +32,16 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
     this.syncCommand();
   }
 
+  /** Returns the current value. */
   getValue(): TValue {
     return this.value;
   }
 
+  /**
+   * Sets the value. Numbers are clamped to the current range.
+   *
+   * @throws TypeError if the value is neither a number nor a boolean.
+   */
   setValue(value: TValue): this {
     if (typeof value === 'number') {
       validateGuiCoordinate(value, 'value');
@@ -43,6 +56,11 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
     return this;
   }
 
+  /**
+   * Sets the allowed range and clamps a numeric value into it.
+   *
+   * @throws RangeError if minimum is greater than maximum.
+   */
   setRange(minimum: number, maximum: number): this {
     validateGuiCoordinate(minimum, 'minimum');
     validateGuiCoordinate(maximum, 'maximum');
@@ -55,6 +73,7 @@ export class GuiNumberValueControl<TValue extends number | boolean> extends GUI 
     return this;
   }
 
+  /** Returns the current minimum and maximum. */
   getRange(): { minimum: number; maximum: number } {
     return { minimum: this.minimum, maximum: this.maximum };
   }

@@ -12,9 +12,13 @@ type TextureSource = string | ImageData | RenderTexture;
 
 /** A texture resource owned by a Game or Scene asset scope. Its native handle stays private. */
 export class Texture implements ContextDrawable {
+  /** Discriminator identifying this resource as a texture. */
   readonly resourceKind = 'texture';
+  /** Width in pixels; 0 if the texture failed to load. */
   readonly width: number;
+  /** Height in pixels; 0 if the texture failed to load. */
   readonly height: number;
+  /** Load failure message, or null when the texture loaded. */
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
@@ -84,6 +88,7 @@ export class Texture implements ContextDrawable {
     }
   }
 
+  /** True while the texture is usable: loaded, not disposed, and its Game is ready. */
   get isLoaded(): boolean {
     return (
       this.context.isReady &&
@@ -93,6 +98,7 @@ export class Texture implements ContextDrawable {
       (this.renderTextureSource === null || this.renderTextureSource.isLoaded)
     );
   }
+  /** True once the texture has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
@@ -113,6 +119,7 @@ export class Texture implements ContextDrawable {
     return spriteOperations.createParticleEmitter2D(capacity, this.handleValue);
   }
 
+  /** Draws the whole texture at `position`, multiplied by `tint` (white by default). Returns false if not loaded. */
   draw(position: Vector2DLike, tint: Color = Colors.WHITE): boolean {
     if (!this.isLoaded) return false;
     return this.context.draw(this, position, tint);
@@ -176,12 +183,16 @@ export class Texture implements ContextDrawable {
     return true;
   }
 
+  /**
+   * Sets the sampling filter (`FILTER_LINEAR` or `FILTER_NEAREST`). Returns false if not loaded or this texture is a render-texture view.
+   */
   setFilter(mode: number): boolean {
     if (!this.isLoaded || !this.ownsHandle) return false;
     operations.setTextureFilter(this.toNativeTexture(), mode);
     return true;
   }
 
+  /** Generates mipmaps for this texture. Returns false if not loaded or this texture is a render-texture view. */
   generateMipmaps(): boolean {
     if (!this.isLoaded || !this.ownsHandle) return false;
     operations.genTextureMipmaps(this.toNativeTexture());
@@ -199,6 +210,7 @@ export class Texture implements ContextDrawable {
     return { handle: this.handleValue, width: this.width, height: this.height };
   }
 
+  /** Releases the texture. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     if (this.ownsHandle && this.handleValue !== 0) operations.unloadTexture(this.toNativeTexture());

@@ -2,6 +2,7 @@ import type { GuiProfile } from './profile';
 import type { GuiRect } from './types';
 import type { Texture } from '../textures';
 
+/** Numeric codes identifying the kind of control in a render command. */
 export const GuiControlKind = {
   Control: 0,
   Panel: 1,
@@ -33,14 +34,17 @@ export const GuiControlKind = {
   DrawingPanel: 27,
 } as const;
 
+/** Union of the numeric values in `GuiControlKind`. */
 export type GuiControlKindCode = (typeof GuiControlKind)[keyof typeof GuiControlKind];
 
+/** One list, menu, or tree entry submitted with a control render command. */
 export interface GuiControlItemCommand {
   id: string | number;
   label: string;
   depth: number;
 }
 
+/** One drawing primitive submitted with a drawing panel render command. */
 export interface GuiDrawingPayload {
   kind: number;
   values: number[];
@@ -49,11 +53,13 @@ export interface GuiDrawingPayload {
   textureHandle?: number;
 }
 
+/** A clip rectangle, in global coordinates, applied by the control with id `ownerId`. */
 export interface GuiClipCommand {
   ownerId: number;
   rect: GuiRect;
 }
 
+/** Flattened description of one control (geometry, profile, state, items, drawings) handed to the native GUI layer each frame. */
 export interface GuiControlCommand {
   kind: number;
   id: number;
@@ -69,6 +75,7 @@ export interface GuiControlCommand {
   drawings: GuiDrawingPayload[];
 }
 
+/** Returns the overlapping area of two rectangles, with zero width or height when they do not overlap. */
 export function intersectGuiRects(left: GuiRect, right: GuiRect): GuiRect {
   const x = Math.max(left.x, right.x);
   const y = Math.max(left.y, right.y);

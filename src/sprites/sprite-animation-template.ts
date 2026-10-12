@@ -1,27 +1,44 @@
+/** Value the `format` field of every animation template must have. */
 export const SPRITE_ANIMATION_TEMPLATE_FORMAT = 'bornengine.spriteanim-template';
+/** The only template schema version that validation accepts. */
 export const SPRITE_ANIMATION_TEMPLATE_VERSION = 1;
 
+/**
+ * What a clip does at its last frame: `loop` repeats, `once` holds the last frame, `ping-pong` plays back and forth.
+ */
 export type SpriteAnimationTemplateLoop = 'loop' | 'once' | 'ping-pong';
 
 /** Direction names in Graal `dir` order: 0 = up, 1 = left, 2 = down, 3 = right. */
 export const SPRITE_ANIMATION_DIRECTIONS = ['up', 'left', 'down', 'right'] as const;
+/** Key of one facing direction in a directional clip. */
 export type SpriteAnimationDirectionName = (typeof SPRITE_ANIMATION_DIRECTIONS)[number];
 /** Direction used when a directional clip has to be read as a single frame list. */
 export const SPRITE_ANIMATION_DEFAULT_DIR = 2;
 
+/** A plain 2D vector used by layer transforms. */
 export interface SpriteAnimationTemplateVector2 {
   readonly x: number;
   readonly y: number;
 }
 
+/**
+ * Placement of a layer within the clip canvas. Omitted fields use offset (0, 0), stretch (1, 1), zoom 1, rotation 0 and
+ * pivot (0.5, 0.5).
+ */
 export interface SpriteAnimationTemplateTransform {
+  /** Position of the layer from the object origin, in canvas pixels. */
   readonly offset?: SpriteAnimationTemplateVector2;
+  /** Per-axis scale. A negative value mirrors the layer; zero is not allowed. */
   readonly stretch?: SpriteAnimationTemplateVector2;
+  /** Uniform scale multiplier. Must be positive. */
   readonly zoom?: number;
+  /** Rotation in degrees, added to the object rotation. */
   readonly rotation?: number;
+  /** Normalized anchor and rotation point within the layer crop, from 0 to 1 on each axis. */
   readonly pivot?: SpriteAnimationTemplateVector2;
 }
 
+/** A layer transform with every default filled in. */
 export interface ResolvedSpriteAnimationTemplateTransform {
   readonly offset: SpriteAnimationTemplateVector2;
   readonly stretch: SpriteAnimationTemplateVector2;
@@ -30,13 +47,19 @@ export interface ResolvedSpriteAnimationTemplateTransform {
   readonly pivot: SpriteAnimationTemplateVector2;
 }
 
+/** Declares a named image slot, such as a body or hat sheet. Layers crop from it and you bind one texture to it. */
 export interface SpriteAnimationTemplateParameter {
+  /** Unique ID that layers and image bindings refer to. */
   readonly id: string;
+  /** Optional display name for editors. */
   readonly label?: string;
+  /** Whether binding must supply a texture for this parameter. */
   readonly required: boolean;
+  /** Optional unique tags that tools can use to group parameters. */
   readonly tags?: readonly string[];
 }
 
+/** Crop rectangle in texture pixels. It must lie inside the bound texture. */
 export interface SpriteAnimationTemplateSourceRect {
   readonly x: number;
   readonly y: number;
@@ -44,28 +67,43 @@ export interface SpriteAnimationTemplateSourceRect {
   readonly height: number;
 }
 
+/** One image crop drawn inside a frame, taken from an image parameter and positioned by an optional transform. */
 export interface SpriteAnimationTemplateLayer {
+  /** ID of the image parameter that supplies the texture. */
   readonly parameter: string;
+  /** Region of that texture to draw. */
   readonly source: SpriteAnimationTemplateSourceRect;
+  /** Whether the layer is drawn. Defaults to true. */
   readonly visible?: boolean;
+  /** Placement of the layer. Defaults to the identity transform. */
   readonly transform?: SpriteAnimationTemplateTransform;
 }
 
+/** One animation step: a stack of layers with an optional duration and markers. */
 export interface SpriteAnimationTemplateFrame {
+  /** Seconds the frame is shown. Defaults to 1 divided by the clip fps. */
   readonly duration?: number;
+  /** Event names emitted when playback enters this frame. */
   readonly markers?: readonly string[];
+  /** Layers of the frame. They draw in array order, so later layers appear on top. */
   readonly layers: readonly SpriteAnimationTemplateLayer[];
 }
 
+/** Logical drawing area of a clip in pixels. Layer offsets are measured in it and it scales to the renderer size. */
 export interface SpriteAnimationTemplateCanvasSize {
   readonly width: number;
   readonly height: number;
 }
 
+/** A named animation of the template, made of frames or of per-direction frames. */
 export interface SpriteAnimationTemplateClip {
+  /** Unique clip name used to play it. */
   readonly name: string;
+  /** Frames per second used for frames without an explicit duration. Must be positive. */
   readonly fps: number;
+  /** Behavior at the last frame. */
   readonly loop: SpriteAnimationTemplateLoop;
+  /** Drawing area the clip is authored in. */
   readonly canvasSize: SpriteAnimationTemplateCanvasSize;
   /** Frames of a non-directional clip. Mutually exclusive with directions. */
   readonly frames?: readonly SpriteAnimationTemplateFrame[];
@@ -73,58 +111,82 @@ export interface SpriteAnimationTemplateClip {
   readonly directions?: SpriteAnimationTemplateDirections;
 }
 
+/** Frame lists for the four facing directions of a directional clip. */
 export type SpriteAnimationTemplateDirections = Readonly<
   Record<SpriteAnimationDirectionName, readonly SpriteAnimationTemplateFrame[]>
 >;
 
+/**
+ * A source-independent layered animation: the image slots it needs and the clips that draw them.
+ * This is the shape of a `.spriteanim-template.json` file. Validate it, then bind textures to it to play it.
+ */
 export interface SpriteAnimationTemplate {
+  /** Must equal `SPRITE_ANIMATION_TEMPLATE_FORMAT`. */
   readonly format: typeof SPRITE_ANIMATION_TEMPLATE_FORMAT;
+  /** Must equal `SPRITE_ANIMATION_TEMPLATE_VERSION`. */
   readonly version: typeof SPRITE_ANIMATION_TEMPLATE_VERSION;
+  /** Stable unique identifier of the template. */
   readonly id: string;
+  /** Display name of the template. */
   readonly name: string;
+  /** Optional free-form description. */
   readonly description?: string;
+  /** Image slots that textures are bound to. At least one is required. */
   readonly imageParameters: readonly SpriteAnimationTemplateParameter[];
+  /** Clips of the template. At least one is required and names must be unique. */
   readonly clips: readonly SpriteAnimationTemplateClip[];
 }
 
+/** A layer with visibility and transform defaults filled in. */
 export interface ResolvedSpriteAnimationTemplateLayer extends SpriteAnimationTemplateLayer {
   readonly visible: boolean;
   readonly transform: ResolvedSpriteAnimationTemplateTransform;
 }
 
+/** A frame whose layers are resolved. */
 export interface ResolvedSpriteAnimationTemplateFrame extends SpriteAnimationTemplateFrame {
   readonly layers: readonly ResolvedSpriteAnimationTemplateLayer[];
 }
 
+/** Resolved frame lists for the four facing directions. */
 export type ResolvedSpriteAnimationTemplateDirections = Readonly<
   Record<SpriteAnimationDirectionName, readonly ResolvedSpriteAnimationTemplateFrame[]>
 >;
 
+/** A clip with resolved frames. A directional clip also keeps its direction lists. */
 export interface ResolvedSpriteAnimationTemplateClip extends SpriteAnimationTemplateClip {
   /** Frames of a non-directional clip, or the default (down) direction of a directional clip. */
   readonly frames: readonly ResolvedSpriteAnimationTemplateFrame[];
   readonly directions?: ResolvedSpriteAnimationTemplateDirections;
 }
 
+/** A validated template with every default filled in. Produced by `validateSpriteAnimationTemplate`. */
 export interface ResolvedSpriteAnimationTemplate extends SpriteAnimationTemplate {
   readonly clips: readonly ResolvedSpriteAnimationTemplateClip[];
 }
 
+/** One validation problem found in a template or binding. */
 export interface SpriteAnimationTemplateDiagnostic {
+  /** JSON pointer to the offending field. Empty for the whole document. */
   readonly path: string;
+  /** Stable identifier of the problem kind, such as `clip.fps`. */
   readonly code: string;
+  /** Human-readable description of the problem. */
   readonly message: string;
 }
 
+/** Result of template validation: the resolved template when `ok`, otherwise the diagnostics. */
 export type SpriteAnimationTemplateValidationResult =
   | { readonly ok: true; readonly value: ResolvedSpriteAnimationTemplate; readonly diagnostics: readonly [] }
   | { readonly ok: false; readonly value: null; readonly diagnostics: readonly SpriteAnimationTemplateDiagnostic[] };
 
+/** Pixel size of a texture supplied for an image parameter. */
 export interface SpriteAnimationTemplateImageSize {
   readonly width: number;
   readonly height: number;
 }
 
+/** Result of checking image sizes against a template: `ok`, or diagnostics describing every problem. */
 export type SpriteAnimationTemplateBindingValidationResult =
   | { readonly ok: true; readonly diagnostics: readonly [] }
   | { readonly ok: false; readonly diagnostics: readonly SpriteAnimationTemplateDiagnostic[] };

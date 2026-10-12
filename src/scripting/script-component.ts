@@ -8,16 +8,26 @@ interface ScriptParticleBurstReceiver {
   _receiveScriptParticleBurst(count: number, directionX: number, directionY: number): void;
 }
 
+/**
+ * Capability a script may be granted; all are denied unless listed.
+ * `log` allows logging, `self.read` exposes the object's id and position, `self.transform.write` allows moving it, and `self.particles.emit` allows emitting particle bursts.
+ */
 export type ScriptPermission = 'log' | 'self.read' | 'self.transform.write' | 'self.particles.emit';
 
+/** Resource budgets for a script's guest VM. */
 export interface ScriptLimits {
+  /** Maximum guest heap size in bytes, from 64 KiB to 64 MiB. */
   maxMemoryBytes: number;
+  /** Maximum guest call stack size in bytes, from 16 KiB to 256 KiB. */
   maxStackBytes: number;
+  /** Execution-interrupt budget, from 1 to 1,000,000. */
   maxInterruptChecks: number;
 }
 
+/** Lifecycle state of a `ScriptComponent`. */
 export type ScriptStatus = 'ready' | 'running' | 'error' | 'unsupported' | 'disposed';
 
+/** Options for a `ScriptComponent`. */
 export interface ScriptComponentOptions {
   /** Capabilities are denied unless explicitly listed here. */
   permissions?: readonly ScriptPermission[];
@@ -30,18 +40,22 @@ export interface ScriptComponentOptions {
  * this object per callback and installs only methods allowed by permissions.
  */
 export interface ScriptContext {
+  /** The object the script is attached to. */
   readonly self: {
     readonly id?: string;
     readonly position?: Readonly<Vec3>;
     setPosition?(x: number, y: number, z: number): void;
     moveBy?(x: number, y: number, z: number): void;
   };
+  /** Logs a message. Available with the `log` permission. */
   log?(message: string): void;
+  /** Particle controls. Available with the `self.particles.emit` permission. */
   readonly particles?: {
     emitBurst?(count: number, directionX?: number, directionY?: number): void;
   };
 }
 
+/** Limits applied when `ScriptComponentOptions.limits` leaves a value unset. */
 export const DEFAULT_SCRIPT_LIMITS: ScriptLimits = {
   maxMemoryBytes: 16 * 1024 * 1024,
   maxStackBytes: 256 * 1024,
@@ -115,7 +129,9 @@ function permissionMask(permissions?: readonly ScriptPermission[]): number | nul
 
 /** A self-contained JavaScript behavior attached to one GameObject. */
 export class ScriptComponent extends GameComponent {
+  /** Script runtime that owns this component. */
   readonly runtime: ScriptRuntime;
+  /** JavaScript module source this component runs. */
   readonly source: string;
   private handleValue = 0;
   private statusValue: ScriptStatus = 'error';
@@ -125,6 +141,10 @@ export class ScriptComponent extends GameComponent {
   private lastCallbackMsValue = 0;
   private memoryUsedValue = 0;
 
+  /**
+   * Loads `source` into a sandboxed VM owned by `runtime`.
+   * Check `status` and `error` afterwards: invalid source, permissions, or limits give `error`, and targets without embedded JavaScript give `unsupported`.
+   */
   constructor(runtime: ScriptRuntime, source: string, options: ScriptComponentOptions = {}) {
     super();
     this.runtime = runtime;
@@ -178,15 +198,19 @@ export class ScriptComponent extends GameComponent {
     }
   }
 
+  /** Current lifecycle state. */
   get status(): ScriptStatus {
     return this.statusValue;
   }
+  /** Description of the last failure, or null. */
   get error(): string | null {
     return this.errorValue;
   }
+  /** Duration in milliseconds of the most recent script callback. */
   get lastCallbackMs(): number {
     return this.lastCallbackMsValue;
   }
+  /** Guest memory in use as last reported by the VM. */
   get memoryUsed(): number {
     return this.memoryUsedValue;
   }
@@ -196,6 +220,7 @@ export class ScriptComponent extends GameComponent {
     return this.handleValue !== 0 && !this.disposed && this.runtime._ownsContext(context);
   }
 
+  /** Runs the module's start hook once. */
   override onStart(): void {
     if (this.handleValue === 0 || this.disposed || this.started) return;
     this.started = true;
@@ -206,6 +231,10 @@ export class ScriptComponent extends GameComponent {
     });
   }
 
+  /**
+   * Runs the module's update hook with `deltaTime` in seconds, clamped to 0 through 60.
+   * Skipped until the component has started, and while it is inactive or disabled.
+   */
   override update(deltaTime: number): void {
     if (this.handleValue === 0 || this.disposed || !this.started || !this.isActiveAndEnabled || !finite(deltaTime))
       return;
@@ -226,6 +255,7 @@ export class ScriptComponent extends GameComponent {
     this.release(true);
   }
 
+  /** Runs the module's dispose hook if the script started, then releases the guest VM. */
   override onDestroy(): void {
     this.release(true);
   }

@@ -18,38 +18,61 @@ import type { VehicleOptions } from './vehicle';
 export { MotionType, ContactEvent, Layer, MAX_OBJECT_LAYERS, ALL_LAYERS_MASK } from './internal';
 export type { WorldConfig, BodyConfig, SoftBodyConfig } from './internal';
 
+/** Callbacks that sync scene objects with the physics world around each step. */
 export interface PhysicsStepHooks {
+  /** Called before each step to push scene transforms into the world. */
   syncPhysicsBeforeStep(world: PhysicsWorld, fixedDt: number): void;
+  /** Called after each step to pull simulated poses back into the scene. */
   syncPhysicsAfterStep(world: PhysicsWorld): void;
 }
 
+/** World settings such as gravity and body limits, plus an optional scene step hook. */
 export interface PhysicsWorldOptions extends native.WorldConfig {
+  /** Step hooks to use instead of the game scene manager. */
   sceneManager?: PhysicsStepHooks;
 }
 
+/** Result of a ray cast. */
 export interface PhysicsRayHit {
+  /** Body that was hit. */
   body: PhysicsBody;
+  /** World-space hit point. */
   point: Vec3;
+  /** Surface normal at the hit point. */
   normal: Vec3;
+  /** Hit position along the ray as a fraction of the maximum distance. */
   fraction: number;
+  /** Identifier of the sub-shape that was hit. */
   subShapeId: number;
 }
 
+/** Contact event between two bodies, returned by `PhysicsWorld.popContacts`. */
 export interface PhysicsContact {
+  /** `ContactEvent` value: added, persisted, or removed. */
   event: number;
+  /** First body in the contact, or null if it is no longer known. */
   bodyA: PhysicsBody | null;
+  /** Second body in the contact, or null if it is no longer known. */
   bodyB: PhysicsBody | null;
+  /** Contact point on the first body. */
   pointA: Vec3;
+  /** Contact point on the second body. */
   pointB: Vec3;
+  /** Contact normal. */
   normal: Vec3;
+  /** How far the bodies overlap. */
   penetrationDepth: number;
+  /** Friction coefficient used for the pair. */
   combinedFriction: number;
+  /** Restitution used for the pair. */
   combinedRestitution: number;
 }
 
 /** One isolated physics world with owned collider, body, and constraint objects. */
 export class PhysicsWorld implements ContextResource {
+  /** Game context that owns this world. */
   readonly context: GameContext;
+  /** Creation error message, or null if the world was created. */
   readonly error: string | null;
   private colliders: Collider[] = [];
   private bodies: PhysicsBody[] = [];
@@ -59,6 +82,11 @@ export class PhysicsWorld implements ContextResource {
   private sceneManager: PhysicsStepHooks | null;
   private disposed = false;
 
+  /**
+   * Creates a physics world for a game.
+   * Check `error` if the game is not ready or the native profile has no 3D physics.
+   * @param owner Game that owns the world and, by default, supplies the scene step hooks.
+   */
   constructor(owner: Game, options: PhysicsWorldOptions = {}) {
     this.context = getGameContext(owner);
     this.sceneManager = options.sceneManager || owner.scenes || null;
@@ -80,53 +108,66 @@ export class PhysicsWorld implements ContextResource {
     }
   }
 
+  /** True while the world is created and neither it nor its game has been disposed. */
   get isReady(): boolean {
     return !this.disposed && this.context.isReady && !this.context.isDisposed && getNativeHandle(this) !== 0;
   }
+  /** True once the world has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Current gravity vector. Returns the default (0, -9.81, 0) when the world is not ready. */
   get gravity(): Vec3 {
     return this.isReady ? native.getGravity(getNativeHandle(this)) : { x: 0, y: -9.81, z: 0 };
   }
+  /** Number of bodies in the world. */
   get bodyCount(): number {
     return this.isReady ? native.bodyCount(getNativeHandle(this)) : 0;
   }
+  /** Number of awake bodies. */
   get activeBodyCount(): number {
     return this.isReady ? native.activeBodyCount(getNativeHandle(this)) : 0;
   }
+  /** Interpolation factor between the last two fixed steps, or 1 when not ready. */
   get stepAlpha(): number {
     return this.isReady ? native.getStepAlpha(getNativeHandle(this)) : 1;
   }
 
+  /** Replaces the step hooks used by `step` and `stepVariable`; pass null to detach. */
   setSceneManager(manager: PhysicsStepHooks | null): void {
     this.sceneManager = manager;
   }
+  /** Sets world gravity; returns false if the world is not ready. */
   setGravity(gravity: Vec3): boolean {
     if (!this.isReady) return false;
     native.setGravity(getNativeHandle(this), gravity);
     return true;
   }
+  /** Rebuilds the broadphase to speed up queries after adding many bodies; returns false if the world is not ready. */
   optimizeBroadphase(): boolean {
     if (!this.isReady) return false;
     native.optimizeBroadphase(getNativeHandle(this));
     return true;
   }
+  /** Sets the fixed simulation rate in Hz and the maximum steps per `step` call; returns false if the world is not ready. */
   setFixedTimestep(hz: number, maxSteps = 4): boolean {
     if (!this.isReady) return false;
     native.setFixedTimestep(getNativeHandle(this), hz, maxSteps);
     return true;
   }
+  /** Enables or disables interpolation between fixed steps; returns false if the world is not ready. */
   setInterpolation(enabled: boolean): boolean {
     if (!this.isReady) return false;
     native.setInterpolation(getNativeHandle(this), enabled);
     return true;
   }
+  /** Sets whether two collision layers collide; returns false if the world is not ready. */
   setLayerCollides(a: number, b: number, collides: boolean): boolean {
     if (!this.isReady) return false;
     native.setLayerCollides(getNativeHandle(this), a, b, collides);
     return true;
   }
+  /** True if the two collision layers collide. */
   getLayerCollides(a: number, b: number): boolean {
     return this.isReady && native.getLayerCollides(getNativeHandle(this), a, b);
   }
@@ -149,6 +190,11 @@ export class PhysicsWorld implements ContextResource {
     return true;
   }
 
+  /**
+   * Casts a ray and returns the closest hit, or null if nothing is hit.
+   * @param maxDistance Maximum ray length.
+   * @param layerMask Layers the ray can hit; defaults to all.
+   */
   raycast(
     origin: Vec3,
     direction: Vec3,
@@ -170,6 +216,11 @@ export class PhysicsWorld implements ContextResource {
         };
   }
 
+  /**
+   * Casts a ray and returns every hit, up to `maxHits`.
+   * @param maxDistance Maximum ray length.
+   * @param layerMask Layers the ray can hit; defaults to all.
+   */
   raycastAll(
     origin: Vec3,
     direction: Vec3,
@@ -195,14 +246,20 @@ export class PhysicsWorld implements ContextResource {
     return hits;
   }
 
+  /** Returns bodies overlapping a sphere, up to `maxResults`. */
   overlapSphere(center: Vec3, radius: number, maxResults = 16, layerMask = native.ALL_LAYERS_MASK): PhysicsBody[] {
     if (!this.isReady) return [];
     return this._mapBodies(native.overlapSphere(getNativeHandle(this), center, radius, maxResults, layerMask));
   }
+  /** Returns bodies containing a point, up to `maxResults`. */
   overlapPoint(point: Vec3, maxResults = 16, layerMask = native.ALL_LAYERS_MASK): PhysicsBody[] {
     if (!this.isReady) return [];
     return this._mapBodies(native.overlapPoint(getNativeHandle(this), point, maxResults, layerMask));
   }
+  /**
+   * Returns bodies overlapping an oriented box, up to `maxResults`.
+   * @param halfExtents Half size of the box.
+   */
   overlapBox(
     transform: { position: Vec3; rotation: Quat },
     halfExtents: Vec3,
@@ -213,9 +270,11 @@ export class PhysicsWorld implements ContextResource {
     return this._mapBodies(native.overlapBox(getNativeHandle(this), transform, halfExtents, maxResults, layerMask));
   }
 
+  /** Number of queued contact events. */
   get contactCount(): number {
     return this.isReady ? native.contactCount(getNativeHandle(this)) : 0;
   }
+  /** Returns and removes the queued contact events. */
   popContacts(): PhysicsContact[] {
     if (!this.isReady) return [];
     const contacts = native.popContacts(getNativeHandle(this));
@@ -236,24 +295,30 @@ export class PhysicsWorld implements ContextResource {
     }
     return out;
   }
+  /** Discards queued contact events; returns false if the world is not ready. */
   clearContacts(): boolean {
     if (!this.isReady) return false;
     native.clearContacts(getNativeHandle(this));
     return true;
   }
 
+  /** Creates a rigid body in this world from a collider. */
   createBody(collider: Collider, options: RigidBodyOptions = {}): RigidBody {
     return new RigidBody(this, collider, options);
   }
+  /** Creates a joint of the given kind between bodies of this world. */
   createJoint(kind: JointKind, options: JointOptions): Joint {
     return new Joint({ ...options, world: this, kind });
   }
+  /** Creates a kinematic character controller in this world. */
   createCharacter(collider: Collider, options: CharacterControllerOptions = {}): CharacterController {
     return new CharacterController({ ...options, world: this, collider });
   }
+  /** Creates a soft body in this world. */
   createSoftBody(options: native.SoftBodyConfig): SoftBody {
     return new SoftBody(this, options);
   }
+  /** Creates a vehicle in this world. */
   createVehicle(options: VehicleOptions): Vehicle {
     return new Vehicle({ ...options, world: this });
   }
@@ -334,6 +399,7 @@ export class PhysicsWorld implements ContextResource {
     return this.context === context;
   }
 
+  /** Destroys the world and every collider, body, joint, character, and vehicle it owns. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     const vehicles = this.vehicles.slice();

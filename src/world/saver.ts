@@ -26,6 +26,7 @@ import { WORLD_SCHEMA_VERSION, WorldDocument, PrefabData } from './types';
 import { validateWorld, validatePrefab, formatValidationErrors } from './validate';
 import { serializeWorld, serializePrefab } from './serialize';
 
+/** Outcome of a save: `ok`, plus the error messages when it failed. */
 export interface SaveResult {
   ok: boolean;
   errors: string[];
@@ -67,6 +68,10 @@ function safeWrite(path: string, json: string): string | null {
 // Write a world file. On success, returns `{ ok: true, errors: [] }`.
 // On validation failure, returns the errors without touching the filesystem.
 // On write failure (disk full, permissions), returns `{ ok: false, errors: [...] }`.
+/**
+ * Validates a world and writes it to disk, stamping the current schema version and keeping a `.bak` copy of the previous file.
+ * Nothing is written if validation fails.
+ */
 export function saveWorld(path: string, world: WorldDocument): SaveResult {
   // Always stamp the current schema version on save so stale copies don't
   // drift across editor sessions.
@@ -90,6 +95,7 @@ export function saveWorld(path: string, world: WorldDocument): SaveResult {
 }
 
 // Write a prefab file. Same semantics as `saveWorld` but for prefabs.
+/** Validates a prefab and writes it to disk with the same safeguards as `saveWorld`. */
 export function savePrefab(path: string, prefab: PrefabData): SaveResult {
   prefab.schemaVersion = WORLD_SCHEMA_VERSION;
 
@@ -108,6 +114,7 @@ export function savePrefab(path: string, prefab: PrefabData): SaveResult {
 
 // Convenience: format a SaveResult's errors as a single human-readable string.
 // The editor uses this for status bar / dialog messages.
+/** Formats the errors of a failed save as one message; returns an empty string when the save succeeded. */
 export function formatSaveError(result: SaveResult): string {
   if (result.ok) return '';
   return formatValidationErrors(result.errors);

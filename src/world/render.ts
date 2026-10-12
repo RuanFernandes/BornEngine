@@ -33,6 +33,7 @@ import { WorldDocument, WaterVolume, RiverSpline } from './types';
 // exactly one frame and then goes dark.
 //
 // Colour components are 0-1 in both the schema and `addPointLight`.
+/** Submits the world point lights to the renderer; call it every frame. */
 export function applyWorldLights(world: WorldDocument): void {
   for (let i = 0; i < world.lights.length; i++) {
     const l = world.lights[i];
@@ -60,6 +61,7 @@ export function applyWorldLights(world: WorldDocument): void {
 //
 // The world editor and the world-viewer example both drive their frames with
 // exactly this call, so lighting cannot look different in-game than in-editor.
+/** Applies the world ambient light, sun, fog, and point lights; call it every frame. */
 export function applyWorldEnvironment(world: WorldDocument): void {
   const env = world.environment;
   if (!env) return;
@@ -100,6 +102,10 @@ export function applyWorldEnvironment(world: WorldDocument): void {
 // A water volume renders as a box whose *top face* sits at `surfaceHeight`
 // (the schema's `center.y` positions the body of water; the surface is what the
 // player sees and what the wave shader animates).
+/**
+ * Creates a scene node for a water volume whose top face sits at its surface height.
+ * @returns The node handle.
+ */
 export function spawnWaterVolume(volume: WaterVolume): SceneNodeHandle {
   const node = createSceneNode();
   const cube = genMeshCube(1, 1, 1);
@@ -131,6 +137,10 @@ export function spawnWaterVolume(volume: WaterVolume): SceneNodeHandle {
 // A river renders as a ribbon mesh swept along its control points, dropped by
 // `depth` so it sits in its channel rather than on top of the terrain. Widths
 // are per control point; a river with fewer widths than points repeats the last.
+/**
+ * Creates a ribbon scene node along the river control points.
+ * @returns The node handle, or 0 if the river has fewer than 2 control points or the mesh could not be built.
+ */
 export function spawnRiver(river: RiverSpline): SceneNodeHandle {
   const pointCount = river.controlPoints.length;
   if (pointCount < 2) return 0;
@@ -165,6 +175,7 @@ export function spawnRiver(river: RiverSpline): SceneNodeHandle {
 }
 
 // Editor-only: tint a water/river node to show selection. Games never call this.
+/** Tints a water or river node to show selection; does nothing when `selected` is false. */
 export function setWaterHighlight(handle: SceneNodeHandle, selected: boolean): void {
   if (selected) {
     setSceneNodeColor(handle, 255, 220, 120, 255);

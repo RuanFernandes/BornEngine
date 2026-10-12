@@ -11,6 +11,7 @@ declare global {
   }
 }
 
+/** Callback for a failed @Asset load. Return a replacement texture (or a promise of one) to use instead, or null; call retry() to load the path again. */
 export type AssetErrorHandler = (
   error: string,
   path: string,
@@ -46,6 +47,10 @@ const ANNOTATIONS_KEY = 'bornengine:annotations';
 
 let bindingStates: WeakMap<object, BindingState> | null = null;
 
+/**
+ * Property decorator that loads the texture at the path and assigns it to the field when the object is added to a scene.
+ * @param onError Called on failure; without it, a failed load throws when the object is added.
+ */
 export function Asset(path: string, onError?: AssetErrorHandler): PropertyAnnotation {
   return (target, key) => {
     addAnnotation(target, { kind: 'asset', key: String(key), path, onError });
@@ -67,6 +72,10 @@ export function GameComponent<T extends Component = Component>(options?: T['__op
   };
 }
 
+/**
+ * Resolves the @Asset and @GameComponent fields of an object for the given scene.
+ * @returns a promise when an async error callback is pending, otherwise null once bound.
+ */
 export function bindAnnotations(object: GameObject, scene: GameScene): Promise<void> | null {
   const states = stateMap();
   const state = states.get(object);

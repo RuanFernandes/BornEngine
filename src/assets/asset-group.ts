@@ -3,16 +3,26 @@ import type { Texture } from '../textures/texture';
 import type { Sound } from '../audio/sound';
 import type { Music } from '../audio/music';
 
+/** Kind of asset an AssetGroup entry loads. */
 export type AssetGroupKind = 'texture' | 'sound' | 'music';
+/** Lifecycle state of an AssetGroup. */
 export type AssetGroupState = 'idle' | 'loading' | 'ready' | 'failed' | 'cancelled' | 'disposed';
+/** Load state of a single AssetGroup entry. */
 export type AssetGroupEntryState = 'pending' | 'ready' | 'failed' | 'cancelled';
+/** Any asset an AssetGroup entry can resolve to. */
 export type AssetGroupAsset = Texture | Sound | Music;
 
+/** Snapshot of one AssetGroup entry, including its outcome once settled. */
 export interface AssetGroupEntryResult {
+  /** Kind of asset this entry loads. */
   kind: AssetGroupKind;
+  /** Asset path as passed when the entry was added. */
   path: string;
+  /** Current load state of the entry. */
   state: AssetGroupEntryState;
+  /** Loaded asset, or null while pending or when the load failed or was cancelled. */
   result: AssetGroupAsset | null;
+  /** Failure or cancellation message, or null otherwise. */
   error: string | null;
 }
 
@@ -50,6 +60,7 @@ export class AssetGroup {
   private resolvePendingLoad: ((state: AssetGroupState) => void) | null = null;
   private disposed = false;
 
+  /** Creates a group named `name`. Create groups with `AssetManager.createGroup()` instead of calling this directly. */
   constructor(
     readonly name: string,
     private readonly loader: AssetGroupLoader,
@@ -58,19 +69,24 @@ export class AssetGroup {
     if (context.isReady && !context.isDisposed) context.register(this);
   }
 
+  /** Current lifecycle state of the group. */
   get state(): AssetGroupState {
     return this.currentState;
   }
+  /** True once the group has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Number of entries added to the group. */
   get entryCount(): number {
     return this.entriesValue.length;
   }
+  /** Fraction of entries finished, 0..1. Includes failed and cancelled entries. */
   get progress(): number {
     if (this.entriesValue.length === 0) return this.currentState === 'idle' ? 0 : 1;
     return this.completedCount / this.entriesValue.length;
   }
+  /** Snapshot of every entry and its current state. */
   get entries(): readonly AssetGroupEntryResult[] {
     const snapshot: AssetGroupEntryResult[] = [];
     for (let index = 0; index < this.entriesValue.length; index++) {
@@ -86,12 +102,21 @@ export class AssetGroup {
     return snapshot;
   }
 
+  /**
+   * Adds a texture to preload. Returns false if the group is no longer idle, the path is empty, or the entry is a duplicate.
+   */
   addTexture(path: string): boolean {
     return this.add('texture', path);
   }
+  /**
+   * Adds a sound to preload. Returns false if the group is no longer idle, the path is empty, or the entry is a duplicate.
+   */
   addSound(path: string): boolean {
     return this.add('sound', path);
   }
+  /**
+   * Adds a music track to preload. Returns false if the group is no longer idle, the path is empty, or the entry is a duplicate.
+   */
   addMusic(path: string): boolean {
     return this.add('music', path);
   }
@@ -136,6 +161,7 @@ export class AssetGroup {
     this.resolveLoad();
   }
 
+  /** Cancels unfinished loading and releases the group. Loaded assets stay owned by the AssetManager. */
   dispose(): void {
     if (this.disposed) return;
     this.cancel();

@@ -7,6 +7,7 @@ import type { Color, Vector2DLike } from '../core/types';
 
 /** Font resource owned by a Game or Scene asset scope. Draw it through the owning Renderer. */
 export class Font implements ContextResource {
+  /** Reason the font could not be loaded, or null. */
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
@@ -19,7 +20,9 @@ export class Font implements ContextResource {
 
   private constructor(
     game: Game,
+    /** Path the font was loaded from. */
     readonly path: string,
+    /** Size the font was loaded at. Also the default size for `measureText`. */
     readonly size: number,
   ) {
     this.context = getGameContext(game);
@@ -33,18 +36,25 @@ export class Font implements ContextResource {
     context.register(this);
   }
 
+  /** True while the font is loaded and its Game is ready. */
   get isLoaded(): boolean {
     return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
   }
+  /** True once the font has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
 
+  /**
+   * Measures `text` and returns its width and height. Returns a zero vector when the font is not loaded.
+   * `size` defaults to the font's own size.
+   */
   measureText(text: string, size = this.size, spacing = 0): Vector2D {
     if (!this.isLoaded) return Vector2D.zero();
     return Vector2D.from(operations.measureTextEx(this.toNativeFont(), text, size, spacing));
   }
 
+  /** Draws `text` through `renderer`. Returns false when the text could not be drawn. */
   draw(renderer: Renderer, text: string, position: Vector2DLike, size: number, color: Color, spacing = 0): boolean {
     return renderer.drawText(text, position, size, color, this, spacing);
   }
@@ -60,6 +70,7 @@ export class Font implements ContextResource {
     return { handle: this.handleValue, size: this.size };
   }
 
+  /** Releases the font. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     if (this.handleValue !== 0) operations.unloadFont(this.toNativeFont());

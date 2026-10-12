@@ -4,12 +4,17 @@ import { GameComponent, GameComponentType } from './game-component';
 import { decomposeTransformMatrix, invertTransformMatrix, Transform, TransformOptions } from './transform';
 import type { GameScene } from './game-scene';
 
+/** Options for creating a GameObject, on top of the initial transform values. */
 export interface GameObjectOptions extends TransformOptions {
+  /** Display name. Defaults to an empty string. */
   name?: string;
+  /** Whether the object starts active. Defaults to true. */
   active?: boolean;
 }
 
+/** Options for changing an object's parent. */
 export interface ParentOptions {
+  /** Keep the child's world pose when reparenting by adjusting its local transform. Defaults to true. */
   preserveWorldTransform?: boolean;
 }
 
@@ -30,10 +35,15 @@ function removeAt<T>(values: T[], index: number): void {
   values.pop();
 }
 
+/** A node in the scene hierarchy that owns a Transform and a list of components. Subclass it to add object-level behavior. */
 export class GameObject {
+  /** Unique numeric id assigned at construction. */
   readonly id: number;
+  /** The object's position, rotation and scale. */
   readonly transform: Transform;
+  /** Display name; free for the game to use. */
   name: string;
+  /** When false, this object and its descendants are skipped by updates and rendering. */
   active: boolean;
 
   private ownerScene: GameScene | null = null;
@@ -47,6 +57,7 @@ export class GameObject {
   private wasStarted = false;
   private attachmentGeneration = 0;
 
+  /** Creates a detached object. Add it to a scene or to a parent GameObject to run it. */
   constructor(options: GameObjectOptions = {}) {
     this.id = nextGameObjectId++;
     this.name = options.name || '';
@@ -58,38 +69,59 @@ export class GameObject {
     });
   }
 
+  /** True when this object and all of its ancestors are active and the object is not destroyed. */
   get activeInHierarchy(): boolean {
     if (this.destroyed || !this.active) return false;
     if (this.parentObject === null) return true;
     return this.parentObject.activeInHierarchy;
   }
 
+  /** True once destruction has started or finished. */
   get destroyed(): boolean {
     return this.wasDestroyed || this.isDestroying;
   }
 
+  /** The scene the object is attached to, or null when detached. */
   get scene(): GameScene | null {
     return this.ownerScene;
   }
 
+  /** The parent object, or null for a root. */
   get parent(): GameObject | null {
     return this.parentObject;
   }
 
+  /** A copy of the child list; changes to it do not affect the hierarchy. */
   get children(): readonly GameObject[] {
     return this.childObjects.slice();
   }
 
+  /** Override to initialize the object. Called once when it enters a scene, before its components' onAwake. */
   onAwake(): void {}
 
+  /** Override for setup that runs once, just before the first update() while the object is active in the hierarchy. */
   onStart(): void {}
 
+  /**
+   * Override for per-frame logic. Runs every frame while active, before the components' update.
+   * @param _dt Time elapsed since the previous frame.
+   */
   update(_dt: number): void {}
 
+  /**
+   * Override for fixed-timestep logic. Runs while active, before the components' fixedUpdate.
+   * @param _dt Length of the fixed timestep.
+   */
   fixedUpdate(_dt: number): void {}
 
+  /** Override to release resources. Called once on destroy(), after the children are destroyed and before the components' onDestroy. */
   onDestroy(): void {}
 
+  /**
+   * Makes the object a child of this one, moving it from its previous parent.
+   * @returns the child, or null when it is destroyed, would create a cycle, belongs to another scene, or its world transform cannot be preserved.
+   * @throws Error when this object is in a scene and the child has an async @Asset errCallback; use scene.add() instead.
+   */
   addChild<T extends GameObject>(child: T, options: ParentOptions = {}): T | null {
     if (this.destroyed || child.destroyed || (child as GameObject) === this) return null;
     if (child.parentObject === this) return child;
@@ -140,6 +172,10 @@ export class GameObject {
     return child;
   }
 
+  /**
+   * Detaches a direct child, leaving it as a root object.
+   * @returns true when the child was detached.
+   */
   removeChild(child: GameObject, options: ParentOptions = {}): boolean {
     if (this.destroyed || child.destroyed || child.parentObject !== this) return false;
 
@@ -163,6 +199,10 @@ export class GameObject {
     return true;
   }
 
+  /**
+   * Attaches a component to this object; a component can only have one owner.
+   * @returns the component, or null when it is destroyed, already attached, or incompatible with the scene's game.
+   */
   addComponent<T extends GameComponent>(component: T): T | null {
     if (this.destroyed || component.destroyed || component.gameObject !== null) return null;
     if (this.ownerScene !== null && !component._canAttachTo(this.ownerScene.context)) return null;
@@ -175,6 +215,7 @@ export class GameObject {
     return component;
   }
 
+  /** Returns the first attached component that is an instance of the given class, or null. */
   getComponent<T extends GameComponent>(type: GameComponentType<T>): T | null {
     for (let index = 0; index < this.components.length; index++) {
       const component = this.components[index];
@@ -183,6 +224,7 @@ export class GameObject {
     return null;
   }
 
+  /** Returns every attached component that is an instance of the given class, in attachment order. */
   getComponents<T extends GameComponent>(type: GameComponentType<T>): T[] {
     const result: T[] = [];
     for (let index = 0; index < this.components.length; index++) {
@@ -192,6 +234,10 @@ export class GameObject {
     return result;
   }
 
+  /**
+   * Removes and destroys a component of this object, calling its onDestroy.
+   * @returns false when the component does not belong to this object or is already being destroyed.
+   */
   removeComponent(component: GameComponent): boolean {
     if (component.gameObject !== this || !component._beginDestroy()) return false;
     if (component._beginDestroyCallback()) {
@@ -207,6 +253,10 @@ export class GameObject {
     return true;
   }
 
+  /**
+   * Destroys this object, its children and all their components, then removes them from the hierarchy and scene.
+   * @returns false when destruction was already started.
+   */
   destroy(): boolean {
     if (!this._beginDestroy()) return false;
     this._markDescendantsDestroying();
