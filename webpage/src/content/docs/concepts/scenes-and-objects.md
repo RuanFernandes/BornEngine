@@ -62,7 +62,7 @@ class Outline extends GameComponent {
 
 Each component has one owner. `addComponent` returns the component, or `null` when it cannot attach. `getComponent(Type)` and `getComponents(Type)` look components up by class. `removeComponent` detaches one.
 
-The engine's own features are components too. `CameraRig2D` moves the camera, `AudioListener2D` places the listener, and `CharacterController`, `Vehicle`, and `Joint` add physics behavior. A camera and a listener follow the object they are attached to. A camera follows another object when you give it a `target`. The [game object reference](../../api/game/#field-annotations) shows how to attach a component with `@GameComponent()`.
+The engine's own features are components too. `CameraRig2D` moves the camera, `AudioListener2D` places the listener, and `CharacterController`, `Vehicle`, and `Joint` add physics behavior. A camera and a listener follow the object they are attached to. A camera follows another object when you give it a `target`. The [game object reference](../../api/game/#field-annotations) shows how to attach a component with `@GameComponent<CameraRig2D>(options)`, where the type argument checks the options and gives autocomplete.
 
 Three properties control a component:
 
@@ -169,7 +169,7 @@ The sun is drawn at its position. The planet's `Orbit` moves it around the sun, 
 - **Nothing draws.** The object was never added with `addNode` or `addChild`, or its components do not implement `render`.
 - **An object appears in the wrong place.** `transform.position` is local to the parent. Read `transform.worldPosition` to get the position on screen.
 - **Your code runs too early.** Do not read values from annotated fields in the constructor. The fields are filled when the object is attached.
-- **A decorator does nothing.** `@Asset` and `@GameComponent()` apply to fields of `GameObject` subclasses. They are not processed on component classes.
+- **A decorator does nothing.** `@Asset` and `@GameComponent` apply to fields of `GameObject` subclasses. They are not processed on component classes.
 
 ## Next steps
 
