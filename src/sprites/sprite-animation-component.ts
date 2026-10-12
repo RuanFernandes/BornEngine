@@ -2,7 +2,8 @@ import { GameComponent } from '../game/game-component';
 import type { Texture } from '../textures/texture';
 import { SpriteAnimator } from './sprite-animator';
 import type { SpritePlayOptions } from './sprite-animator';
-import { SpriteAnimationTemplateRenderer, loadSpriteAnimationTemplate } from './sprite-animation-template-runtime';
+import { SpriteAnimationTemplateRenderer } from './sprite-animation-template-runtime';
+import { loadSpriteAnimationTemplate } from './sprite-animation-template-loader';
 
 /** Options for `SpriteAnimationComponent`, passed through `@GameComponent<SpriteAnimationComponent>(...)`. */
 export interface SpriteAnimationComponentOptions {

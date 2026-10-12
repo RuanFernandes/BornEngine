@@ -51,12 +51,12 @@ export type {
   SpriteAnimationTemplateValidationResult,
   SpriteAnimationTemplateVector2,
 } from './sprite-animation-template';
+export { loadSpriteAnimationTemplate } from './sprite-animation-template-loader';
 export {
   SpriteAnimationTemplateAsset,
   SpriteAnimationTemplateBoundAnimation,
   SpriteAnimationTemplateBoundClip,
   SpriteAnimationTemplateRenderer,
-  loadSpriteAnimationTemplate,
 } from './sprite-animation-template-runtime';
 export type {
   SpriteAnimationTemplateBindingFailure,
