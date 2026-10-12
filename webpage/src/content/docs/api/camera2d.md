@@ -16,7 +16,28 @@ Import `CameraRig2D`, `Viewport2D`, and `ParallaxLayer2D` from `@bornengine/engi
 
 ## Camera rig
 
-Create a `CameraRig2D`, attach it to a game object, add that object to a scene, and then bind the rig to the scene with `bindCameraRig2D`.
+A `CameraRig2D` is a component. Attach it to a game object, and the rig moves the scene camera. The usual pattern is to put the rig on the object the camera follows. This is one example. A rig can follow any object, or none. With no `target` option, the rig follows the object it is attached to:
+
+```ts
+import { GameObject, Vec3 } from '@bornengine/engine';
+import { GameComponent } from '@bornengine/engine/annotations';
+import { CameraRig2D } from '@bornengine/engine/camera2d';
+
+class Player extends GameObject {
+  @GameComponent({ smoothing: 0.12, bounds: { x: 0, y: 0, width: 1600, height: 900 } })
+  private readonly playerCamera!: CameraRig2D;
+
+  constructor() {
+    super({ name: 'Player', position: new Vec3(200, 150, 0) });
+  }
+}
+```
+
+Set `scene.viewport2D` before you add the player, so the rig can center the target in the view. If the scene has no camera yet, the rig binds itself when the player is added. The decorator reads the class at runtime, so import `CameraRig2D` as a value, not with `import type`. Its options are the same as the constructor's options, passed as one object. Set `target: null` in them to keep the camera fixed at `cameraTarget`.
+
+### Create the rig in code
+
+Use this form when the camera belongs to its own object, or when the target is picked at run time. Here the camera object follows `player`:
 
 ```ts
 import { CameraRig2D, GameObject, Scene, Vec3, Viewport2D } from '@bornengine/engine';
@@ -51,23 +72,26 @@ class Level extends Scene {
 }
 ```
 
+### Options
+
 The options of `CameraRig2D` are:
 
 | Option | Meaning |
 | --- | --- |
-| `target` | The `GameObject` to follow. The rig reads its world `x` and `y` every update. |
+| `target` | The `GameObject` to follow. The rig reads its world `x` and `y` every update. The default is the object the rig is attached to. |
 | `targetOffset` | A point added to the target's position, for example to look ahead of the player. |
-| `offset` | The screen position where the camera target appears. The default `{ x: 0, y: 0 }` draws the target in the top-left corner. Use half of the view width and height to center it. |
+| `offset` | The screen position where the camera target appears. The default is the center of the scene viewport's logical size, recalculated every update. Without a viewport and without `viewSize`, the default is `{ x: 0, y: 0 }`, which draws the target in the top-left corner. Setting `offset` turns off the automatic centering. |
 | `smoothing` | A time constant in seconds. The camera closes about 63 percent of the remaining distance after that many seconds, whatever the frame rate. The default `0` follows the target exactly. |
 | `deadZone` | A rectangle measured from the camera center. The target can move inside it without moving the camera. |
 | `bounds` | A world rectangle that the visible area must stay inside. When the rectangle is smaller than the view on one axis, the camera centers on it. |
-| `viewSize` | The size of the visible area, used for `bounds`. It defaults to the scene viewport's logical size, and otherwise to twice `offset`. |
+| `viewSize` | The size of the visible area, used for `bounds` and the default `offset`. It defaults to the scene viewport's logical size. Without a viewport, it defaults to twice `offset`. |
 | `zoom`, `minZoom`, `maxZoom` | The starting zoom and its limits. The limits default to `0.01` and `100`. |
 | `rotation`, `cameraTarget` | The starting rotation in degrees and the starting camera position. |
 
 Things to know about the rig:
 
-- `bounds` assumes the target is drawn at the center of the view, so set `offset` to half of the view size whenever you use `bounds`.
+- `bounds` assumes the target is drawn at the center of the view. Keep the default `offset`, or set it to half of the view size, whenever you use `bounds`.
+- A rig with no `target` on a camera object that never moves keeps the camera still. Give the rig a `target` to follow another object.
 - The rig updates when the scene updates, in the order objects were added. Add the camera object after the object it follows, so the camera reads the position from the same frame.
 - `bindCameraRig2D` returns `false` when the rig's object is not in this scene yet, the rig was destroyed, the rig has an `error`, or the scene is unloaded.
 - Invalid options do not throw. They set `rig.error` to a message, and the rig then does nothing: `update`, `setZoom`, `setOffset`, and `shake` have no effect, and the scene refuses to bind it.

@@ -278,7 +278,7 @@ function addFollowCamera(scene: Scene, target: GameObject): void {
 ```
 
 - `Viewport2D` gives the scene a fixed logical size. The scene draws in logical units, and the viewport scales the result to the window. `fit` keeps the shape and adds bars on the sides or on the top and bottom. `integer` does the same, but only with whole-number scales, which keeps pixel art crisp. `stretch` fills the window and can distort the picture. This game uses `integer`: the 960 by 540 window is exactly three times the 320 by 180 view.
-- `offset` is the point of the view where the target appears. Use half of the view size to keep the hero in the middle. The default is `(0, 0)`, which would put the hero in the top-left corner.
+- `offset` is the point of the view where the target appears. The default is the middle of the scene's viewport, so this game sets it only to be explicit. Without a viewport, the default is `(0, 0)`, which puts the hero in the top-left corner.
 - `cameraTarget` is where the camera starts. Without it, the camera starts at the origin and glides across the world on the first frames.
 - `smoothing` is a time constant in seconds. A larger value makes the camera lag further behind the hero. `0` snaps to the target.
 - `bounds` keeps the view inside the world. Near an edge the camera stops moving, so the hero walks toward the edge of the screen instead.

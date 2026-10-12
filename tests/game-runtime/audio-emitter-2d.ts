@@ -40,7 +40,7 @@ const audio = {
     return true;
   },
 } as any as AudioSystem;
-const listener = new AudioListener2D(owner, audio);
+const listener = new AudioListener2D({ system: { game: owner, audio } });
 listener.update();
 expect(listenerCalls.length === 1 && listenerCalls[0].position.x === 10 &&
   listenerCalls[0].position.z === 20 && listenerCalls[0].forward.z === -1,

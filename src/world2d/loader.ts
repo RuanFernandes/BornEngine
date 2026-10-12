@@ -443,7 +443,7 @@ export class World2DLoader {
         const source = layer.data[cellIndex];
         if (source === null || source.tilesetId !== tilesetId) {
           values.push(0);
-          flips.push(null);
+          flips.push({ flipX: false, flipY: false, flipDiagonal: false });
         } else {
           values.push(source.tileId + 1);
           flips.push({ flipX: source.flipX, flipY: source.flipY, flipDiagonal: source.flipDiagonal });

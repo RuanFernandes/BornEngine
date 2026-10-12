@@ -162,7 +162,7 @@ if (animation.isLoaded) {
 }
 
 // In update(deltaTime):
-animation.update(deltaTime, playerPosition, 1, yawDegrees);
+animation.update(deltaTime, playerPosition, 1, yawRadians); // rotation around Y, in radians
 const rootMotionX = animation.getRootMotionDelta(0);
 if (animation.isFinished()) console.log("clip finished");
 ```

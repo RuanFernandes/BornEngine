@@ -226,6 +226,7 @@ declare function bloom_write_file(path: number, data: number): number;
 declare function bloom_file_exists(path: number): number;
 declare function bloom_read_file(path: number): number;
 declare function bloom_run_game(callback: number): void;
+declare function bloom_run_microtasks(): void;
 
 // Window management
 
@@ -1329,10 +1330,13 @@ export function runGame(update: (dt: number) => void, shouldContinue?: () => boo
     // bloom_glue.js intercepts this call and sets up requestAnimationFrame.
     bloom_run_game(update as any);
   } else {
-    // Native: blocking game loop
+    // Native: blocking game loop. Game.run() invokes onStart before runGame,
+    // so this first drain resumes continuations scheduled during onStart.
+    bloom_run_microtasks();
     while ((shouldContinue === undefined || shouldContinue()) && !windowShouldClose()) {
       beginDrawing();
       update(getDeltaTime());
+      bloom_run_microtasks();
       endDrawing();
     }
   }

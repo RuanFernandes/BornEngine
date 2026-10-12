@@ -1,6 +1,6 @@
 # BornEngine — AI context reference for language models
 
-This file summarizes BornEngine's public API and architectural decisions for assistants that write, review, or document games made with the engine. It reflects this repository's code; the package version prepared for this release is `0.16.1`. Always check `package.json`, exports, implementation, and examples before assuming that the version or behavior is still current.
+This file summarizes BornEngine's public API and architectural decisions for assistants that write, review, or document games made with the engine. It describes the installed `@bornengine/engine` package. Always check `package.json`, exports, implementation, and examples before assuming that the version or behavior is still current.
 
 ## Rules for writing or reviewing code
 
@@ -18,7 +18,7 @@ This file summarizes BornEngine's public API and architectural decisions for ass
 
 Game code uses TypeScript classes; Perry compiles it ahead of time and communicates with Rust layers through a private FFI. Shared Rust code lives in `native/shared/`; the `native/<platform>/` crates connect the runtime to the host. Classes, services, factories, and ownership are the game-facing API. Numeric handles and FFI functions are internal details and must not appear in public examples.
 
-The package prepared for this release is version `0.16.1`. Current public exports are listed in `package.json` and the `src/index.ts` barrel. The stable module map appears below; confirm exports in those files before adding an import.
+The installed package version is in `package.json`. Current public exports are listed in the `exports` map. The module map appears below; confirm exports there before adding an import.
 
 ## Creating a game
 
@@ -86,6 +86,8 @@ class Level extends Scene {
 `game.scenes.update(dt)` advances the active scene. `game.scenes.render(renderer)` is called by the base `Game.render()` and draws the active or paused scene. `scene.camera2D`, `scene.viewport2D`, and `scene.bindCameraRig2D(rig)` configure the camera and viewport for rendering and coordinate conversion.
 
 Visual components such as `SpriteRenderer`, `Tilemap`, and `ParticleEmitter2D` are drawn automatically by the scene. The scene collects enabled components on active objects, sorts them by `renderOrder`, and preserves insertion order for ties. When overriding `Game.render()`, clear the screen and call `super.render()` to keep this drawing behavior.
+
+Field annotations come from `@bornengine/engine/annotations` and run when the object is added to a `Scene`, before its `onAwake`. `@Asset(path, errCallback?)` assigns the scene-owned `Texture`; without `errCallback`, a failed load makes `scene.add()` throw the texture's `error`. `errCallback(error, path, retry)` replaces that default and its return value becomes the field value; `retry()` loads the asset again and returns the loaded `Texture`, or throws if it still fails. The callback may be `async`: `scene.add()` then returns the object at once, and it attaches and runs `onAwake` when the promise resolves. `scene.remove()` cancels a pending object. `addChild()` throws and the world loader returns `false` for async callbacks. Limitation: on native Linux builds, `Game.run()` does not drain JS promise jobs or timers, so async callbacks do not resolve during play yet; synchronous callbacks are unaffected. `@GameComponent()` assigns a new instance of the field's class type after `addComponent`; the class needs a no-argument constructor. An exception in `onAwake` leaves the object attached and the scene usable for later `add` calls.
 
 ## Resources and ownership
 
@@ -157,7 +159,7 @@ There is no public `Navigation2D` class or weighted navigation mesh in this vers
 
 ### Cameras and viewport
 
-`CameraRig2D` is a component for follow, dead zones, bounds, zoom, and shake. `Viewport2D` defines a logical resolution and `fit`, `integer`, or `stretch` mode; `ParallaxLayer2D` applies parallax offsets. A `Camera2D` can also be configured directly on `scene.camera2D`.
+`CameraRig2D` is a component for follow, dead zones, bounds, zoom, and shake. With no `target`, it follows the object it is attached to, and `offset` defaults to the middle of the scene's `viewport2D`. Attach it with `@GameComponent()` on a `GameObject` field, with options as the decorator argument, or with `addComponent(new CameraRig2D(options))`. `Viewport2D` defines a logical resolution and `fit`, `integer`, or `stretch` mode; `ParallaxLayer2D` applies parallax offsets. A `Camera2D` can also be configured directly on `scene.camera2D`.
 
 ## 3D and 2.5D API
 
@@ -280,6 +282,7 @@ The root import `@bornengine/engine` is appropriate for game code. Public subpat
 | --- | --- |
 | `@bornengine/engine/core` | `Game`, `Window`, `Renderer`, platform types |
 | `@bornengine/engine/game` | `GameObject`, `GameComponent`, `Scene`, `GameScene`, adapters |
+| `@bornengine/engine/annotations` | `Asset` and `GameComponent` field decorators |
 | `@bornengine/engine/scene` | `SceneGraph`, `SceneNode` |
 | `@bornengine/engine/assets` | `AssetManager`, `SceneAssetManager`, `AssetGroup` |
 | `@bornengine/engine/textures` | `Texture`, `ImageData`, `RenderTexture` |

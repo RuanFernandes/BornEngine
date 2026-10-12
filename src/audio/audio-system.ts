@@ -38,7 +38,8 @@ export class AudioSystem {
 
   /** Shared 2D listener for emitters in this Game. */
   get listener2D(): AudioListener2D {
-    if (this.listener2DValue === null) this.listener2DValue = new AudioListener2D(this.game, this);
+    if (this.listener2DValue === null)
+      this.listener2DValue = new AudioListener2D({ system: { game: this.game, audio: this } });
     return this.listener2DValue;
   }
 

@@ -87,7 +87,12 @@ pub struct SceneNode {
     pub indices: Vec<u32>,
     // Material
     pub material: PbrMaterial,
-    // Transform
+    /// Local transform, as set by `set_transform`.
+    pub local_transform: [[f32; 4]; 4],
+    /// World transform: parent world * local transform, or the local
+    /// transform when the node has no live parent. Maintained by
+    /// `SceneGraph`; every renderer, shadow, picking and bounds consumer
+    /// reads this field.
     pub transform: [[f32; 4]; 4],
     /// Previous frame's world transform — used to compute per-mesh
     /// screen-space velocity for motion blur and TAA reprojection.
@@ -107,6 +112,8 @@ pub struct SceneNode {
     /// feeds all filter on `visible`.
     pub gi_only: bool,
     pub parent: f64,
+    /// Direct children, kept in sync by `set_parent` / `destroy_node`.
+    children: Vec<f64>,
     // Editor user data — an arbitrary i64 attached to the node. The editor
     // uses this to store the entity id directly on the scene node so picking
     // can return the entity id without a handle → id map lookup (Q7).
@@ -227,6 +234,7 @@ impl SceneNode {
             vertices: Vec::new(),
             indices: Vec::new(),
             material: PbrMaterial::default(),
+            local_transform: crate::renderer::IDENTITY_MAT4,
             transform: crate::renderer::IDENTITY_MAT4,
             prev_transform: crate::renderer::IDENTITY_MAT4,
             visible: true,
@@ -234,6 +242,7 @@ impl SceneNode {
             receive_shadow: true,
             gi_only: false,
             parent: 0.0,
+            children: Vec::new(),
             user_data: 0,
             bounds_min: [0.0; 3],
             bounds_max: [0.0; 3],
@@ -391,7 +400,18 @@ impl SceneGraph {
                 self.free_card_blocks.push(first);
             }
         }
-        self.nodes.free(handle);
+        let removed = self.nodes.free(handle);
+        if let Some(removed) = removed {
+            if let Some(parent) = self.nodes.get_mut(removed.parent) {
+                parent.children.retain(|&c| c != handle);
+            }
+            for child in removed.children {
+                if let Some(node) = self.nodes.get_mut(child) {
+                    node.parent = 0.0;
+                }
+                self.refresh_world(child);
+            }
+        }
     }
 
     /// Position + Y-rotation + uniform-scale convenience setter. Exists
@@ -411,20 +431,46 @@ impl SceneGraph {
         self.set_transform(handle, m);
     }
 
+    /// Set the node's local transform (relative to its parent, or to the
+    /// world when it has none) and update the world transform of the node
+    /// and its descendants.
     pub fn set_transform(&mut self, handle: f64, matrix: [[f32; 4]; 4]) {
         if let Some(node) = self.nodes.get_mut(handle) {
-            // Only dirty shadows when the transform actually changed on
-            // a shadow-casting node. Skeletal animation leaves the node
-            // transform untouched (joints drive the mesh), so static
-            // scenes with animated characters still cache well.
-            let changed = node.transform != matrix;
-            if changed && node.cast_shadow && node.visible {
+            node.local_transform = matrix;
+            self.refresh_world(handle);
+        }
+    }
+
+    /// Recompute `transform` (world) for `root` and, while values change,
+    /// its descendants. Only dirties shadows / TLAS when a world matrix
+    /// actually changed on a shadow-casting / visible node. Skeletal
+    /// animation leaves the node transform untouched (joints drive the
+    /// mesh), so static scenes with animated characters still cache well.
+    fn refresh_world(&mut self, root: f64) {
+        let mut stack = vec![root];
+        while let Some(handle) = stack.pop() {
+            let Some(node) = self.nodes.get(handle) else { continue };
+            let parent_world = if node.parent != 0.0 {
+                self.nodes.get(node.parent).map(|p| p.transform)
+            } else {
+                None
+            };
+            let world = match parent_world {
+                Some(pw) => mat4_mul(&pw, &node.local_transform),
+                None => node.local_transform,
+            };
+            if world == node.transform {
+                continue;
+            }
+            let Some(node) = self.nodes.get_mut(handle) else { continue };
+            if node.cast_shadow && node.visible {
                 self.shadow_version = self.shadow_version.wrapping_add(1);
             }
-            if changed && node.visible {
+            if node.visible {
                 self.tlas_version = self.tlas_version.wrapping_add(1);
             }
-            node.transform = matrix;
+            node.transform = world;
+            stack.extend_from_slice(&node.children);
         }
     }
 
@@ -516,10 +562,45 @@ impl SceneGraph {
         (vbuf, ibuf, tri_count)
     }
 
+    /// Link `handle` under `parent` (0 detaches). A parent that is not a
+    /// live node detaches too. A request that would make a node its own
+    /// ancestor is ignored. The node keeps its local transform, so its
+    /// world transform follows the new parent.
     pub fn set_parent(&mut self, handle: f64, parent: f64) {
+        let Some(old_parent) = self.nodes.get(handle).map(|n| n.parent) else { return };
+        let parent = if self.nodes.get(parent).is_some() { parent } else { 0.0 };
+        if parent != 0.0 && self.is_self_or_ancestor(handle, parent) {
+            return;
+        }
+        if old_parent == parent {
+            return;
+        }
+        if let Some(previous) = self.nodes.get_mut(old_parent) {
+            previous.children.retain(|&c| c != handle);
+        }
+        if let Some(next) = self.nodes.get_mut(parent) {
+            next.children.push(handle);
+        }
         if let Some(node) = self.nodes.get_mut(handle) {
             node.parent = parent;
         }
+        self.refresh_world(handle);
+    }
+
+    /// True when `candidate` is `handle` or one of its ancestors. Bounded
+    /// by the registry size so a corrupted chain cannot loop forever.
+    fn is_self_or_ancestor(&self, handle: f64, candidate: f64) -> bool {
+        let mut current = candidate;
+        for _ in 0..=self.nodes.capacity() {
+            if current == handle {
+                return true;
+            }
+            match self.nodes.get(current) {
+                Some(node) if node.parent != 0.0 => current = node.parent,
+                _ => return false,
+            }
+        }
+        true
     }
 
     /// Set (or replace) a reduced-detail variant. `lod_index` is 0-based
@@ -591,10 +672,11 @@ impl SceneGraph {
 
     // ---- Q4: transform read-back -------------------------------------------
 
-    /// Read back the current 4x4 transform matrix of a scene node.
+    /// Read back the local 4x4 transform matrix of a scene node, exactly
+    /// as last passed to `set_transform`.
     pub fn get_transform(&self, handle: f64) -> [[f32; 4]; 4] {
         match self.nodes.get(handle) {
-            Some(node) => node.transform,
+            Some(node) => node.local_transform,
             None => crate::renderer::IDENTITY_MAT4,
         }
     }
@@ -1247,7 +1329,7 @@ impl SceneGraph {
     /// different set. Base geometry only (no LOD swap): the probe is
     /// half-res and consumed through a perturbed water lookup, where a
     /// LOD pop would be more visible than the detail it saves.
-    /// (Treats node.transform as world — flat hierarchies.)
+    /// (`node.transform` is the world transform.)
     pub fn reflect_draw_list(&self)
         -> Vec<ReflectionDraw<'_>>
     {
@@ -1371,4 +1453,172 @@ fn mat4_mul(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EPS: f32 = 1e-5;
+
+    fn translation(x: f32, y: f32, z: f32) -> [[f32; 4]; 4] {
+        let mut m = crate::renderer::IDENTITY_MAT4;
+        m[3] = [x, y, z, 1.0];
+        m
+    }
+
+    /// Rotation of `angle` radians about +Y, column-major.
+    fn rotation_y(angle: f32) -> [[f32; 4]; 4] {
+        let (s, c) = angle.sin_cos();
+        [
+            [c, 0.0, -s, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [s, 0.0, c, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    }
+
+    fn world_position(graph: &SceneGraph, handle: f64) -> [f32; 3] {
+        let t = graph.nodes.get(handle).unwrap().transform;
+        [t[3][0], t[3][1], t[3][2]]
+    }
+
+    fn assert_pos(actual: [f32; 3], expected: [f32; 3]) {
+        for k in 0..3 {
+            assert!(
+                (actual[k] - expected[k]).abs() < EPS,
+                "expected {expected:?}, got {actual:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn child_follows_parent_translation() {
+        let mut graph = SceneGraph::new();
+        let parent = graph.create_node();
+        let child = graph.create_node();
+        graph.set_transform(child, translation(1.0, 0.0, 0.0));
+        graph.set_parent(child, parent);
+        assert_pos(world_position(&graph, child), [1.0, 0.0, 0.0]);
+
+        graph.set_transform(parent, translation(10.0, 5.0, 0.0));
+        assert_pos(world_position(&graph, child), [11.0, 5.0, 0.0]);
+        assert_eq!(graph.get_transform(child), translation(1.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn child_follows_parent_rotation() {
+        let mut graph = SceneGraph::new();
+        let parent = graph.create_node();
+        let child = graph.create_node();
+        graph.set_parent(child, parent);
+        graph.set_transform(child, translation(1.0, 0.0, 0.0));
+        graph.set_transform(parent, rotation_y(std::f32::consts::FRAC_PI_2));
+        // +90 degrees about Y maps +X to -Z.
+        assert_pos(world_position(&graph, child), [0.0, 0.0, -1.0]);
+    }
+
+    #[test]
+    fn grandchild_composes_the_whole_chain() {
+        let mut graph = SceneGraph::new();
+        let root = graph.create_node();
+        let mid = graph.create_node();
+        let leaf = graph.create_node();
+        graph.set_parent(leaf, mid);
+        graph.set_parent(mid, root);
+        graph.set_transform(leaf, translation(0.0, 0.0, 1.0));
+        graph.set_transform(mid, translation(0.0, 2.0, 0.0));
+        graph.set_transform(root, translation(4.0, 0.0, 0.0));
+        assert_pos(world_position(&graph, leaf), [4.0, 2.0, 1.0]);
+    }
+
+    #[test]
+    fn reparenting_updates_world_transform() {
+        let mut graph = SceneGraph::new();
+        let a = graph.create_node();
+        let b = graph.create_node();
+        let child = graph.create_node();
+        graph.set_transform(a, translation(10.0, 0.0, 0.0));
+        graph.set_transform(b, translation(0.0, 20.0, 0.0));
+        graph.set_transform(child, translation(1.0, 1.0, 1.0));
+
+        graph.set_parent(child, a);
+        assert_pos(world_position(&graph, child), [11.0, 1.0, 1.0]);
+
+        graph.set_parent(child, b);
+        assert_pos(world_position(&graph, child), [1.0, 21.0, 1.0]);
+
+        graph.set_transform(a, translation(99.0, 0.0, 0.0));
+        assert_pos(world_position(&graph, child), [1.0, 21.0, 1.0]);
+    }
+
+    #[test]
+    fn detaching_falls_back_to_local_transform() {
+        let mut graph = SceneGraph::new();
+        let parent = graph.create_node();
+        let child = graph.create_node();
+        graph.set_transform(parent, translation(10.0, 0.0, 0.0));
+        graph.set_transform(child, translation(1.0, 0.0, 0.0));
+        graph.set_parent(child, parent);
+        assert_pos(world_position(&graph, child), [11.0, 0.0, 0.0]);
+
+        graph.set_parent(child, 0.0);
+        assert_pos(world_position(&graph, child), [1.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn destroying_parent_falls_back_to_local_transform() {
+        let mut graph = SceneGraph::new();
+        let parent = graph.create_node();
+        let child = graph.create_node();
+        let grandchild = graph.create_node();
+        graph.set_parent(child, parent);
+        graph.set_parent(grandchild, child);
+        graph.set_transform(parent, translation(10.0, 0.0, 0.0));
+        graph.set_transform(child, translation(1.0, 0.0, 0.0));
+        graph.set_transform(grandchild, translation(0.0, 1.0, 0.0));
+        assert_pos(world_position(&graph, grandchild), [11.0, 1.0, 0.0]);
+
+        graph.destroy_node(parent);
+        assert_pos(world_position(&graph, child), [1.0, 0.0, 0.0]);
+        assert_pos(world_position(&graph, grandchild), [1.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn invalid_or_cyclic_parent_requests_are_safe() {
+        let mut graph = SceneGraph::new();
+        let a = graph.create_node();
+        let b = graph.create_node();
+        graph.set_transform(a, translation(1.0, 0.0, 0.0));
+        graph.set_transform(b, translation(0.0, 1.0, 0.0));
+
+        graph.set_parent(b, a);
+        graph.set_parent(a, b);
+        graph.set_parent(a, a);
+        assert_eq!(graph.nodes.get(a).unwrap().parent, 0.0);
+        assert_pos(world_position(&graph, a), [1.0, 0.0, 0.0]);
+        assert_pos(world_position(&graph, b), [1.0, 1.0, 0.0]);
+
+        graph.destroy_node(a);
+        graph.set_parent(b, a);
+        assert_pos(world_position(&graph, b), [0.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn world_change_bumps_shadow_and_tlas_versions() {
+        let mut graph = SceneGraph::new();
+        let parent = graph.create_node();
+        let child = graph.create_node();
+        graph.set_parent(child, parent);
+
+        let (shadow, tlas) = (graph.shadow_version, graph.tlas_version);
+        graph.set_transform(parent, translation(1.0, 0.0, 0.0));
+        assert_ne!(graph.shadow_version, shadow);
+        assert_ne!(graph.tlas_version, tlas);
+
+        let (shadow, tlas) = (graph.shadow_version, graph.tlas_version);
+        graph.set_transform(parent, translation(1.0, 0.0, 0.0));
+        assert_eq!(graph.shadow_version, shadow);
+        assert_eq!(graph.tlas_version, tlas);
+    }
 }

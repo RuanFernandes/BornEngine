@@ -144,7 +144,7 @@ What `instantiate` builds:
 
 - The terrain becomes one node. It is a mesh whose vertex colors tint by layer weight. The `textureRef` of a layer is stored but not loaded: the engine does not texture the terrain from it, so a game that wants textures must apply them itself.
 - Each model entity becomes one node that shows the first mesh of its model, placed with the entity's transform and tint.
-- Each prefab entity becomes a group node at the entity's transform, plus one child node per model in the prefab. The children get the prefab's own child transforms and are linked to the group node. The renderer does not combine parent and child transforms (see [Scene graph](../scene/)), so check prefab placement in a small test world before you rely on it, and move the child nodes, not the group node, if you move a prefab at run time.
+- Each prefab entity becomes a group node at the entity's transform, plus one child node per model in the prefab. The children get the prefab's own child transforms and are linked to the group node. The renderer combines parent and child transforms (see [Scene graph](../scene/)), so the leaves are drawn relative to the group node and moving the group node moves the whole prefab.
 - Water volumes and rivers become nodes with a water material.
 - The environment lights the first frame, and shadows are switched on or off from `environment.shadowsEnabled`. Lighting for later frames needs `applyLighting`, described below.
 

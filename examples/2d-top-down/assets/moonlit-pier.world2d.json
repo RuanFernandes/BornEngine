@@ -14,8 +14,8 @@
       "tileHeight": 32,
       "columns": 6,
       "tileCount": 6,
-      "margin": 0,
-      "spacing": 0,
+      "margin": { "x": 0, "y": 0 },
+      "spacing": { "x": 0, "y": 0 },
       "tiles": []
     }
   ],

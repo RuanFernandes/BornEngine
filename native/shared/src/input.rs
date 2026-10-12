@@ -23,21 +23,6 @@ pub struct InputState {
     pending_key_released: [bool; MAX_KEYS],
     pending_ui_events: Vec<crate::ui::UiInputEvent>,
 
-    // Injected keys (bloom_inject_key_down/up) are staged here and applied at the
-    // top of begin_frame, rather than written straight into keys_down.
-    //
-    // They HAVE to be, and the reason is the frame order: a real key arrives in
-    // poll_events(), which runs BEFORE begin_frame(), so the edge
-    // (keys_down && !prev_keys_down) is computed for it. An injected key is set
-    // from the game loop — AFTER begin_frame — so end_frame() copied it into
-    // prev_keys_down before begin_frame ever got to look at it, and the edge was
-    // never computed at all. is_key_down() saw the key; is_key_pressed() never
-    // did. That silently made the injection API useless for anything
-    // edge-triggered, which is to say every menu and every UI in every game
-    // built on this engine.
-    pending_key_down: [bool; MAX_KEYS],
-    pending_key_up: [bool; MAX_KEYS],
-
     pub mouse_x: f64,
     pub mouse_y: f64,
     pub mouse_delta_x: f64,
@@ -130,8 +115,6 @@ impl InputState {
             pending_key_pressed: [false; MAX_KEYS],
             pending_key_released: [false; MAX_KEYS],
             pending_ui_events: Vec::new(),
-            pending_key_down: [false; MAX_KEYS],
-            pending_key_up: [false; MAX_KEYS],
             mouse_x: 0.0,
             mouse_y: 0.0,
             mouse_delta_x: 0.0,
@@ -194,20 +177,6 @@ impl InputState {
     }
 
     pub fn begin_frame(&mut self) {
-        // Apply injected keys BEFORE the edge computation below, so an injection
-        // made during the previous frame reads exactly like a real key press:
-        // down this frame, not-down last frame => keys_pressed. See the note on
-        // pending_key_down.
-        for i in 0..MAX_KEYS {
-            if self.pending_key_down[i] {
-                self.keys_down[i] = true;
-                self.pending_key_down[i] = false;
-            }
-            if self.pending_key_up[i] {
-                self.keys_down[i] = false;
-                self.pending_key_up[i] = false;
-            }
-        }
         if self.cursor_disabled {
             self.mouse_delta_x = self.raw_delta_x;
             self.mouse_delta_y = self.raw_delta_y;
@@ -292,13 +261,15 @@ impl InputState {
         }
     }
 
-    /// Synthetic key events (bloom_inject_key_down/up), which callers raise from
-    /// inside the game loop. Their UI edges are kept even if a down/up pair is
-    /// staged before the next frame.
+    /// Synthetic key events (bloom_inject_key_down/up), raised from inside the
+    /// game loop after begin_frame. The edge is published immediately so the
+    /// injecting frame observes it; end_frame then folds it into prev state.
     pub fn inject_key_down(&mut self, key: usize) {
         if key < MAX_KEYS {
-            self.pending_key_down[key] = true;
-            self.pending_key_up[key] = false;
+            if !self.keys_down[key] {
+                self.keys_down[key] = true;
+                self.keys_pressed[key] = !self.prev_keys_down[key];
+            }
             self.pending_key_pressed[key] = true;
             self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
                 crate::ui::UiKeyEvent {
@@ -311,8 +282,10 @@ impl InputState {
     }
     pub fn inject_key_up(&mut self, key: usize) {
         if key < MAX_KEYS {
-            self.pending_key_up[key] = true;
-            self.pending_key_down[key] = false;
+            if self.keys_down[key] {
+                self.keys_down[key] = false;
+                self.keys_released[key] = true;
+            }
             self.pending_key_released[key] = true;
             self.pending_ui_events.push(crate::ui::UiInputEvent::Key(
                 crate::ui::UiKeyEvent {
@@ -416,10 +389,16 @@ impl InputState {
         if axis < MAX_GAMEPAD_AXES { self.gamepad_axes[axis] = value; }
     }
     pub fn set_gamepad_button_down(&mut self, button: usize) {
-        if button < MAX_GAMEPAD_BUTTONS { self.gamepad_buttons_down[button] = true; }
+        if button < MAX_GAMEPAD_BUTTONS && !self.gamepad_buttons_down[button] {
+            self.gamepad_buttons_down[button] = true;
+            self.gamepad_buttons_pressed[button] = !self.prev_gamepad_buttons[button];
+        }
     }
     pub fn set_gamepad_button_up(&mut self, button: usize) {
-        if button < MAX_GAMEPAD_BUTTONS { self.gamepad_buttons_down[button] = false; }
+        if button < MAX_GAMEPAD_BUTTONS && self.gamepad_buttons_down[button] {
+            self.gamepad_buttons_down[button] = false;
+            self.gamepad_buttons_released[button] = true;
+        }
     }
 
     /// Clear polled gamepad axes + buttons at the top of a hardware poll.
@@ -728,6 +707,105 @@ mod tests {
         let snapshot = input.ui_snapshot();
         assert!(snapshot.keys.iter().any(|event| event.key == 8 && event.pressed));
         assert!(snapshot.keys.iter().any(|event| event.key == 8 && !event.pressed));
+    }
+
+    #[test]
+    fn injected_key_edges_are_visible_in_the_injecting_frame() {
+        let mut input = InputState::new();
+        input.begin_frame();
+
+        input.inject_key_down(8);
+        assert!(input.is_key_pressed(8));
+        assert!(input.is_key_down(8));
+        assert!(!input.is_key_released(8));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_key_pressed(8));
+        assert!(input.is_key_down(8));
+
+        input.inject_key_up(8);
+        assert!(input.is_key_released(8));
+        assert!(!input.is_key_down(8));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_key_pressed(8));
+        assert!(!input.is_key_released(8));
+        assert!(!input.is_key_down(8));
+    }
+
+    #[test]
+    fn injected_key_tap_publishes_both_edges_in_one_frame() {
+        let mut input = InputState::new();
+        input.begin_frame();
+
+        input.inject_key_down(8);
+        input.inject_key_up(8);
+        assert!(input.is_key_pressed(8));
+        assert!(input.is_key_released(8));
+        assert!(!input.is_key_down(8));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_key_pressed(8));
+        assert!(!input.is_key_released(8));
+    }
+
+    #[test]
+    fn injected_gamepad_button_edges_are_visible_in_the_injecting_frame() {
+        let mut input = InputState::new();
+        input.begin_frame();
+
+        input.set_gamepad_button_down(3);
+        assert!(input.is_gamepad_button_pressed(3));
+        assert!(input.is_gamepad_button_down(3));
+        assert!(!input.is_gamepad_button_released(3));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_gamepad_button_pressed(3));
+        assert!(input.is_gamepad_button_down(3));
+
+        input.set_gamepad_button_up(3);
+        assert!(input.is_gamepad_button_released(3));
+        assert!(!input.is_gamepad_button_down(3));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_gamepad_button_pressed(3));
+        assert!(!input.is_gamepad_button_released(3));
+    }
+
+    #[test]
+    fn injected_gamepad_button_tap_publishes_both_edges_in_one_frame() {
+        let mut input = InputState::new();
+        input.begin_frame();
+
+        input.set_gamepad_button_down(3);
+        input.set_gamepad_button_up(3);
+        assert!(input.is_gamepad_button_pressed(3));
+        assert!(input.is_gamepad_button_released(3));
+        assert!(!input.is_gamepad_button_down(3));
+
+        input.end_frame();
+        input.begin_frame();
+        assert!(!input.is_gamepad_button_pressed(3));
+        assert!(!input.is_gamepad_button_released(3));
+    }
+
+    #[test]
+    fn repolling_a_held_gamepad_button_does_not_republish_pressed() {
+        let mut input = InputState::new();
+        input.set_gamepad_button_down(3);
+        input.begin_frame();
+        input.end_frame();
+
+        input.begin_frame();
+        input.reset_gamepad();
+        input.set_gamepad_button_down(3);
+        assert!(!input.is_gamepad_button_pressed(3));
+        assert!(input.is_gamepad_button_down(3));
     }
 
     #[test]

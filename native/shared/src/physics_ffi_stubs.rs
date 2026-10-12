@@ -116,8 +116,8 @@ macro_rules! define_physics_ffi_stubs {
         $crate::__bloom_physics_stub!(bloom_physics_constraint_distance(_p0: f64, _p1: f64, _p2: f64, _p3: f64, _p4: f64, _p5: f64, _p6: f64, _p7: f64, _p8: f64, _p9: f64, _p10: f64) -> f64);
         $crate::__bloom_physics_stub!(bloom_physics_constraint_destroy(_p0: f64));
         $crate::__bloom_physics_stub!(bloom_physics_constraint_set_enabled(_p0: f64, _p1: f64));
-        $crate::__bloom_physics_stub!(bloom_physics_contact_count() -> f64);
-        $crate::__bloom_physics_stub!(bloom_physics_contact_field(_p0: f64, _p1: f64) -> f64);
+        $crate::__bloom_physics_stub!(bloom_physics_contact_count(_p0: f64) -> f64);
+        $crate::__bloom_physics_stub!(bloom_physics_contact_field(_p0: f64, _p1: f64, _p2: f64) -> f64);
         $crate::__bloom_physics_stub!(bloom_physics_clear_contacts(_p0: f64));
         $crate::__bloom_physics_stub!(bloom_physics_character_create(_p0: f64, _p1: f64, _p2: f64, _p3: f64, _p4: f64, _p5: f64, _p6: f64, _p7: f64, _p8: f64, _p9: f64, _p10: f64, _p11: f64, _p12: f64, _p13: f64, _p14: f64, _p15: f64, _p16: f64, _p17: f64, _p18: f64) -> f64);
         $crate::__bloom_physics_stub!(bloom_physics_character_destroy(_p0: f64));

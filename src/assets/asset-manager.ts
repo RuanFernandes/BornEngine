@@ -79,6 +79,13 @@ export class AssetManager implements ContextResource {
     return texture;
   }
 
+  /** @internal Replaces a cached failed texture with a fresh load attempt. */
+  _reloadTexture(path: string): Texture | null {
+    const cached = this.textures.get(path);
+    if (cached !== undefined && !cached.isLoaded) this.releaseTexture(path);
+    return this.loadTexture(path);
+  }
+
   /** Disposes and removes the cached texture registered for this path. */
   releaseTexture(path: string): boolean {
     if (this.disposed || this.context.isDisposed || path === null || path === undefined || path.length === 0)

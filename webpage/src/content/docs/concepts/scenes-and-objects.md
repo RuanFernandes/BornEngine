@@ -62,6 +62,8 @@ class Outline extends GameComponent {
 
 Each component has one owner. `addComponent` returns the component, or `null` when it cannot attach. `getComponent(Type)` and `getComponents(Type)` look components up by class. `removeComponent` detaches one.
 
+The engine's own features are components too. `CameraRig2D` moves the camera, `AudioListener2D` places the listener, and `CharacterController`, `Vehicle`, and `Joint` add physics behavior. A camera and a listener follow the object they are attached to. A camera follows another object when you give it a `target`. The [game object reference](../../api/game/#field-annotations) shows how to attach a component with `@GameComponent()`.
+
 Three properties control a component:
 
 - `enabled` turns the component off without removing it.

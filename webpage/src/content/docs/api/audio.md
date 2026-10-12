@@ -188,7 +188,21 @@ class Level extends Scene {
 
 Music and sounds that you load through `game.audio` belong to the `Game`, not to the scene. That is why `onExit()` stops them.
 
+To make the listener follow a game object, such as the player, add the component to that object:
+
+```ts
+import { AudioListener2D, GameObject, Scene } from '@bornengine/engine';
+
+export function addListener(scene: Scene, player: GameObject): AudioListener2D {
+  const listener = new AudioListener2D();
+  player.addComponent(listener);
+  scene.addNode(player);
+  return listener;
+}
+```
+
 - `listener2D` follows the active scene camera by default. Call `setPosition({ x, y })` to pin it to a world position, and `followCamera()` to follow the camera again.
+- `AudioListener2D` is also a `GameComponent`. Add `new AudioListener2D()` to a game object and the scene updates the listener once per frame from that object: its world X and Y position, and its rotation about Z. Without an owner object, and without the shared `listener2D` binding, it does nothing.
 - `AudioEmitter2D` starts one controllable voice at its object's position and moves the voice as the object moves. The world's X and Y axes map to the mixer's X and Z axes. `play()` returns `true` when the voice started, `stop()` ends only that voice, and `isPlaying` reports its state. Disabling or destroying the object stops the voice. The shared audio system still owns the `Sound` and the listener.
 
 Platform notes:

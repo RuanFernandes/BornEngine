@@ -244,6 +244,34 @@ export function hang(world: PhysicsWorld): void {
 
 `hang` joins a heavy ball to a fixed point with a rope of constant length 3. The ball swings like a pendulum.
 
+`Joint` is also a `GameComponent`. Its constructor takes the joint options plus the `world` and the `kind`. Attach it to a game object to dispose the joint together with that object:
+
+```ts
+import { GameObject, Joint, MotionType, PhysicsWorld, Scene, SphereCollider } from '@bornengine/engine';
+
+export function hangFromObject(scene: Scene, world: PhysicsWorld): Joint {
+  const anchor = world.createBody(new SphereCollider(world, 0.2), {
+    motionType: MotionType.STATIC,
+    position: { x: 0, y: 5, z: 0 },
+  });
+  const weight = world.createBody(new SphereCollider(world, 0.5), { position: { x: 3, y: 5, z: 0 } });
+  const rope = new GameObject({ name: 'Rope' });
+  const joint = new Joint({
+    world,
+    kind: 'distance',
+    bodyA: anchor,
+    bodyB: weight,
+    anchorA: { x: 0, y: 0, z: 0 },
+    anchorB: { x: 0, y: 0, z: 0 },
+    min: 3,
+    max: 3,
+  });
+  rope.addComponent(joint);
+  scene.addNode(rope);
+  return joint;
+}
+```
+
 ## Characters
 
 A **character controller** moves a player-sized shape through the world with slope limits and stair stepping. It is not a rigid body in the simulation. You set its velocity, and `update` moves it. Create one from a collider in the same world with `world.createCharacter(collider, options)`.
@@ -328,6 +356,27 @@ class CharacterGame extends Game {
 new CharacterGame().run();
 ```
 
+**As a component.** `CharacterController` is a `GameComponent`. Its constructor takes one options object with every setting above plus the `world` and the `collider`. Add it to a game object and the scene calls its `update` once per frame, so the object follows the character. The component copies the character's position and rotation into the object's world transform after each move. When the object is destroyed, the controller is disposed. The `error` and `isLoaded` members work as before.
+
+```ts
+import { CapsuleCollider, CharacterController, GameObject, PhysicsWorld, Scene } from '@bornengine/engine';
+
+export function addPlayer(scene: Scene, world: PhysicsWorld): CharacterController {
+  const player = new GameObject({ name: 'Player', position: { x: 0, y: 2, z: 0 } });
+  const controller = new CharacterController({
+    world,
+    collider: new CapsuleCollider(world, 0.5, 0.35),
+    position: { x: 0, y: 2, z: 0 },
+    maxSlopeAngleRad: 0.7,
+  });
+  player.addComponent(controller);
+  scene.addNode(player);
+  return controller;
+}
+```
+
+Do not also call `update` yourself on a controller that is attached to a scene object, or it moves twice per frame. `world.createCharacter(collider, options)` makes the same controller without a game object.
+
 ## Soft bodies and vehicles
 
 `world.createSoftBody(options)` creates cloth, rope, or an inflated body from a triangle mesh. A `SoftBody` is a body without a collider. Its options:
@@ -348,10 +397,28 @@ Read and edit vertices with `vertexCount`, `getVertex(index)`, `setVertex(index,
 
 Call `vehicle.setInput(forward, steering, brake = 0, handbrake = 0)` every frame before `world.step`. `forward` and `steering` range from -1 to 1, and a negative `forward` reverses. `brake` and `handbrake` range from 0 to 1. Read `engineRpm`, `getWheelTransform(index)` (0 to 3), `getWheelAngularVelocity(index)`, `position`, and `rotation`. Lowering the center of mass of the chassis shape, for example `box.offsetCenterOfMass({ x: 0, y: -0.6, z: 0 })`, keeps a car stable.
 
+`Vehicle` is also a `GameComponent`. Its constructor takes the vehicle options plus the `world`. While it is attached to a game object, the scene copies the chassis position and rotation into the object's world transform each frame. The world's own `step` still advances the vehicle.
+
+```ts
+import { BoxCollider, GameObject, PhysicsWorld, Scene, Vehicle } from '@bornengine/engine';
+
+export function addCar(scene: Scene, world: PhysicsWorld): Vehicle {
+  const car = new GameObject({ name: 'Car', position: { x: 0, y: 2, z: 0 } });
+  const vehicle = new Vehicle({
+    world,
+    chassisShape: new BoxCollider(world, { x: 0.9, y: 0.3, z: 2 }),
+    position: { x: 0, y: 2, z: 0 },
+  });
+  car.addComponent(vehicle);
+  scene.addNode(car);
+  return vehicle;
+}
+```
+
 ## Ownership and disposal
 
 - Every collider, body, joint, character, and vehicle belongs to the world that made it. Passing a collider from another world makes the body report an `error` and stay unloaded.
-- `body.dispose()`, `joint.dispose()`, `character.dispose()`, and `vehicle.dispose()` remove one object.
+- `body.dispose()`, `joint.dispose()`, `character.dispose()`, and `vehicle.dispose()` remove one object. A joint, character, or vehicle attached to a game object is also disposed when that object is destroyed.
 - `collider.dispose()` also disposes the bodies, characters, and vehicles that use it, and every collider built from it, such as a compound, scaled, or offset collider.
 - `world.dispose()` disposes vehicles, joints, characters, bodies, and colliders, in that order, and then destroys the world.
 - When the game shuts down, everything that is still alive is disposed.

@@ -105,6 +105,9 @@ export class GameObject {
     if (childScene !== null && childScene !== targetScene) return null;
     if (targetScene === null && childScene !== null) return null;
     if (targetScene !== null && childScene === null && !targetScene._canAttachSubtree(child)) return null;
+    if (targetScene !== null && childScene === null && targetScene._bindSubtree(child) !== null) {
+      throw new Error('addChild: async @Asset errCallback requires scene.add()');
+    }
 
     let nextLocalPosition: Vec3 | null = null;
     let nextLocalRotation: Quat | null = null;

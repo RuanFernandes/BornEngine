@@ -301,8 +301,8 @@ declare function bloom_physics_constraint_destroy(c: number): void;
 declare function bloom_physics_constraint_set_enabled(c: number, enabled: number): void;
 
 // --- Contact events ---
-declare function bloom_physics_contact_count(): number;
-declare function bloom_physics_contact_field(i: number, field: number): number;
+declare function bloom_physics_contact_count(world: number): number;
+declare function bloom_physics_contact_field(world: number, i: number, field: number): number;
 declare function bloom_physics_clear_contacts(world: number): void;
 
 // ============================================================
@@ -1029,38 +1029,39 @@ export function setConstraintEnabled(c: ConstraintHandle, enabled: boolean): voi
 // Contact events (drained once per step)
 // ============================================================
 
-export function contactCount(): number {
-  return bloom_physics_contact_count();
+export function contactCount(world: WorldHandle): number {
+  return bloom_physics_contact_count(world);
 }
 
-export function popContacts(): Contact[] {
-  const n = bloom_physics_contact_count();
+export function popContacts(world: WorldHandle): Contact[] {
+  const n = bloom_physics_contact_count(world);
   const out: Contact[] = new Array(n);
   for (let i = 0; i < n; i = i + 1) {
     out[i] = {
-      event: bloom_physics_contact_field(i, 0),
-      bodyA: bloom_physics_contact_field(i, 1),
-      bodyB: bloom_physics_contact_field(i, 2),
+      event: bloom_physics_contact_field(world, i, 0),
+      bodyA: bloom_physics_contact_field(world, i, 1),
+      bodyB: bloom_physics_contact_field(world, i, 2),
       pointA: {
-        x: bloom_physics_contact_field(i, 3),
-        y: bloom_physics_contact_field(i, 4),
-        z: bloom_physics_contact_field(i, 5),
+        x: bloom_physics_contact_field(world, i, 3),
+        y: bloom_physics_contact_field(world, i, 4),
+        z: bloom_physics_contact_field(world, i, 5),
       },
       pointB: {
-        x: bloom_physics_contact_field(i, 6),
-        y: bloom_physics_contact_field(i, 7),
-        z: bloom_physics_contact_field(i, 8),
+        x: bloom_physics_contact_field(world, i, 6),
+        y: bloom_physics_contact_field(world, i, 7),
+        z: bloom_physics_contact_field(world, i, 8),
       },
       normal: {
-        x: bloom_physics_contact_field(i, 9),
-        y: bloom_physics_contact_field(i, 10),
-        z: bloom_physics_contact_field(i, 11),
+        x: bloom_physics_contact_field(world, i, 9),
+        y: bloom_physics_contact_field(world, i, 10),
+        z: bloom_physics_contact_field(world, i, 11),
       },
-      penetrationDepth: bloom_physics_contact_field(i, 12),
-      combinedFriction: bloom_physics_contact_field(i, 13),
-      combinedRestitution: bloom_physics_contact_field(i, 14),
+      penetrationDepth: bloom_physics_contact_field(world, i, 12),
+      combinedFriction: bloom_physics_contact_field(world, i, 13),
+      combinedRestitution: bloom_physics_contact_field(world, i, 14),
     };
   }
+  bloom_physics_clear_contacts(world);
   return out;
 }
 

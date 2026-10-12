@@ -3,6 +3,7 @@ import { Vector2D } from '../math/vector2d';
 import { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 import type { Viewport2D } from './viewport-2d';
+import type { Scene } from '../game/scene';
 
 export interface CameraRig2DOptions {
   target?: GameObject | null;
@@ -81,7 +82,12 @@ function validTarget(value: GameObject | null | undefined): value is GameObject 
   return world !== null && world !== undefined && finite(world.x) && finite(world.y);
 }
 
-/** Owns a mutable camera configuration and updates it from a scene target. */
+/**
+ * Owns a mutable camera configuration and updates it from a scene target.
+ * Without a `target` option it follows its own game object. Without an `offset`
+ * option it centers the target in the view. Attached to a scene that has no
+ * camera yet, it binds itself as the scene camera.
+ */
 export class CameraRig2D extends GameComponent {
   readonly error: string | null;
   target: GameObject | null;
@@ -97,11 +103,15 @@ export class CameraRig2D extends GameComponent {
   private shakeState: ShakeState | null = null;
   private shakeOffsetValue: Vector2DLike = { x: 0, y: 0 };
   private baseTargetValue: Vector2DLike;
+  private followsOwner: boolean;
+  private offsetFromView: boolean;
 
   constructor(options: CameraRig2DOptions = {}) {
     super();
     const settings = options === null || options === undefined ? {} : options;
     this.target = settings.target === undefined ? null : settings.target;
+    this.followsOwner = settings.target === undefined;
+    this.offsetFromView = settings.offset === undefined;
     this.smoothing = settings.smoothing === undefined ? 0 : settings.smoothing;
     this.minZoom = settings.minZoom === undefined ? 0.01 : settings.minZoom;
     this.maxZoom = settings.maxZoom === undefined ? 100 : settings.maxZoom;
@@ -183,6 +193,7 @@ export class CameraRig2D extends GameComponent {
   setTarget(target: GameObject | null): boolean {
     if (target === undefined || !validTarget(target)) return false;
     this.target = target;
+    if (target === null) this.followsOwner = false;
     return true;
   }
 
@@ -195,12 +206,20 @@ export class CameraRig2D extends GameComponent {
   setOffset(offset: Vector2DLike): boolean {
     if (this.error !== null || !point(offset)) return false;
     this.cameraValue.offset = copyPoint(offset);
+    this.offsetFromView = false;
     return true;
+  }
+
+  override onAwake(): void {
+    const scene = this.gameObject?.scene as Scene | null | undefined;
+    if (scene === null || scene === undefined || typeof scene.bindCameraRig2D !== 'function') return;
+    if (scene.camera2D === null) scene.bindCameraRig2D(this);
   }
 
   update(dt: number): void {
     if (this.error !== null || !finite(dt) || dt < 0) return;
-    const target = this.target;
+    if (this.offsetFromView) this.syncOffsetToView();
+    const target = this.target ?? (this.followsOwner ? this.gameObject : null);
     if (target !== null && target !== undefined && validTarget(target)) {
       const world = target.transform.worldPosition;
       if (!finite(world.x) || !finite(world.y)) return;
@@ -324,6 +343,11 @@ export class CameraRig2D extends GameComponent {
     const maxY = bottom - halfHeight;
     this.baseTargetValue.x = minX > maxX ? (left + right) * 0.5 : clamp(this.baseTargetValue.x, minX, maxX);
     this.baseTargetValue.y = minY > maxY ? (top + bottom) * 0.5 : clamp(this.baseTargetValue.y, minY, maxY);
+  }
+
+  private syncOffsetToView(): void {
+    const size = this.getViewSize();
+    this.cameraValue.offset = { x: size.x / 2, y: size.y / 2 };
   }
 
   private getViewSize(): Vector2D {

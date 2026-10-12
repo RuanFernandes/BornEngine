@@ -1,12 +1,14 @@
 import { getGameContext } from '../core/context';
 import { GameComponent } from './game-component';
 import { GameObject } from './game-object';
+import { bindAnnotations } from './annotations';
 import type { GameContext, ContextResource } from '../core/context';
 import type { Game } from '../core/game';
 import type { PhysicsWorld } from '../physics';
 import type { Renderer } from '../core/renderer';
 import type { Camera2D } from '../core/types';
 import type { Viewport2D } from '../camera2d/viewport-2d';
+import type { Texture } from '../textures/texture';
 
 interface RenderEntry {
   component: GameComponent;
@@ -35,6 +37,7 @@ export class GameScene implements ContextResource {
   readonly context: GameContext;
   private sceneObjects: GameObject[] = [];
   private pendingAwakeRoots: GameObject[] = [];
+  private pendingRoots: GameObject[] = [];
   private isAwakening = false;
   private nextAttachmentGeneration = 1;
   private wasDestroyed = false;
@@ -81,10 +84,20 @@ export class GameScene implements ContextResource {
     ) {
       return null;
     }
-    return this._attachSubtree(object) ? object : null;
+    if (this.pendingRoots.indexOf(object) >= 0) return object;
+    const binding = this._bindSubtree(object);
+    if (binding === null) return this._attachSubtree(object) ? object : null;
+    this.pendingRoots.push(object);
+    binding.then(() => this._attachPending(object));
+    return object;
   }
 
   remove(object: GameObject): boolean {
+    const pendingIndex = this.pendingRoots.indexOf(object);
+    if (pendingIndex >= 0) {
+      removeAt(this.pendingRoots, pendingIndex);
+      return true;
+    }
     if (this.wasDestroyed || object.destroyed || object.scene !== this) return false;
     if (object.parent !== null && !object.parent.removeChild(object)) return false;
 
@@ -274,6 +287,16 @@ export class GameScene implements ContextResource {
     this.destroy();
   }
 
+  /** @internal Loads a texture owned by this scene for `@Asset` annotations. */
+  _loadTexture(_path: string): Texture | null {
+    return null;
+  }
+
+  /** @internal Retries a texture owned by this scene after an errCallback fetched its file. */
+  _reloadTexture(_path: string): Texture | null {
+    return null;
+  }
+
   /** @internal Validates a detached subtree before an atomic scene attachment. */
   _canAttachSubtree(root: GameObject): boolean {
     const subtree = this._collectSubtree(root);
@@ -285,6 +308,25 @@ export class GameScene implements ContextResource {
       }
     }
     return true;
+  }
+
+  /** @internal Binds annotations across a detached subtree; returns a pending promise when an async errCallback is involved. */
+  _bindSubtree(root: GameObject): Promise<void> | null {
+    const pending: Promise<void>[] = [];
+    const subtree = this._collectSubtree(root);
+    for (let index = 0; index < subtree.length; index++) {
+      const binding = bindAnnotations(subtree[index], this);
+      if (binding !== null) pending.push(binding);
+    }
+    if (pending.length === 0) return null;
+    return Promise.all(pending).then(() => undefined);
+  }
+
+  private _attachPending(object: GameObject): void {
+    const index = this.pendingRoots.indexOf(object);
+    if (index < 0) return;
+    removeAt(this.pendingRoots, index);
+    this._attachSubtree(object);
   }
 
   /** @internal Attaches a detached subtree in parent-first insertion order. */
@@ -301,14 +343,17 @@ export class GameScene implements ContextResource {
       this.pendingAwakeRoots.push(root);
     } else {
       this.isAwakening = true;
-      this._awakenSubtree(root);
-      let pendingIndex = 0;
-      while (pendingIndex < this.pendingAwakeRoots.length) {
-        this._awakenSubtree(this.pendingAwakeRoots[pendingIndex]);
-        pendingIndex++;
+      try {
+        this._awakenSubtree(root);
+        let pendingIndex = 0;
+        while (pendingIndex < this.pendingAwakeRoots.length) {
+          this._awakenSubtree(this.pendingAwakeRoots[pendingIndex]);
+          pendingIndex++;
+        }
+      } finally {
+        this.pendingAwakeRoots.length = 0;
+        this.isAwakening = false;
       }
-      this.pendingAwakeRoots.length = 0;
-      this.isAwakening = false;
     }
     return true;
   }
@@ -330,6 +375,10 @@ export class GameScene implements ContextResource {
         claimed.push(subtree[objectIndex]);
       }
       subtrees.push(subtree);
+    }
+
+    for (let rootIndex = 0; rootIndex < roots.length; rootIndex++) {
+      if (this._bindSubtree(roots[rootIndex]) !== null) return false;
     }
 
     for (let subtreeIndex = 0; subtreeIndex < subtrees.length; subtreeIndex++) {
@@ -380,29 +429,26 @@ export class GameScene implements ContextResource {
   private _awakenSubtree(object: GameObject): void {
     if (object.destroyed || object.scene !== this) return;
     object._beginAwakening();
-    if (object._markAwake()) {
-      const dynamicObject: any = object;
-      dynamicObject.onAwake();
-    }
-    if (object.destroyed || object.scene !== this) {
-      object._endAwakening();
-      return;
-    }
+    try {
+      if (object._markAwake()) {
+        const dynamicObject: any = object;
+        dynamicObject.onAwake();
+      }
+      if (object.destroyed || object.scene !== this) return;
 
-    this._awakenComponents(object);
-    if (object.destroyed || object.scene !== this) {
-      object._endAwakening();
-      return;
-    }
-
-    const children = object._childrenSnapshot();
-    for (let index = 0; index < children.length; index++) {
-      this._awakenSubtree(children[index]);
-    }
-    if (!object.destroyed && object.scene === this) {
       this._awakenComponents(object);
+      if (object.destroyed || object.scene !== this) return;
+
+      const children = object._childrenSnapshot();
+      for (let index = 0; index < children.length; index++) {
+        this._awakenSubtree(children[index]);
+      }
+      if (!object.destroyed && object.scene === this) {
+        this._awakenComponents(object);
+      }
+    } finally {
+      object._endAwakening();
     }
-    object._endAwakening();
   }
 
   private _awakenComponents(object: GameObject): void {

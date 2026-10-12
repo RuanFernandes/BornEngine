@@ -500,6 +500,8 @@
 }
 #[no_mangle] pub extern "C" fn bloom_unregister_frame_callback(_p0: f64) {
 }
+#[no_mangle] pub extern "C" fn bloom_run_microtasks() {
+}
 #[no_mangle] pub extern "C" fn bloom_scene_set_gi_only(_p0: f64, _p1: f64) {
 }
 #[no_mangle] pub extern "C" fn bloom_scene_set_trs(_p0: f64, _p1: f64, _p2: f64, _p3: f64, _p4: f64, _p5: f64) {
@@ -887,10 +889,10 @@
 }
 #[no_mangle] pub extern "C" fn bloom_physics_constraint_set_enabled(_p0: f64, _p1: f64) {
 }
-#[no_mangle] pub extern "C" fn bloom_physics_contact_count() -> f64 {
+#[no_mangle] pub extern "C" fn bloom_physics_contact_count(_p0: f64) -> f64 {
     0.0
 }
-#[no_mangle] pub extern "C" fn bloom_physics_contact_field(_p0: f64, _p1: f64) -> f64 {
+#[no_mangle] pub extern "C" fn bloom_physics_contact_field(_p0: f64, _p1: f64, _p2: f64) -> f64 {
     0.0
 }
 #[no_mangle] pub extern "C" fn bloom_physics_clear_contacts(_p0: f64) {

@@ -1,4 +1,5 @@
 import type { GameContext, ContextResource } from '../core/context';
+import { GameComponent } from '../game/game-component';
 import type { Quat, Vec3 } from '../core/types';
 import * as native from './internal';
 import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './handles';
@@ -8,6 +9,7 @@ import { PhysicsBody } from './rigid-body';
 import type { PhysicsTransform } from './rigid-body';
 
 export type VehicleOptions = Omit<native.VehicleConfig, 'chassisShape'> & { chassisShape: Collider };
+export type VehicleComponentOptions = VehicleOptions & { world: PhysicsWorld };
 
 class VehicleChassis extends PhysicsBody {
   constructor(
@@ -25,14 +27,16 @@ class VehicleChassis extends PhysicsBody {
 }
 
 /** Four-wheel vehicle constraint and its engine-owned chassis body. */
-export class Vehicle implements ContextResource {
+export class Vehicle extends GameComponent implements ContextResource {
   readonly world: PhysicsWorld;
   readonly context: GameContext;
   readonly error: string | null;
   readonly chassis: PhysicsBody | null;
   private disposed = false;
 
-  constructor(world: PhysicsWorld, options: VehicleOptions) {
+  constructor(options: VehicleComponentOptions) {
+    super();
+    const world = options.world;
     this.world = world;
     this.context = world.context;
     const shape = options.chassisShape;
@@ -94,6 +98,19 @@ export class Vehicle implements ContextResource {
   }
   get rotation(): Quat | null {
     return this.chassis ? this.chassis.rotation : null;
+  }
+
+  update(_deltaTime: number): void {
+    const owner = this.gameObject;
+    if (owner === null || !this.isLoaded || this.chassis === null) return;
+    const position = this.chassis.position;
+    if (position !== null) owner.transform.setWorldPosition(position);
+    const rotation = this.chassis.rotation;
+    if (rotation !== null) owner.transform.setWorldRotation(rotation);
+  }
+
+  onDestroy(): void {
+    this.dispose();
   }
 
   dispose(): void {

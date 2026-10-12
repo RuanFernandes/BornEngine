@@ -30,7 +30,6 @@ const state = {
   // Most-recent query results (drained on read)
   rayHits: [],       // array of { body, point:[x,y,z], normal:[x,y,z], fraction, subShapeId }
   overlapBodies: [], // array of body handles
-  contacts: [],      // array of contact objects
   // Scratch streams for variable-size shape inputs.
   scratchF32: [],
   scratchU32: [],
@@ -142,8 +141,9 @@ export function createWorld(gx, gy, gz, maxBodies, numThreads) {
 
   const handle = state.nextWorld++;
 
-  // Contact listener — bridges Jolt contact callbacks into the state.contacts queue.
+  // Contact listener — bridges Jolt contact callbacks into this world's contact queue.
   // JoltPhysics.js provides ContactListenerJS with virtual methods exposed as JS fields.
+  const contacts = [];
   const listener = new J.ContactListenerJS();
   const pushContact = (event, body1, body2, manifold, settings_out) => {
     const bodyIdA = body1.GetID();
@@ -170,7 +170,7 @@ export function createWorld(gx, gy, gz, maxBodies, numThreads) {
       friction = settings_out.mCombinedFriction ?? 0;
       restitution = settings_out.mCombinedRestitution ?? 0;
     }
-    state.contacts.push({
+    contacts.push({
       event, bodyA: bodyAh, bodyB: bodyBh,
       pointA, pointB, normal,
       penetrationDepth: depth,
@@ -184,7 +184,7 @@ export function createWorld(gx, gy, gz, maxBodies, numThreads) {
   listener.OnContactRemoved   = (pair) => {
     const b1 = pair.GetBody1ID();
     const b2 = pair.GetBody2ID();
-    state.contacts.push({
+    contacts.push({
       event: 2,
       bodyA: bodyIdToHandle(handle, b1),
       bodyB: bodyIdToHandle(handle, b2),
@@ -202,6 +202,7 @@ export function createWorld(gx, gy, gz, maxBodies, numThreads) {
     pairFilter,                  // for DefaultObjectLayerFilter construction
     objectVsBp,                  // for DefaultBroadPhaseLayerFilter construction
     listener,                    // hold ref so GC doesn't collect
+    contacts,
   });
   return handle;
 }
@@ -965,9 +966,14 @@ export function constraintSetEnabled(h, enabled) {
 // Contact events  (Tier 2 — listener wiring not yet ported to JS)
 // ---------------------------------------------------------------------------
 
-export function contactCount() { return state.contacts.length; }
-export function contactField(i, field) {
-  const c = state.contacts[i|0]; if (!c) return 0;
+function worldContacts(worldH) {
+  const w = state.worlds.get(worldH);
+  return w ? w.contacts : null;
+}
+export function contactCount(worldH) { const q = worldContacts(worldH); return q ? q.length : 0; }
+export function contactField(worldH, i, field) {
+  const q = worldContacts(worldH); if (!q) return 0;
+  const c = q[i|0]; if (!c) return 0;
   switch (field|0) {
     case 0:  return c.event;
     case 1:  return c.bodyA;
@@ -981,7 +987,7 @@ export function contactField(i, field) {
     default: return 0;
   }
 }
-export function clearContacts(worldH) { void worldH; state.contacts.length = 0; }
+export function clearContacts(worldH) { const q = worldContacts(worldH); if (q) q.length = 0; }
 
 // ============================================================================
 // Phase 5 additions — complex shapes + character controller

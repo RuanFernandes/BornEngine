@@ -30,13 +30,13 @@ const turret = game.sceneGraph.createNode({ name: 'Turret' });
 if (tank.isLoaded && turret.isLoaded) {
   turret.setParent(tank);
   tank.setTrs({ x: 2, y: 0, z: -6 }, Math.PI / 2, 1);
-  turret.setTrs({ x: 2, y: 1, z: -6 }, Math.PI / 2, 1);
+  turret.setTrs({ x: 0, y: 1, z: 0 }, 0, 1);
 }
 
 console.log(game.sceneGraph.nodeCount, tank.children.length, game.sceneGraph.findByName('Turret') === turret);
 ```
 
-`setParent` records the hierarchy for `parent`, `children`, and disposal. It does not move the child with its parent. The renderer draws every node with its own matrix and treats that matrix as a world transform. In the example both calls pass world positions, and moving the tank later means moving the turret too.
+A node's matrix is local to its parent, and the renderer draws each node at its parent's world transform times its own matrix, so a child moves with its parent. In the example the turret sits one unit above the tank, and moving the tank moves the turret.
 
 `SceneNode` members:
 
@@ -44,11 +44,11 @@ console.log(game.sceneGraph.nodeCount, tank.children.length, game.sceneGraph.fin
 | --- | --- |
 | `name`, `error`, `isLoaded`, `isDisposed` | Read-only state. |
 | `parent`, `children` | The hierarchy. `children` returns a copy. |
-| `setParent(parent)` | Records a new parent. Pass `null` to detach the node. It returns `false` if the parent is not loaded, belongs to another game, or is a descendant of this node. Transforms are not combined, as described above. |
+| `setParent(parent)` | Records a new parent. Pass `null` to detach the node, which then uses its own matrix as its world transform. It returns `false` if the parent is not loaded, belongs to another game, or is a descendant of this node. |
 | `setVisible(visible)` | Shows or hides the node. |
-| `setTransform(matrix)` | Sets the full world transform from a 4 by 4 matrix: an array of 16 numbers, column-major. It returns `false` for any other length. |
+| `setTransform(matrix)` | Sets the full local transform from a 4 by 4 matrix: an array of 16 numbers, column-major. It returns `false` for any other length. |
 | `setTrs(position, yaw = 0, scale = 1)` | Sets position, a rotation around the Y axis in **radians**, and one uniform scale. |
-| `getTransform()` | Reads the 16-number matrix back, or `null` when the node is not loaded. |
+| `getTransform()` | Reads back the local 16-number matrix last set, or `null` when the node is not loaded. |
 | `getBounds()` | The bounding box of the node's geometry in local space, or `null`. |
 | `setUserData(value)`, `getUserData()` | Stores one number on the node. Editors use it to map a node to their own id. |
 | `dispose()` | Frees the node and every node below it. |
