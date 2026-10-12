@@ -23,8 +23,13 @@ macro_rules! __bloom_ffi_game_loop {
         // provided by the Perry runtime linked into the final binary.
         #[no_mangle]
         pub extern "C" fn bloom_run_microtasks() {
+            #[cfg(not(test))]
             extern "C" {
                 fn js_promise_run_microtasks() -> i32;
+            }
+            #[cfg(test)]
+            unsafe fn js_promise_run_microtasks() -> i32 {
+                0
             }
             $crate::ffi::guard("bloom_run_microtasks", move || {
                 unsafe { js_promise_run_microtasks(); }
