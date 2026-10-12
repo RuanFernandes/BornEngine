@@ -1084,6 +1084,11 @@ struct CompositeParams {
     /// y = sharpen strength (0 = off, ~0.25 subtle, ~0.5 punchy);
     /// zw padding.
     misc: vec4<f32>,
+    /// xyz = empty-pixel colour in linear display space; w = 1 when empty
+    /// pixels (no geometry, no sky drawn) must show it exactly.
+    bg_display: vec4<f32>,
+    /// xyz = HDR clear value the scene pass starts from.
+    bg_hdr: vec4<f32>,
 };
 
 @group(0) @binding(0) var hdr_tex: texture_2d<f32>;
@@ -1093,6 +1098,7 @@ struct CompositeParams {
 @group(0) @binding(4) var exposure_samp: sampler;
 @group(0) @binding(5) var ssao_tex: texture_2d<f32>;
 @group(0) @binding(6) var ssao_samp: sampler;
+@group(0) @binding(7) var depth_tex: texture_depth_2d;
 
 struct VsOut {
     @builtin(position) clip_pos: vec4<f32>,
@@ -1384,6 +1390,19 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // Smooth radial darkening. Applied after tonemap so it stays
     // perceptually uniform across exposures (otherwise bright
     // scenes wash out the vignette).
+    // Empty pixels (far plane, no sky drawn) show the clear colour exactly.
+    // Runs after sharpen/CA, which would otherwise pull the flat background
+    // toward the tonemapped neighbourhood. Light added on top (bloom spill,
+    // sun shafts) is positive, so only an excess over the tonemapped clear
+    // value is added; HDR rounding around the clear value is dropped.
+    let bg_dims = vec2<f32>(textureDimensions(depth_tex));
+    let bg_px = min(vec2<i32>(in.uv * bg_dims), vec2<i32>(bg_dims) - vec2<i32>(1));
+    let bg_depth = textureLoad(depth_tex, bg_px, 0);
+    if (u.bg_display.w > 0.5 && bg_depth >= 0.9999) {
+        let bg_ref = tonemap_select(u.bg_hdr.rgb * ao_weighted * exposure);
+        ldr = u.bg_display.rgb + max(ldr - bg_ref - vec3<f32>(0.001), vec3<f32>(0.0));
+    }
+
     let vig_strength = u.filmic.y;
     if (vig_strength > 0.0) {
         let vig_softness = max(u.filmic.z, 0.001);

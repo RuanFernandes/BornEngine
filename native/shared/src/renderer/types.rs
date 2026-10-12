@@ -939,4 +939,9 @@ pub(super) struct CompositeParams {
     /// x = grain seed (frame index, animates the noise),
     /// y = sharpen strength, zw padding.
     pub(super) misc: [f32; 4],
+    /// xyz = empty-pixel colour in linear display space; w = 1 when empty
+    /// pixels (no geometry, no sky drawn) must show it exactly.
+    pub(super) bg_display: [f32; 4],
+    /// xyz = HDR clear value the scene pass starts from.
+    pub(super) bg_hdr: [f32; 4],
 }

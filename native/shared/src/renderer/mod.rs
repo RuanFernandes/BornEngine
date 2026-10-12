@@ -3369,6 +3369,16 @@ impl Renderer {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
             ],
         });
         let composite_pl_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -10195,6 +10205,13 @@ impl Renderer {
                 self.grain_strength,
             ],
             misc: [self.taa_frame_index as f32, self.sharpen_strength, 0.0, 0.0],
+            bg_display: [
+                srgb_u8_to_linear(self.clear_color.r * 255.0),
+                srgb_u8_to_linear(self.clear_color.g * 255.0),
+                srgb_u8_to_linear(self.clear_color.b * 255.0),
+                if self.sky_bind_group.is_none() && !self.procedural_sky_enabled { 1.0 } else { 0.0 },
+            ],
+            bg_hdr: [self.clear_color.r as f32, self.clear_color.g as f32, self.clear_color.b as f32, 0.0],
         };
         self.queue.write_buffer(&self.composite_uniform_buffer, 0, bytemuck::bytes_of(&cp));
 
@@ -10209,6 +10226,7 @@ impl Renderer {
                 wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::Sampler(&self.composite_sampler) },
                 wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::TextureView(&self.ssao_blur_rt_view) },
                 wgpu::BindGroupEntry { binding: 6, resource: wgpu::BindingResource::Sampler(&self.composite_sampler) },
+                wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.depth_view) },
             ],
         });
         // EN-017 V2 — when at least one post-pass is installed the

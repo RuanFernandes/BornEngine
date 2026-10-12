@@ -1551,7 +1551,7 @@ pub fn bloom_commit_texture(staging_handle: f64) -> f64 {
         None => return 0.0,
     };
     let eng = engine();
-    let bind_group_idx = eng.renderer.register_texture(staged.width, staged.height, &staged.data);
+    let bind_group_idx = eng.renderer.register_color_texture(staged.width, staged.height, &staged.data);
     eng.textures.textures.alloc(bloom_shared::textures::TextureData {
         bind_group_idx, width: staged.width, height: staged.height,
     })

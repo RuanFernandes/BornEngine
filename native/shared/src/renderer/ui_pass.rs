@@ -2,6 +2,18 @@ use std::collections::HashMap;
 
 use super::*;
 
+/// The stored clear colour is sRGB-normalised, but the 2D pass writes linear
+/// values to the sRGB swapchain. Decode it like `color_to_f32_srgb` does for
+/// 2D vertex colours, so the frame clears to the requested colour.
+fn srgb_clear_color(clear: wgpu::Color) -> wgpu::Color {
+    wgpu::Color {
+        r: srgb_u8_to_linear(clear.r * 255.0) as f64,
+        g: srgb_u8_to_linear(clear.g * 255.0) as f64,
+        b: srgb_u8_to_linear(clear.b * 255.0) as f64,
+        a: clear.a,
+    }
+}
+
 pub(super) struct UiRendererState {
     egui_renderer: egui_wgpu::Renderer,
     pending_egui_frame: Option<(crate::ui::EguiFrameOutput, HashMap<u64, u32>)>,
@@ -586,7 +598,7 @@ impl Renderer {
                     resolve_target: None,
                     depth_slice: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.clear_color),
+                        load: wgpu::LoadOp::Clear(srgb_clear_color(self.clear_color)),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
