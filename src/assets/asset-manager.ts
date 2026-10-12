@@ -2,6 +2,7 @@ import type { Game } from '../core/game';
 import { GameContext, getGameContext } from '../core/context';
 import type { ContextResource } from '../core/context';
 import { Texture } from '../textures/texture';
+import { FILTER_NEAREST } from '../textures/internal';
 import type { ImageData } from '../textures/image-data';
 import { ImageData as ImageDataResource } from '../textures/image-data';
 import { RenderTexture } from '../textures/render-texture';
@@ -61,6 +62,7 @@ export class AssetManager implements ContextResource {
 
     const texture = this.track(Texture._create(this.game, path));
     if (texture === null) return null;
+    if (texture.isLoaded && this.game.textureFilter === 'nearest') texture.setFilter(FILTER_NEAREST);
     if (this.context.isReady) {
       this.textures.set(path, texture);
       this.texturePaths.push(path);
