@@ -19,7 +19,7 @@ Import specialized modules from a subpath. Each subpath is a module with a narro
 
 | Import | Use it for |
 | --- | --- |
-| `@bornengine/engine/annotations` | `@Asset` and `@GameComponent()` field decorators |
+| `@bornengine/engine/annotations` | `@Asset` and `@GameComponent<T>(options)` field decorators |
 | `@bornengine/engine/audio` | `SoundManager`, sound and music helpers, buses |
 | `@bornengine/engine/camera2d` | `CameraRig2D`, `Viewport2D`, parallax layers |
 | `@bornengine/engine/colyseus` | Multiplayer client and rooms |
@@ -36,7 +36,7 @@ The full list is in [API overview](../../api/).
 Two names appear in more than one place, so check the import when you add a line:
 
 - `GameComponent` is the base class you extend. It is exported from the root and from `@bornengine/engine/game`.
-- `GameComponent()` is the decorator exported from `@bornengine/engine/annotations`. A file that uses `@GameComponent()` imports the decorator from there. Keep the base class in a different file, or import one of the two under another name.
+- `GameComponent()` is the decorator exported from `@bornengine/engine/annotations`. Pass the component class as the type argument, as in `@GameComponent<CameraRig2D>({ ... })`, to check the options and get autocomplete. A file that uses `@GameComponent` imports the decorator from there. Keep the base class in a different file, or import one of the two under another name.
 
 `@bornengine/engine/scene` is the 3D scene graph. The `Scene` class you extend for levels comes from the root or from `@bornengine/engine/game`.
 
