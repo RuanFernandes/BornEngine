@@ -6,8 +6,13 @@ import { SpriteRenderer } from './sprite-renderer';
 import { SpriteAnimationTemplateBoundClip, SpriteAnimationTemplateRenderer } from './sprite-animation-template-runtime';
 import type { SpriteAnimationTarget } from './sprite-animation-target';
 
+/** Comparison used by number conditions: equal, greater, greater or equal, less, less or equal. */
 export type SpriteNumberComparison = 'eq' | 'gt' | 'gte' | 'lt' | 'lte';
 
+/**
+ * A test a state transition requires: a callback, a bool or number parameter check, or a raised trigger.
+ * Trigger conditions are consumed when their transition fires.
+ */
 export type SpriteTransitionCondition =
   | { readonly type: 'callback'; readonly test: (animator: SpriteAnimator) => boolean }
   | { readonly type: 'bool'; readonly name: string; readonly value: boolean }
@@ -19,7 +24,9 @@ export type SpriteTransitionCondition =
     }
   | { readonly type: 'trigger'; readonly name: string };
 
+/** An edge from one animator state to another, taken when all of its conditions pass. */
 export interface SpriteAnimationTransition {
+  /** Name of the destination state. */
   readonly to: string;
   /** Conditions combine with AND. An empty condition list is always eligible. */
   readonly conditions?: readonly SpriteTransitionCondition[];
@@ -27,26 +34,44 @@ export interface SpriteAnimationTransition {
   readonly fade?: number;
 }
 
+/** A named state of the animator state machine. It plays one clip and lists its outgoing transitions. */
 export interface SpriteAnimatorState {
+  /** Unique state name. */
   readonly name: string;
+  /** Name of the clip played while the state is active. */
   readonly clip: string;
   /** Transitions are tested in declaration order. */
   readonly transitions?: readonly SpriteAnimationTransition[];
 }
 
+/** Options for `SpriteAnimator`: the clips to play and an optional state machine. */
 export interface SpriteAnimatorOptions {
-  readonly clips: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
+  /** Defaults to every clip of a template renderer. Required for a SpriteRenderer. */
+  readonly clips?: Readonly<Record<string, SpriteAnimation | SpriteAnimationTemplateBoundClip>>;
+  /** State machine definition. State names must be unique and every transition must target a defined state. */
   readonly states?: readonly SpriteAnimatorState[];
+  /** State to enter immediately. Takes precedence over autoplay. */
   readonly initialState?: string;
+  /** Clip to play immediately, without a state machine. Ignored when initialState is set. */
+  readonly autoplay?: string;
 }
 
+/** Options for `SpriteAnimator.play`. */
 export interface SpritePlayOptions {
+  /** Restarts the clip even when it is already the current one. */
   readonly restart?: boolean;
+  /** Crossfade duration in seconds from the previous frame. Defaults to 0. */
   readonly fade?: number;
 }
 
+/**
+ * Called when playback enters a frame that has markers, once per marker, with the marker name, clip name and frame
+ * index.
+ */
 export type SpriteMarkerCallback = (marker: string, clip: string, frameIndex: number) => void;
+/** Called with the clip name when a clip with loop `once` reaches its last frame. */
 export type SpriteCompleteCallback = (clip: string) => void;
+/** Called with the new and previous state names when a transition or `setState` changes the state. */
 export type SpriteStateChangedCallback = (next: string, previous: string) => void;
 
 interface StoredState {
@@ -106,8 +131,11 @@ function validCondition(condition: SpriteTransitionCondition): boolean {
 
 /** Plays concrete or layered clips on one animation target and evaluates an optional state machine. */
 export class SpriteAnimator extends GameComponent {
+  /** Assign to receive frame markers as playback enters frames. Null disables it. */
   onMarker: SpriteMarkerCallback | null = null;
+  /** Assign to be told when a `once` clip finishes. Null disables it. */
   onComplete: SpriteCompleteCallback | null = null;
+  /** Assign to be told when the state machine switches state. Null disables it. */
   onStateChanged: SpriteStateChangedCallback | null = null;
 
   private readonly animationTarget: SpriteAnimationTarget;
@@ -138,6 +166,12 @@ export class SpriteAnimator extends GameComponent {
   private playbackRevision = 0;
   private animationError: string | null = null;
 
+  /**
+   * Creates an animator for a `SpriteRenderer` or `SpriteAnimationTemplateRenderer` and validates its clips and states.
+   * Without `clips`, a template renderer supplies all of its own clips. Invalid input is reported through `error`, not
+   * thrown.
+   * Playback starts immediately when `initialState` or `autoplay` is given.
+   */
   constructor(renderer: SpriteRenderer | SpriteAnimationTemplateRenderer, options: SpriteAnimatorOptions) {
     super();
     const settings: SpriteAnimatorOptions = options === null || options === undefined ? { clips: {} } : options;
@@ -155,19 +189,25 @@ export class SpriteAnimator extends GameComponent {
           : renderer.error || 'SpriteAnimator requires a valid animation target.';
       return;
     }
-    if (settings.clips === null || settings.clips === undefined || typeof settings.clips !== 'object') {
+    const clipRecord =
+      settings.clips !== undefined
+        ? settings.clips
+        : renderer instanceof SpriteAnimationTemplateRenderer
+          ? renderer.animation.clips
+          : undefined;
+    if (clipRecord === null || clipRecord === undefined || typeof clipRecord !== 'object') {
       this.animationError = 'SpriteAnimator clips must be a name-to-animation object.';
       return;
     }
 
-    const names = Object.keys(settings.clips);
+    const names = Object.keys(clipRecord);
     if (names.length === 0) {
       this.animationError = 'SpriteAnimator requires at least one clip.';
       return;
     }
     for (let index = 0; index < names.length; index++) {
       const name = names[index];
-      const clip = settings.clips[name];
+      const clip = clipRecord[name];
       if (
         !isValidName(name) ||
         clip === null ||
@@ -266,15 +306,20 @@ export class SpriteAnimator extends GameComponent {
         return;
       }
       this.startState(initialState, 0, false);
+    } else if (settings.autoplay !== undefined) {
+      this.play(settings.autoplay);
     }
   }
 
+  /** Message from the last failed call or construction problem, or null. Successful calls clear it. */
   get error(): string | null {
     return this.animationError;
   }
+  /** Name of the clip that is playing or played last, or null before any clip started. */
   get currentClip(): string | null {
     return this.currentClipNameValue;
   }
+  /** The current clip as a `SpriteAnimation`, or null when nothing plays or the clip comes from a template. */
   get currentAnimation(): SpriteAnimation | null {
     return this.currentAnimationValue instanceof SpriteAnimation ? this.currentAnimationValue : null;
   }
@@ -282,18 +327,23 @@ export class SpriteAnimator extends GameComponent {
   get currentClipData(): SpriteAnimationPlaybackClip | null {
     return this.currentAnimationValue;
   }
+  /** Name of the active state machine state, or null when none is active or a clip was started with `play`. */
   get currentState(): string | null {
     return this.currentStateValue;
   }
+  /** Index of the frame being shown within the current clip. */
   get currentFrameIndex(): number {
     return this.frameIndexValue;
   }
+  /** True while a clip is active and has not finished or been stopped. Stays true while paused. */
   get isPlaying(): boolean {
     return this.playingValue;
   }
+  /** True after `pause` until `resume` or a new clip starts. */
   get isPaused(): boolean {
     return this.pausedValue;
   }
+  /** Playback speed multiplier. 1 is normal speed. */
   get speed(): number {
     return this.speedValue;
   }
@@ -331,6 +381,7 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Playhead position in seconds within the current clip. */
   get currentTime(): number {
     const animation = this.currentAnimationValue;
     if (animation === null) return 0;
@@ -346,6 +397,7 @@ export class SpriteAnimator extends GameComponent {
     return time + this.frameElapsed;
   }
 
+  /** Playhead position across the current clip, from 0 to 1. */
   get normalizedTime(): number {
     const animation = this.currentAnimationValue;
     if (animation === null || animation.duration <= 0) return 0;
@@ -388,6 +440,7 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Resumes playback after `pause`. Returns false when the animator is not paused. */
   resume(): boolean {
     if (!this.playingValue || !this.pausedValue) return false;
     this.pausedValue = false;
@@ -458,6 +511,7 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Sets the playback speed multiplier. The value must be finite and non-negative; 0 holds the current frame. */
   setSpeed(value: number): boolean {
     if (!isNonNegative(value)) {
       this.animationError = 'SpriteAnimator speed must be finite and non-negative.';
@@ -468,6 +522,7 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Sets a bool parameter read by transition conditions. Returns false for an empty name or a non-boolean value. */
   setBool(name: string, value: boolean): boolean {
     if (!isValidName(name) || typeof value !== 'boolean') {
       this.animationError = 'SpriteAnimator bool parameters require a name and boolean value.';
@@ -483,11 +538,13 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Returns a bool parameter, or false when it was never set. */
   getBool(name: string): boolean {
     const index = this.boolNames.indexOf(name);
     return index < 0 ? false : this.boolValues[index];
   }
 
+  /** Sets a number parameter read by transition conditions. Returns false for an empty name or a non-finite value. */
   setNumber(name: string, value: number): boolean {
     if (!isValidName(name) || !isFiniteNumber(value)) {
       this.animationError = 'SpriteAnimator number parameters require a name and finite value.';
@@ -503,11 +560,13 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Returns a number parameter, or 0 when it was never set. */
   getNumber(name: string): number {
     const index = this.numberNames.indexOf(name);
     return index < 0 ? 0 : this.numberValues[index];
   }
 
+  /** Raises a trigger parameter. It stays raised until a transition that uses it fires or `resetTrigger` is called. */
   setTrigger(name: string): boolean {
     if (!isValidName(name)) {
       this.animationError = 'SpriteAnimator trigger names must be non-empty strings.';
@@ -523,6 +582,7 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Clears a raised trigger. */
   resetTrigger(name: string): boolean {
     if (!isValidName(name)) return false;
     const index = this.triggerNames.indexOf(name);
@@ -530,6 +590,7 @@ export class SpriteAnimator extends GameComponent {
     return true;
   }
 
+  /** Returns true while the trigger is raised. */
   hasTrigger(name: string): boolean {
     const index = this.triggerNames.indexOf(name);
     return index >= 0 && this.triggerValues[index];
@@ -545,6 +606,10 @@ export class SpriteAnimator extends GameComponent {
     return this.startState(state, fade, true);
   }
 
+  /**
+   * Advances playback and crossfades by `deltaTime` seconds, then evaluates state transitions. Called each frame by the
+   * scene.
+   */
   update(deltaTime: number): void {
     if (this.currentAnimationValue === null) return;
     const markerRevision = this.playbackRevision;

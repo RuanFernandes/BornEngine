@@ -3,9 +3,12 @@ import type { World2DDiagnostic, World2DTilesetData, WorldTileCell } from './typ
 const MAX_SAFE_INTEGER_VALUE = 9007199254740991;
 const MAX_TOTAL_TILES = Math.floor((MAX_SAFE_INTEGER_VALUE - 7) / 8);
 
+/** Error thrown by the tile code and tile grid codecs when their input is invalid. */
 export class World2DCodecError extends Error {
+  /** Structured description of the failure: JSON pointer path, error code, and message. */
   readonly diagnostic: World2DDiagnostic;
 
+  /** Creates the error and its diagnostic from a path, code, and message. */
   constructor(path: string, code: string, message: string) {
     super(message);
     this.name = 'World2DCodecError';
@@ -13,6 +16,7 @@ export class World2DCodecError extends Error {
   }
 }
 
+/** Converts between tile cells and the numeric codes stored in tile grids. */
 export interface World2DTileCodebook {
   encode(cell: WorldTileCell | null): number;
   decode(code: number): WorldTileCell | null;

@@ -416,6 +416,7 @@ function arr<T>(items: T[], d: number, fn: (x: T, d: number) => string): string 
 
 // --- entry points ------------------------------------------------------------
 
+/** Converts a world document to the JSON text written to `*.world.json` files. */
 export function serializeWorld(w: WorldDocument): string {
   let s = '{\n';
   s = s + ind(1) + '"schemaVersion": ' + num(w.schemaVersion) + ',\n';
@@ -456,6 +457,7 @@ function prefabChild(c: PrefabChild, d: number): string {
   return s + ind(d) + '}';
 }
 
+/** Converts a prefab document to the JSON text written to `*.prefab.json` files. */
 export function serializePrefab(p: PrefabData): string {
   // schemaVersion and bounds were MISSING here until 2026-07-15 — every prefab
   // ever saved lost both (schemaVersion was silently backfilled by migration on

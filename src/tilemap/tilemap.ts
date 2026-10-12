@@ -5,6 +5,7 @@ import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
 import type { SpriteFrame, SpriteSheet } from '../sprites/sprite-sheet';
 
+/** Defines one tile ID: the frame it draws and its optional collision. */
 export interface TilemapTileDefinition {
   /** Tile ID 0 is reserved for an empty cell. */
   id: number;
@@ -16,31 +17,47 @@ export interface TilemapTileDefinition {
   collision?: Readonly<Rect>;
 }
 
+/** Options for `Tilemap`. */
 export interface TilemapOptions {
+  /** Map width in cells. */
   columns: number;
+  /** Map height in cells. */
   rows: number;
+  /** Cell width in world units. */
   tileWidth: number;
+  /** Cell height in world units. */
   tileHeight: number;
+  /** Tile definitions. Every non-zero ID used in `data` must be defined here. */
   tiles: TilemapTileDefinition[];
   /** Row-major tile IDs. Missing cells are filled with 0 (empty). */
   data?: number[];
   /** Optional row-major Tiled orthogonal flip flags. Missing entries use the default transform. */
   cellFlips?: TilemapCellFlip[];
+  /** Color multiplied into every tile. Defaults to white. */
   tint?: Color;
+  /** Whether the map draws. Defaults to true. */
   visible?: boolean;
+  /** Draw order among components. Lower values draw first. */
   renderOrder?: number;
 }
 
 /** Orthogonal Tiled flips, applied diagonal first, then horizontal, then vertical. */
 export interface TilemapCellFlip {
+  /** Mirrors the tile horizontally. */
   flipX?: boolean;
+  /** Mirrors the tile vertically. */
   flipY?: boolean;
+  /** Swaps the tile's axes (a diagonal flip). */
   flipDiagonal?: boolean;
 }
 
+/** A solid cell with its collision rectangle, as returned by `Tilemap.getSolidTiles`. */
 export interface TilemapSolidTile {
+  /** Cell column. */
   readonly column: number;
+  /** Cell row. */
   readonly row: number;
+  /** Tile ID in the cell. */
   readonly tileId: number;
   /** Local rectangle measured from the Tilemap GameObject's top-left origin. */
   readonly bounds: Readonly<Rect>;
@@ -158,13 +175,21 @@ function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number
 
 /** Grid-based, atlas-backed renderer and collision-data source for 2D tilemaps. */
 export class Tilemap extends GameComponent {
+  /** Sprite sheet that supplies the tile frames. */
   readonly sheet: SpriteSheet;
+  /** Map width in cells. */
   readonly columns: number;
+  /** Map height in cells. */
   readonly rows: number;
+  /** Cell width in world units. */
   readonly tileWidth: number;
+  /** Cell height in world units. */
   readonly tileHeight: number;
+  /** Message describing why the options were rejected, or null. A map with an error is disabled. */
   readonly error: string | null;
+  /** Color multiplied into every tile. */
   tint: Color;
+  /** Whether the map draws. */
   visible: boolean;
 
   private definitions: ResolvedTileDefinition[] = [];
@@ -176,6 +201,10 @@ export class Tilemap extends GameComponent {
   private lastRenderVisibleChunkCountValue = 0;
   private lastRenderVisitedCellCountValue = 0;
 
+  /**
+   * Creates a map from tile definitions and optional cell data. Invalid options are reported through `error`, not
+   * thrown.
+   */
   constructor(sheet: SpriteSheet, options: TilemapOptions) {
     super();
     this.sheet = sheet;
@@ -240,6 +269,7 @@ export class Tilemap extends GameComponent {
     this.buildChunks();
   }
 
+  /** Number of non-empty cells. */
   get tileCount(): number {
     let count = 0;
     for (let index = 0; index < this.cells.length; index++) if (this.cells[index] !== 0) count++;
@@ -263,11 +293,16 @@ export class Tilemap extends GameComponent {
     return this.lastRenderVisitedCellCountValue;
   }
 
+  /** Returns the tile ID at a cell, or 0 when it is empty or out of range. */
   getTile(column: number, row: number): number {
     const index = this.cellIndex(column, row);
     return index < 0 ? 0 : this.cells[index];
   }
 
+  /**
+   * Sets the tile ID of a cell, with an optional flip. 0 empties the cell. Returns false for an out-of-range cell, an
+   * undefined ID or an invalid flip.
+   */
   setTile(column: number, row: number, tileId: number, flip?: TilemapCellFlip): boolean {
     const index = this.cellIndex(column, row);
     if (this.error !== null || index < 0 || !this.hasDefinition(tileId) || (flip !== undefined && !flipIsValid(flip)))
@@ -282,6 +317,7 @@ export class Tilemap extends GameComponent {
     return true;
   }
 
+  /** Sets every cell to a tile ID and clears all flips. Returns false when the ID is undefined. */
   fill(tileId: number): boolean {
     if (this.error !== null || !this.hasDefinition(tileId)) return false;
     for (let index = 0; index < this.cells.length; index++) this.cells[index] = tileId;
@@ -306,6 +342,7 @@ export class Tilemap extends GameComponent {
     return true;
   }
 
+  /** Returns the frame defined for a tile ID, or null when the ID is not defined. */
   getFrame(tileId: number): SpriteFrame | null {
     const definition = this.findDefinition(tileId);
     return definition === null ? null : definition.frame;
@@ -433,6 +470,7 @@ export class Tilemap extends GameComponent {
     return true;
   }
 
+  /** Draws the visible tiles at the GameObject transform. Called each frame by the scene. */
   render(renderer: Renderer): void {
     this.lastRenderVisibleChunkCountValue = 0;
     this.lastRenderVisitedCellCountValue = 0;

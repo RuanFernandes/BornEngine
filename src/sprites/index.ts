@@ -56,6 +56,7 @@ export {
   SpriteAnimationTemplateBoundAnimation,
   SpriteAnimationTemplateBoundClip,
   SpriteAnimationTemplateRenderer,
+  loadSpriteAnimationTemplate,
 } from './sprite-animation-template-runtime';
 export type {
   SpriteAnimationTemplateBindingFailure,
@@ -65,6 +66,8 @@ export type {
   SpriteAnimationTemplateBoundLayer,
   SpriteAnimationTemplateRendererOptions,
 } from './sprite-animation-template-runtime';
+export { SpriteAnimationComponent } from './sprite-animation-component';
+export type { SpriteAnimationComponentOptions } from './sprite-animation-component';
 export { SpriteAnimator } from './sprite-animator';
 export type {
   SpriteAnimationTransition,

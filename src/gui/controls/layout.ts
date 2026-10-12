@@ -4,13 +4,16 @@ import { GuiControlKind } from '../commands';
 import { validateGuiDimension } from '../layout';
 import type { GUIControlOptions, GuiSize } from '../types';
 
+/** Container control for grouping child controls. */
 export class GuiPanel extends GUI {
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.Panel;
   }
 }
 
+/** Panel with a title bar that can be configured as movable, resizable, and closable. */
 export class GuiWindow extends GuiPanel {
   private title = '';
   private movable = true;
@@ -18,6 +21,7 @@ export class GuiWindow extends GuiPanel {
   private closable = true;
   private visibilityRevision = 0;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.Window;
@@ -26,35 +30,43 @@ export class GuiWindow extends GuiPanel {
     this.syncCommand();
   }
 
+  /** Returns the window title. */
   getTitle(): string {
     return this.title;
   }
+  /** Sets the window title. */
   setTitle(title: string): this {
     this.title = title;
     this.syncCommand();
     return this;
   }
+  /** Allows or prevents dragging the window. */
   setMovable(enabled: boolean): this {
     this.movable = enabled;
     this.syncCommand();
     return this;
   }
+  /** Returns whether the window can be dragged. */
   isMovable(): boolean {
     return this.movable;
   }
+  /** Allows or prevents resizing the window. */
   setResizable(enabled: boolean): this {
     this.resizable = enabled;
     this.syncCommand();
     return this;
   }
+  /** Returns whether the window can be resized. */
   isResizable(): boolean {
     return this.resizable;
   }
+  /** Shows or hides the window close button. */
   setClosable(enabled: boolean): this {
     this.closable = enabled;
     this.syncCommand();
     return this;
   }
+  /** Returns whether the window can be closed by the user. */
   isClosable(): boolean {
     return this.closable;
   }
@@ -65,6 +77,7 @@ export class GuiWindow extends GuiPanel {
     return insets;
   }
 
+  /** Shows or hides the window. */
   override setVisible(value: boolean): this {
     if (this.isVisible() !== value) this.visibilityRevision++;
     return super.setVisible(value);
@@ -87,6 +100,7 @@ export class GuiWindow extends GuiPanel {
   }
 }
 
+/** Scroll bar visibility: always shown, never shown, or shown only when content overflows. */
 export type GuiScrollBarMode = 'alwaysOn' | 'alwaysOff' | 'dynamic';
 
 function scrollModeValue(mode: GuiScrollBarMode): number {
@@ -95,11 +109,13 @@ function scrollModeValue(mode: GuiScrollBarMode): number {
   return 0;
 }
 
+/** Panel that clips its children and scrolls them with horizontal and vertical scroll bars. */
 export class GuiScroll extends GuiPanel {
   private horizontalMode: GuiScrollBarMode = 'dynamic';
   private verticalMode: GuiScrollBarMode = 'dynamic';
   private scrollBarThickness = 12;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.Scroll;
@@ -108,6 +124,11 @@ export class GuiScroll extends GuiPanel {
     this.syncCommand();
   }
 
+  /**
+   * Sets when the horizontal scroll bar is shown.
+   *
+   * @throws TypeError if the mode is not a valid GuiScrollBarMode.
+   */
   setHorizontalScrollBarMode(mode: GuiScrollBarMode): this {
     this.assertMode(mode);
     this.horizontalMode = mode;
@@ -115,10 +136,16 @@ export class GuiScroll extends GuiPanel {
     return this;
   }
 
+  /** Returns when the horizontal scroll bar is shown. */
   getHorizontalScrollBarMode(): GuiScrollBarMode {
     return this.horizontalMode;
   }
 
+  /**
+   * Sets when the vertical scroll bar is shown.
+   *
+   * @throws TypeError if the mode is not a valid GuiScrollBarMode.
+   */
   setVerticalScrollBarMode(mode: GuiScrollBarMode): this {
     this.assertMode(mode);
     this.verticalMode = mode;
@@ -126,16 +153,19 @@ export class GuiScroll extends GuiPanel {
     return this;
   }
 
+  /** Returns when the vertical scroll bar is shown. */
   getVerticalScrollBarMode(): GuiScrollBarMode {
     return this.verticalMode;
   }
 
+  /** Sets the scroll bar thickness in pixels. */
   setScrollBarThickness(pixels: number): this {
     this.scrollBarThickness = validateGuiDimension(pixels, 'scroll bar thickness');
     this.syncCommand();
     return this;
   }
 
+  /** Returns the scroll bar thickness in pixels. */
   getScrollBarThickness(): number {
     return this.scrollBarThickness;
   }
@@ -155,20 +185,24 @@ export class GuiScroll extends GuiPanel {
   }
 }
 
+/** Panel that draws a bitmap border, either stretched or tiled. */
 export class GuiBitmapBorder extends GuiPanel {
   private tiled = false;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.BitmapBorder;
     this.syncCommand();
   }
 
+  /** Tiles the border bitmap instead of stretching it. */
   setTiled(enabled: boolean): this {
     this.tiled = enabled;
     this.syncCommand();
     return this;
   }
+  /** Returns whether the border bitmap is tiled. */
   isTiled(): boolean {
     return this.tiled;
   }
@@ -177,15 +211,18 @@ export class GuiBitmapBorder extends GuiPanel {
   }
 }
 
+/** Panel that lays out its children in a fixed client size and scales them to fill the panel. */
 export class GuiStretch extends GuiPanel {
   private clientSize: GuiSize = { width: 0, height: 0 };
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.Stretch;
     this.syncCommand();
   }
 
+  /** Sets the coordinate space size used to lay out children. A dimension of 0 uses the panel size on that axis. */
   setClientSize(width: number, height: number): this {
     validateGuiDimension(width, 'client width');
     validateGuiDimension(height, 'client height');
@@ -198,6 +235,7 @@ export class GuiStretch extends GuiPanel {
     return this;
   }
 
+  /** Returns a copy of the client size. */
   getClientSize(): GuiSize {
     return { ...this.clientSize };
   }
@@ -248,48 +286,73 @@ export class GuiStretch extends GuiPanel {
   }
 }
 
+/** Panel that divides its area into a grid of frames separated by splitters. */
 export class GuiFrameSet extends GuiPanel {
   private columns = 1;
   private rows = 1;
   private splitterWidth = 4;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.FrameSet;
     this.syncCommand();
   }
 
+  /**
+   * Sets the number of grid columns.
+   *
+   * @throws RangeError if the count is not a positive integer.
+   */
   setColumnCount(count: number): this {
     this.columns = this.validateCount(count, 'column count');
     this.syncCommand();
     return this;
   }
 
+  /**
+   * Sets the number of grid rows.
+   *
+   * @throws RangeError if the count is not a positive integer.
+   */
   setRowCount(count: number): this {
     this.rows = this.validateCount(count, 'row count');
     this.syncCommand();
     return this;
   }
 
+  /** Sets the splitter width in pixels. */
   setSplitterWidth(pixels: number): this {
     this.splitterWidth = validateGuiDimension(pixels, 'splitter width');
     this.syncCommand();
     return this;
   }
 
+  /** Returns the number of columns and rows. */
   getGridSize(): { columns: number; rows: number } {
     return { columns: this.columns, rows: this.rows };
   }
+  /** Returns the splitter width in pixels. */
   getSplitterWidth(): number {
     return this.splitterWidth;
   }
 
+  /**
+   * Adds a child control whose geometry is managed by the frame set.
+   *
+   * @returns The added control.
+   */
   override addControl(control: GUI): GUI {
     const attached = super.addControl(control);
     control._setNativeGeometryManaged(true);
     return attached;
   }
 
+  /**
+   * Removes a child control.
+   *
+   * @returns True if the control was a child and was removed.
+   */
   override removeControl(control: GUI): boolean {
     const removed = super.removeControl(control);
     if (removed) control._setNativeGeometryManaged(false);

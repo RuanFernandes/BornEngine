@@ -37,8 +37,11 @@ export interface GameStats {
   activeComponentCount: number;
 }
 
+/** Options for constructing a Game. */
 export interface GameOptions {
+  /** Options for the Game window. */
   window?: WindowOptions;
+  /** Target frames per second. Must be a positive finite number. */
   targetFps?: number;
   /**
    * Select the rendering path. `2d` skips the deferred 3D renderer and uses
@@ -50,6 +53,7 @@ export interface GameOptions {
   debug?: boolean | GameDebugOptions;
 }
 
+/** Options for the built-in debug inspector. */
 export interface GameDebugOptions {
   /** Enable the built-in inspector. Defaults to false. */
   enabled?: boolean;
@@ -65,8 +69,11 @@ export interface GameDebugOptions {
 
 /** Callbacks for a host that owns an embedded surface and frame scheduler. */
 export interface EmbeddedFrameCallbacks {
+  /** Advances gameplay for one frame. Delta time is in seconds. */
   update(deltaTime: number): void;
+  /** Draws one frame. */
   render(): void;
+  /** Called once when the run ends. */
   onStop?: () => void;
 }
 
@@ -96,17 +103,29 @@ function dispatchGameStop(game: any): void {
 
 /** Root owner for one BornEngine runtime and all of its services/resources. */
 export class Game {
+  /** Window or host surface of this Game. */
   readonly window: Window;
+  /** Draw commands, render passes, and post-processing. */
   readonly renderer: Renderer;
+  /** Keyboard, mouse, and other input state. */
   readonly input: InputSystem;
+  /** Sound and music playback. */
   readonly audio: AudioSystem;
+  /** Loads and switches between scenes. */
   readonly scenes: SceneManager;
+  /** Scene graph of this Game. */
   readonly sceneGraph: SceneGraph;
+  /** On-screen touch controls. */
   readonly mobile: TouchControls;
+  /** Immediate-mode user interface. */
   readonly ui: Ui;
+  /** Retained-mode GUI manager. */
   readonly gui: GUIManager;
+  /** Debug user interface. */
   readonly debugUi: DebugUi;
+  /** Loads and tracks game assets. */
   readonly assets: AssetManager;
+  /** Runtime that hosts script components. */
   readonly scripting: ScriptRuntime;
 
   private readonly inspector: GameInspector;
@@ -127,6 +146,7 @@ export class Game {
   private completion: Promise<void> | null = null;
   private resolveCompletion: (() => void) | null = null;
 
+  /** Creates a Game and its services. If another Game is already active or an option is invalid, the Game is left failed and `error` explains why. */
   constructor(options: GameOptions = {}) {
     const runtime = GameContext.create();
     const context = runtime === null ? GameContext.createFailed(CONTEXT_ALREADY_ACTIVE_ERROR) : runtime;
@@ -159,15 +179,19 @@ export class Game {
     }
   }
 
+  /** True once the Game started successfully and until it is disposed. */
   get isReady(): boolean {
     return getGameContext(this).isReady && !getGameContext(this).isDisposed && !this.disposed;
   }
+  /** True while a run started with `run` or `runFrame` has not yet finished. */
   get isRunning(): boolean {
     return this.hasRun && !this.runCompleted && !this.disposed;
   }
+  /** True after the Game has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Message of the startup or runtime failure, or null when there is none. */
   get error(): string | null {
     return getGameContext(this).error;
   }

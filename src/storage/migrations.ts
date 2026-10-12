@@ -1,6 +1,7 @@
 import type { ColumnDescriptor, DatabaseSchema, DatabaseRow, IndexDescriptor } from './schema';
 import { validColumnValue, validIdentifier, validateSchema } from './schema';
 
+/** One recorded migration operation: its kind, target table, optional column or index name, and payload. */
 export type MigrationStep = {
   op: 'createTable' | 'dropTable' | 'addColumn' | 'dropColumn' | 'createIndex' | 'dropIndex' | 'transform';
   table: string;
@@ -10,13 +11,17 @@ export type MigrationStep = {
 
 /** Finite migration plan: the backend never receives caller-authored SQL. */
 export class MigrationBuilder<S extends DatabaseSchema> {
+  /** Operations recorded so far, in order. */
   readonly steps: MigrationStep[] = [];
+  /** Records the creation of a table with the given columns. */
   createTable(table: string, columns: Record<string, ColumnDescriptor>): void {
     this.steps.push({ op: 'createTable', table, name: '', values: columns });
   }
+  /** Records dropping a table. */
   dropTable(table: string): void {
     this.steps.push({ op: 'dropTable', table, name: '', values: {} });
   }
+  /** Records adding a column that is declared in the target schema. */
   addColumn<T extends Extract<keyof S, string>, C extends Extract<keyof S[T]['columns'], string>>(
     table: T,
     column: C,
@@ -24,25 +29,36 @@ export class MigrationBuilder<S extends DatabaseSchema> {
   ): void {
     this.steps.push({ op: 'addColumn', table, name: column, values: { descriptor } });
   }
+  /** Records dropping a column. */
   dropColumn(table: string, column: string): void {
     this.steps.push({ op: 'dropColumn', table, name: column, values: {} });
   }
+  /** Records the creation of an index. */
   createIndex(table: string, index: IndexDescriptor): void {
     this.steps.push({ op: 'createIndex', table, name: index.name, values: { descriptor: index } });
   }
+  /** Records dropping an index by name. */
   dropIndex(table: string, index: string): void {
     this.steps.push({ op: 'dropIndex', table, name: index, values: {} });
   }
+  /** Records a data change for the table using the given column values. */
   transform<T extends Extract<keyof S, string>>(table: T, values: Partial<DatabaseRow<S, T>>): void {
     this.steps.push({ op: 'transform', table, name: '', values });
   }
 }
 
+/**
+ * One schema version step: a version number and a function that records its operations.
+ * Versions must be safe integers in strictly increasing order.
+ */
 export interface DatabaseMigration<S extends DatabaseSchema = DatabaseSchema> {
+  /** Version this migration upgrades the database to. */
   version: number;
+  /** Records the migration's operations on the given builder. */
   apply: (builder: MigrationBuilder<S>) => void;
 }
 
+/** Creates a typed migration for `version`. The schema argument only drives type inference. */
 export function defineMigration<S extends DatabaseSchema>(
   version: number,
   _schema: S,
@@ -51,6 +67,10 @@ export function defineMigration<S extends DatabaseSchema>(
   return { version, apply };
 }
 
+/**
+ * Runs every migration and checks its steps against the schema.
+ * Returns the recorded steps grouped per migration, or null when any migration is invalid.
+ */
 export function validateMigrations<S extends DatabaseSchema>(
   schema: S,
   migrations: readonly DatabaseMigration<S>[],

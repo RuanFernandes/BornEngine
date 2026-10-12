@@ -6,6 +6,7 @@ import type { Renderer } from '../core/renderer';
 import type { Color } from '../core/types';
 import { Key } from '../core/keys';
 
+/** Options for `TouchControls.createJoystick`; omitted fields use the defaults of `VirtualJoystick`. */
 export interface VirtualJoystickOptions {
   zone?: 'left' | 'right';
   radius?: number;
@@ -14,6 +15,7 @@ export interface VirtualJoystickOptions {
   axisY?: number;
 }
 
+/** Options for `TouchControls.createButton`; omitted fields use the defaults of `VirtualButton`. */
 export interface VirtualButtonOptions {
   radius?: number;
   label?: string;
@@ -29,27 +31,36 @@ export class TouchControls implements ContextResource {
   private readonly claimedTouches = new Set<number>();
   private disposed = false;
 
+  /** Creates touch controls for a game and registers them for disposal with it. */
   constructor(private readonly host: Game) {
     this.context = getGameContext(host);
     this.context.register(this);
   }
 
+  /** True while the game is ready and these controls have not been disposed. */
   get isReady(): boolean {
     return this.context.isReady && !this.context.isDisposed && !this.disposed;
   }
 
+  /** Creates a virtual joystick managed by these controls. */
   createJoystick(options: VirtualJoystickOptions = {}): VirtualJoystick {
     const joystick = new VirtualJoystick(this, options);
     this.joysticks.push(joystick);
     return joystick;
   }
 
+  /**
+   * Creates a virtual button at screen position `(x, y)` managed by these controls.
+   * @param x Center X in screen coordinates.
+   * @param y Center Y in screen coordinates.
+   */
   createButton(x: number, y: number, options: VirtualButtonOptions = {}): VirtualButton {
     const button = new VirtualButton(this, x, y, options);
     this.buttons.push(button);
     return button;
   }
 
+  /** Updates all joysticks and buttons from the current touches; call it once per frame before reading input. */
   update(): void {
     if (!this.isReady) return;
     this.claimedTouches.clear();
@@ -57,12 +68,17 @@ export class TouchControls implements ContextResource {
     for (const button of this.buttons) button.update();
   }
 
+  /** Draws all joysticks and buttons; call it once per frame during rendering. */
   draw(): void {
     if (!this.isReady) return;
     for (const joystick of this.joysticks) joystick.draw();
     for (const button of this.buttons) button.draw();
   }
 
+  /**
+   * Returns a movement vector from WASD, arrow keys, or the gamepad left stick, with length limited to 1.
+   * The gamepad stick takes priority when it is moved past a small threshold, and virtual joysticks feed it through injected axes.
+   */
   movementInput(): { x: number; y: number } {
     if (!this.isReady) return { x: 0, y: 0 };
     const input = this.host.input;
@@ -120,6 +136,7 @@ export class TouchControls implements ContextResource {
     if (index >= 0) this.buttons.splice(index, 1);
   }
 
+  /** Disposes all joysticks and buttons and releases any injected input they hold. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -134,21 +151,38 @@ export class TouchControls implements ContextResource {
 
 /** On-screen analog control bound to a game's input and renderer. */
 export class VirtualJoystick {
+  /** Half of the screen where a touch can start this joystick. */
   readonly zone: 'left' | 'right';
+  /** Maximum distance in pixels the handle can move from its origin. */
   readonly radius: number;
+  /** Fraction of the radius, from 0 to 1, within which the output stays at zero. */
   readonly deadzone: number;
+  /** Gamepad axis index that receives the horizontal value. */
   readonly axisX: number;
+  /** Gamepad axis index that receives the vertical value. */
   readonly axisY: number;
+  /** True while a touch is controlling the joystick. */
   active = false;
+  /** Index of the controlling touch, or -1 when inactive. */
   touchIndex = -1;
+  /** X in screen coordinates where the controlling touch started. */
   originX = 0;
+  /** Y in screen coordinates where the controlling touch started. */
   originY = 0;
+  /** X in screen coordinates of the handle, limited to the radius. */
   handleX = 0;
+  /** Y in screen coordinates of the handle, limited to the radius. */
   handleY = 0;
+  /** Horizontal output from -1 to 1. */
   valueX = 0;
+  /** Vertical output from -1 to 1. */
   valueY = 0;
   private disposed = false;
 
+  /**
+   * Creates a joystick bound to touch controls; prefer `TouchControls.createJoystick`.
+   * @param options Defaults to the left zone, radius 60, deadzone 0.15, and gamepad axes 0 and 1.
+   */
   constructor(
     private readonly controls: TouchControls,
     options: VirtualJoystickOptions = {},
@@ -160,6 +194,7 @@ export class VirtualJoystick {
     this.axisY = options.axisY ?? 1;
   }
 
+  /** Tracks the controlling touch and injects the joystick values as gamepad axes. */
   update(): void {
     const input = this.controls.input;
     if (!this.controls.isReady || this.disposed) return;
@@ -211,6 +246,7 @@ export class VirtualJoystick {
     input.injectGamepadAxis(this.axisY, this.valueY);
   }
 
+  /** Draws the joystick while it is active. */
   draw(): void {
     if (!this.active || this.disposed) return;
     this.controls.renderer.drawCircleOutline({ x: this.originX, y: this.originY }, this.radius, {
@@ -227,6 +263,7 @@ export class VirtualJoystick {
     });
   }
 
+  /** Resets the injected gamepad axes and removes the joystick from its controls. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -242,14 +279,24 @@ export class VirtualJoystick {
 
 /** On-screen button that injects a key and/or gamepad button edge. */
 export class VirtualButton {
+  /** Radius of the button in pixels. */
   readonly radius: number;
+  /** Text drawn at the center of the button. */
   readonly label: string;
+  /** Key code injected while the button is held, or `null` for none. */
   readonly key: number | null;
+  /** Gamepad button index injected while the button is held, or `null` for none. */
   readonly gamepadButton: number | null;
+  /** True while a touch is holding the button. */
   active = false;
+  /** Index of the touch holding the button, or -1 when not held. */
   touchIndex = -1;
   private disposed = false;
 
+  /**
+   * Creates a button bound to touch controls; prefer `TouchControls.createButton`.
+   * @param options Defaults to radius 30, no label, and no key or gamepad button.
+   */
   constructor(
     private readonly controls: TouchControls,
     readonly x: number,
@@ -262,6 +309,7 @@ export class VirtualButton {
     this.gamepadButton = options.gamepadButton ?? null;
   }
 
+  /** Checks for a touch inside the button and injects key and gamepad button presses and releases when its state changes. */
   update(): void {
     if (!this.controls.isReady || this.disposed) return;
     const input = this.controls.input;
@@ -290,6 +338,7 @@ export class VirtualButton {
       this.active ? input.injectGamepadButtonDown(this.gamepadButton) : input.injectGamepadButtonUp(this.gamepadButton);
   }
 
+  /** Draws the button and its label. */
   draw(): void {
     if (this.disposed) return;
     const tint: Color = { r: 255, g: 255, b: 255, a: this.active ? 120 : 60 };
@@ -305,6 +354,7 @@ export class VirtualButton {
     });
   }
 
+  /** Releases any held key or gamepad button and removes the button from its controls. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

@@ -3,10 +3,16 @@ import type { PhysicsWorld } from '../physics';
 import type { GameContext } from '../core/context';
 import type { Renderer } from '../core/renderer';
 
+/** Constructor type of a GameComponent subclass, used to look components up by class. */
 export type GameComponentType<T extends GameComponent> = new (...args: any[]) => T;
 
+/** Base class for behavior attached to a GameObject; override the lifecycle hooks to add game logic. */
 export class GameComponent {
+  /** Type-only: the options `@GameComponent<T>(options)` accepts for this class. Subclasses redeclare it. */
+  declare readonly __options: object;
+  /** When false, the component is skipped by update, fixedUpdate and render, but stays attached. */
   enabled = true;
+  /** Sort key for render(); components with a lower value draw first, ties keep attachment order. */
   renderOrder = 0;
   private owner: GameObject | null = null;
   private wasDestroyed = false;
@@ -15,28 +21,43 @@ export class GameComponent {
   private wasAwake = false;
   private wasStarted = false;
 
+  /** The owning GameObject, or null before the component is added and after it is destroyed. */
   get gameObject(): GameObject | null {
     return this.owner;
   }
 
+  /** True when the component is attached, enabled, not destroyed and its owner is active in the hierarchy. */
   get isActiveAndEnabled(): boolean {
     return this.owner !== null && this.enabled && !this.destroyed && this.owner.activeInHierarchy;
   }
 
+  /** True once destruction has started or finished; a destroyed component cannot be reattached. */
   get destroyed(): boolean {
     return this.wasDestroyed || this.isDestroying;
   }
 
+  /** Override to initialize the component. Called once when its object enters a scene, or when the component is added to an object that is already awake. */
   onAwake(): void {}
 
+  /** Override for setup that needs the scene fully built. Called once, just before the first update() while the component is active and enabled. */
   onStart(): void {}
 
+  /**
+   * Override for per-frame logic. Runs every frame while the component is active and enabled.
+   * @param _dt Time elapsed since the previous frame.
+   */
   update(_dt: number): void {}
 
+  /**
+   * Override for fixed-timestep logic such as physics-driven code. Runs while the component is active and enabled.
+   * @param _dt Length of the fixed timestep.
+   */
   fixedUpdate(_dt: number): void {}
 
+  /** Override to draw with the renderer. Runs while the component is active and enabled, ordered by renderOrder. */
   render(_renderer: Renderer): void {}
 
+  /** Override to release resources. Called once when the component is removed or its owner is destroyed. */
   onDestroy(): void {}
 
   /** @internal Synchronizes adapter state after a scene phase. */

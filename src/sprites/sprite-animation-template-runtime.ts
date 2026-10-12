@@ -27,43 +27,60 @@ import type {
 } from './sprite-animation';
 import type { SpriteAnimationTarget } from './sprite-animation-target';
 import type { Texture } from '../textures/texture';
+import { readFile } from '../core/internal';
 
+/** Successful result of binding textures to a template, carrying the bound animation. */
 export interface SpriteAnimationTemplateBindingSuccess {
   readonly ok: true;
   readonly value: SpriteAnimationTemplateBoundAnimation;
   readonly diagnostics: readonly [];
 }
 
+/** Failed result of binding textures to a template, carrying the diagnostics that explain why. */
 export interface SpriteAnimationTemplateBindingFailure {
   readonly ok: false;
   readonly value: null;
   readonly diagnostics: readonly SpriteAnimationTemplateDiagnostic[];
 }
 
+/** Result of `SpriteAnimationTemplateAsset.bind`: check `ok` before using `value`. */
 export type SpriteAnimationTemplateBindingResult =
   | SpriteAnimationTemplateBindingSuccess
   | SpriteAnimationTemplateBindingFailure;
 
+/** A template layer paired with the sprite frame cropped from its bound texture. */
 export interface SpriteAnimationTemplateBoundLayer extends ResolvedSpriteAnimationTemplateLayer {
   readonly sprite: SpriteFrame;
 }
 
+/** A frame whose layers are bound to sprite frames. */
 export interface SpriteAnimationTemplateBoundFrame extends SpriteAnimationPlaybackFrame {
   readonly layers: readonly SpriteAnimationTemplateBoundLayer[];
 }
 
 /** One immutable template clip after texture IDs have been bound to this character's art. */
 export class SpriteAnimationTemplateBoundClip implements SpriteAnimationPlaybackClip {
+  /** Always null: clips are validated before they are bound. */
   readonly error: string | null = null;
+  /** Clip name from the template. */
   readonly name: string;
+  /** Frames per second used for frames without an explicit duration. */
   readonly fps: number;
+  /** What happens at the last frame: repeat, hold, or play back and forth. */
   readonly loop: SpriteAnimationLoop;
+  /** Total length of one pass through the frames, in seconds. */
   readonly duration: number;
+  /** Logical drawing area in pixels that layer offsets are measured in. */
   readonly canvasSize: ResolvedSpriteAnimationTemplateClip['canvasSize'];
+  /** Bound frames of the clip. For a directional clip these are the down direction. */
   readonly frames: readonly SpriteAnimationTemplateBoundFrame[];
   /** Per-direction variants indexed by dir (0 up, 1 left, 2 down, 3 right); null for plain clips. */
   readonly directions: readonly SpriteAnimationTemplateBoundClip[] | null;
 
+  /**
+   * Wraps resolved template data and bound frames into an immutable clip. Normally produced by
+   * `SpriteAnimationTemplateAsset.bind`.
+   */
   constructor(
     clip: ResolvedSpriteAnimationTemplateClip,
     frames: readonly SpriteAnimationTemplateBoundFrame[],
@@ -92,12 +109,16 @@ export class SpriteAnimationTemplateBoundClip implements SpriteAnimationPlayback
 
 /** Bound immutable frame data and per-binding SpriteSheet/SpriteFrame instances. */
 export class SpriteAnimationTemplateBoundAnimation {
+  /** ID of the template this animation was bound from. */
   readonly templateId: string;
+  /** Name of the template this animation was bound from. */
   readonly templateName: string;
+  /** Bound clips keyed by clip name. */
   readonly clips: Readonly<Record<string, SpriteAnimationTemplateBoundClip>>;
   private readonly sheets: readonly SpriteSheet[];
   private readonly textures: readonly Texture[];
 
+  /** Creates the bound animation from already bound clips. Normally produced by `SpriteAnimationTemplateAsset.bind`. */
   constructor(
     templateId: string,
     templateName: string,
@@ -113,6 +134,7 @@ export class SpriteAnimationTemplateBoundAnimation {
     Object.freeze(this);
   }
 
+  /** Returns the clip with the given name, or null when the template has no such clip. */
   getClip(name: string): SpriteAnimationTemplateBoundClip | null {
     return Object.prototype.hasOwnProperty.call(this.clips, name) ? this.clips[name] : null;
   }
@@ -134,6 +156,7 @@ export class SpriteAnimationTemplateAsset {
   private readonly value: ResolvedSpriteAnimationTemplate | null;
   private readonly diagnosticsValue: readonly SpriteAnimationTemplateDiagnostic[];
 
+  /** Validates raw template data, usually parsed JSON. Check `error` before binding. */
   constructor(input: unknown) {
     const result = validateSpriteAnimationTemplate(input);
     if (result.ok) {
@@ -145,18 +168,27 @@ export class SpriteAnimationTemplateAsset {
     }
   }
 
+  /** The first validation message, or null when the template is valid. */
   get error(): string | null {
     return this.diagnosticsValue.length === 0 ? null : this.diagnosticsValue[0].message;
   }
 
+  /** Every validation problem found. Empty when the template is valid. */
   get diagnostics(): readonly SpriteAnimationTemplateDiagnostic[] {
     return this.diagnosticsValue;
   }
 
+  /** The validated template with defaults filled in, or null when it is invalid. */
   get definition(): ResolvedSpriteAnimationTemplate | null {
     return this.value;
   }
 
+  /**
+   * Binds loaded textures, keyed by image parameter ID, to the template.
+   * Returns diagnostics instead of throwing when the template is invalid, an ID is undeclared, a required image is
+   * missing,
+   * a texture is not loaded, a layer crop falls outside its texture, or the textures belong to different Games.
+   */
   bind(images: Readonly<Record<string, Texture>>): SpriteAnimationTemplateBindingResult {
     const template = this.value;
     if (template === null) return bindingFailure(this.diagnosticsValue.slice());
@@ -329,11 +361,15 @@ export class SpriteAnimationTemplateAsset {
   }
 }
 
+/** Options for `SpriteAnimationTemplateRenderer`. */
 export interface SpriteAnimationTemplateRendererOptions {
   /** World-space dimensions occupied by the clip canvas. Defaults to the first clip's pixel size. */
   readonly size?: Vector2DLike;
+  /** Color multiplied into every layer. Defaults to white. */
   readonly tint?: Color;
+  /** Whether the renderer draws. Defaults to true. */
   readonly visible?: boolean;
+  /** Draw order among components. Lower values draw first. */
   readonly renderOrder?: number;
 }
 
@@ -344,10 +380,15 @@ interface SelectedTemplateFrame {
 
 /** Draws all visible layers in a bound clip. One SpriteAnimator selects the shared frame. */
 export class SpriteAnimationTemplateRenderer extends GameComponent implements SpriteAnimationTarget {
+  /** The bound animation this renderer draws. */
   readonly animation: SpriteAnimationTemplateBoundAnimation;
+  /** World-space size of the clip canvas. */
   size: Vector2D;
+  /** Color multiplied into every layer. */
   tint: Color;
+  /** Whether the renderer draws. */
   visible: boolean;
+  /** Message from the last failed call or construction problem, or null. */
   error: string | null = null;
   private current: SelectedTemplateFrame | null = null;
   private fading: SelectedTemplateFrame | null = null;
@@ -355,6 +396,10 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
   private fadeElapsed = 0;
   private readonly cullingBounds: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
+  /**
+   * Creates a renderer for a bound animation. Add it to a GameObject and drive it with a `SpriteAnimator`.
+   * Invalid input is reported through `error`, not thrown.
+   */
   constructor(animation: SpriteAnimationTemplateBoundAnimation, options: SpriteAnimationTemplateRendererOptions = {}) {
     super();
     this.animation = animation;
@@ -381,6 +426,10 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
     }
   }
 
+  /**
+   * Sets the world-space size of the clip canvas. Returns false and sets `error` when a value is negative or not
+   * finite.
+   */
   setSize(size: Vector2DLike): boolean {
     if (
       size === null ||
@@ -464,6 +513,7 @@ export class SpriteAnimationTemplateRenderer extends GameComponent implements Sp
     return true;
   }
 
+  /** Draws the visible layers of the current frame at the GameObject transform. Called each frame by the scene. */
   render(renderer: Renderer): void {
     const owner = this.gameObject;
     if (
@@ -645,4 +695,16 @@ function freezeValue<T>(input: T): T {
   if (input === null || typeof input !== 'object' || Object.isFrozen(input)) return input;
   for (const key of Object.keys(input as object)) freezeValue((input as Record<string, unknown>)[key]);
   return Object.freeze(input);
+}
+
+/** Reads a template file and binds the given textures. Throws on a missing file or an invalid binding. */
+export function loadSpriteAnimationTemplate(
+  path: string,
+  images: Readonly<Record<string, Texture>>,
+): SpriteAnimationTemplateBoundAnimation {
+  const json = readFile(path);
+  if (json === '') throw new Error(`Could not read ${path}`);
+  const binding = new SpriteAnimationTemplateAsset(JSON.parse(json)).bind(images);
+  if (!binding.ok) throw new Error(binding.diagnostics[0].message);
+  return binding.value;
 }

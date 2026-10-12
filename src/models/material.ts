@@ -6,10 +6,12 @@ import type { Renderer } from '../core/renderer';
 import type { Model, Mesh } from './model';
 import type { Color, Vec3 } from '../core/types';
 
+/** Rendering category of a material: opaque, refractive, transparent, additive or alpha-cutout. */
 export type MaterialKind = 'opaque' | 'refractive' | 'transparent' | 'additive' | 'cutout';
 
 /** Compiled GPU material owned by a Game or Scene asset scope. */
 export class Material implements ContextResource {
+  /** Compile failure message, or null when the material compiled. */
   readonly error: string | null;
   private handleValue = 0;
   private disposed = false;
@@ -42,31 +44,42 @@ export class Material implements ContextResource {
     context.register(this);
   }
 
+  /** True while the material is usable: compiled, not disposed, and its Game is ready. */
   get isLoaded(): boolean {
     return this.context.isReady && !this.context.isDisposed && !this.disposed && this.handleValue !== 0;
   }
+  /** True once the material has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
 
+  /** Sets the material parameter values. Returns false if not loaded. */
   setParameters(values: number[]): boolean {
     if (!this.isLoaded) return false;
     nativeCore.setMaterialParams(this.handleValue, values);
     return true;
   }
 
+  /**
+   * Selects the shading model (`SHADING_MODEL_DEFAULT_LIT`, `SHADING_MODEL_FOLIAGE` or `SHADING_MODEL_SUBSURFACE`). Returns false if not loaded.
+   */
   setShadingModel(model: number): boolean {
     if (!this.isLoaded) return false;
     operations.setMaterialShadingModel(this.handleValue, model);
     return true;
   }
 
+  /** Sets whether this material renders into planar-reflection probes (default true). Returns false if not loaded. */
   setProbeVisible(visible: boolean): boolean {
     if (!this.isLoaded) return false;
     operations.setMaterialProbeVisible(this.handleValue, visible);
     return true;
   }
 
+  /**
+   * Configures foliage shading: `transmission` tints light bleeding through leaves, `amount` (0..1) is how much passes through, and `wrapFactor` (0..1) is how far light wraps around the back face.
+   * Takes effect with `SHADING_MODEL_FOLIAGE`. Returns false if not loaded.
+   */
   setFoliage(transmission: Color, amount: number, wrapFactor: number): boolean {
     if (!this.isLoaded) return false;
     operations.setMaterialFoliage(
@@ -80,6 +93,7 @@ export class Material implements ContextResource {
     return true;
   }
 
+  /** Draws a model or mesh with this material through `renderer`, optionally limited to one mesh by `meshIndex`. */
   draw(renderer: Renderer, model: Model | Mesh, position: Vec3, scale = 1, tint?: Color, meshIndex?: number): boolean {
     return renderer.drawMaterial(this, model, position, scale, tint, meshIndex);
   }
@@ -93,6 +107,7 @@ export class Material implements ContextResource {
     return true;
   }
 
+  /** Releases the material. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     // The current native ABI has no material release operation.

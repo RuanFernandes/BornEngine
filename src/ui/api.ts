@@ -64,6 +64,10 @@ function injectUiText(text: string): void {
   bloom_ui_inject_text(text as any);
 }
 
+/**
+ * Builds a `UiApi` for a backend.
+ * Commands are ignored while `isActive` returns false; the texture callbacks resolve whether a texture may be shown and its native handle.
+ */
 export function createUiApi(
   backend: UiBackendId,
   isActive: () => boolean,

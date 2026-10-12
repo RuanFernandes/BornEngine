@@ -6,17 +6,23 @@ import * as spriteOperations from './internal';
 import type { SpriteFrame } from './sprite-sheet';
 import type { Texture } from '../textures/texture';
 
+/** Minimum and maximum of a value; each particle picks a value in between. */
 export interface ParticleRange {
   readonly min: number;
   readonly max: number;
 }
 
+/**
+ * Area particles spawn in: a point, a circle of `radius`, a box of `width` by `height`, or a cone of `angle` degrees (0
+ * to 360).
+ */
 export type ParticleEmitterShape =
   | { readonly type: 'point' }
   | { readonly type: 'circle'; readonly radius: number }
   | { readonly type: 'box'; readonly width: number; readonly height: number }
   | { readonly type: 'cone'; readonly angle: number };
 
+/** Options for `ParticleEmitter2D.emitBurst`. */
 export interface ParticleBurstOptions {
   /** Spawn offset in the emitter's local coordinates. */
   readonly position?: Vector2DLike;
@@ -24,6 +30,7 @@ export interface ParticleBurstOptions {
   readonly direction?: Vector2DLike;
 }
 
+/** Options for `ParticleEmitter2D`. Only `frames` is required. */
 export interface ParticleEmitter2DOptions {
   /** Preallocated particle slots. Defaults to 256. */
   readonly capacity?: number;
@@ -31,16 +38,23 @@ export interface ParticleEmitter2DOptions {
   readonly frames: readonly SpriteFrame[];
   /** Continuous particles per second while play() is active. */
   readonly emissionRate?: number;
+  /** Spawn area. Defaults to a point. */
   readonly shape?: ParticleEmitterShape;
+  /** Seconds each particle lives. Must be positive. Defaults to 1. */
   readonly lifetime?: ParticleRange;
+  /** Initial speed in world units per second. Defaults to 0. */
   readonly speed?: ParticleRange;
   /** Width in world units; frame aspect ratio determines height. */
   readonly startSize?: ParticleRange;
+  /** Width at the end of life in world units. Defaults to startSize. */
   readonly endSize?: ParticleRange;
+  /** Constant acceleration in world units per second squared. Defaults to none. */
   readonly acceleration?: Vector2DLike;
   /** Velocity damping coefficient per second. */
   readonly drag?: number;
+  /** Color at spawn, channels 0 to 255. Defaults to opaque white. */
   readonly startColor?: Color;
+  /** Color at the end of life, channels 0 to 255. Defaults to transparent white. */
   readonly endColor?: Color;
   /** Spin in degrees per second. */
   readonly spin?: ParticleRange;
@@ -119,7 +133,11 @@ function rotationZRadians(rotation: { x: number; y: number; z: number; w: number
 
 /** Native-pool 2D particles rendered automatically with their owning scene. */
 export class ParticleEmitter2D extends GameComponent {
+  declare readonly __options: ParticleEmitter2DOptions;
+
+  /** Maximum number of particles alive at once. */
   readonly capacity: number;
+  /** Message from the last failed call or construction problem, or null. */
   error: string | null = null;
 
   private textureValue: Texture | null = null;
@@ -128,6 +146,10 @@ export class ParticleEmitter2D extends GameComponent {
   private disposed = false;
   private initialDirection: Vector2DLike = { x: 0, y: -1 };
 
+  /**
+   * Creates an emitter that samples the given atlas frames. Invalid options or an unloaded texture are reported through
+   * `error`, not thrown.
+   */
   constructor(options: ParticleEmitter2DOptions) {
     super();
     const settings: ParticleEmitter2DOptions = options === null || options === undefined ? { frames: [] } : options;
@@ -190,10 +212,12 @@ export class ParticleEmitter2D extends GameComponent {
     }
   }
 
+  /** Number of particles currently alive. */
   get liveCount(): number {
     return this.isLoaded ? spriteOperations.particleEmitter2DLiveCount(this.handleValue) : 0;
   }
 
+  /** True while the particle pool exists, the emitter is not disposed and its texture is loaded. */
   get isLoaded(): boolean {
     return !this.disposed && this.handleValue !== 0 && this.textureValue !== null && this.textureValue.isLoaded;
   }
@@ -206,6 +230,7 @@ export class ParticleEmitter2D extends GameComponent {
     return true;
   }
 
+  /** Stops continuous emission. Live particles keep simulating until they expire. */
   stop(): boolean {
     if (!this.isLoaded) return false;
     spriteOperations.stopParticleEmitter2D(this.handleValue);
@@ -213,6 +238,10 @@ export class ParticleEmitter2D extends GameComponent {
     return true;
   }
 
+  /**
+   * Spawns `count` particles at once, capped at the capacity. Returns false and sets `error` when `count` is not a
+   * positive integer.
+   */
   emitBurst(count: number, options: ParticleBurstOptions = {}): boolean {
     if (!this.isLoaded || !isFiniteNumber(count) || count <= 0 || Math.floor(count) !== count) {
       this.error = 'ParticleEmitter2D burst count must be a positive integer.';
@@ -243,6 +272,7 @@ export class ParticleEmitter2D extends GameComponent {
     this.emitBurst(count, { direction: { x: directionX, y: directionY } });
   }
 
+  /** Removes all live particles. */
   clear(): boolean {
     if (!this.isLoaded) return false;
     spriteOperations.clearParticleEmitter2D(this.handleValue);
@@ -250,6 +280,7 @@ export class ParticleEmitter2D extends GameComponent {
     return true;
   }
 
+  /** Releases the particle pool. Called automatically when the component is destroyed. */
   dispose(): void {
     if (this.disposed) return;
     if (this.handleValue !== 0) spriteOperations.destroyParticleEmitter2D(this.handleValue);
@@ -259,10 +290,12 @@ export class ParticleEmitter2D extends GameComponent {
     this.textureValue = null;
   }
 
+  /** Releases the particle pool when the component is destroyed. */
   onDestroy(): void {
     this.dispose();
   }
 
+  /** Simulates live particles and continuous emission for `deltaTime` seconds. Called each frame by the scene. */
   update(deltaTime: number): void {
     if (!this.isLoaded || !this.isActiveAndEnabled || !isFiniteNumber(deltaTime) || deltaTime < 0) return;
     const transform = this.readTransform();
@@ -270,6 +303,7 @@ export class ParticleEmitter2D extends GameComponent {
     spriteOperations.updateParticleEmitter2D(this.handleValue, deltaTime, transform);
   }
 
+  /** Draws the live particles using the GameObject transform. Called each frame by the scene. */
   render(_renderer: Renderer): void {
     if (!this.isLoaded || !this.isActiveAndEnabled || this.liveCount === 0) return;
     const transform = this.readTransform();

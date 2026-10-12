@@ -28,6 +28,7 @@ import { validatePrefab, formatValidationErrors, listUnknownPrefabFields } from 
 
 // One leaf of an expanded prefab — a single glb to spawn at a world-space
 // matrix. The loader turns each of these into one scene node.
+/** One model placement produced by expanding a prefab, with its world-space matrix. */
 export interface PrefabLeaf {
   modelRef: string; // Always a glb path; prefabs are fully flattened.
   worldMatrix: Mat4; // Column-major 4x4 in world space.
@@ -39,11 +40,13 @@ export interface PrefabLeaf {
 // Registry of all prefabs known to a project. The editor populates it at
 // startup by scanning `project.prefabsDir`; games populate it from their
 // asset bundle. Keyed by `PrefabData.id`.
+/** Lookup table of prefabs keyed by id. */
 export interface PrefabRegistry {
   byId: Map<string, PrefabData>;
   getPrefab: (id: string) => PrefabData | null;
 }
 
+/** Creates an empty prefab registry. */
 export function createPrefabRegistry(): PrefabRegistry {
   const byId = new Map<string, PrefabData>();
   return {
@@ -58,12 +61,17 @@ export function createPrefabRegistry(): PrefabRegistry {
 
 // Register a prefab in the registry. Overwrites any existing entry with the
 // same id (hot-reload friendly).
+/** Adds a prefab to the registry, replacing any entry with the same id. */
 export function registerPrefab(registry: PrefabRegistry, prefab: PrefabData): void {
   registry.byId.set(prefab.id, prefab);
 }
 
 // Load a single prefab file from disk, validate, migrate, and return it.
 // Throws on parse or validation error.
+/**
+ * Reads, migrates, and validates a prefab file.
+ * @throws Error if the file is missing or empty, is not valid JSON, or fails validation.
+ */
 export function loadPrefab(path: string): PrefabData {
   const text = readFile(path);
   if (!text || text.length === 0) {
@@ -110,6 +118,14 @@ export function loadPrefab(path: string): PrefabData {
 // @param errors         Output error list (cycles, missing references).
 // @param visited        Set of ancestor prefab ids, used for cycle detection.
 // @param pathPrefix     Debug path for error messages, e.g. "world_root".
+/**
+ * Flattens a prefab and its nested prefabs into model leaves, appending them to `out`.
+ * Cycles, missing prefabs, and children without a reference are appended to `errors`.
+ * @param parentMatrix World-space matrix applied to all children.
+ * @param parentTint Tint inherited by children that do not set their own.
+ * @param visited Ids of the prefabs being expanded, used for cycle detection; pass an empty set.
+ * @param pathPrefix Label used in error messages and leaf `sourcePath` values.
+ */
 export function expandPrefab(
   registry: PrefabRegistry,
   prefabId: string,
@@ -197,6 +213,7 @@ function mergeTags(parent: ReadonlyArray<string>, child: ReadonlyArray<string>):
 
 // Build an empty prefab with sensible defaults. Editor calls this from
 // "New Prefab".
+/** Creates a prefab with no children and zero-size bounds. */
 export function createEmptyPrefab(id: string, name: string): PrefabData {
   return {
     schemaVersion: WORLD_SCHEMA_VERSION,

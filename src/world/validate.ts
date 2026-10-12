@@ -15,11 +15,13 @@ import {
   Vec3Lit,
 } from './types';
 
+/** Outcome of schema validation: `ok`, plus the error messages when invalid. */
 export interface ValidationResult {
   ok: boolean;
   errors: string[];
 }
 
+/** Checks a world document against the schema. */
 export function validateWorld(w: WorldDocument): ValidationResult {
   const errors: string[] = [];
 
@@ -90,6 +92,7 @@ export function validateWorld(w: WorldDocument): ValidationResult {
   return { ok: errors.length === 0, errors };
 }
 
+/** Checks a prefab document against the schema. */
 export function validatePrefab(p: PrefabData): ValidationResult {
   const errors: string[] = [];
 
@@ -272,6 +275,7 @@ function pushUnknownKeys(obj: unknown, allowed: string[], path: string, out: str
 // schema, as dotted paths ("world.navmesh", "world.entities[3].loot"). Call on
 // the object returned by `loadWorld` — JSON.parse keeps unknown keys, the
 // static types just hide them. Empty result means a save is lossless.
+/** Lists fields of a parsed world that are not part of the schema, as dotted paths; these are dropped on save. */
 export function listUnknownWorldFields(w: WorldDocument): string[] {
   const out: string[] = [];
   pushUnknownKeys(w, WORLD_KEYS, 'world', out);
@@ -311,6 +315,7 @@ export function listUnknownWorldFields(w: WorldDocument): string[] {
 }
 
 // Prefab counterpart of `listUnknownWorldFields`.
+/** Lists fields of a parsed prefab that are not part of the schema, as dotted paths; these are dropped on save. */
 export function listUnknownPrefabFields(p: PrefabData): string[] {
   const out: string[] = [];
   pushUnknownKeys(p, PREFAB_KEYS, 'prefab', out);
@@ -326,6 +331,7 @@ export function listUnknownPrefabFields(p: PrefabData): string[] {
 }
 
 // Re-exported for use in loader/saver error formatting.
+/** Formats validation errors as one multi-line message; returns an empty string for an empty list. */
 export function formatValidationErrors(errors: string[]): string {
   if (errors.length === 0) return '';
   let out = 'Validation failed with ' + errors.length + ' error(s):\n';

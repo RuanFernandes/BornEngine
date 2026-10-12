@@ -48,6 +48,7 @@ export function getCamera2DWorldBounds(camera: Camera2D, viewportWidth: number, 
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
+/** Tests whether two rectangles overlap, treating negative sizes as flipped. Touching edges count as overlap, and invalid input returns true. */
 export function isRectIntersecting(left: Rect, right: Rect): boolean {
   if (
     left === null ||

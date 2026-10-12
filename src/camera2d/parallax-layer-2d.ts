@@ -4,9 +4,16 @@ import type { Renderer } from '../core/renderer';
 import { GameComponent } from '../game/game-component';
 import { GameObject } from '../game/game-object';
 
+/** Options for `ParallaxLayer2D`. */
 export interface ParallaxLayer2DOptions {
+  /**
+   * How much the layer follows the camera per axis. 1 moves with the world, 0 stays fixed on screen. A number applies
+   * to both axes. Defaults to 1.
+   */
   factor?: number | Vector2DLike;
+  /** Draw order among components. Lower values draw first. */
   renderOrder?: number;
+  /** Draws the layer. Receives the renderer and the offset to add to world positions. */
   draw?: (renderer: Renderer, offset: Vector2D) => void;
 }
 
@@ -26,11 +33,15 @@ function factorPoint(value: number | Vector2DLike | undefined): Vector2D {
 
 /** Provides a camera-relative offset for a layer and its child sprites. */
 export class ParallaxLayer2D extends GameComponent {
+  declare readonly __options: ParallaxLayer2DOptions;
+
   private readonly factorValue: Vector2DLike;
+  /** Message describing why the options were rejected, or null. */
   readonly error: string | null;
   private anchor: Vector2DLike | null = null;
   private readonly drawCallback: ((renderer: Renderer, offset: Vector2D) => void) | null;
 
+  /** Creates a parallax layer. Invalid options are reported through `error`, not thrown. */
   constructor(options: ParallaxLayer2DOptions = {}) {
     super();
     const settings = options === null || options === undefined ? {} : options;
@@ -46,15 +57,21 @@ export class ParallaxLayer2D extends GameComponent {
     this.drawCallback = typeof settings.draw === 'function' ? settings.draw : null;
   }
 
+  /** Parallax factor per axis, as a copy. */
   get factor(): Vector2D {
     return Vector2D.from(this.factorValue);
   }
 
+  /** Calls the `draw` callback with the current offset. Called each frame by the scene. */
   render(renderer: Renderer): void {
     if (this.error !== null || !this.isActiveAndEnabled || this.drawCallback === null) return;
     this.drawCallback(renderer, this.offsetForCamera(renderer.activeCamera2D));
   }
 
+  /**
+   * Returns the offset this layer needs for the camera. The first camera seen becomes the anchor where the offset is
+   * zero.
+   */
   offsetForCamera(camera: Camera2D | null): Vector2D {
     if (camera === null || camera === undefined || !validPoint(camera.target)) return Vector2D.zero();
     if (this.anchor === null) this.anchor = Vector2D.from(camera.target);
@@ -64,6 +81,7 @@ export class ParallaxLayer2D extends GameComponent {
     );
   }
 
+  /** Anchors the layer at the camera's current target so the offset is zero there. Null clears the anchor. */
   resetAnchor(camera: Camera2D | null): void {
     this.anchor = camera === null || !validPoint(camera.target) ? null : Vector2D.from(camera.target);
   }

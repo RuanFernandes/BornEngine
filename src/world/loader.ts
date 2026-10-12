@@ -41,6 +41,7 @@ import { buildHeightmapMesh } from './terrain';
 // Context passed to `instantiateWorld`. The caller is responsible for loading
 // GLB models and supplying handles via `getModelHandle`. This inverts the
 // dependency so games and the editor can use their own asset-caching policy.
+/** Callbacks and registries that `instantiateWorld` uses to resolve models and prefabs. */
 export interface InstantiateContext {
   // Resolve a `modelRef` (e.g. "models/tree_oak.glb") to a loaded model handle.
   // Return 0 if the model is unavailable — the entity is then skipped and a
@@ -60,6 +61,7 @@ export interface InstantiateContext {
   onTerrainSpawned?: (handle: SceneNodeHandle) => void;
 }
 
+/** Scene node handles and warnings produced by `instantiateWorld`. */
 export interface InstantiateResult {
   // One handle per spawned world entity. Prefab entities yield a root group
   // node whose children are the expanded prefab leaves.
@@ -88,6 +90,10 @@ export interface InstantiateResult {
 
 // Read, parse, migrate, and validate a world file. Throws on parse error or
 // validation failure — the caller can catch and present the error message.
+/**
+ * Reads, parses, migrates, and validates a world file without creating any scene nodes.
+ * @throws Error if the file is missing or empty, is not valid JSON, or fails validation.
+ */
 export function loadWorld(path: string): WorldDocument {
   const text = readFile(path);
   if (!text || text.length === 0) {
@@ -132,6 +138,10 @@ export function loadWorld(path: string): WorldDocument {
 // settings (lighting, shadows). Terrain, water volumes, and rivers are spawned
 // when present — water and rivers via the shared helpers in ./render.ts, which
 // the editor uses too so the two never diverge.
+/**
+ * Spawns scene nodes for the terrain, entities, water volumes, and rivers of a world and applies its environment.
+ * Problems such as missing models are reported in `warnings` instead of throwing.
+ */
 export function instantiateWorld(world: WorldDocument, ctx: InstantiateContext): InstantiateResult {
   const result: InstantiateResult = {
     entityHandles: new Map<string, SceneNodeHandle>(),
@@ -349,6 +359,7 @@ function applyEnvironment(world: WorldDocument): void {
 // Build a column-major 4x4 matrix from TRS: M = T * Rz * Ry * Rx * S.
 // The rotation order matches glTF / Blender / most game engines (XYZ Euler,
 // applied right-to-left so X spin happens first in object space).
+/** Builds a column-major 4x4 matrix from position, XYZ Euler rotation in radians, and scale. */
 export function trsToMat4(t: TransformData): Mat4 {
   const pos: Vec3 = { x: t.position[0], y: t.position[1], z: t.position[2] };
   const scl: Vec3 = { x: t.scale[0], y: t.scale[1], z: t.scale[2] };
@@ -375,6 +386,7 @@ function applyTint(node: SceneNodeHandle, tint: Vec4Lit): void {
 
 // Build an empty world with sensible defaults. The editor calls this from
 // File -> New. Games should prefer `loadWorld` from a file on disk.
+/** Creates an empty world with default bounds and environment. */
 export function createEmptyWorld(id: string, name: string): WorldDocument {
   return {
     schemaVersion: WORLD_SCHEMA_VERSION,
@@ -404,6 +416,7 @@ export function createEmptyWorld(id: string, name: string): WorldDocument {
 
 // Build an empty entity with default transform. The editor calls this when
 // the place tool drops a model at a hit point.
+/** Creates a model entity at `position` with identity rotation and unit scale, named after the model file. */
 export function createEntity(id: string, modelRef: string, position: Vec3Lit): EntityData {
   return {
     id: id,

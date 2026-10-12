@@ -313,6 +313,8 @@ class Hero extends GameObject {
 
 The constructor of `SpriteAnimator` does not throw either. It sets `error` if the renderer has an error, if a clip is invalid, or if a state names an unknown clip or an unknown target state.
 
+`clips` is optional for a `SpriteAnimationTemplateRenderer`. It defaults to every clip of the bound animation. `autoplay: 'idle'` plays one clip right away, without a state machine, so a template with one clip needs only `new SpriteAnimator(renderer, { autoplay: 'idle' })`.
+
 ### Control playback directly
 
 You can skip the state machine and play clips by name:
@@ -471,7 +473,11 @@ function checkTemplate(text: string): boolean {
 
 ### Bind and play a template
 
-The engine has no loader for template files. Read the text, for example with `game.input.readFile(path)`, which returns an empty string when it fails, parse it with `JSON.parse`, and give the result to `new SpriteAnimationTemplateAsset(document)`. The asset validates the document and exposes `error`, `diagnostics`, and the validated `definition`.
+`loadSpriteAnimationTemplate(path, images)` reads the template file and binds it to textures you already have. `images` maps image parameter IDs to loaded `Texture` objects, for example from `@Asset` fields. It returns a `SpriteAnimationTemplateBoundAnimation` and throws if the file is missing or the binding is invalid. Each object chooses its own textures, so one template serves many images.
+
+`SpriteAnimationComponent` wraps both steps for a GameObject. Attach it with `@GameComponent<SpriteAnimationComponent<'idle' | 'walk'>>({ template, images, filter?, autoplay? })`. It loads the template and textures when it wakes, adds the renderer and animator to the object, and exposes `play`, `setDir`, `setBool`, `setNumber`, and `setTrigger`. The type argument lists the clip names, so `play` rejects unknown names at compile time.
+
+To validate a document yourself, parse it and give it to `new SpriteAnimationTemplateAsset(document)`. The asset exposes `error`, `diagnostics`, and the validated `definition`. It does not throw.
 
 `template.bind(images)` connects the template to textures. `images` is an object whose keys are image parameter IDs and whose values are loaded textures. It returns `{ ok: true, value }` or `{ ok: false, diagnostics }`. It reports problems in `diagnostics` instead of throwing. A binding fails when:
 

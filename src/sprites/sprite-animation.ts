@@ -1,8 +1,13 @@
 import type { SpriteFrame } from './sprite-sheet';
 
+/**
+ * What a clip does at its last frame: `loop` repeats, `once` holds the last frame, `ping-pong` plays back and forth.
+ */
 export type SpriteAnimationLoop = 'loop' | 'once' | 'ping-pong';
 
+/** One step of a `SpriteAnimation`: a sprite frame with an optional duration and markers. */
 export interface SpriteKeyframe {
+  /** Frame shown during this keyframe. */
   readonly sprite: SpriteFrame;
   /** Duration in seconds. When omitted, the animation fps is used. */
   readonly duration?: number;
@@ -18,15 +23,19 @@ export interface SpriteAnimationDirectionalFrames {
   readonly right: readonly SpriteKeyframe[];
 }
 
+/** Options for `SpriteAnimation`. Provide either `frames` or `directions`. */
 export interface SpriteAnimationOptions {
   /** Keyframes of a non-directional clip. Mutually exclusive with directions. */
   readonly frames?: readonly SpriteKeyframe[];
   /** Keyframes per direction. SpriteAnimator.dir selects the variant that plays. */
   readonly directions?: SpriteAnimationDirectionalFrames;
+  /** Frames per second used for keyframes without a duration. Defaults to 12. */
   readonly fps?: number;
+  /** Behavior at the last keyframe. Defaults to `loop`. */
   readonly loop?: SpriteAnimationLoop;
 }
 
+/** A keyframe with its duration and markers filled in. */
 export interface ResolvedSpriteKeyframe {
   readonly sprite: SpriteFrame;
   readonly duration: number;
@@ -73,6 +82,7 @@ export class SpriteAnimation {
   private durationValue = 0;
   private directionClips: SpriteAnimation[] | null = null;
 
+  /** Builds a clip from keyframes or per-direction keyframes. Invalid input is reported through `error`, not thrown. */
   constructor(options: SpriteAnimationOptions) {
     const settings: SpriteAnimationOptions = options === null || options === undefined ? { frames: [] } : options;
     this.fpsValue = settings.fps === undefined ? 12 : settings.fps;
@@ -142,18 +152,23 @@ export class SpriteAnimation {
     }
   }
 
+  /** Message describing why the clip is invalid, or null. */
   get error(): string | null {
     return this.frameError;
   }
+  /** Frames per second used for keyframes without a duration. */
   get fps(): number {
     return this.fpsValue;
   }
+  /** Behavior at the last keyframe. */
   get loop(): SpriteAnimationLoop {
     return this.loopValue;
   }
+  /** Length of one pass through the keyframes, in seconds. A directional clip reports its down direction. */
   get duration(): number {
     return this.durationValue;
   }
+  /** Resolved keyframes. A directional clip reports its down direction. */
   get frames(): readonly ResolvedSpriteKeyframe[] {
     return this.resolvedFrames;
   }

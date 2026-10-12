@@ -2,8 +2,10 @@ import type { Color, Sound } from '../core/types';
 import type { Texture } from '../textures';
 import type { GuiCursor } from './types';
 
+/** Alignment of content along one axis. */
 export type GuiTextAlignment = 'start' | 'center' | 'end';
 
+/** Font settings for a GUI profile; a `null` family uses the default font. */
 export interface GuiFontProfile {
   family: string | null;
   size: number;
@@ -11,23 +13,27 @@ export interface GuiFontProfile {
   italic: boolean;
 }
 
+/** Horizontal and vertical content alignment for a GUI profile. */
 export interface GuiAlignmentProfile {
   horizontal: GuiTextAlignment;
   vertical: GuiTextAlignment;
 }
 
+/** Spacing values for a GUI profile: item spacing, padding, and inner spacing. */
 export interface GuiSpacingProfile {
   item: number;
   padding: number;
   inner: number;
 }
 
+/** Border color, width, and corner radius for a GUI profile. */
 export interface GuiBorderProfile {
   color: Color;
   width: number;
   radius: number;
 }
 
+/** Drop shadow color, offset, and blur for a GUI profile. */
 export interface GuiShadowProfile {
   color: Color;
   offsetX: number;
@@ -35,11 +41,13 @@ export interface GuiShadowProfile {
   blur: number;
 }
 
+/** Sounds played when a button is pressed or hovered; `null` plays nothing. */
 export interface GuiButtonSounds {
   press: Sound | null;
   hover: Sound | null;
 }
 
+/** Partial profile settings accepted by the `GuiProfile` constructor; omitted values use defaults. */
 export interface GuiProfileOptions {
   normalColor?: Color;
   hoverColor?: Color;
@@ -76,24 +84,42 @@ function copySoundSet(sounds: GuiButtonSounds | null | undefined): GuiButtonSoun
   return { press: sounds.press, hover: sounds.hover };
 }
 
+/** Visual style (colors, font, spacing, border, shadow, sounds) shared by GUI controls. */
 export class GuiProfile {
+  /** Fill color in the normal state. */
   normalColor: Color;
+  /** Fill color while hovered. */
   hoverColor: Color;
+  /** Fill color when disabled. */
   disabledColor: Color;
+  /** Text color. */
   textColor: Color;
+  /** Color of selections and highlights. */
   selectionColor: Color;
+  /** Font settings. */
   font: GuiFontProfile;
+  /** Content alignment. */
   alignment: GuiAlignmentProfile;
+  /** Spacing values. */
   spacing: GuiSpacingProfile;
+  /** Border settings. */
   border: GuiBorderProfile;
+  /** Overall opacity. */
   opacity: number;
+  /** Optional background texture, or `null` for none. */
   background: Texture | null;
+  /** Drop shadow settings. */
   shadow: GuiShadowProfile;
+  /** Whether controls using this profile can take keyboard focus. */
   focusable: boolean;
+  /** Whether controls using this profile are modal. */
   modal: boolean;
+  /** Cursor shown over controls using this profile. */
   cursor: GuiCursor;
+  /** Press and hover sounds, or `null` for none. */
   buttonSounds: GuiButtonSounds | null;
 
+  /** Creates a profile, filling unspecified options with defaults. */
   constructor(options: GuiProfileOptions = {}) {
     this.normalColor = copyColor(options.normalColor ?? DEFAULT_NORMAL);
     this.hoverColor = copyColor(options.hoverColor ?? DEFAULT_HOVER);
@@ -134,6 +160,7 @@ export class GuiProfile {
     this.buttonSounds = copySoundSet(options.buttonSounds);
   }
 
+  /** Returns an independent copy of this profile. */
   clone(): GuiProfile {
     return new GuiProfile({
       normalColor: this.normalColor,
@@ -156,15 +183,25 @@ export class GuiProfile {
   }
 }
 
+/** Registry of named profiles. Built-in names include `default`, `text`, `button`, `window`, `scroll`, `checkbox`, `radio`, `popup`, `slider`, `progress`, `tree`, `list`, `blue`, `blue-button`, and `blue-window`. */
 export class GUIProfiles {
   private static profiles = new Map<string, GuiProfile>();
 
+  /**
+   * Returns the profile registered under `name`.
+   * @throws Error if no profile has that name.
+   */
   static get(name: string): GuiProfile {
     const profile = this.profiles.get(name);
     if (profile === undefined) throw new Error(`Unknown GUI profile: ${name}`);
     return profile;
   }
 
+  /**
+   * Registers a profile under a new name.
+   * @throws Error if the name is empty or already registered.
+   * @throws TypeError if `profile` is not a `GuiProfile`.
+   */
   static register(name: string, profile: GuiProfile): void {
     if (name.trim().length === 0) throw new Error('GUI profile names cannot be empty.');
     if (!(typeof profile === 'object' && profile !== null && profile instanceof GuiProfile))
@@ -173,6 +210,10 @@ export class GUIProfiles {
     this.profiles.set(name, profile);
   }
 
+  /**
+   * Returns a copy of the profile registered under `name`, safe to modify.
+   * @throws Error if no profile has that name.
+   */
   static clone(name: string): GuiProfile {
     return this.get(name).clone();
   }

@@ -1,8 +1,10 @@
+/** Identifiers of the available UI backends. */
 export const UiBackend = {
   Egui: 0,
   DearImGui: 1,
 } as const;
 
+/** Command opcodes understood by the native UI backends. */
 export const UiOpcode = {
   BeginWindow: 1,
   EndWindow: 2,
@@ -63,4 +65,5 @@ export const UiOpcode = {
   EndCollapsingHeader: 57,
 } as const;
 
+/** Numeric id of a UI backend. */
 export type UiBackendId = (typeof UiBackend)[keyof typeof UiBackend];

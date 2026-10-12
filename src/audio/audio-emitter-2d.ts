@@ -5,18 +5,26 @@ import { AudioListener2D } from './audio-listener-2d';
 import { GameComponent } from '../game/game-component';
 import type { GameObject } from '../game/game-object';
 
+/** Playback options for an AudioEmitter2D; same fields as SpatialPlaybackOptions. */
 export interface AudioEmitter2DOptions extends SpatialPlaybackOptions {}
 
 /** Spatial playback component for GameObjects positioned in the XY world plane. */
 export class AudioEmitter2D extends GameComponent {
+  /** Sound this emitter plays. */
   readonly sound: Sound;
+  /** Listener the emitter is heard from. It must belong to the same Game as the emitter. */
   readonly listener: AudioListener2D;
+  /** Whether playback repeats until stopped. Defaults to false. */
   readonly looping: boolean;
+  /** Distance range that plays at full volume. Defaults to 1. */
   readonly refDist: number;
+  /** Distance past which the voice is culled; 0 means never. Defaults to 0. */
   readonly maxDist: number;
+  /** How quickly volume falls past `refDist`; 1 is the physical inverse law. Defaults to 1. */
   readonly rolloff: number;
   private voice: SoundVoice | null = null;
 
+  /** Creates an emitter for `sound` heard through `listener`. */
   constructor(sound: Sound, listener: AudioListener2D, options: AudioEmitter2DOptions = {}) {
     super();
     this.sound = sound;
@@ -27,6 +35,7 @@ export class AudioEmitter2D extends GameComponent {
     this.rolloff = options.rolloff === undefined ? 1 : options.rolloff;
   }
 
+  /** True while this emitter has an active voice. */
   get isPlaying(): boolean {
     return this.voice !== null && this.voice.isActive;
   }
@@ -76,6 +85,7 @@ export class AudioEmitter2D extends GameComponent {
     this.voice.setPosition({ x: position.x, y: 0, z: position.y });
   }
 
+  /** Stops playback when the component is destroyed. */
   onDestroy(): void {
     this.stop();
   }

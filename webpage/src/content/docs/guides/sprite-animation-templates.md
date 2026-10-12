@@ -128,6 +128,34 @@ The BornEngineTools extension opens files that end in `.spriteanim-template.json
 
 The editor has panels for clips, image inputs, frames, and layers. You can drag crops out of a preview picture, move layers on a preview, and play the clip. The preview pictures are only for the editor and are never saved in the template. The editor checks the file with the engine's own validator and shows problems in the Problems panel. It saves compact JSON and leaves out transform and visibility values that equal the defaults. The engine fills them in again when it loads the file. If the file is not valid, the editor shows the problems and does not rewrite it.
 
+## Quick start with a component
+
+For most characters, one component does the loading, drawing, and playback. Declare it as a field and give it the template path and the image paths:
+
+```ts
+import { FILTER_NEAREST, GameObject, SpriteAnimationComponent } from '@bornengine/engine';
+import { GameComponent } from '@bornengine/engine/annotations';
+
+class Player extends GameObject {
+  @GameComponent<SpriteAnimationComponent<'idle' | 'walk'>>({
+    template: 'assets/anis/idle.spriteanim-template.json',
+    images: { head: 'assets/heads/head.png', body: 'assets/bodies/body.png' },
+    filter: FILTER_NEAREST,
+    autoplay: 'idle',
+  })
+  private readonly animation!: SpriteAnimationComponent<'idle' | 'walk'>;
+
+  update(deltaTime: number): void {
+    this.animation.setDir(1);
+    this.animation.play('walk');
+  }
+}
+```
+
+The type argument lists the clip names, so `play` rejects a name the template does not have. Each object picks its own images, so one template serves many characters. Texture paths load through the scene's assets when the component wakes. A missing file or a bad binding throws during that wake.
+
+If you need to control loading yourself, `loadSpriteAnimationTemplate(path, images)` reads the template file and binds textures you already have. The steps below show the same work by hand.
+
 ## Bind images to the template
 
 Loading has two steps. First you read the file and check it. Then you call `template.bind` once for each combination of pictures:

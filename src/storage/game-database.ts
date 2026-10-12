@@ -43,16 +43,24 @@ const STATUS: DatabaseStatus[] = [
   'constraint_error',
 ];
 
+/** Every database status except `'ok'`. */
 export type DatabaseFailureStatus = Exclude<DatabaseStatus, 'ok'>;
+/** Outcome of a database call: `ok` with a value, or a failure status with a null value. */
 export type DatabaseResult<T> =
   | { ok: true; status: 'ok'; value: T | null }
   | { ok: false; status: DatabaseFailureStatus; value: null };
+/** Lifecycle of a `GameDatabase`: not yet opened, open, or closed. */
 export type DatabaseState = 'new' | 'open' | 'closed';
 
+/** Configuration for a `GameDatabase`. */
 export interface GameDatabaseOptions<S extends DatabaseSchema> {
+  /** Application namespace the database belongs to. Must be a valid namespace string. */
   appId: string;
+  /** Database name inside the application namespace. Must be a valid namespace string. */
   name: string;
+  /** Table definitions the database is opened with. */
   schema: S;
+  /** Ordered schema migrations applied when the database is opened. */
   migrations?: readonly DatabaseMigration<S>[];
   /** Volatile mode must be requested explicitly; persistent mode is the default. */
   inMemory?: boolean;
@@ -241,17 +249,27 @@ function release(response: WireResponse): void {
   if (response.ticket > 0) bloom_database_release(response.ticket);
 }
 
+/**
+ * Typed local SQLite database with a fixed schema and versioned migrations.
+ * Operations never throw; they resolve to a `DatabaseResult` carrying a status.
+ */
 export class GameDatabase<S extends DatabaseSchema> {
+  /** Application namespace the database belongs to. */
   readonly appId: string;
+  /** Database name inside the application namespace. */
   readonly name: string;
+  /** Table definitions the database is opened with. */
   readonly schema: S;
+  /** Ordered schema migrations applied on open; empty when none were given. */
   readonly migrations: readonly DatabaseMigration<S>[];
+  /** True when the database is volatile and never persisted. */
   readonly inMemory: boolean;
   private handle = 0;
   private lifecycle: DatabaseState = 'new';
   private activeTransactionToken: object | null = null;
   private opening = false;
 
+  /** Creates a database handle. Nothing is validated or opened until `open()` is called. */
   constructor(options: GameDatabaseOptions<S>) {
     const config = options || ({} as GameDatabaseOptions<S>);
     this.appId = config.appId;
@@ -261,6 +279,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     this.inMemory = config.inMemory === true;
   }
 
+  /** Current lifecycle state. */
   get state(): DatabaseState {
     return this.lifecycle;
   }
@@ -284,6 +303,10 @@ export class GameDatabase<S extends DatabaseSchema> {
     return this.lifecycle === 'open' && this.handle === handle && this.activeTransactionToken === transactionToken;
   }
 
+  /**
+   * Validates the namespace, schema, and migrations, opens the store, and applies pending migrations.
+   * Resolves `ok` immediately when already open and `busy` while another open is running.
+   */
   async open(): Promise<DatabaseResult<void>> {
     if (this.lifecycle === 'open') return result('ok');
     if (this.opening) return result('busy');
@@ -341,6 +364,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     return result('ok');
   }
 
+  /** Closes the database. Resolves `busy` while a transaction is active. */
   async close(): Promise<DatabaseResult<void>> {
     if (this.lifecycle !== 'open') return result(this.lifecycle === 'closed' ? 'closed' : 'not_open');
     if (this.activeTransactionToken !== null) return result('busy');
@@ -361,6 +385,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     return 'ok';
   }
 
+  /** Inserts a row and resolves with its row id. */
   async insert<T extends Extract<keyof S, string>>(
     table: T,
     values: DatabaseInsert<S, T>,
@@ -387,6 +412,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     return output;
   }
 
+  /** Reads the rows matching the optional filter, ordering, limit, and offset. Every declared column is returned. */
   async select<T extends Extract<keyof S, string>>(
     table: T,
     options: DatabaseSelect<DatabaseRow<S, T>> = {},
@@ -435,6 +461,10 @@ export class GameDatabase<S extends DatabaseSchema> {
     return result('ok', rows);
   }
 
+  /**
+   * Resolves with the row whose primary key equals `key`, or null when no row matches.
+   * Resolves `invalid_schema` when the table has no primary key.
+   */
   async findByPrimaryKey<T extends Extract<keyof S, string>>(
     table: T,
     key: string | number,
@@ -454,6 +484,10 @@ export class GameDatabase<S extends DatabaseSchema> {
       : result(selected.status);
   }
 
+  /**
+   * Applies `values` to every row matching `where` and resolves with the number of affected rows.
+   * Resolves `invalid_data` when `values` is empty.
+   */
   async update<T extends Extract<keyof S, string>>(
     table: T,
     values: DatabaseUpdate<S, T>,
@@ -487,6 +521,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     return output;
   }
 
+  /** Deletes every row matching `where` and resolves with the number of deleted rows. */
   async delete<T extends Extract<keyof S, string>>(
     table: T,
     where: DatabaseFilter<DatabaseRow<S, T>>,
@@ -513,6 +548,11 @@ export class GameDatabase<S extends DatabaseSchema> {
     return output;
   }
 
+  /**
+   * Runs `callback` inside a transaction.
+   * The transaction commits when the callback resolves `ok` and no operation on `tx` failed; otherwise it rolls back and the failure status is returned.
+   * Other database operations resolve `busy` until the transaction ends.
+   */
   async transaction<T>(
     callback: (tx: DatabaseTransaction<S>) => Promise<DatabaseResult<T>>,
   ): Promise<DatabaseResult<T>> {
@@ -579,6 +619,7 @@ export class GameDatabase<S extends DatabaseSchema> {
     }
   }
 
+  /** Exports the database as the bytes of a SQLite file. */
   async export(): Promise<DatabaseResult<Uint8Array>> {
     const state = this.ready();
     if (state !== 'ok') return result(state);
@@ -592,6 +633,10 @@ export class GameDatabase<S extends DatabaseSchema> {
     return output;
   }
 
+  /**
+   * Imports the bytes of a SQLite file, such as one produced by `export()`.
+   * Resolves `invalid_data` for input that is too short and `corrupt_data` when the bytes are not a SQLite file.
+   */
   async import(bytes: Uint8Array): Promise<DatabaseResult<void>> {
     const state = this.ready();
     if (state !== 'ok') return result(state);
@@ -606,10 +651,16 @@ export class GameDatabase<S extends DatabaseSchema> {
   }
 }
 
+/**
+ * Operations handle passed to a `GameDatabase.transaction` callback.
+ * A failed operation marks the whole transaction for rollback.
+ */
 export class DatabaseTransaction<S extends DatabaseSchema> {
+  /** First failure status seen by this transaction, or null while every operation succeeded. */
   failed: DatabaseStatus | null = null;
   private readonly database: GameDatabase<S>;
   private readonly token: object;
+  /** Created by `GameDatabase.transaction`; not meant to be constructed directly. */
   constructor(database: GameDatabase<S>, token: object) {
     this.database = database;
     this.token = token;
@@ -618,18 +669,21 @@ export class DatabaseTransaction<S extends DatabaseSchema> {
     if (!value.ok && this.failed === null) this.failed = value.status;
     return value;
   }
+  /** Inserts a row inside the transaction and resolves with its row id. */
   async insert<T extends Extract<keyof S, string>>(
     table: T,
     values: DatabaseInsert<S, T>,
   ): Promise<DatabaseResult<number>> {
     return this.observe(await this.database.insertInternal(table, values, this.token));
   }
+  /** Reads rows inside the transaction. */
   async select<T extends Extract<keyof S, string>>(
     table: T,
     options: DatabaseSelect<DatabaseRow<S, T>> = {},
   ): Promise<DatabaseResult<DatabaseRow<S, T>[]>> {
     return this.observe(await this.database.selectInternal(table, options, this.token));
   }
+  /** Updates the rows matching `where` inside the transaction and resolves with the affected row count. */
   async update<T extends Extract<keyof S, string>>(
     table: T,
     values: DatabaseUpdate<S, T>,
@@ -637,6 +691,7 @@ export class DatabaseTransaction<S extends DatabaseSchema> {
   ): Promise<DatabaseResult<number>> {
     return this.observe(await this.database.updateInternal(table, values, where, this.token));
   }
+  /** Deletes the rows matching `where` inside the transaction and resolves with the deleted row count. */
   async delete<T extends Extract<keyof S, string>>(
     table: T,
     where: DatabaseFilter<DatabaseRow<S, T>>,

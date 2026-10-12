@@ -11,6 +11,7 @@ export class ScriptRuntime {
   private readonly supportedValue: boolean;
   private disposed = false;
 
+  /** Creates the script host for `owner`. Check `isSupported` before attaching scripts. */
   constructor(owner: Game) {
     this.context = getGameContext(owner);
     let supported = false;
@@ -22,12 +23,15 @@ export class ScriptRuntime {
     this.supportedValue = supported;
   }
 
+  /** True when this target supports embedded JavaScript and the runtime has not been disposed. */
   get isSupported(): boolean {
     return this.supportedValue && !this.disposed;
   }
+  /** True once the runtime has been disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Number of live script components registered with this runtime. */
   get scriptCount(): number {
     return this.componentValues.length;
   }
@@ -55,6 +59,7 @@ export class ScriptRuntime {
     return this.componentValues.slice();
   }
 
+  /** Disposes every registered script component. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

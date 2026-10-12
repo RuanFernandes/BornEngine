@@ -26,7 +26,9 @@ import {
 } from './types';
 import type { GUIManager } from './manager';
 
+/** Base class for all GUI controls. A control has a position and size relative to its parent, can contain child controls, and can receive input events. */
 export class GUI {
+  /** Unique numeric id of this control. */
   readonly id: number;
 
   private _parent: GUI | null = null;
@@ -57,6 +59,10 @@ export class GUI {
   protected _guiCommandItems: GuiControlItemCommand[] = [];
   protected _guiCommandDrawings: GuiDrawingPayload[] = [];
 
+  /**
+   * Creates a control from the given initial geometry and state.
+   * @throws RangeError if a coordinate is not finite or a dimension is negative or not finite.
+   */
   constructor(options: GUIControlOptions = {}) {
     this.id = allocateGUIId();
     const x = validateGuiCoordinate(options.x ?? 0, 'x');
@@ -73,26 +79,35 @@ export class GUI {
     this._clipToBounds = options.clipToBounds ?? false;
   }
 
+  /** Parent control, or `null` for a root or detached control. */
   get parent(): GUI | null {
     return this._parent;
   }
 
+  /** Returns a copy of the list of child controls, in draw order. */
   getControls(): readonly GUI[] {
     return this._controls.slice();
   }
+  /** Returns the parent control, or `null` for a root or detached control. */
   getParent(): GUI | null {
     return this._parent;
   }
 
+  /** Returns the topmost ancestor of this control, or the control itself when it has no parent. */
   getRoot(): GUI {
     let root: GUI = this;
     while (root._parent !== null) root = root._parent;
     return root;
   }
 
+  /** Returns the X position relative to the parent. */
   getX(): number {
     return this._x;
   }
+  /**
+   * Sets the X position relative to the parent and turns off horizontal centering.
+   * @throws RangeError if `x` is not finite.
+   */
   setX(x: number): this {
     validateGuiCoordinate(x, 'x');
     this._centerHorizontal = false;
@@ -100,9 +115,14 @@ export class GUI {
     return this;
   }
 
+  /** Returns the Y position relative to the parent. */
   getY(): number {
     return this._y;
   }
+  /**
+   * Sets the Y position relative to the parent and turns off vertical centering.
+   * @throws RangeError if `y` is not finite.
+   */
   setY(y: number): this {
     validateGuiCoordinate(y, 'y');
     this._centerVertical = false;
@@ -110,27 +130,42 @@ export class GUI {
     return this;
   }
 
+  /** Returns the width. */
   getWidth(): number {
     return this._width;
   }
+  /**
+   * Sets the width, raised to the minimum width if smaller, and keeps centering anchors applied.
+   * @throws RangeError if `width` is negative or not finite.
+   */
   setWidth(width: number): this {
     this.applyGeometry(this._x, this._y, width, this._height);
     this.reflowOwnCenter();
     return this;
   }
 
+  /** Returns the height. */
   getHeight(): number {
     return this._height;
   }
+  /**
+   * Sets the height, raised to the minimum height if smaller, and keeps centering anchors applied.
+   * @throws RangeError if `height` is negative or not finite.
+   */
   setHeight(height: number): this {
     this.applyGeometry(this._x, this._y, this._width, height);
     this.reflowOwnCenter();
     return this;
   }
 
+  /** Returns the position relative to the parent. */
   getPosition(): GuiPoint {
     return { x: this._x, y: this._y };
   }
+  /**
+   * Sets the position relative to the parent and turns off centering on both axes.
+   * @throws RangeError if a coordinate is not finite.
+   */
   setPosition(x: number, y: number): this {
     validateGuiCoordinate(x, 'x');
     validateGuiCoordinate(y, 'y');
@@ -140,15 +175,24 @@ export class GUI {
     return this;
   }
 
+  /** Returns the width and height. */
   getSize(): GuiSize {
     return { width: this._width, height: this._height };
   }
+  /**
+   * Sets the width and height, raised to the minimum size if smaller, and keeps centering anchors applied.
+   * @throws RangeError if a dimension is negative or not finite.
+   */
   setSize(width: number, height: number): this {
     this.applyGeometry(this._x, this._y, width, height);
     this.reflowOwnCenter();
     return this;
   }
 
+  /**
+   * Sets position and size in one call and turns off centering on both axes.
+   * @throws RangeError if a coordinate is not finite or a dimension is negative or not finite.
+   */
   resize(x: number, y: number, width: number, height: number): this {
     validateGuiCoordinate(x, 'x');
     validateGuiCoordinate(y, 'y');
@@ -160,6 +204,7 @@ export class GUI {
     return this;
   }
 
+  /** Centers the control inside its parent on both axes, and keeps it centered when the parent or the control is resized. */
   center(): this {
     this._centerHorizontal = true;
     this._centerVertical = true;
@@ -167,18 +212,24 @@ export class GUI {
     return this;
   }
 
+  /** Centers the control horizontally inside its parent, and keeps it centered when the parent or the control is resized. */
   centerHorizontal(): this {
     this._centerHorizontal = true;
     this.reflowOwnCenter();
     return this;
   }
 
+  /** Centers the control vertically inside its parent, and keeps it centered when the parent or the control is resized. */
   centerVertical(): this {
     this._centerVertical = true;
     this.reflowOwnCenter();
     return this;
   }
 
+  /**
+   * Converts a point in this control's local space to global GUI coordinates.
+   * @throws RangeError if a coordinate is not finite.
+   */
   localToGlobal(point: GuiPoint): GuiPoint {
     validateGuiCoordinate(point.x, 'point.x');
     validateGuiCoordinate(point.y, 'point.y');
@@ -193,6 +244,10 @@ export class GUI {
     return mapped;
   }
 
+  /**
+   * Converts a point in global GUI coordinates to this control's local space.
+   * @throws RangeError if a coordinate is not finite.
+   */
   globalToLocal(point: GuiPoint): GuiPoint {
     validateGuiCoordinate(point.x, 'point.x');
     validateGuiCoordinate(point.y, 'point.y');
@@ -250,6 +305,11 @@ export class GUI {
     return mapped;
   }
 
+  /**
+   * Adds a child control and returns it.
+   * @throws TypeError if `control` is not a `GUI`.
+   * @throws Error if either control is destroyed, the add would create a cycle, or the child already has a parent or owner.
+   */
   addControl(control: GUI): GUI {
     this.assertCanAttach(control);
     control._parent = this;
@@ -261,6 +321,10 @@ export class GUI {
     return control;
   }
 
+  /**
+   * Removes a child control.
+   * @returns `true` if the control was a child of this one, otherwise `false`.
+   */
   removeControl(control: GUI): boolean {
     const index = this._controls.indexOf(control);
     if (index < 0) return false;
@@ -273,13 +337,16 @@ export class GUI {
     return true;
   }
 
+  /** Removes all child controls. */
   clearControls(): void {
     for (const control of this._controls.slice()) this.removeControl(control);
   }
 
+  /** Returns whether the control is visible. */
   isVisible(): boolean {
     return this._visible;
   }
+  /** Shows or hides the control. A hidden control is not drawn and cannot receive input or focus. */
   setVisible(value: boolean): this {
     if (this._visible === value) return this;
     this._visible = value;
@@ -294,9 +361,11 @@ export class GUI {
     return this;
   }
 
+  /** Returns whether the control is active. */
   isActive(): boolean {
     return this._active;
   }
+  /** Enables or disables the control. An inactive control is not drawn and cannot receive input or focus. */
   setActive(value: boolean): this {
     if (this._active === value) return this;
     this._active = value;
@@ -309,31 +378,42 @@ export class GUI {
     return this;
   }
 
+  /** Makes the control visible. */
   show(): this {
     return this.setVisible(true);
   }
+  /** Hides the control. */
   hide(): this {
     return this.setVisible(false);
   }
 
+  /** Sets whether children are clipped to this control's bounds. */
   setClipChildren(value: boolean): this {
     this._clipChildren = value;
     return this;
   }
+  /** Returns whether children are clipped to this control's bounds. */
   getClipChildren(): boolean {
     return this._clipChildren;
   }
+  /** Sets whether this control and its children are clipped to its own bounds. */
   setClipToBounds(value: boolean): this {
     this._clipToBounds = value;
     return this;
   }
+  /** Returns whether this control and its children are clipped to its own bounds. */
   getClipToBounds(): boolean {
     return this._clipToBounds;
   }
 
+  /** Returns the minimum width and height. */
   getMinimumSize(): GuiSize {
     return { ...this._minimumSize };
   }
+  /**
+   * Sets the minimum size and enlarges the control if it is currently smaller.
+   * @throws RangeError if a dimension is negative or not finite.
+   */
   setMinimumSize(width: number, height: number): this {
     const minimum = {
       width: validateGuiDimension(width, 'minimum width'),
@@ -345,24 +425,33 @@ export class GUI {
     return this;
   }
 
+  /** Returns the hint text associated with the control. */
   getHint(): string {
     return this._hint;
   }
+  /** Sets the hint text associated with the control. */
   setHint(text: string): this {
     this._hint = text;
     return this;
   }
+  /** Returns the cursor name set on this control. */
   getCursor(): GuiCursor {
     return this._cursor;
   }
+  /** Sets the cursor name for this control. */
   setCursor(cursor: GuiCursor): this {
     this._cursor = cursor;
     return this;
   }
 
+  /** Returns the profile set on this control, or the `default` profile if none is set. */
   getProfile(): GuiProfile {
     return this._profile ?? GUIProfiles.get('default');
   }
+  /**
+   * Sets the profile used by this control and inherited by its children. Pass `null` to clear it.
+   * @throws TypeError if `profile` is neither a `GuiProfile` nor `null`.
+   */
   setProfile(profile: GuiProfile | null): this {
     if (profile !== null && !(typeof profile === 'object' && profile instanceof GuiProfile))
       throw new TypeError('setProfile expects a GuiProfile or null.');
@@ -370,6 +459,10 @@ export class GUI {
     return this;
   }
 
+  /**
+   * Gives this control its own copy of a profile and returns it for editing.
+   * @param profile Profile to copy; defaults to the current profile, or the `default` profile if none is set.
+   */
   setOwnProfile(profile?: GuiProfile): GuiProfile {
     const source = profile ?? this._profile ?? GUIProfiles.get('default');
     this._profile = source.clone();
@@ -410,20 +503,24 @@ export class GUI {
     for (const child of this._controls) child._emitCommands(commands, profile, childClip, this.id, childClipStack);
   }
 
+  /** Requests keyboard focus for this control. Does nothing if the control is not attached to a game. */
   focus(): this {
     this._manager?._focusControl(this);
     return this;
   }
 
+  /** Removes keyboard focus if this control has it. */
   blur(): this {
     this._manager?._blurControl(this);
     return this;
   }
 
+  /** Returns whether this control has keyboard focus. */
   isFocused(): boolean {
     return this._focused && this._manager !== null;
   }
 
+  /** Marks the control as the first responder and focuses it, or clears the mark and removes focus when `enabled` is false. */
   makeFirstResponder(enabled = true): this {
     this._firstResponder = enabled;
     if (enabled) this.focus();
@@ -431,28 +528,33 @@ export class GUI {
     return this;
   }
 
+  /** Returns whether the control is the first responder and currently has focus. */
   isFirstResponder(): boolean {
     return this._firstResponder && this.isFocused();
   }
 
+  /** Focuses the first descendant that can receive input. */
   tabFirst(): this {
     const first = this.findFirstFocusableDescendant();
     first?.focus();
     return this;
   }
 
+  /** Moves the control in front of its siblings. */
   bringToFront(): this {
     if (this._parent !== null) this._parent.reorderControl(this, true);
     else this._manager?._reorderControl(this, true);
     return this;
   }
 
+  /** Moves the control behind its siblings. */
   pushToBack(): this {
     if (this._parent !== null) this._parent.reorderControl(this, false);
     else this._manager?._reorderControl(this, false);
     return this;
   }
 
+  /** Removes the control from its parent or game, clears its children, and marks it destroyed so it can no longer be attached. */
   destroy(): void {
     if (this._destroyed) return;
     const parent = this._parent;

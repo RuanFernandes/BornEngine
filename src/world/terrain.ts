@@ -67,6 +67,7 @@ const BARE_G = 0.6;
 const BARE_B = 0.5;
 
 /// The mask colour the editor viewport uses for splat layer `i`. Wraps past 8.
+/** Returns the RGB color (0..1) used to display splat layer `i` in an editor mask view; the palette wraps after 8 layers. */
 export function terrainLayerMaskColor(i: number): Vec3Lit {
   const k = (i % 8) * 3;
   return [MASK_PALETTE[k], MASK_PALETTE[k + 1], MASK_PALETTE[k + 2]];
@@ -86,6 +87,7 @@ const DEFAULT_DEPTH = 128;
 //
 // For a 128x128 grid that's 16,384 vertices and 32,258 triangles — well
 // within what one scene node can hold.
+/** Builds terrain mesh vertices and triangle indices from the heightmap, ready to upload to a scene node. */
 export function buildHeightmapMesh(t: TerrainData): { vertices: number[]; indices: number[] } {
   const width = t.width;
   const depth = t.depth;
@@ -204,6 +206,7 @@ export function buildHeightmapMesh(t: TerrainData): { vertices: number[]; indice
 //   - character controllers ("what height is the player standing on?")
 //   - the place tool (drop an entity onto the terrain surface)
 //   - the brush tool (show a cursor ring at the correct height)
+/** Returns the world-space terrain height at `(wx, wz)`, bilinearly interpolated and clamped to the grid edges. */
 export function sampleHeight(t: TerrainData, wx: number, wz: number): number {
   const fx = (wx - t.origin[0]) / t.cellSize;
   const fz = (wz - t.origin[2]) / t.cellSize;
@@ -226,6 +229,7 @@ export function sampleHeight(t: TerrainData, wx: number, wz: number): number {
   return t.origin[1] + h0 * (1 - tz) + h1 * tz;
 }
 
+/** Result of `raycastTerrain`; when `hit` is false, `cellX` and `cellZ` are -1. */
 export interface TerrainRaycastHit {
   hit: boolean;
   point: Vec3Lit;
@@ -245,6 +249,13 @@ export interface TerrainRaycastHit {
 // @param dir     Ray direction (should be normalized for accurate distances).
 // @param maxDist Maximum distance to march before giving up.
 // @param step    Step size. Smaller = more accurate, larger = faster.
+/**
+ * Marches a ray against the terrain surface and returns the first crossing.
+ * @param origin Ray origin in world space.
+ * @param dir Ray direction; normalize it for accurate distances.
+ * @param maxDist Maximum distance to march.
+ * @param step Step length; smaller is more accurate and slower.
+ */
 export function raycastTerrain(
   t: TerrainData,
   origin: Vec3Lit,
@@ -308,6 +319,7 @@ export function raycastTerrain(
 
 // Build a flat 128x128 terrain centered at the origin. Used by the editor's
 // "New World" command when the user chooses a terrain-backed template.
+/** Creates a flat 128x128 terrain with 1-unit cells centered on the origin. */
 export function defaultTerrain(): TerrainData {
   const width = DEFAULT_WIDTH;
   const depth = DEFAULT_DEPTH;
@@ -331,6 +343,10 @@ export function defaultTerrain(): TerrainData {
 /// terrain keeps whatever it looked like before the layer was added. Adding a
 /// layer is therefore always a no-op until you paint with it, which is the only
 /// behaviour that makes "add layer" a safe button to press.
+/**
+ * Creates a splat layer sized to the terrain grid with all weights at zero.
+ * @param tileScale UV tiling factor of the layer texture.
+ */
 export function createTerrainLayer(t: TerrainData, id: string, textureRef: string, tileScale: number): TerrainLayer {
   const n = t.width * t.depth;
   const w = new Array<number>(n);
@@ -345,6 +361,7 @@ export function createTerrainLayer(t: TerrainData, id: string, textureRef: strin
 /// trip to the JSON file, where `0.5019607843137255` costs 18 bytes and there
 /// are `width * depth * layers` of them. A 128² four-layer terrain is 65,536
 /// weights; at full precision that is a megabyte of noise in the diff.
+/** Clamps a splat weight to 0..1 and rounds it to three decimals. */
 export function quantizeWeight(w: number): number {
   const c = clamp(w, 0, 1);
   return Math.round(c * 1000) / 1000;

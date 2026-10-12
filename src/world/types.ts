@@ -15,14 +15,18 @@ export const WORLD_SCHEMA_VERSION = 2;
 
 // Literal types for JSON-friendly serialization.
 // Use `Vec3Lit` in serialized data; convert to engine `Vec3` at load time.
+/** Three-number array `[x, y, z]` used in serialized world data. */
 export type Vec3Lit = [number, number, number];
+/** Four-number array `[x, y, z, w]` used in serialized world data, such as RGBA colors. */
 export type Vec4Lit = [number, number, number, number];
 
 // Column-major 4x4 matrix, same convention as `engine/src/core/types.ts` Mat4.
 // Stored as a flat length-16 number array so it serializes as JSON.
+/** Column-major 4x4 matrix stored as a flat array of 16 numbers. */
 export type Mat4Lit = number[];
 
 // Top-level world document. One `*.world.json` file holds exactly one of these.
+/** Contents of one `*.world.json` file: environment, terrain, entities, lights, water, and rivers. */
 export interface WorldDocument {
   schemaVersion: number; // Must equal WORLD_SCHEMA_VERSION on save.
   name: string; // Human-readable display name.
@@ -44,6 +48,7 @@ export interface WorldDocument {
 // Lights are engine-universal (every renderer knows what a point light is),
 // which is why they are schema rather than `userData`: a spawner or a wave plan
 // means nothing without the game, but a light means the same thing everywhere.
+/** A placed point light. */
 export interface LightData {
   id: string; // Stable within the world file, e.g. "light_0001".
   name: string; // Display name.
@@ -54,12 +59,14 @@ export interface LightData {
   range: number; // World units; beyond this the light contributes nothing.
 }
 
+/** Axis-aligned bounding box given by its minimum and maximum corners. */
 export interface Bounds {
   min: Vec3Lit;
   max: Vec3Lit;
 }
 
 // Sky, lighting, and atmospheric settings applied when the world is loaded.
+/** Sky, ambient light, sun, fog, and shadow settings of a world. */
 export interface EnvironmentData {
   skyColor: Vec3Lit; // 0..1 RGB, used as clear color.
   ambientColor: Vec3Lit; // 0..1 RGB.
@@ -76,6 +83,7 @@ export interface EnvironmentData {
 // Heightmap terrain. Row-major grid of float heights, indexed as z*width + x.
 // Runtime consumers build a mesh via `buildHeightmapMesh` in `./terrain.ts`
 // and sample via `sampleHeight` (bilinear).
+/** Heightmap terrain stored as a row-major grid of heights. */
 export interface TerrainData {
   width: number; // Grid cells along X (e.g. 128).
   depth: number; // Grid cells along Z.
@@ -85,6 +93,7 @@ export interface TerrainData {
   layers: TerrainLayer[]; // Splat texture layers; empty array if unused.
 }
 
+/** One splat texture layer with a blend weight per terrain cell. */
 export interface TerrainLayer {
   id: string; // "grass", "dirt", "rock".
   textureRef: string; // Relative asset path.
@@ -94,6 +103,7 @@ export interface TerrainLayer {
 
 // A placed instance in the world. Exactly one of `modelRef` / `prefabRef` is
 // non-null; the other is null. The editor enforces this invariant.
+/** An object placed in the world, referencing either a model or a prefab. */
 export interface EntityData {
   id: string; // Stable within the world file, e.g. "ent_0001".
   name: string; // Display name; defaults to model basename.
@@ -107,6 +117,7 @@ export interface EntityData {
 
 // Transform expressed as TRS with Euler rotation for diffable JSON.
 // The loader converts Euler -> quaternion / matrix as needed.
+/** Position, Euler rotation, and scale of a placed object. */
 export interface TransformData {
   position: Vec3Lit;
   rotation: Vec3Lit; // Euler radians, XYZ order.
@@ -115,6 +126,7 @@ export interface TransformData {
 
 // Axis-aligned water volume with a wave-animated surface.
 // M1 supports only `kind: "box"`; future: "mesh" for arbitrary shapes.
+/** A box-shaped body of water with an animated surface. */
 export interface WaterVolume {
   id: string;
   kind: 'box';
@@ -127,6 +139,7 @@ export interface WaterVolume {
 }
 
 // Catmull-Rom spline river with per-point width.
+/** A river described by a spline of control points with a width per point. */
 export interface RiverSpline {
   id: string;
   controlPoints: Vec3Lit[]; // At least 2 points.
@@ -141,6 +154,7 @@ export interface RiverSpline {
 // A prefab is a reusable composite object saved as its own `*.prefab.json`.
 // Each child references either a raw .glb model or another prefab (nested).
 // Cycles are detected at load time and rejected.
+/** Contents of one `*.prefab.json` file: a reusable group of model and prefab children. */
 export interface PrefabData {
   schemaVersion: number; // Must equal WORLD_SCHEMA_VERSION.
   id: string; // Stable slug, e.g. "small_house".
@@ -150,6 +164,7 @@ export interface PrefabData {
 }
 
 // One child of a prefab. Exactly one of `modelRef` / `prefabRef` is non-null.
+/** One child of a prefab, referencing either a model or another prefab. */
 export interface PrefabChild {
   id: string; // Local id within the prefab, e.g. "wall_0".
   modelRef: string | null;

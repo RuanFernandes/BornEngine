@@ -30,6 +30,10 @@ export class Noise2D {
   private readonly seedA: number;
   private readonly seedB: number;
 
+  /**
+   * Creates noise from `seed`; the same seed always produces the same field. Fractional seeds are floored.
+   * @throws If `seed` is not finite.
+   */
   constructor(seed: number) {
     if (!isFiniteNumber(seed)) throw new Error('Noise2D seed must be finite');
     const integerSeed = Math.floor(seed);

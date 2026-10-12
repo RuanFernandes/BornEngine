@@ -8,9 +8,11 @@ import type { UiApi } from './types';
 
 /** Shared command facade used by the two game-owned UI backends. */
 export class UiSurface implements ContextResource {
+  /** Game context that owns this surface. */
   readonly context: GameContext;
   private disposed = false;
 
+  /** Creates a UI surface on `owner` for the given backend. */
   constructor(owner: Game, backend: UiBackendId) {
     this.context = getGameContext(owner);
     const api = createUiApi(
@@ -23,10 +25,12 @@ export class UiSurface implements ContextResource {
     this.context.register(this);
   }
 
+  /** True while the surface and its Game are ready and not disposed. */
   get isReady(): boolean {
     return !this.disposed && this.context.isReady && !this.context.isDisposed;
   }
 
+  /** Releases the surface. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -34,12 +38,15 @@ export class UiSurface implements ContextResource {
   }
 }
 
+/** Immediate-mode UI for in-game interfaces, drawn with the egui backend. Widget methods come from `UiApi`. */
 export class Ui extends UiSurface {
+  /** Creates the UI for `owner`. */
   constructor(owner: Game) {
     super(owner, UiBackend.Egui);
   }
 }
 
+/** Widget and painting methods of `Ui`. */
 export interface Ui extends UiApi {}
 export type { UiApi, UiId, UiResponse, UiColor } from './types';
 export { UiBackend, UiOpcode } from './opcodes';

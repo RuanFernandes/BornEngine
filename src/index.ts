@@ -47,6 +47,8 @@ export {
   SpriteAnimationTemplateBoundAnimation,
   SpriteAnimationTemplateBoundClip,
   SpriteAnimationTemplateRenderer,
+  SpriteAnimationComponent,
+  loadSpriteAnimationTemplate,
 } from './sprites';
 export type {
   SpriteFrame,
@@ -67,6 +69,7 @@ export type {
   SpriteAnimationTemplateBindingSuccess,
   SpriteAnimationTemplateBoundFrame,
   SpriteAnimationTemplateBoundLayer,
+  SpriteAnimationComponentOptions,
   SpriteAnimationTemplateRendererOptions,
   ResolvedSpriteAnimationTemplate,
   ResolvedSpriteAnimationTemplateClip,

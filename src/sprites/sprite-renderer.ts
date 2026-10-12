@@ -10,15 +10,21 @@ import type { SpriteAnimationTarget } from './sprite-animation-target';
 import type { SpriteFrame } from './sprite-sheet';
 import { getParallaxOffset } from '../camera2d/parallax-layer-2d';
 
+/** Options for `SpriteRenderer`. */
 export interface SpriteRendererOptions {
   /** Untrimmed frame size in world units. Defaults to the frame's original atlas size. */
   size?: Vector2DLike;
   /** Normalized pivot in the untrimmed frame. */
   pivot?: Vector2DLike;
+  /** Color multiplied into the sprite. Defaults to white. */
   tint?: Color;
+  /** Mirrors the sprite horizontally. Defaults to false. */
   flipX?: boolean;
+  /** Mirrors the sprite vertically. Defaults to false. */
   flipY?: boolean;
+  /** Whether the sprite draws. Defaults to true. */
   visible?: boolean;
+  /** Draw order among components. Lower values draw first. */
   renderOrder?: number;
 }
 
@@ -64,12 +70,19 @@ function rotationZDegrees(rotation: { x: number; y: number; z: number; w: number
 
 /** Draws a SpriteSheet frame from its GameObject transform during scene rendering. */
 export class SpriteRenderer extends GameComponent implements SpriteAnimationTarget {
+  /** Drawn size of the untrimmed frame in world units. */
   size: Vector2D;
+  /** Normalized anchor and rotation point within the untrimmed frame. */
   pivot: Vector2D;
+  /** Color multiplied into the sprite. */
   tint: Color;
+  /** Mirrors the sprite horizontally. */
   flipX: boolean;
+  /** Mirrors the sprite vertically. */
   flipY: boolean;
+  /** Whether the sprite draws. */
   visible: boolean;
+  /** Message from the last failed call or construction problem, or null. */
   error: string | null = null;
 
   private currentFrame: SpriteFrame | null = null;
@@ -78,6 +91,10 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
   private fadeElapsed = 0;
   private readonly cullingBounds: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
+  /**
+   * Creates a renderer showing the given frame. Size and pivot start from the frame's original size and pivot.
+   * Invalid input is reported through `error`, not thrown.
+   */
   constructor(frame: SpriteFrame, options: SpriteRendererOptions = {}) {
     super();
     const settings: SpriteRendererOptions = options === null || options === undefined ? {} : options;
@@ -105,6 +122,7 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     }
   }
 
+  /** The frame currently shown, or null. */
   get frame(): SpriteFrame | null {
     return this.currentFrame;
   }
@@ -236,6 +254,10 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     }
   }
 
+  /**
+   * Sets the drawn size of the untrimmed frame in world units. Returns false and sets `error` when a value is negative
+   * or not finite.
+   */
   setSize(size: Vector2DLike): boolean {
     if (!validSize(size)) {
       this.error = 'SpriteRenderer size must be finite and non-negative.';
@@ -246,6 +268,9 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     return true;
   }
 
+  /**
+   * Sets the normalized pivot within the untrimmed frame. Returns false and sets `error` when a value is not finite.
+   */
   setPivot(pivot: Vector2DLike): boolean {
     if (pivot === null || pivot === undefined || !isFiniteNumber(pivot.x) || !isFiniteNumber(pivot.y)) {
       this.error = 'SpriteRenderer pivot must be finite.';
@@ -261,6 +286,7 @@ export class SpriteRenderer extends GameComponent implements SpriteAnimationTarg
     return this.error === null && this.currentFrame !== null && this.currentFrame.sheet._canAttachTo(context);
   }
 
+  /** Draws the current frame at the GameObject transform. Called each frame by the scene. */
   render(renderer: Renderer): void {
     const frame = this.currentFrame;
     const owner = this.gameObject;

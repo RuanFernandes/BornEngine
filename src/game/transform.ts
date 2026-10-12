@@ -1,9 +1,13 @@
 import { Mat4, Quat, Vec3 } from '../core/types';
 import { mat4Multiply, quatMultiply, quatNormalize, quatToMat4 } from '../math/internal';
 
+/** Initial local values for a Transform; omitted fields default to the identity. */
 export interface TransformOptions {
+  /** Local position. Defaults to the origin. */
   position?: Vec3;
+  /** Local rotation. Defaults to the identity quaternion. */
   rotation?: Quat;
+  /** Local scale. Defaults to 1 on every axis. */
   scale?: Vec3;
 }
 
@@ -219,18 +223,24 @@ export function decomposeTransformMatrix(matrix: Mat4): TransformTRS | null {
   };
 }
 
+/** Position, rotation and scale of a GameObject, relative to its parent when it has one. */
 export class Transform {
+  /** Local position relative to the parent. */
   position: Vec3;
+  /** Local rotation relative to the parent. Normalized when matrices and world values are computed. */
   rotation: Quat;
+  /** Local scale relative to the parent. */
   scale: Vec3;
   private parentTransform: Transform | null = null;
 
+  /** Creates a transform from the given options; the vectors are copied. */
   constructor(options: TransformOptions = {}) {
     this.position = copyVec3(options.position || { x: 0, y: 0, z: 0 });
     this.rotation = copyQuat(options.rotation || { x: 0, y: 0, z: 0, w: 1 });
     this.scale = copyVec3(options.scale || { x: 1, y: 1, z: 1 });
   }
 
+  /** Matrix built from the local position, rotation and scale. */
   get localMatrix(): Mat4 {
     const matrix = quatToMat4(quatNormalize(this.rotation));
     matrix[0] *= this.scale.x;
@@ -248,23 +258,27 @@ export class Transform {
     return matrix;
   }
 
+  /** Local matrix combined with every ancestor transform. */
   get worldMatrix(): Mat4 {
     const local = this.localMatrix;
     if (this.parentTransform === null) return local;
     return mat4Multiply(this.parentTransform.worldMatrix, local);
   }
 
+  /** Position in world space. */
   get worldPosition(): Vec3 {
     const matrix = this.worldMatrix;
     return { x: matrix[12], y: matrix[13], z: matrix[14] };
   }
 
+  /** Rotation in world space. */
   get worldRotation(): Quat {
     const local = quatNormalize(this.rotation);
     if (this.parentTransform === null) return copyQuat(local);
     return quatNormalize(quatMultiply(this.parentTransform.worldRotation, local));
   }
 
+  /** Scale in world space, the product of the local scales along the hierarchy. Ignores skew from rotated parents. */
   get worldScale(): Vec3 {
     if (this.parentTransform === null) return copyVec3(this.scale);
     const parentScale = this.parentTransform.worldScale;
@@ -275,6 +289,10 @@ export class Transform {
     };
   }
 
+  /**
+   * Moves the transform so its world position matches the given one.
+   * @returns false when the parent matrix cannot be inverted and nothing changed.
+   */
   setWorldPosition(position: Vec3): boolean {
     if (this.parentTransform === null) {
       this.position = copyVec3(position);
@@ -291,6 +309,10 @@ export class Transform {
     return true;
   }
 
+  /**
+   * Rotates the transform so its world rotation matches the given one.
+   * @returns true once the rotation is applied.
+   */
   setWorldRotation(rotation: Quat): boolean {
     const desired = quatNormalize(rotation);
     if (this.parentTransform === null) {

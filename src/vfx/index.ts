@@ -51,18 +51,26 @@ declare function bloom_decals_clear(): void;
 declare function bloom_mesh_scratch_reset(): void;
 declare function bloom_mesh_scratch_push_f32(v: number): void;
 
+/** Tuning values for a `ParticleSystem`. Omitted fields use defaults. */
 export interface ParticleConfig {
+  /** Particle lifetime in seconds. Defaults to 1. */
   life?: number;
   lifeVar?: number;
+  /** Initial particle speed. Defaults to 1. */
   speed?: number;
   speedVar?: number;
   spread?: number;
+  /** Vertical acceleration. Defaults to -9.81. */
   gravity?: number;
   drag?: number;
+  /** Particle size at birth. Defaults to 0.2. */
   size0?: number;
+  /** Particle size at the end of life. Defaults to 0.2. */
   size1?: number;
   sizeVar?: number;
+  /** RGBA color at birth. Defaults to opaque white. */
   color0?: [number, number, number, number];
+  /** RGBA color at the end of life. Defaults to transparent white. */
   color1?: [number, number, number, number];
   spin?: number;
   spinVar?: number;
@@ -74,14 +82,19 @@ export interface ParticleConfig {
   restitution?: number;
 }
 
+/** Where, in which direction and how many particles `ParticleSystem.emit` spawns. */
 export interface ParticleEmitOptions {
+  /** World-space spawn position. */
   position: Vec3;
+  /** Emission direction. */
   direction: Vec3;
+  /** Number of particles to spawn. */
   count: number;
 }
 
 /** Scene-owned 3D particle pool. Configure it once, emit bursts, then draw through Renderer. */
 export class ParticleSystem implements ContextResource, InstancedDrawSource {
+  /** Message describing why the pool could not be created, or null. */
   readonly error: string | null;
   private handleValue = 0;
   private bufferValue = 0;
@@ -114,6 +127,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     }
   }
 
+  /** True while the particle pool exists and its Game is running. */
   get isLoaded(): boolean {
     return (
       !this.disposed &&
@@ -123,13 +137,16 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
       this.handleValue !== 0
     );
   }
+  /** True after the system was disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Number of particles currently alive. */
   get liveCount(): number {
     return this.isLoaded ? bloom_particles_live(this.handleValue) : 0;
   }
 
+  /** Applies tuning values, with defaults for omitted fields. Returns false when the system is not loaded. */
   configure(config: ParticleConfig): boolean {
     if (!this.isLoaded) return false;
     const color0 = config.color0 ?? [1, 1, 1, 1];
@@ -168,6 +185,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     return true;
   }
 
+  /** Spawns particles. Returns false when the system is not loaded or the count is not positive. */
   emit(options: ParticleEmitOptions): boolean {
     if (!this.isLoaded || options.count <= 0) return false;
     bloom_particles_emit(
@@ -183,6 +201,10 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     return true;
   }
 
+  /**
+   * Advances the simulation by `deltaTime` seconds and returns the number of live particles. Called automatically with
+   * the Scene.
+   */
   update(deltaTime: number): number {
     if (!this.isLoaded) return 0;
     this.liveCountValue = bloom_particles_update(this.handleValue, deltaTime);
@@ -190,6 +212,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     return this.liveCountValue;
   }
 
+  /** Removes all live particles. */
   clear(): void {
     if (this.isLoaded) {
       bloom_particles_clear(this.handleValue);
@@ -197,6 +220,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     }
   }
 
+  /** Draws the live particles as instances of a mesh with a material. Returns true when the draw was submitted. */
   draw(renderer: Renderer, material: Material, mesh: Model | Mesh, meshIndex = 0): boolean {
     return renderer.drawInstanced(material, mesh, this, meshIndex);
   }
@@ -215,6 +239,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
     return true;
   }
 
+  /** Releases the particle pool. Called automatically when the owning Scene unloads. */
   dispose(): void {
     if (this.disposed) return;
     if (this.handleValue !== 0) bloom_particles_destroy(this.handleValue);
@@ -226,6 +251,7 @@ export class ParticleSystem implements ContextResource, InstancedDrawSource {
   }
 }
 
+/** Appearance settings applied with `DecalSystem.setStyle`. */
 export interface DecalStyle {
   frame: number;
   color: [number, number, number, number];
@@ -237,6 +263,7 @@ const DECAL_RUNTIME_SLOT = {};
 
 /** Scene-owned view of the Game's decal ring. The native ABI provides one ring per runtime. */
 export class DecalSystem implements ContextResource, InstancedDrawSource {
+  /** Message describing why the decal system could not be created, or null. */
   readonly error: string | null;
   private handleValue = 0;
   private bufferValue = 0;
@@ -270,6 +297,7 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     else this.context.removeService(DECAL_RUNTIME_SLOT, this);
   }
 
+  /** True while the decal system exists and its Game is running. */
   get isLoaded(): boolean {
     return (
       !this.disposed &&
@@ -279,13 +307,16 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
       this.handleValue !== 0
     );
   }
+  /** True after the system was disposed. */
   get isDisposed(): boolean {
     return this.disposed;
   }
+  /** Number of decals alive as of the last `update`. */
   get liveCount(): number {
     return this.liveCountValue;
   }
 
+  /** Sets the decal style. Returns false when the system is not loaded. */
   setStyle(style: DecalStyle): boolean {
     if (!this.isLoaded) return false;
     bloom_decals_set_style(
@@ -300,12 +331,20 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     return true;
   }
 
+  /**
+   * Places a decal at a position, facing along a surface normal. Returns false when the system is not loaded or the
+   * size is not positive.
+   */
   spawn(position: Vec3, normal: Vec3, size: number, roll = 0): boolean {
     if (!this.isLoaded || size <= 0) return false;
     bloom_decals_spawn(position.x, position.y, position.z, normal.x, normal.y, normal.z, size, roll);
     return true;
   }
 
+  /**
+   * Advances decal lifetimes by `deltaTime` seconds and returns the number of live decals. Called automatically with
+   * the Scene.
+   */
   update(deltaTime: number): number {
     if (!this.isLoaded) return 0;
     this.liveCountValue = bloom_decals_update(deltaTime);
@@ -313,6 +352,7 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     return this.liveCountValue;
   }
 
+  /** Removes all live decals. */
   clear(): void {
     if (this.isLoaded) {
       bloom_decals_clear();
@@ -320,6 +360,7 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     }
   }
 
+  /** Draws the live decals as instances of a mesh with a material. Returns true when the draw was submitted. */
   draw(renderer: Renderer, material: Material, mesh: Model | Mesh, meshIndex = 0): boolean {
     return renderer.drawInstanced(material, mesh, this, meshIndex);
   }
@@ -337,6 +378,7 @@ export class DecalSystem implements ContextResource, InstancedDrawSource {
     return true;
   }
 
+  /** Releases the decal system. Called automatically when the owning Scene unloads. */
   dispose(): void {
     if (this.disposed) return;
     if (this.handleValue !== 0) bloom_decals_clear();

@@ -6,28 +6,48 @@ import { forgetNativeHandle, getNativeHandle, registerNativeHandle } from './han
 import type { PhysicsWorld } from './physics-world';
 import type { PhysicsBody } from './rigid-body';
 
+/** Constraint type: `fixed`, `point`, `hinge`, `slider`, or `distance`. */
 export type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance';
 
+/** Bodies, anchors, and limits that describe a joint. */
 export interface JointOptions {
+  /** First body to constrain. */
   bodyA: PhysicsBody;
+  /** Second body; when omitted the joint attaches `bodyA` to the world. */
   bodyB?: PhysicsBody;
+  /** Anchor point on `bodyA`. */
   anchorA: Vec3;
+  /** Anchor point on `bodyB`. */
   anchorB: Vec3;
+  /** Hinge or slider axis. Defaults to Y for hinges and X for sliders. */
   axis?: Vec3;
+  /** Lower limit: angle for hinges, distance for sliders and distance joints. */
   min?: number;
+  /** Upper limit: angle for hinges, distance for sliders and distance joints. */
   max?: number;
+  /** When true, anchors are interpreted in world space instead of body-local space. */
   worldSpace?: boolean;
 }
 
+/** Joint options plus the owning world and joint kind, used by the `Joint` constructor. */
 export type JointComponentOptions = JointOptions & { world: PhysicsWorld; kind: JointKind };
 
 /** Constraint joining two bodies in one PhysicsWorld. */
 export class Joint extends GameComponent implements ContextResource {
+  declare readonly __options: JointComponentOptions;
+
+  /** World that owns this joint. */
   readonly world: PhysicsWorld;
+  /** Game context that owns this joint. */
   readonly context: GameContext;
+  /** Creation error message, or null if the joint was created. */
   readonly error: string | null;
   private disposed = false;
 
+  /**
+   * Creates a joint between bodies of the same world; prefer `PhysicsWorld.createJoint`.
+   * Check `error` if the bodies are not loaded by the same world.
+   */
   constructor(options: JointComponentOptions) {
     super();
     const world = options.world;
@@ -68,19 +88,23 @@ export class Joint extends GameComponent implements ContextResource {
     }
   }
 
+  /** True while the joint exists in a ready world and has not been disposed. */
   get isLoaded(): boolean {
     return !this.disposed && this.world.isReady && getNativeHandle(this) !== 0;
   }
+  /** Enables or disables the constraint; returns false if the joint is not loaded. */
   setEnabled(enabled: boolean): boolean {
     if (!this.isLoaded) return false;
     native.setConstraintEnabled(getNativeHandle(this), enabled);
     return true;
   }
 
+  /** Disposes the joint when its game object is destroyed. */
   onDestroy(): void {
     this.dispose();
   }
 
+  /** Destroys the joint and releases its native resources. Safe to call more than once. */
   dispose(): void {
     if (this.disposed) return;
     const handle = getNativeHandle(this);

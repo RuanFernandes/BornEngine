@@ -1,12 +1,19 @@
+/** Largest number of cells (width times height) an `AStarGrid2D` may have. */
 export const ASTAR_GRID_2D_MAX_CELLS = 1_000_000;
 
+/** Integer cell coordinate on an `AStarGrid2D`. */
 export interface GridPoint2D {
+  /** Column index, from 0. */
   x: number;
+  /** Row index, from 0. */
   y: number;
 }
 
+/** Options for `AStarGrid2D.findPath`. */
 export interface AStarGrid2DOptions {
+  /** Allows diagonal steps, which cost the square root of 2. Defaults to false. */
   allowDiagonal?: boolean;
+  /** Allows a diagonal step even when one of the two orthogonal cells beside it is blocked. Defaults to false; only used with `allowDiagonal`. */
   allowCornerCutting?: boolean;
 }
 
@@ -77,7 +84,9 @@ class SearchHeap {
 
 /** A deterministic A* pathfinder for a bounded, uniform-cost 2D grid. */
 export class AStarGrid2D {
+  /** Number of columns. */
   readonly width: number;
+  /** Number of rows. */
   readonly height: number;
   private readonly walkableCells: boolean[] = [];
 

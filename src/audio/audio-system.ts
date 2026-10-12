@@ -21,11 +21,13 @@ export class AudioSystem {
   private disposed = false;
   private readonly context: GameContext;
 
+  /** Creates the audio system for `game` and opens the audio device once the Game is ready. */
   constructor(private readonly game: Game) {
     this.context = getGameContext(game);
     this.ensureDevice();
   }
 
+  /** True when the audio device is open and the Game is ready and not disposed. */
   get isReady(): boolean {
     this.ensureDevice();
     return this.deviceOpen && this.context.isReady && !this.context.isDisposed && !this.disposed;
@@ -43,12 +45,14 @@ export class AudioSystem {
     return this.listener2DValue;
   }
 
+  /** Loads a sound effect synchronously. Check `isLoaded` and `error` on the result. */
   loadSound(path: string): Sound {
     const sound = Sound._create(this.game, path);
     this.sounds.push(sound);
     return sound;
   }
 
+  /** Loads a sound effect without blocking the frame. Check `isLoaded` and `error` on the result. */
   async loadSoundAsync(path: string): Promise<Sound> {
     const staged = await StagedSound.stage(this.game, path);
     this.stagedSounds.push(staged);
@@ -73,18 +77,21 @@ export class AudioSystem {
     }
   }
 
+  /** Begins loading several sounds at once. Call `commit()` on each result to get a Sound. */
   stageSounds(paths: string[]): StagedSound[] {
     const staged = StagedSound.stageMany(this.game, paths);
     this.stagedSounds = this.stagedSounds.concat(staged);
     return staged;
   }
 
+  /** Loads a streamed music track synchronously. Check `isLoaded` and `error` on the result. */
   loadMusic(path: string): Music {
     const music = Music._create(this.game, path);
     this.musics.push(music);
     return music;
   }
 
+  /** Loads a streamed music track without blocking the frame. Check `isLoaded` and `error` on the result. */
   async loadMusicAsync(path: string): Promise<Music> {
     const staged = await StagedMusic.stage(this.game, path);
     this.stagedMusics.push(staged);
@@ -109,40 +116,53 @@ export class AudioSystem {
     }
   }
 
+  /** Begins staging several music tracks at once. Call `commit()` on each result to get a Music. */
   stageMusic(paths: string[]): StagedMusic[] {
     const staged = StagedMusic.stageMany(this.game, paths);
     this.stagedMusics = this.stagedMusics.concat(staged);
     return staged;
   }
 
+  /** Creates a SoundManager for named sound and music registrations. It is updated and disposed with this system. */
   createSoundManager(): SoundManager {
     return new SoundManager(this);
   }
 
+  /** Sets the global output volume. Returns false if audio is not ready. */
   setMasterVolume(volume: number): boolean {
     if (!this.isReady) return false;
     operations.setMasterVolume(volume);
     return true;
   }
 
+  /** Sets the gain of a mix bus (`BUS_SFX`, `BUS_MUSIC` or `BUS_UI`). Returns false if audio is not ready. */
   setBusGain(bus: number, gain: number): boolean {
     if (!this.isReady) return false;
     operations.setBusGain(bus, gain);
     return true;
   }
 
+  /**
+   * Temporarily lowers a bus by `amount` (0..1) over `attack` seconds, holds for `hold`, then recovers over `release`.
+   * Calling it again restarts the hold. Returns false if audio is not ready.
+   */
   duckBus(bus: number, amount: number, attack: number, release: number, hold: number): boolean {
     if (!this.isReady) return false;
     operations.duckBus(bus, amount, attack, release, hold);
     return true;
   }
 
+  /**
+   * Configures the global reverb: `size` is tail length, `damp` is high-frequency absorption, `wet` is the mix level (all 0..1).
+   * A `wet` of 0 bypasses reverb. Returns false if audio is not ready.
+   */
   setReverb(size: number, damp: number, wet: number): boolean {
     if (!this.isReady) return false;
     operations.setReverb(size, damp, wet);
     return true;
   }
 
+  /** Sets the 3D listener position and facing direction. Returns false if audio is not ready. */
   setListener(position: Vec3, forward: Vec3): boolean {
     if (!this.isReady) return false;
     operations.setListenerPosition(position.x, position.y, position.z, forward.x, forward.y, forward.z);
@@ -194,6 +214,7 @@ export class AudioSystem {
     if (index >= 0) this.musics.splice(index, 1);
   }
 
+  /** Disposes all sounds, music, managers and the audio device. Safe to call repeatedly. */
   dispose(): void {
     if (this.disposed) return;
     if (this.listener2DValue !== null) this.listener2DValue.dispose();

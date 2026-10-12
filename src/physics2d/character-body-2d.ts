@@ -5,8 +5,11 @@ import type { GameContext } from '../core/context';
 import type { PhysicsBody2D } from './physics-body-2d';
 import type { PhysicsWorld2D } from './physics-world-2d';
 
+/** Size of the box collider used by a character body. */
 export interface CharacterBody2DOptions {
+  /** Box width in world units. */
   width: number;
+  /** Box height in world units. */
   height: number;
 }
 
@@ -24,9 +27,13 @@ function copyVec(value: Vector2DLike): Vector2D {
 
 /** Arcade character movement backed by a kinematic PhysicsBody2D. */
 export class CharacterBody2D extends GameComponent {
+  /** World that owns this character body. */
   readonly world: PhysicsWorld2D;
+  /** Box width in world units. */
   readonly width: number;
+  /** Box height in world units. */
   readonly height: number;
+  /** Creation error message, or null if the body was created. */
   readonly error: string | null;
 
   private body: PhysicsBody2D | null = null;
@@ -36,6 +43,10 @@ export class CharacterBody2D extends GameComponent {
   private onWallValue = false;
   private onCeilingValue = false;
 
+  /**
+   * Creates a character body in a ready world. Check `error` if the world is not ready or the size is invalid.
+   * A body with an error is disabled.
+   */
   constructor(world: PhysicsWorld2D, options: CharacterBody2DOptions) {
     super();
     this.world = world;
@@ -63,9 +74,11 @@ export class CharacterBody2D extends GameComponent {
     if (this.error !== null) this.enabled = false;
   }
 
+  /** True while the character body has no error, is not disposed, and its world is ready. */
   get isReady(): boolean {
     return this.error === null && this.body !== null && !this.body.isDisposed && this.world.isReady;
   }
+  /** Current world position: the owning game object position when attached, otherwise the body position. */
   get position(): Vector2D {
     const owner = this.gameObject;
     if (owner !== null) {
@@ -75,18 +88,23 @@ export class CharacterBody2D extends GameComponent {
     if (this.body !== null) return this.body.position;
     return Vector2D.zero();
   }
+  /** Velocity resolved by the last `moveAndSlide` call, after sliding along contacts. */
   get velocity(): Vector2D {
     return Vector2D.from(this.velocityValue);
   }
+  /** True if the last `moveAndSlide` call touched a surface below the character. */
   get isOnFloor(): boolean {
     return this.onFloorValue;
   }
+  /** True if the last `moveAndSlide` call touched a surface to the side of the character. */
   get isOnWall(): boolean {
     return this.onWallValue;
   }
+  /** True if the last `moveAndSlide` call touched a surface above the character. */
   get isOnCeiling(): boolean {
     return this.onCeilingValue;
   }
+  /** Surface normals touched by the last `moveAndSlide` call. */
   get contactNormals(): ReadonlyArray<Readonly<Vector2D>> {
     const result: Vector2D[] = [];
     for (let index = 0; index < this.contactNormalsValue.length; index++) {
@@ -152,6 +170,7 @@ export class CharacterBody2D extends GameComponent {
     return this.isReady && this.world.context === context;
   }
 
+  /** Disposes the underlying body when the game object is destroyed. */
   onDestroy(): void {
     if (this.body !== null) this.body.dispose();
   }

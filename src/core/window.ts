@@ -2,13 +2,20 @@ import * as native from './internal';
 import { GameContext, getGameContext } from './context';
 import type { Game } from './game';
 
+/** Window backing: `windowed` opens a native window, `embedded` waits for a host to attach a native surface. */
 export type WindowMode = 'windowed' | 'embedded';
 
+/** Options for creating a Window. */
 export interface WindowOptions {
+  /** Initial width. Defaults to 800 and must be greater than zero. */
   width?: number;
+  /** Initial height. Defaults to 600 and must be greater than zero. */
   height?: number;
+  /** Initial window title. Defaults to 'BornEngine'. */
   title?: string;
+  /** Start in fullscreen. Defaults to false. */
   fullscreen?: boolean;
+  /** Window backing. Defaults to 'windowed'. */
   mode?: WindowMode;
 }
 
@@ -22,6 +29,7 @@ function isPositiveFinite(value: number): boolean {
 
 /** Context-owned facade over BornEngine's native window or host surface. */
 export class Window {
+  /** Whether this window is a native window or an embedded host surface. */
   readonly mode: WindowMode;
   private readonly owner: Game;
   private context: GameContext;
@@ -32,6 +40,7 @@ export class Window {
   private initialized = false;
   private closeCalled = false;
 
+  /** Creates the window for a Game. In windowed mode it opens immediately; invalid dimensions mark the Game as failed. */
   constructor(owner: Game, options: WindowOptions = {}) {
     this.owner = owner;
     this.context = getGameContext(owner);
@@ -55,19 +64,24 @@ export class Window {
     }
   }
 
+  /** Current window width. */
   get width(): number {
     return this.widthValue;
   }
+  /** Current window height. */
   get height(): number {
     return this.heightValue;
   }
+  /** Current window title. */
   get title(): string {
     return this.titleValue;
   }
+  /** True while the window is open and its Game is ready and not disposed. */
   get isOpen(): boolean {
     return this.openValue && this.initialized && this.context.isReady && !this.context.isDisposed;
   }
 
+  /** Returns true when the window is closed or the user has asked to close it. */
   shouldClose(): boolean {
     if (!this.isOpen) return true;
     if (native.windowShouldClose()) {
@@ -105,6 +119,7 @@ export class Window {
     return true;
   }
 
+  /** Resizes the window to the given size, multiplied by `pixelRatio` for the drawing surface. Returns false if the window is closed or an argument is invalid. */
   resize(width: number, height: number, pixelRatio = 1): boolean {
     if (!this.isOpen || !isPositiveFinite(width) || !isPositiveFinite(height) || !isPositiveFinite(pixelRatio))
       return false;
@@ -114,6 +129,7 @@ export class Window {
     return true;
   }
 
+  /** Changes the window title. Returns false if the window is not open. */
   setTitle(title: string): boolean {
     if (!this.isOpen) return false;
     native.setWindowTitle(title);
@@ -121,18 +137,21 @@ export class Window {
     return true;
   }
 
+  /** Sets the window icon from an image file path. Returns false if the window is not open. */
   setIcon(path: string): boolean {
     if (!this.isOpen) return false;
     native.setWindowIcon(path);
     return true;
   }
 
+  /** Switches between fullscreen and windowed display. Returns false if the window is not open. */
   toggleFullscreen(): boolean {
     if (!this.isOpen) return false;
     native.toggleFullscreen();
     return true;
   }
 
+  /** Closes the window. Closing a standalone Game window stops its run loop. */
   close(): void {
     if (!this.initialized || this.closeCalled) return;
     native.closeWindow();

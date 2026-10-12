@@ -8,13 +8,16 @@ import type { GuiControlKindCode } from '../commands';
 import { validateGuiCoordinate } from '../layout';
 import type { GUIControlOptions } from '../types';
 
+/** Identifier of a list, menu, or tab item: a non-empty string or a safe integer. */
 export type GuiItemId = string | number;
 
+/** Item of an item-based control: a unique ID and its display label. */
 export interface GuiArrayItem {
   id: GuiItemId;
   label: string;
 }
 
+/** Base class for controls that show a list of items with unique IDs. */
 export abstract class GuiArray extends GUI {
   protected items: GuiArrayItem[] = [];
   private selectionRevision = 0;
@@ -29,9 +32,11 @@ export abstract class GuiArray extends GUI {
     this.setProfile(GUIProfiles.get(profile));
   }
 
+  /** Returns a copy of the items in insertion order. */
   getItems(): readonly GuiArrayItem[] {
     return this.items.map((item) => ({ ...item }));
   }
+  /** Returns the number of items. */
   getItemCount(): number {
     return this.items.length;
   }
@@ -72,19 +77,27 @@ export abstract class GuiArray extends GUI {
   }
 }
 
+/** Drop-down menu that lets the user pick one item. */
 export class GuiPopUpMenu extends GuiArray {
   private selectedId: GuiItemId | null = null;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options, GuiControlKind.PopUpMenu, 'popup');
   }
 
+  /**
+   * Appends an item.
+   *
+   * @throws Error if the ID already exists. Throws TypeError or RangeError if the ID is invalid.
+   */
   add(label: string, id: GuiItemId): this {
     this.insertItem(label, id);
     this.syncSelection();
     return this;
   }
 
+  /** Removes all items and clears the selection. */
   clear(): this {
     this.items = [];
     this.selectedId = null;
@@ -92,6 +105,11 @@ export class GuiPopUpMenu extends GuiArray {
     return this;
   }
 
+  /**
+   * Selects the item with the given ID, or clears the selection with null.
+   *
+   * @throws Error if no item has that ID.
+   */
   setSelected(id: GuiItemId | null): this {
     if (id !== null && this.findItem(id) < 0) throw new Error(`Unknown GUI item ID: ${String(id)}`);
     this.selectedId = id;
@@ -99,9 +117,11 @@ export class GuiPopUpMenu extends GuiArray {
     return this;
   }
 
+  /** Returns the selected item ID, or null if nothing is selected. */
   getSelected(): GuiItemId | null {
     return this.selectedId;
   }
+  /** Returns the label of the selected item, or null if nothing is selected. */
   getSelectedText(): string | null {
     const index = this.selectedId === null ? -1 : this.findItem(this.selectedId);
     return index < 0 ? null : this.items[index].label;
@@ -128,15 +148,18 @@ export class GuiPopUpMenu extends GuiArray {
   }
 }
 
+/** Drop-down menu with an editable text field. */
 export class GuiPopUpEdit extends GuiPopUpMenu {
   private text = '';
   private textRevision = 0;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.PopUpEdit;
   }
 
+  /** Sets the text shown in the edit field. */
   setText(text: string): this {
     this.text = text;
     this.textRevision++;
@@ -144,6 +167,7 @@ export class GuiPopUpEdit extends GuiPopUpMenu {
     return this;
   }
 
+  /** Returns the text in the edit field. */
   getText(): string {
     return this.text;
   }
@@ -169,6 +193,7 @@ export class GuiPopUpEdit extends GuiPopUpMenu {
   }
 }
 
+/** Node of a GuiTreeView. The path joins the labels from the root with "/". */
 export interface GuiTreeNode {
   id: GuiItemId;
   label: string;
@@ -177,17 +202,26 @@ export interface GuiTreeNode {
   children: GuiTreeNode[];
 }
 
+/** Maximum number of characters in a tree node path. */
 export const GUI_TREE_MAX_PATH_LENGTH = 4096;
+/** Maximum number of segments in a tree node path. */
 export const GUI_TREE_MAX_PATH_SEGMENTS = 128;
 
+/** Hierarchical view of nodes addressed by "/"-separated paths. */
 export class GuiTreeView extends GuiArray {
   private rootNodes: GuiTreeNode[] = [];
   private selectedNode: GuiTreeNode | null = null;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options, GuiControlKind.TreeView, 'tree');
   }
 
+  /**
+   * Adds a root-level node, selects it, and returns it. The label is trimmed and used as the ID unless a value is given.
+   *
+   * @throws TypeError if the label is empty. Throws Error if a root node with that label exists.
+   */
   addNode(label: string, value?: GuiItemId): GuiTreeNode {
     const trimmed = label.trim();
     if (trimmed.length === 0) throw new TypeError('Tree node labels cannot be empty.');
@@ -200,6 +234,12 @@ export class GuiTreeView extends GuiArray {
     return node;
   }
 
+  /**
+   * Adds a node at a "/"-separated path, creating missing parent nodes, and selects it. Existing nodes along the path are reused.
+   *
+   * @param value Optional ID and value assigned to the last node.
+   * @throws RangeError if the path is empty or exceeds the length or segment limits. Throws TypeError if a segment is empty.
+   */
   addNodeByPath(path: string, value?: GuiItemId): GuiTreeNode {
     if (path.length === 0 || path.length > GUI_TREE_MAX_PATH_LENGTH) {
       throw new RangeError(`Tree paths must contain between 1 and ${GUI_TREE_MAX_PATH_LENGTH} characters.`);
@@ -237,6 +277,7 @@ export class GuiTreeView extends GuiArray {
     return selected as GuiTreeNode;
   }
 
+  /** Removes all nodes and clears the selection. */
   clearNodes(): this {
     this.rootNodes = [];
     this.selectedNode = null;
@@ -244,16 +285,24 @@ export class GuiTreeView extends GuiArray {
     return this;
   }
 
+  /** Returns the selected node, or null if none is selected. */
   getSelected(): GuiTreeNode | null {
     return this.selectedNode;
   }
+  /** Returns the path of the selected node, or null if none is selected. */
   getSelectedPath(): string | null {
     return this.selectedNode?.path ?? null;
   }
+  /** Returns the root-level nodes. */
   getRootNodes(): readonly GuiTreeNode[] {
     return this.rootNodes.slice();
   }
 
+  /**
+   * Selects the node at the given path, or clears the selection with null.
+   *
+   * @throws Error if no node exists at the path.
+   */
   setSelectedPath(path: string | null): this {
     if (path === null) this.selectedNode = null;
     else {
@@ -309,19 +358,31 @@ export class GuiTreeView extends GuiArray {
   }
 }
 
+/** Scrollable list of text rows with single selection. */
 export class GuiTextList extends GuiArray {
   private selectedId: GuiItemId | null = null;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options, GuiControlKind.TextList, 'list');
   }
 
+  /**
+   * Appends a row with the given ID and text.
+   *
+   * @throws Error if the ID already exists. Throws TypeError or RangeError if the ID is invalid.
+   */
   addRow(id: GuiItemId, text: string): this {
     this.insertItem(text, id);
     this.syncRows();
     return this;
   }
 
+  /**
+   * Removes the row with the given ID, clearing the selection if it was selected.
+   *
+   * @returns True if a row was removed.
+   */
   removeRow(id: GuiItemId): boolean {
     const index = this.findItem(id);
     if (index < 0) return false;
@@ -331,6 +392,7 @@ export class GuiTextList extends GuiArray {
     return true;
   }
 
+  /** Removes all rows and clears the selection. */
   clearRows(): this {
     this.items = [];
     this.selectedId = null;
@@ -338,6 +400,11 @@ export class GuiTextList extends GuiArray {
     return this;
   }
 
+  /**
+   * Selects the row with the given ID, or clears the selection with null.
+   *
+   * @throws Error if no row has that ID.
+   */
   setSelected(id: GuiItemId | null): this {
     if (id !== null && this.findItem(id) < 0) throw new Error(`Unknown GUI row ID: ${String(id)}`);
     this.selectedId = id;
@@ -345,12 +412,15 @@ export class GuiTextList extends GuiArray {
     return this;
   }
 
+  /** Returns the selected row ID, or null if nothing is selected. */
   getSelected(): GuiItemId | null {
     return this.selectedId;
   }
+  /** Returns the number of rows. */
   getRowCount(): number {
     return this.items.length;
   }
+  /** Returns the text of the selected row, or null if nothing is selected. */
   getSelectedText(): string | null {
     const index = this.selectedId === null ? -1 : this.findItem(this.selectedId);
     return index < 0 ? null : this.items[index].label;
@@ -373,15 +443,22 @@ export class GuiTextList extends GuiArray {
   }
 }
 
+/** Tab control where each tab owns a page panel; only the selected page is visible. */
 export class GuiTab extends GuiArray {
   private static readonly TAB_BAR_HEIGHT = 28;
   private selectedId: GuiItemId | null = null;
   private pages = new Map<GuiItemId, GuiPanel>();
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options, GuiControlKind.Tab, 'default');
   }
 
+  /**
+   * Adds a tab and returns its page panel for adding content. The first tab added becomes selected.
+   *
+   * @throws Error if the ID already exists. Throws TypeError or RangeError if the ID is invalid.
+   */
   addTab(label: string, id: GuiItemId): GuiPanel {
     this.validateId(id);
     if (this.findItem(id) >= 0) throw new Error(`GUI tab ID already exists: ${String(id)}`);
@@ -401,6 +478,11 @@ export class GuiTab extends GuiArray {
     return page;
   }
 
+  /**
+   * Selects a tab and shows its page.
+   *
+   * @throws Error if no tab has that ID.
+   */
   setSelected(id: GuiItemId): this {
     if (this.findItem(id) < 0) throw new Error(`Unknown GUI tab ID: ${String(id)}`);
     this.selectedId = id;
@@ -409,9 +491,11 @@ export class GuiTab extends GuiArray {
     return this;
   }
 
+  /** Returns the selected tab ID, or null if there are no tabs. */
   getSelected(): GuiItemId | null {
     return this.selectedId;
   }
+  /** Returns the page panel of a tab, or null if the ID is unknown. */
   getTab(id: GuiItemId): GuiPanel | null {
     return this.pages.get(id) ?? null;
   }
@@ -440,21 +524,29 @@ export class GuiTab extends GuiArray {
   }
 }
 
+/** Menu whose items can run a callback when activated. */
 export class GuiMenu extends GuiPopUpMenu {
   private callbacks = new Map<GuiItemId, (() => void) | null>();
   private skipNextActionCallback = false;
 
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.Menu;
   }
 
+  /** Appends an item with an optional callback run when it is activated. */
   override add(label: string, id: GuiItemId, callback: (() => void) | null = null): this {
     super.add(label, id);
     this.callbacks.set(id, callback);
     return this;
   }
 
+  /**
+   * Selects the item, runs its callback, and dispatches an action event.
+   *
+   * @returns False if no item has that ID.
+   */
   activateItem(id: GuiItemId): boolean {
     if (this.items.findIndex((item) => item.id === id) < 0) return false;
     this.setSelected(id);
@@ -477,7 +569,9 @@ export class GuiMenu extends GuiPopUpMenu {
   }
 }
 
+/** Menu that starts hidden and opens at the pointer on a right click. */
 export class GuiContextMenu extends GuiMenu {
+  /** Creates the control with the given options. */
   constructor(options: GUIControlOptions = {}) {
     super(options);
     this._guiCommandKind = GuiControlKind.ContextMenu;
@@ -485,6 +579,11 @@ export class GuiContextMenu extends GuiMenu {
     this.hide();
   }
 
+  /**
+   * Shows the menu at the given position if the button is the right mouse button.
+   *
+   * @returns True if the menu was opened.
+   */
   openAt(x: number, y: number, button: number): boolean {
     if (button !== MouseButton.RIGHT) return false;
     validateGuiCoordinate(x, 'x');
@@ -502,10 +601,16 @@ export class GuiContextMenu extends GuiMenu {
     return this.openAt(x, y, button);
   }
 
+  /** Returns whether the menu is currently shown. */
   isOpen(): boolean {
     return this.isVisible();
   }
 
+  /**
+   * Activates an item and closes the menu.
+   *
+   * @returns False if the menu is closed or no item has that ID.
+   */
   override activateItem(id: GuiItemId): boolean {
     if (!this.isOpen()) return false;
     const activated = super.activateItem(id);

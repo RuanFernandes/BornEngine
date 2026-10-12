@@ -8,6 +8,7 @@ import type { AudioSystem } from './audio-system';
 
 type Position2D = { x: number; y: number };
 
+/** Construction options for an AudioListener2D. */
 export interface AudioListener2DOptions {
   /** @internal Binds the Game-wide listener to its audio system. */
   system?: { game: Game; audio: AudioSystem };
@@ -23,12 +24,15 @@ function finite(value: number): boolean {
 
 /** 2D-plane listener that follows its owner object, or the active Scene camera for the Game-wide listener. */
 export class AudioListener2D extends GameComponent {
+  declare readonly __options: AudioListener2DOptions;
+
   private explicitPosition: Position2D | null = null;
   private disposed = false;
   private readonly game: Game | null;
   private readonly audio: AudioSystem | null;
   private readonly systemContext: GameContext | null;
 
+  /** Creates a listener. Attach it to a GameObject to follow that object. */
   constructor(options: AudioListener2DOptions = {}) {
     super();
     const system = options.system;
@@ -37,6 +41,7 @@ export class AudioListener2D extends GameComponent {
     this.systemContext = system === undefined ? null : getGameContext(system.game);
   }
 
+  /** True once the listener has been disposed or its component destroyed. */
   get isDisposed(): boolean {
     return this.disposed || this.destroyed;
   }
@@ -79,10 +84,12 @@ export class AudioListener2D extends GameComponent {
     return this.activeContext() === context;
   }
 
+  /** Disposes the listener when the component is destroyed. */
   onDestroy(): void {
     this.dispose();
   }
 
+  /** Releases the listener and clears any explicit position. Safe to call repeatedly. */
   dispose(): void {
     this.disposed = true;
     this.explicitPosition = null;

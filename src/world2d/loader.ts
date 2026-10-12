@@ -23,6 +23,7 @@ import type {
   World2DTilesetData,
 } from './types';
 
+/** Document and scene information passed to a custom component factory while it builds a component for one world object. */
 export interface World2DComponentFactoryContext {
   readonly document: World2DDocument;
   readonly documentRoot: string;
@@ -32,11 +33,13 @@ export interface World2DComponentFactoryContext {
   resolveAssetPath(path: string): string | null;
 }
 
+/** Callback that builds a component from an object's descriptor data, returning the component or a diagnostic describing why it could not. */
 export type World2DComponentFactory = (
   data: Record<string, World2DJsonValue>,
   context: World2DComponentFactoryContext,
 ) => GameComponent | World2DDiagnostic;
 
+/** Settings for `World2DLoader`: asset root, sprite frame resolution, and the physics world. */
 export interface World2DLoaderOptions {
   /** Root directory used to resolve normalized project-relative asset paths. */
   documentRoot?: string;
@@ -262,6 +265,7 @@ function cleanup(roots: GameObject[]): void {
   }
 }
 
+/** Registry of game-defined component kinds that world objects can reference by name. */
 export class World2DComponentRegistry {
   private kinds: string[] = [];
   private factories: World2DComponentFactory[] = [];
@@ -278,6 +282,7 @@ export class World2DComponentRegistry {
     return true;
   }
 
+  /** True if a factory is registered for the given component kind. */
   hasComponentFactory(kind: string): boolean {
     return this.kinds.indexOf(kind) >= 0;
   }
@@ -289,15 +294,28 @@ export class World2DComponentRegistry {
   }
 }
 
+/** Builds game objects in a scene from a World2D document, creating tilemaps for tile layers and objects with components for object layers. */
 export class World2DLoader {
+  /** Registry used to look up custom component kinds. */
   readonly registry: World2DComponentRegistry;
+  /** Loader settings given at construction. */
   readonly options: World2DLoaderOptions;
 
+  /**
+   * Creates a loader.
+   * @param registry Custom component kinds; defaults to an empty registry.
+   * @param options Asset root, sprite frame resolver, and physics world.
+   */
   constructor(registry: World2DComponentRegistry = new World2DComponentRegistry(), options: World2DLoaderOptions = {}) {
     this.registry = registry;
     this.options = options === null || options === undefined ? {} : options;
   }
 
+  /**
+   * Parses JSON text and loads it with `load`.
+   * @param documentRoot Root directory for asset paths; defaults to `options.documentRoot`.
+   * @returns A failed result with an `invalid_json` diagnostic if the text cannot be parsed.
+   */
   loadJSON(text: string, scene: GameScene, documentRoot = this.options.documentRoot || ''): World2DLoadResult {
     let input: any;
     try {
@@ -313,6 +331,13 @@ export class World2DLoader {
     return this.load(input, scene, documentRoot);
   }
 
+  /**
+   * Migrates, validates, and instantiates a World2D document into the scene.
+   * Nothing is added to the scene unless the whole document loads; failures are reported as diagnostics rather than thrown.
+   * @param input Parsed document, either legacy expanded form or compact v2 storage.
+   * @param documentRoot Root directory for asset paths; defaults to `options.documentRoot`.
+   * @returns The normalized document and the created game objects when `ok` is true.
+   */
   load(input: unknown, scene: GameScene, documentRoot = this.options.documentRoot || ''): World2DLoadResult {
     const migrated = migrateWorld2D(input);
     if (!migrated.ok || migrated.document === null) {
