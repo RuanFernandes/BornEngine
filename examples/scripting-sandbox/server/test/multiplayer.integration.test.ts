@@ -67,6 +67,17 @@ async function waitForMovement(room: ClientRoom<any, any>, sessionId: string, pr
   throw new Error('Server-authoritative movement did not reach the client.');
 }
 
+async function waitForSamePosition(first: ClientRoom<any, any>, second: ClientRoom<any, any>, sessionId: string): Promise<void> {
+  const deadline = Date.now() + 4_000;
+  while (Date.now() < deadline) {
+    const a = playerState(first, sessionId);
+    const b = playerState(second, sessionId);
+    if (a !== undefined && b !== undefined && a.x === b.x && a.y === b.y) return;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  }
+  throw new Error('Clients did not converge on the same server-authoritative position.');
+}
+
 test('gameplayAndScriptingManagerRoomsKeepSeparateResponsibilities', async (t) => {
   const port = await reservePort();
   const output: string[] = [];
@@ -135,8 +146,9 @@ test('gameplayAndScriptingManagerRoomsKeepSeparateResponsibilities', async (t) =
   assert.equal(playerState(secondGame)?.x, initialSecond.x);
 
   firstGame.send('input', { sequence: 0, x: 1, y: 0 });
-  const movedFirst = await waitForMovement(firstGame, firstGame.sessionId, initialFirst.x);
-  const movedSecond = await waitForMovement(secondGame, firstGame.sessionId, initialFirst.x);
-  assert.equal(movedSecond.x, movedFirst.x);
-  assert.equal(movedSecond.y, movedFirst.y);
+  await waitForMovement(firstGame, firstGame.sessionId, initialFirst.x);
+  await waitForMovement(secondGame, firstGame.sessionId, initialFirst.x);
+
+  firstGame.send('input', { sequence: 1, x: 0, y: 0 });
+  await waitForSamePosition(firstGame, secondGame, firstGame.sessionId);
 });
