@@ -81,7 +81,7 @@ import type { Game, Texture } from '@bornengine/engine';
 class ForestScene extends Scene {
   private atlas: Texture | null = null;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'forest' });
   }
 

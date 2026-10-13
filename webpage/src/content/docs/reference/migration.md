@@ -107,13 +107,13 @@ Resources used to be numbers that you freed yourself. Now they are objects that 
 - **Value types stay plain.** `Vec3`, `Quat`, `Matrix4`, colors, and rectangles are ordinary values that need no game.
 
 ```ts
-import { Game, Scene } from '@bornengine/engine';
+import { Scene } from '@bornengine/engine';
 import type { Texture } from '@bornengine/engine';
 
 class Level extends Scene {
   private background: Texture | null = null;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
     this.background = this.assets.loadTexture('assets/background.png');
     if (this.background === null || !this.background.isLoaded) {
@@ -140,7 +140,7 @@ The texture belongs to the level's asset scope, so it is released when the level
 import { CameraRig2D, Colors, Game, GameObject, Scene, Viewport2D } from '@bornengine/engine';
 
 class Level extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
     this.viewport2D = new Viewport2D({ width: 800, height: 450, mode: 'fit' });
 
@@ -163,7 +163,7 @@ class CameraGame extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Level(this));
+    this.scenes.changeTo(new Level());
   }
 
   protected override loop(deltaTime: number): void {

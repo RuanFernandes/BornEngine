@@ -91,14 +91,14 @@ To release sounds together with a scene, load them through `scene.assets.loadSou
 A `SoundManager` registers sounds and music under names, so game code can say `playSound('confirm')` instead of holding file paths. It also adds a cooldown between plays, random volume and pitch for each play, and one place to release everything when a scene ends.
 
 ```ts
-import { BUS_SFX, Game, Scene, SoundManager } from '@bornengine/engine';
+import { Game, BUS_SFX, Scene, SoundManager } from '@bornengine/engine';
 
 class MenuScene extends Scene {
   private readonly sounds: SoundManager;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'menu' });
-    const audio = game.audio.createSoundManager();
+    const audio = Game.current.audio.createSoundManager();
     this.sounds = audio;
     this.own(audio);
 
@@ -152,19 +152,19 @@ Ownership:
 For positional sound in a 3D scene, call `game.audio.setListener(position, forward)` each frame, and play sounds with `play3D`. For a 2D game, use the shared `game.audio.listener2D` and an `AudioEmitter2D` component:
 
 ```ts
-import { AudioEmitter2D, Game, GameObject, Scene, Vec3 } from '@bornengine/engine';
+import { Game, AudioEmitter2D, GameObject, Scene, Vec3 } from '@bornengine/engine';
 import type { Music } from '@bornengine/engine';
 
 class Level extends Scene {
   private readonly theme: Music;
   private readonly emitter: AudioEmitter2D;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
-    this.theme = game.audio.loadMusic('assets/audio/theme.ogg');
+    this.theme = Game.current.audio.loadMusic('assets/audio/theme.ogg');
 
-    const wind = game.audio.loadSound('assets/audio/wind.wav');
-    this.emitter = new AudioEmitter2D(wind, game.audio.listener2D, {
+    const wind = Game.current.audio.loadSound('assets/audio/wind.wav');
+    this.emitter = new AudioEmitter2D(wind, Game.current.audio.listener2D, {
       looping: true,
       refDist: 24,
       maxDist: 400,

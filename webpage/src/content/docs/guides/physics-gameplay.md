@@ -228,11 +228,11 @@ class Arena extends Scene {
   private readonly props: Prop[] = [];
   private readonly player: RigidBody;
 
-  constructor(game: Game, controls: InputActionMap) {
+  constructor(controls: InputActionMap) {
     super({ name: 'arena' });
     this.controls = controls;
 
-    const world = this.own(new PhysicsWorld(game, { gravity: { x: 0, y: -9.81, z: 0 } }));
+    const world = this.own(new PhysicsWorld(Game.current, { gravity: { x: 0, y: -9.81, z: 0 } }));
     if (world === null || !world.isReady) {
       throw new Error('The physics world is not ready. Create the project with --game-type 3d.');
     }
@@ -359,7 +359,7 @@ class RollGame extends Game {
     controls.bindAction('jump', { kind: 'key', key: Key.SPACE });
     controls.bindAction('reset', { kind: 'key', key: Key.R });
 
-    const arena = new Arena(this, controls);
+    const arena = new Arena(controls);
     if (!this.scenes.changeTo(arena)) throw new Error('Could not activate the arena.');
     this.arena = arena;
   }

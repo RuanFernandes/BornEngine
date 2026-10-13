@@ -122,7 +122,7 @@ const MAP_PATH = 'assets/level.world2d.json';
 class Level extends Scene {
   readonly error: string | null;
 
-  constructor(game: Game, source: string, physics: PhysicsWorld2D) {
+  constructor(source: string, physics: PhysicsWorld2D) {
     super({ name: 'level' });
     const sheets = new Map<string, SpriteSheet>();
     const loader = new World2DLoader(undefined, {
@@ -158,7 +158,7 @@ class MapGame extends Game {
   protected override onStart(): void {
     const source = this.input.readFile(MAP_PATH);
     if (source.length === 0) throw new Error(`Could not read ${MAP_PATH}`);
-    const level = new Level(this, source, this.physics);
+    const level = new Level(source, this.physics);
     if (level.error !== null) {
       level.unload();
       throw new Error(level.error);

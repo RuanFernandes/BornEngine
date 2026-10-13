@@ -90,6 +90,13 @@ The renderer does not clear the screen, so call `this.renderer.clear(color)` fir
 
 A `Game` also has the getters `isReady`, `isRunning`, `isDisposed`, `error`, and `stats`. Check `isReady` and `error` right after you construct it.
 
+`Game.current` is a static getter that returns the active `Game`. It throws when no `Game` is running. Use it where a class does not receive the game, such as a scene or a component that runs after the constructor.
+
+```ts
+const game = Game.current;
+console.log(game.window.width);
+```
+
 ### The window
 
 `game.window` describes the window or host surface. It has `width`, `height`, `title`, `mode`, and `isOpen`.

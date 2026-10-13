@@ -163,7 +163,7 @@ class MapScene extends Scene {
   private focusX = 400;
   private focusY = 225;
 
-  constructor(game: Game, floor: SpriteFrame, wall: SpriteFrame) {
+  constructor(floor: SpriteFrame, wall: SpriteFrame) {
     super({ name: 'map' });
 
     const data: number[] = [];
@@ -230,7 +230,7 @@ class MapDemo extends Game {
       this.stop();
       return;
     }
-    this.level = new MapScene(this, floor, wall);
+    this.level = new MapScene(floor, wall);
     this.scenes.changeTo(this.level);
   }
 

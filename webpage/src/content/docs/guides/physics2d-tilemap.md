@@ -53,10 +53,10 @@ import { Game, PhysicsWorld2D, Scene, Vector2D } from '@bornengine/engine';
 class Level extends Scene {
   private readonly physics: PhysicsWorld2D;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
     const physics = this.own(
-      new PhysicsWorld2D(game, {
+      new PhysicsWorld2D(Game.current, {
         gravity: new Vector2D(0, 900),
         fixedTimeStep: 1 / 60,
         maxSubSteps: 5,
@@ -228,10 +228,10 @@ class Level extends Scene {
   private readonly physics: PhysicsWorld2D;
   private readonly ball: PhysicsBody2D;
 
-  constructor(game: Game, controls: InputActionMap, frames: LevelFrames) {
+  constructor(controls: InputActionMap, frames: LevelFrames) {
     super({ name: 'level' });
 
-    const physics = this.own(new PhysicsWorld2D(game, { gravity: new Vector2D(0, GRAVITY) }));
+    const physics = this.own(new PhysicsWorld2D(Game.current, { gravity: new Vector2D(0, GRAVITY) }));
     if (physics === null || !physics.isReady) {
       throw new Error(physics === null ? 'The scene could not own the physics world.' : (physics.error ?? 'The physics world is not ready.'));
     }
@@ -332,7 +332,7 @@ class PlatformerGame extends Game {
     });
     controls.bindAction('jump', [{ kind: 'key', key: Key.SPACE }, { kind: 'key', key: Key.UP }]);
 
-    const level = new Level(this, controls, { ground, player, ball });
+    const level = new Level(controls, { ground, player, ball });
     if (!this.scenes.changeTo(level)) throw new Error('Could not activate the level.');
     this.level = level;
   }

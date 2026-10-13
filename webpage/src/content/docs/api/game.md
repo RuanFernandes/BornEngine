@@ -54,7 +54,7 @@ class Enemy extends GameObject {
 }
 
 class Arena extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'arena' });
     this.addNode(new Enemy());
   }
@@ -66,7 +66,7 @@ class ArenaGame extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Arena(this));
+    this.scenes.changeTo(new Arena());
   }
 
   protected override loop(deltaTime: number): void {
@@ -192,7 +192,7 @@ class Boss extends GameObject {
 }
 
 class Arena extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'arena' });
     this.addNode(new Boss());
   }
@@ -229,7 +229,7 @@ class Poster extends GameObject {
 class Gallery extends Scene {
   private readonly poster = new Poster();
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'gallery' });
     this.add(this.poster);
   }
@@ -290,7 +290,7 @@ Calling `addChild` for a child that is already attached to this parent returns t
 
 ## Scenes and lifecycle
 
-A `GameScene` holds game objects for one `Game`. Create it with `new GameScene(game)`. A `Scene` extends `GameScene` with a name, an asset manager, effects, cameras, owned resources, and lifecycle hooks. Use `Scene` for anything the scene manager runs. Use a bare `GameScene` when you want a plain container and call its methods yourself.
+A `GameScene` holds game objects for one `Game`. Create it with `new GameScene(game)`. A `Scene` extends `GameScene` with a name, an asset manager, effects, cameras, owned resources, and lifecycle hooks. Use `Scene` for anything the scene manager runs. Create it with `new Scene({ name })`; it binds to the active `Game` (`Game.current`), so the constructor takes no game. Use a bare `GameScene` when you want a plain container and call its methods yourself.
 
 | `GameScene` member | Meaning |
 | --- | --- |
@@ -335,7 +335,7 @@ An object goes through these steps:
 An object takes part in `onStart`, `update`, `fixedUpdate`, and rendering only while it is active in its hierarchy. A component also needs `enabled` to be `true`. A hook that is skipped is not lost: `onStart()` runs the first time the object or component is eligible. Objects attached during an update pass first run on the next pass. An object removed or destroyed during a pass is skipped for the rest of it.
 
 ```ts
-import { Game, GameComponent, GameObject, Scene } from '@bornengine/engine';
+import { GameComponent, GameObject, Scene } from '@bornengine/engine';
 
 class Tracer extends GameComponent {
   private readonly label: string;
@@ -381,7 +381,7 @@ class Actor extends GameObject {
 }
 
 class Demo extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'demo' });
     const parent = new Actor({ name: 'Parent' });
     parent.addComponent(new Tracer('ParentTracer'));
@@ -481,7 +481,7 @@ If an object calls `changeTo` during `update`, the switch happens at once. The o
 import { Colors, Game, Key, Scene } from '@bornengine/engine';
 
 class MenuScene extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'menu' });
   }
 
@@ -495,7 +495,7 @@ class MenuScene extends Scene {
 }
 
 class PlayScene extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'play' });
   }
 
@@ -514,11 +514,11 @@ class ScenesDemo extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new MenuScene(this));
+    this.scenes.changeTo(new MenuScene());
   }
 
   protected override loop(deltaTime: number): void {
-    if (this.input.isKeyPressed(Key.ENTER)) this.scenes.changeTo(new PlayScene(this));
+    if (this.input.isKeyPressed(Key.ENTER)) this.scenes.changeTo(new PlayScene());
     if (this.input.isKeyPressed(Key.ESCAPE)) {
       const current = this.scenes.currentScene;
       if (current !== null && current.state === 'paused') this.scenes.resume();
@@ -557,17 +557,17 @@ import { AudioSourceComponent, GameObject, Scene, SceneNodeComponent } from '@bo
 import type { Game } from '@bornengine/engine';
 
 class Shrine extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'shrine' });
 
     const statue = new GameObject({ name: 'Statue', position: { x: 0, y: 0, z: -5 } });
 
-    const model = game.assets.loadModel('assets/models/statue.glb');
-    const node = game.sceneGraph.createNode({ name: 'Statue' });
+    const model = Game.current.assets.loadModel('assets/models/statue.glb');
+    const node = Game.current.sceneGraph.createNode({ name: 'Statue' });
     if (model !== null && model.isLoaded) node.attachModel(model);
     statue.addComponent(new SceneNodeComponent(node, { ownership: 'owned' }));
 
-    const chime = game.assets.loadSound('assets/chime.wav');
+    const chime = Game.current.assets.loadSound('assets/chime.wav');
     if (chime !== null && chime.isLoaded) {
       const source = statue.addComponent(new AudioSourceComponent(chime, { looping: true, maxDist: 30 }));
       if (source !== null) source.play();

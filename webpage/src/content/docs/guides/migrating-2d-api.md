@@ -172,10 +172,10 @@ import { Game, GameObject, Key, PhysicsWorld2D, Scene, Vector2D } from '@borneng
 class Level extends Scene {
   readonly physics: PhysicsWorld2D | null;
 
-  constructor(game: Game, name: string) {
+  constructor(name: string) {
     super({ name });
     this.physics = this.own(
-      new PhysicsWorld2D(game, { gravity: new Vector2D(0, 900), fixedTimeStep: 1 / 60, maxSubSteps: 5 }),
+      new PhysicsWorld2D(Game.current, { gravity: new Vector2D(0, 900), fixedTimeStep: 1 / 60, maxSubSteps: 5 }),
     );
     this.addNode(new GameObject({ name: 'Player', position: { x: 96, y: 120, z: 0 } }));
   }
@@ -202,7 +202,7 @@ class PlatformerGame extends Game {
   }
 
   private loadLevel(): void {
-    if (!this.scenes.changeTo(new Level(this, 'Level ' + this.levelNumber))) this.stop();
+    if (!this.scenes.changeTo(new Level('Level ' + this.levelNumber))) this.stop();
   }
 }
 

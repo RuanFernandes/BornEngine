@@ -84,9 +84,9 @@ class BoxView extends GameComponent {
 class Level extends Scene {
   private readonly physics: PhysicsWorld2D | null;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
-    const world = new PhysicsWorld2D(game, {
+    const world = new PhysicsWorld2D(Game.current, {
       gravity: new Vector2D(0, 900),
       fixedTimeStep: 1 / 60,
       maxSubSteps: 5,
@@ -132,7 +132,7 @@ class FallingCrate extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Level(this));
+    this.scenes.changeTo(new Level());
   }
 
   protected override loop(deltaTime: number): void {

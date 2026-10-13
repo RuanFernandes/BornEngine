@@ -144,7 +144,7 @@ import { Colors, Game, GameObject, Scene, SpriteRenderer, SpriteSheet, Vector2D 
 import type { SpriteFrame } from '@bornengine/engine';
 
 class HeroScene extends Scene {
-  constructor(game: Game, idle: SpriteFrame) {
+  constructor(idle: SpriteFrame) {
     super({ name: 'hero' });
     this.camera2D = {
       offset: new Vector2D(400, 225),
@@ -178,7 +178,7 @@ class SpriteDemo extends Game {
       this.stop();
       return;
     }
-    this.scenes.changeTo(new HeroScene(this, idle));
+    this.scenes.changeTo(new HeroScene(idle));
   }
 
   protected override loop(deltaTime: number): void {
