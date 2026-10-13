@@ -1,4 +1,4 @@
-import { GameContext, bindGameContext } from '../../src/core/context';
+import { GameContext, bindActiveGame, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
 import type { Color, Rect, Vector2DLike } from '../../src/core/types';
@@ -32,6 +32,7 @@ if (context === null) {
 }
 context.markReady();
 bindGameContext(game, context);
+bindActiveGame(game);
 
 const world = new PhysicsWorld2D(game, {
   gravity: { x: 0, y: 0 },

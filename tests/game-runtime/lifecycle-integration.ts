@@ -1,4 +1,4 @@
-import { GameContext, bindGameContext } from '../../src/core/context';
+import { GameContext, bindActiveGame, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import { AssetManager } from '../../src/assets/asset-manager';
 import { GameComponent } from '../../src/game/game-component';
@@ -40,6 +40,7 @@ async function main(): Promise<void> {
   };
   const game = { audio } as Game;
   bindGameContext(game, context);
+  bindActiveGame(game);
 
   const assets = new AssetManager(game);
   const scenes = new SceneManager(game);

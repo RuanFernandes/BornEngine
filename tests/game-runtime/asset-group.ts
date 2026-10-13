@@ -1,4 +1,4 @@
-import { GameContext, bindGameContext } from '../../src/core/context';
+import { GameContext, bindActiveGame, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import { AssetGroup } from '../../src/assets/asset-group';
 import type { AssetGroupLoader } from '../../src/assets/asset-group';
@@ -42,6 +42,7 @@ async function main(): Promise<void> {
   }
   context.markReady();
   bindGameContext(owner, context);
+  bindActiveGame(owner);
 
   const cachedTexture = new FakeAsset(true);
   const failedTexture = new FakeAsset(false);
