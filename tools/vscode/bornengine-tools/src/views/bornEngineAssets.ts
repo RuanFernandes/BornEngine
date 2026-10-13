@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type * as vscode from 'vscode';
 import { validateSpriteSheetCharacterMetadata } from '../animations/spriteAnimationSchema';
+import { isGitignored, loadGitignore } from '../shared/gitignore';
 import {
   resolveDocumentRelativeWorkspaceAsset,
   resolveWorkspaceAsset,
@@ -61,10 +62,11 @@ export async function discoverBornEngineAssets(
 ): Promise<BornEngineWorkspaceAsset[]> {
   const roots = workspaceFolders.includes(folder) ? workspaceFolders : [...workspaceFolders, folder];
   const belongsToFolder = (uri: vscode.Uri): boolean => workspaceFolderForDocument(uri, roots) === folder;
-  const findFiles = async (pattern: string): Promise<vscode.Uri[]> => api.workspace.findFiles(
-    new api.RelativePattern(folder, pattern),
-    EXCLUDED_DIRECTORIES,
-  );
+  const gitignore = await loadGitignore(folder, api);
+  const findFiles = async (pattern: string): Promise<vscode.Uri[]> => {
+    const uris = await api.workspace.findFiles(new api.RelativePattern(folder, pattern), EXCLUDED_DIRECTORIES);
+    return uris.filter((uri) => !isGitignored(gitignore, folder, uri));
+  };
 
   const [foundMapUris, foundAnimationUris, foundTemplateUris, foundJsonUris, foundImageUris] = await Promise.all([
     findFiles('**/*.world2d.json'),
