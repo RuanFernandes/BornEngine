@@ -14,10 +14,10 @@ Objects form a tree. A parent object can have children, and moving the parent mo
 A scene is a class that extends `Scene`. Its constructor takes the `Game` and an options object with a name:
 
 ```ts
-import { Game, Scene } from '@bornengine/engine';
+import { Scene } from '@bornengine/engine';
 
 class Level extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
   }
 }
@@ -125,7 +125,7 @@ class Orbit extends GameComponent {
 }
 
 class Solar extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'solar' });
 
     const sun = new GameObject({ name: 'Sun', position: new Vec3(400, 225, 0) });
@@ -145,7 +145,7 @@ class SolarGame extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Solar(this));
+    this.scenes.changeTo(new Solar());
   }
 
   protected override loop(deltaTime: number): void {

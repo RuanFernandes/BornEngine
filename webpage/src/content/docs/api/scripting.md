@@ -41,13 +41,13 @@ class Square extends GameComponent {
 }
 
 class Level extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
 
     const actor = new GameObject({ name: 'Actor', position: new Vec3(40, 200, 0) });
     actor.addComponent(new Square());
 
-    const behavior = new ScriptComponent(game.scripting, guestSource, {
+    const behavior = new ScriptComponent(Game.current.scripting, guestSource, {
       permissions: ['log', 'self.read', 'self.transform.write'],
     });
     if (behavior.status === 'ready') {
@@ -66,7 +66,7 @@ class ScriptDemo extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Level(this));
+    this.scenes.changeTo(new Level());
   }
 
   protected override loop(deltaTime: number): void {

@@ -64,9 +64,9 @@ class Player extends GameObject {
 }
 
 class Level extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
-    this.addNode(new Player(game.input));
+    this.addNode(new Player(Game.current.input));
   }
 }
 
@@ -76,7 +76,7 @@ class FirstPlayerGame extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Level(this));
+    this.scenes.changeTo(new Level());
   }
 
   protected override loop(deltaTime: number): void {
@@ -184,7 +184,7 @@ class Player extends GameObject {
 }
 
 class Level extends Scene {
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'level' });
     this.viewport2D = new Viewport2D({ width: 800, height: 450, mode: 'fit' });
 
@@ -192,7 +192,7 @@ class Level extends Scene {
     room.addComponent(new RoomView());
     this.addNode(room);
 
-    this.addNode(new Player(game.input));
+    this.addNode(new Player(Game.current.input));
   }
 }
 
@@ -202,7 +202,7 @@ class FirstPlayerGame extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Level(this));
+    this.scenes.changeTo(new Level());
   }
 
   protected override loop(deltaTime: number): void {

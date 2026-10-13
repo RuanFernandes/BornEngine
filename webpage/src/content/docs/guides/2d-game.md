@@ -470,7 +470,7 @@ class FollowCamera extends GameObject {
 }
 
 class Arena extends Scene {
-  constructor(game: Game, controls: InputActionMap, frames: HeroFrames) {
+  constructor(controls: InputActionMap, frames: HeroFrames) {
     super({ name: 'arena' });
 
     const floor = new GameObject({ name: 'Floor' });
@@ -520,7 +520,7 @@ class ArenaGame extends Game {
     controls.bindAction('attack', { kind: 'key', key: Key.SPACE });
 
     const frames: HeroFrames = { idle, walk: [walkA, walkB], hit, sparks: [sparkA, sparkB] };
-    if (!this.scenes.changeTo(new Arena(this, controls, frames))) throw new Error('Could not activate the arena.');
+    if (!this.scenes.changeTo(new Arena(controls, frames))) throw new Error('Could not activate the arena.');
   }
 
   protected override loop(deltaTime: number): void {

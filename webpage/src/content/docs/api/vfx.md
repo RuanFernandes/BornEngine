@@ -119,7 +119,7 @@ class SparkDemo extends Game {
   }
 
   protected override onStart(): void {
-    this.level = new SparkScene(this, { name: 'sparks' });
+    this.level = new SparkScene({ name: 'sparks' });
     this.scenes.changeTo(this.level);
   }
 

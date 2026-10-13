@@ -202,7 +202,7 @@ class Level extends Scene {
   readonly document: WorldDocument;
   readonly instance: WorldInstance;
 
-  constructor(game: Game, worldPath: string, prefabs: PrefabLibrary) {
+  constructor(worldPath: string, prefabs: PrefabLibrary) {
     super({ name: 'level' });
 
     const data = new WorldData(worldPath);
@@ -211,7 +211,7 @@ class Level extends Scene {
     if (!validation.ok) throw new Error(worldPath + ':\n' + validation.errors.join('\n'));
     this.document = data.document;
 
-    const instance = data.instantiate(game, { getModel: (path) => this.loadModel(path), prefabs });
+    const instance = data.instantiate(Game.current, { getModel: (path) => this.loadModel(path), prefabs });
     if (instance.error !== null) throw new Error(instance.error);
     for (const warning of instance.warnings) console.warn(warning);
     this.instance = instance;
@@ -334,7 +334,7 @@ class Level extends Scene {
   readonly document: WorldDocument;
   readonly instance: WorldInstance;
 
-  constructor(game: Game, worldPath: string, prefabs: PrefabLibrary) {
+  constructor(worldPath: string, prefabs: PrefabLibrary) {
     super({ name: 'level' });
 
     const data = new WorldData(worldPath);
@@ -343,7 +343,7 @@ class Level extends Scene {
     if (!validation.ok) throw new Error(worldPath + ':\n' + validation.errors.join('\n'));
     this.document = data.document;
 
-    const instance = data.instantiate(game, { getModel: (path) => this.loadModel(path), prefabs });
+    const instance = data.instantiate(Game.current, { getModel: (path) => this.loadModel(path), prefabs });
     if (instance.error !== null) throw new Error(instance.error);
     for (const warning of instance.warnings) console.warn(warning);
     this.instance = instance;
@@ -424,7 +424,7 @@ class ViewerGame extends Game {
   }
 
   private openLevel(): void {
-    const level = new Level(this, WORLD_PATH, this.prefabs);
+    const level = new Level(WORLD_PATH, this.prefabs);
     if (!this.scenes.changeTo(level)) throw new Error('Could not activate the level.');
     this.level = level;
   }

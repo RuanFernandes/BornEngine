@@ -57,11 +57,11 @@ import { Game, Scene } from '@bornengine/engine';
 const game = new Game();
 
 class MenuScene extends Scene {
-  constructor(game: Game) { super({ name: 'Menu' }); }
+  constructor() { super({ name: 'Menu' }); }
   onEnter(): void { console.log('menu entered'); }
 }
 
-game.scenes.changeTo(new MenuScene(game));
+game.scenes.changeTo(new MenuScene());
 ```
 
 ## Ownership rules

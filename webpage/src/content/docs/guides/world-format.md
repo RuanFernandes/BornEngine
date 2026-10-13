@@ -215,12 +215,12 @@ import type { World2DTilesetData } from '@bornengine/engine/world2d';
 class TownLevel extends Scene {
   private readonly sheets = new Map<string, SpriteSheet>();
 
-  constructor(game: Game, mapPath: string) {
+  constructor(mapPath: string) {
     super({ name: 'Town' });
     const loader = new World2DLoader(undefined, {
       resolveSpriteFrame: (tileset, tileId, imagePath) => this.frameFor(tileset, tileId, imagePath),
     });
-    const result = loader.loadJSON(game.input.readFile(mapPath), this);
+    const result = loader.loadJSON(Game.current.input.readFile(mapPath), this);
     if (!result.ok) console.error(formatWorld2DDiagnostics(result.diagnostics));
   }
 
@@ -243,7 +243,7 @@ class TownLevel extends Scene {
 
 class TownGame extends Game {
   protected override onStart(): void {
-    this.scenes.changeTo(new TownLevel(this, 'assets/maps/town.world2d.json'));
+    this.scenes.changeTo(new TownLevel('assets/maps/town.world2d.json'));
   }
 
   protected override loop(deltaTime: number): void {

@@ -12,7 +12,7 @@ BornEngine's API is organized around a few owners. The `Game` owns the services 
 Import the common names from the package root:
 
 ```ts
-import { Colors, Game, GameComponent, GameObject, Key, Renderer, Scene, Texture, Vec3 } from '@bornengine/engine';
+import { Colors, GameComponent, GameObject, Key, Renderer, Scene, Texture, Vec3 } from '@bornengine/engine';
 ```
 
 Import specialized modules from a subpath. Each subpath is a module with a narrower set of names:

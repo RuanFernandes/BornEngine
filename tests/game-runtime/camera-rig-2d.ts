@@ -1,4 +1,4 @@
-import { GameContext, bindGameContext } from '../../src/core/context';
+import { GameContext, bindActiveGame, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import { CameraRig2D } from '../../src/camera2d/camera-rig-2d';
 import { Vector2D } from '../../src/math/vector2d';
@@ -28,6 +28,7 @@ function createGame(): { game: Game; context: GameContext } {
   }
   context.markReady();
   bindGameContext(game, context);
+  bindActiveGame(game);
   return { game, context };
 }
 

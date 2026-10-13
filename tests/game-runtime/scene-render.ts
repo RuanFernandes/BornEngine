@@ -1,5 +1,5 @@
 import './native-link';
-import { GameContext, bindGameContext } from '../../src/core/context';
+import { GameContext, bindActiveGame, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
 import type { Camera2D } from '../../src/core/types';
@@ -23,6 +23,7 @@ if (context === null) {
   process.exit(1);
 }
 bindGameContext(game, context);
+bindActiveGame(game);
 const manager = new SceneManager(game);
 const renderEvents: string[] = [];
 

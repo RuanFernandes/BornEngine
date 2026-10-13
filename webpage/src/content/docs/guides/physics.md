@@ -191,9 +191,9 @@ class FloorView extends GameComponent {
 class PhysicsLevel extends Scene {
   readonly world: PhysicsWorld | null;
 
-  constructor(game: Game) {
+  constructor() {
     super({ name: 'physics' });
-    const world = this.own(new PhysicsWorld(game));
+    const world = this.own(new PhysicsWorld(Game.current));
     this.world = world;
     if (world === null || !world.isReady) return;
     world.setInterpolation(true);
@@ -229,7 +229,7 @@ class SceneDemo extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new PhysicsLevel(this));
+    this.scenes.changeTo(new PhysicsLevel());
   }
 
   protected override loop(deltaTime: number): void {

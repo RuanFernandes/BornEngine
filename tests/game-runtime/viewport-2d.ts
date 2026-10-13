@@ -1,6 +1,6 @@
 import { Viewport2D } from '../../src/camera2d/viewport-2d';
 import { Vector2D } from '../../src/math/vector2d';
-import { GameContext, bindGameContext } from '../../src/core/context';
+import { GameContext, bindActiveGame, bindGameContext } from '../../src/core/context';
 import type { Game } from '../../src/core/game';
 import type { Renderer } from '../../src/core/renderer';
 import type { Camera2D } from '../../src/core/types';
@@ -104,6 +104,7 @@ const context = GameContext.create();
 if (context === null) process.exit(1);
 context.markReady();
 bindGameContext(game, context);
+bindActiveGame(game);
 const scene = new Scene();
 scene.viewport2D = fit;
 let startedCamera: Camera2D | null = null;
