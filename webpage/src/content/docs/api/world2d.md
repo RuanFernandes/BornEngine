@@ -123,7 +123,7 @@ class Level extends Scene {
   readonly error: string | null;
 
   constructor(game: Game, source: string, physics: PhysicsWorld2D) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     const sheets = new Map<string, SpriteSheet>();
     const loader = new World2DLoader(undefined, {
       physicsWorld2D: physics,

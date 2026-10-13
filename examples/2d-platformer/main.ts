@@ -122,7 +122,7 @@ class PlatformerScene extends Scene {
     sparkFrames: SpriteFrame[],
     savedPosition: Vector2D,
   ) {
-    super(game, { name: 'Cavern run' });
+    super({ name: 'Cavern run' });
     this.viewport2D = new Viewport2D({ width: 800, height: 480, mode: 'fit' });
 
     const physics = this.own(physicsWorld);

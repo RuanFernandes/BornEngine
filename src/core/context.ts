@@ -1,3 +1,5 @@
+import type { Game } from './game';
+
 /** Internal owner for one BornEngine runtime and its context-bound resources. */
 export interface ContextResource {
   dispose(): void;
@@ -40,6 +42,21 @@ export function getGameContext(game: object): GameContext {
 }
 
 export const CONTEXT_ALREADY_ACTIVE_ERROR = 'Only one BornEngine Game may be active at a time.';
+export const NO_ACTIVE_GAME_ERROR =
+  'No BornEngine Game is active. Create a Game before creating scenes or objects that use it.';
+
+let activeGame: Game | null = null;
+
+/** @internal Records the Game that owns the active context. */
+export function bindActiveGame(game: Game): void {
+  activeGame = game;
+}
+
+/** @internal Returns the active Game. Throws when no Game is running. */
+export function getActiveGame(): Game {
+  if (activeGame === null || !getGameContext(activeGame).isActiveOwner()) throw new Error(NO_ACTIVE_GAME_ERROR);
+  return activeGame;
+}
 
 /** Tracks the readiness, error state, and owned resources of one BornEngine runtime. Only one context can be active at a time. */
 export class GameContext {

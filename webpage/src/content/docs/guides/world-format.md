@@ -216,7 +216,7 @@ class TownLevel extends Scene {
   private readonly sheets = new Map<string, SpriteSheet>();
 
   constructor(game: Game, mapPath: string) {
-    super(game, { name: 'Town' });
+    super({ name: 'Town' });
     const loader = new World2DLoader(undefined, {
       resolveSpriteFrame: (tileset, tileId, imagePath) => this.frameFor(tileset, tileId, imagePath),
     });

@@ -88,7 +88,7 @@ export function loadRoom(game: Game): Room | null {
     return null;
   }
 
-  const scene = new Scene(game, { name: 'Moonlit Pier' });
+  const scene = new Scene({ name: 'Moonlit Pier' });
   const loader = new World2DLoader(undefined, {
     resolveSpriteFrame: (tileset, tileId) =>
       sheet.gridFrame(tileId % tileset.columns, Math.floor(tileId / tileset.columns)),

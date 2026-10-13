@@ -79,7 +79,7 @@ const boundedRig = new CameraRig2D({
   bounds: { x: 10, y: 15, width: 30, height: 20 },
 });
 const { game, context } = createGame();
-const scene = new Scene(game);
+const scene = new Scene();
 scene.viewport2D = new Viewport2D({ width: 100, height: 80 });
 const boundedOwner = new GameObject();
 boundedOwner.addComponent(boundedRig);

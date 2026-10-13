@@ -31,12 +31,12 @@ scene.addNode(actor);
 const firstResource = new ResourceProbe('first');
 scene.own(firstResource);
 scene.own(new ResourceProbe('second'));
-expect(new Scene(game).own(firstResource) === null, 'a resource cannot belong to two scenes');
+expect(new Scene().own(firstResource) === null, 'a resource cannot belong to two scenes');
 expect(scene.unload(), 'ready scene unloads');
 scene.unload();
 expect(events.join(',') === 'awake,unload,object,component,dispose:second,dispose:first',
   'cleanup order is stable and idempotent');
-const destroyAlias = new Scene(game);
+const destroyAlias = new Scene();
 destroyAlias.destroy();
 expect(destroyAlias.state === 'unloaded', 'destroy uses the same terminal cleanup path');
 
@@ -48,19 +48,19 @@ class FirstScene extends Scene {
   unloadRejected = false;
 
   onEnter(): void {
-    this.enterRejected = !transitionManager.changeTo(new Scene(game));
+    this.enterRejected = !transitionManager.changeTo(new Scene());
   }
 
   onPause(): void {
-    this.pauseRejected = !transitionManager.changeTo(new Scene(game));
+    this.pauseRejected = !transitionManager.changeTo(new Scene());
   }
 
   onExit(): void {
-    this.exitRejected = !transitionManager.changeTo(new Scene(game));
+    this.exitRejected = !transitionManager.changeTo(new Scene());
   }
 
   onUnload(): void {
-    this.unloadRejected = !transitionManager.changeTo(new Scene(game));
+    this.unloadRejected = !transitionManager.changeTo(new Scene());
   }
 }
 const firstScene = new FirstScene(game, { name: 'first' });
@@ -71,7 +71,7 @@ expect(transitionManager.pause() && firstScene.pauseRejected && firstScene.state
   'pause changes state before its hook and rejects a nested transition');
 expect(transitionManager.resume() && firstScene.state === 'active',
   'resume reactivates a paused scene');
-const secondScene = new Scene(game, { name: 'second' });
+const secondScene = new Scene({ name: 'second' });
 expect(transitionManager.changeTo(secondScene), 'manager switches to a fresh scene');
 expect(firstScene.exitRejected && firstScene.unloadRejected && firstScene.state === 'unloaded',
   'teardown hooks reject nested transitions before the first scene unloads');
@@ -82,7 +82,7 @@ expect(!transitionManager.changeTo(firstScene) && transitionManager.currentScene
 expect(secondScene.unload(), 'current scene can unload directly');
 expect(transitionManager.currentScene === null,
   'manager reports null after its current scene unloads directly');
-const thirdScene = new Scene(game, { name: 'third' });
+const thirdScene = new Scene({ name: 'third' });
 expect(transitionManager.changeTo(thirdScene),
   'manager accepts a fresh scene after direct unload');
 
@@ -118,7 +118,7 @@ class ResourceSwitch extends UpdateResource {
   }
 }
 
-const pausedScene = new Scene(game, { name: 'paused' });
+const pausedScene = new Scene({ name: 'paused' });
 const pausedObject = new UpdateCounter();
 const pausedResource = new UpdateResource();
 pausedScene.addNode(pausedObject);
@@ -154,10 +154,10 @@ class UpdateSwitch extends GameObject {
     }
   }
 }
-const updateReplacement = new Scene(game, { name: 'update-replacement' });
+const updateReplacement = new Scene({ name: 'update-replacement' });
 const updateReplacementObject = new UpdateCounter();
 updateReplacement.addNode(updateReplacementObject);
-const updateSource = new Scene(game, { name: 'update-source' });
+const updateSource = new Scene({ name: 'update-source' });
 const updateSwitch = new UpdateSwitch(transitionManager, updateReplacement);
 const skippedAfterUpdateSwitch = new UpdateCounter();
 updateSource.addNode(updateSwitch);
@@ -187,10 +187,10 @@ class FixedSwitch extends GameObject {
     if (!this.switched) this.switched = this.manager.changeTo(this.replacement);
   }
 }
-const fixedReplacement = new Scene(game, { name: 'fixed-replacement' });
+const fixedReplacement = new Scene({ name: 'fixed-replacement' });
 const fixedReplacementObject = new UpdateCounter();
 fixedReplacement.addNode(fixedReplacementObject);
-const fixedSource = new Scene(game, { name: 'fixed-source' });
+const fixedSource = new Scene({ name: 'fixed-source' });
 const fixedSwitch = new FixedSwitch(transitionManager, fixedReplacement);
 const skippedAfterFixedSwitch = new UpdateCounter();
 fixedSource.addNode(fixedSwitch);
@@ -205,10 +205,10 @@ transitionManager.updateFixed(1 / 60);
 expect(fixedReplacementObject.fixedUpdates === 1,
   'replacement receives fixedUpdate on the next manager tick');
 
-const resourceReplacement = new Scene(game, { name: 'resource-replacement' });
+const resourceReplacement = new Scene({ name: 'resource-replacement' });
 const resourceReplacementObject = new UpdateCounter();
 resourceReplacement.addNode(resourceReplacementObject);
-const resourceSource = new Scene(game, { name: 'resource-source' });
+const resourceSource = new Scene({ name: 'resource-source' });
 const resourceSwitch = new ResourceSwitch(transitionManager, resourceReplacement);
 const disposedResource = new UpdateResource();
 const skippedAfterResourceSwitch = new UpdateCounter();

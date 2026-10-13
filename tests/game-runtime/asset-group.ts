@@ -115,7 +115,7 @@ async function main(): Promise<void> {
   expect(secondGroup.entries[0].result === group.entries[0].result,
     'preload groups share the AssetManager cached resource instance');
 
-  const textureScene = new Scene(owner);
+  const textureScene = new Scene();
   const sceneOwned = createGroup('scene-owned');
   expect(sceneOwned !== null && textureScene.own(sceneOwned) === sceneOwned,
     'scene can own group metadata');

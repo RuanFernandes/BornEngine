@@ -97,7 +97,7 @@ class MenuScene extends Scene {
   private readonly sounds: SoundManager;
 
   constructor(game: Game) {
-    super(game, { name: 'menu' });
+    super({ name: 'menu' });
     const audio = game.audio.createSoundManager();
     this.sounds = audio;
     this.own(audio);
@@ -160,7 +160,7 @@ class Level extends Scene {
   private readonly emitter: AudioEmitter2D;
 
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     this.theme = game.audio.loadMusic('assets/audio/theme.ogg');
 
     const wind = game.audio.loadSound('assets/audio/wind.wav');

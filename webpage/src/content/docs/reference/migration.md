@@ -17,6 +17,7 @@ This page maps the old calls to the current ones. If you are coming from 0.5, re
 | 0.7.0 | `Game` gains the subclass hooks `onStart()`, `loop()`, `render()`, and `onStop()`. |
 | 0.10.0 | `Vector2D` replaces `Vec2`. `GameStorage` is added. |
 | 0.11.0 | `Game.run(callbacks)` and `GameStorage` are removed. `Game.run()` returns a `Promise`. `GameDatabase` is added. |
+| 0.22.0 | `new Scene()` takes only its options. The scene binds to the active `Game` (`Game.current`). Replace `new Scene(game, options)` with `new Scene(options)` and `super(game, { name })` with `super({ name })`. `Game.current` returns the active Game. |
 
 ## Application lifecycle
 
@@ -113,7 +114,7 @@ class Level extends Scene {
   private background: Texture | null = null;
 
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     this.background = this.assets.loadTexture('assets/background.png');
     if (this.background === null || !this.background.isLoaded) {
       console.error(this.background?.error ?? 'Could not load the background.');
@@ -140,7 +141,7 @@ import { CameraRig2D, Colors, Game, GameObject, Scene, Viewport2D } from '@borne
 
 class Level extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     this.viewport2D = new Viewport2D({ width: 800, height: 450, mode: 'fit' });
 
     const player = new GameObject({ name: 'Player' });

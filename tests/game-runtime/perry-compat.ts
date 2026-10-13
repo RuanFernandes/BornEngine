@@ -161,7 +161,7 @@ requireTrue(attachedHealth === publicHealth && foundHealth === publicHealth &&
   'public GameObject component API preserves concrete types');
 
 class ScenePlayer extends GameObject {}
-const oopScene = new Scene(game, { name: 'compatibility-scene' });
+const oopScene = new Scene({ name: 'compatibility-scene' });
 const oopManager = game.scenes;
 const scenePlayer = oopScene.addNode(new ScenePlayer());
 const rendererNode = game.sceneGraph.createNode();

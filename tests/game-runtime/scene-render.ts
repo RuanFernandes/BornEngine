@@ -88,7 +88,7 @@ expect(renderEvents.join(',') === 'first-low,first-high,first-tie,second-tie',
   'scene renders enabled attached components in renderOrder with stable ties: ' + renderEvents.join(','));
 expect(cameraEvents.join(',') === 'begin,end', 'scene wraps camera rendering in begin2D/end2D');
 
-const managed = new Scene(game);
+const managed = new Scene();
 const managedProbe = new RenderProbe('managed');
 const managedObject = new GameObject();
 managedObject.addComponent(managedProbe);

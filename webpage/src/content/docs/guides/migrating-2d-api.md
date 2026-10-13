@@ -79,7 +79,7 @@ class MyGame extends Game {
   }
 
   protected override onStart(): void {
-    if (!this.scenes.changeTo(new Scene(this, { name: 'First level' }))) this.stop();
+    if (!this.scenes.changeTo(new Scene({ name: 'First level' }))) this.stop();
   }
 
   protected override loop(deltaTime: number): void {
@@ -173,7 +173,7 @@ class Level extends Scene {
   readonly physics: PhysicsWorld2D | null;
 
   constructor(game: Game, name: string) {
-    super(game, { name });
+    super({ name });
     this.physics = this.own(
       new PhysicsWorld2D(game, { gravity: new Vector2D(0, 900), fixedTimeStep: 1 / 60, maxSubSteps: 5 }),
     );

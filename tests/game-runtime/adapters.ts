@@ -163,7 +163,7 @@ ownedBodyObject.addComponent(new RigidBodyComponent(ownedBody, { ownership: 'own
 singularPhysicsObject.addComponent(new RigidBodyComponent(singularParentBody));
 invalidBodyObject.addComponent(new RigidBodyComponent(physicsWorld.createBody(otherShape)));
 singularPhysicsParent.addChild(singularPhysicsObject, { preserveWorldTransform: false });
-const physicsScene = new Scene(game, { name: 'physics-adapter-fixture' });
+const physicsScene = new Scene({ name: 'physics-adapter-fixture' });
 physicsScene.addNode(staticObject);
 physicsScene.addNode(kinematicObject);
 physicsScene.addNode(dynamicObject);
@@ -207,7 +207,7 @@ const worldData = WorldData.create('adapter-fixture', 'Adapter Fixture');
 expect(worldData.isLoaded && worldData.validate().ok,
   'WorldData exposes pure creation and validation through its class API');
 
-const audioScene = new Scene(game, { name: 'audio-adapter-fixture' });
+const audioScene = new Scene({ name: 'audio-adapter-fixture' });
 const audioManager = game.audio.createSoundManager();
 const managedSound = audioManager.loadSound('source', 'tests/game-runtime/assets/tone.wav');
 const audioObject = new GameObject();

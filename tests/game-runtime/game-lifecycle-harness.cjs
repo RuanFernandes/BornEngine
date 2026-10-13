@@ -75,9 +75,15 @@ class Window {
 let platform = 1;
 let webFrame;
 let clockSeconds = 0;
+let activeGame = null;
 const sandbox = {
   GameContext: Context, CONTEXT_ALREADY_ACTIVE_ERROR: 'active',
   bindGameContext: (g,c) => contexts.set(g,c), getGameContext: g => contexts.get(g),
+  bindActiveGame: (g) => { activeGame = g; },
+  getActiveGame: () => {
+    if (activeGame === null || contexts.get(activeGame)?.isDisposed) throw new Error('No BornEngine Game is active. Create a Game before creating scenes or objects that use it.');
+    return activeGame;
+  },
   Window, Renderer: Service, InputSystem, AudioSystem: Service,
   SceneManager: class SceneManager extends Service { constructor(...args) { super(...args); this.currentScene = null; } },
   SceneGraph, TouchControls: Service,
@@ -121,6 +127,11 @@ async function main() {
   assert.deepEqual(disposalOrder, ['last', 'failure', 'first'], 'registered cleanup continues');
   assert.match(registeredContext.error, /registered resource failed/);
   assert.equal(registeredContext.isDisposed, true);
+
+  const activeGame = new Game({});
+  assert.equal(Game.current, activeGame, 'Game.current returns the active game');
+  activeGame.dispose();
+  assert.throws(() => Game.current, /No BornEngine Game is active/, 'no active Game after disposal');
 
   class InvalidGame extends Game {
     onStart() { events.push('invalid.start'); }

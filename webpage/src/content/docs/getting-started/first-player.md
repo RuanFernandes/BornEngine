@@ -65,7 +65,7 @@ class Player extends GameObject {
 
 class Level extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     this.addNode(new Player(game.input));
   }
 }
@@ -185,7 +185,7 @@ class Player extends GameObject {
 
 class Level extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     this.viewport2D = new Viewport2D({ width: 800, height: 450, mode: 'fit' });
 
     const room = new GameObject({ name: 'Room' });

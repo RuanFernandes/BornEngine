@@ -229,7 +229,7 @@ class Arena extends Scene {
   private readonly player: RigidBody;
 
   constructor(game: Game, controls: InputActionMap) {
-    super(game, { name: 'arena' });
+    super({ name: 'arena' });
     this.controls = controls;
 
     const world = this.own(new PhysicsWorld(game, { gravity: { x: 0, y: -9.81, z: 0 } }));

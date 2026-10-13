@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 
   const assets = new AssetManager(game);
   const scenes = new SceneManager(game);
-  const first = new Scene(game, { name: 'first' });
+  const first = new Scene({ name: 'first' });
   const actor = new GameObject({ name: 'player' });
   const probe = new UpdateProbe();
   actor.addComponent(probe);
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   expect(sceneParticles !== null && sceneParticles.error !== null,
     'create scene-owned 3D particles through the scene VFX factory');
 
-  const second = new Scene(game, { name: 'second' });
+  const second = new Scene({ name: 'second' });
   expect(scenes.changeTo(second), 'switch to the replacement scene');
   expect(scenes.currentScene === second && first.state === 'unloaded',
     'publish the new scene and unload the previous scene');

@@ -97,7 +97,7 @@ expect(standaloneMusic.isPlaying, 'manager disposal preserves unrelated Music re
 standaloneMusic.dispose();
 standaloneSound.dispose();
 
-const scene = new Scene(game);
+const scene = new Scene();
 const sceneManager = game.audio.createSoundManager();
 expect(sceneManager.loadSound('scene', tonePath) !== null, 'scene-owned manager loads its sound');
 expect(scene.own(sceneManager) === sceneManager, 'scene accepts the manager as an owned resource');

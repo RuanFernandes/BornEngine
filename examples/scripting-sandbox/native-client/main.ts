@@ -84,7 +84,7 @@ function dispatchManagerLeave(_code: number, reason: string): void {
 
 class SandboxScene extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'Scripting Sandbox' });
+    super({ name: 'Scripting Sandbox' });
   }
 }
 

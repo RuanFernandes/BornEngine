@@ -52,7 +52,7 @@ class PlayerMarker extends GameComponent {
 
 class ArenaScene extends Scene {
   constructor(game: Game) {
-    super(game, { name: "Multiplayer Arena" });
+    super({ name: "Multiplayer Arena" });
     this.viewport2D = new Viewport2D({ width: WORLD_WIDTH, height: WORLD_HEIGHT, mode: "fit" });
     const field = new GameObject({ name: "Arena field" });
     field.addComponent(new ArenaField());

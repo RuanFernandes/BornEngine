@@ -366,7 +366,7 @@ class TemplateGame extends Game {
       positive: [{ kind: 'key', key: Key.RIGHT }, { kind: 'key', key: Key.D }],
     });
 
-    const scene = new Scene(this, { name: 'parade' });
+    const scene = new Scene({ name: 'parade' });
     scene.addNode(new Walker(controls, 160, knightWithSword));
     scene.addNode(new Marcher('Mage', 320, mageWithStaff, 1.5));
     scene.addNode(new Marcher('Squire', 480, unarmedKnight, 1));

@@ -11,7 +11,7 @@ class Level extends Scene {
   readonly player: GameObject;
 
   constructor(game: Game) {
-    super(game, { name: 'Level' });
+    super({ name: 'Level' });
     this.physics = this.own(new PhysicsWorld2D(game, {
       gravity: { x: 0, y: 900 },
       fixedTimeStep: 1 / 60,

@@ -82,7 +82,7 @@ class ForestScene extends Scene {
   private atlas: Texture | null = null;
 
   constructor(game: Game) {
-    super(game, { name: 'forest' });
+    super({ name: 'forest' });
   }
 
   override onEnter(): void {

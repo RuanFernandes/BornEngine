@@ -55,7 +55,7 @@ class Enemy extends GameObject {
 
 class Arena extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'arena' });
+    super({ name: 'arena' });
     this.addNode(new Enemy());
   }
 }
@@ -193,7 +193,7 @@ class Boss extends GameObject {
 
 class Arena extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'arena' });
+    super({ name: 'arena' });
     this.addNode(new Boss());
   }
 }
@@ -230,7 +230,7 @@ class Gallery extends Scene {
   private readonly poster = new Poster();
 
   constructor(game: Game) {
-    super(game, { name: 'gallery' });
+    super({ name: 'gallery' });
     this.add(this.poster);
   }
 
@@ -382,7 +382,7 @@ class Actor extends GameObject {
 
 class Demo extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'demo' });
+    super({ name: 'demo' });
     const parent = new Actor({ name: 'Parent' });
     parent.addComponent(new Tracer('ParentTracer'));
     const child = new Actor({ name: 'Child' });
@@ -482,7 +482,7 @@ import { Colors, Game, Key, Scene } from '@bornengine/engine';
 
 class MenuScene extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'menu' });
+    super({ name: 'menu' });
   }
 
   override onEnter(): void {
@@ -496,7 +496,7 @@ class MenuScene extends Scene {
 
 class PlayScene extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'play' });
+    super({ name: 'play' });
   }
 
   override onPause(): void {
@@ -558,7 +558,7 @@ import type { Game } from '@bornengine/engine';
 
 class Shrine extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'shrine' });
+    super({ name: 'shrine' });
 
     const statue = new GameObject({ name: 'Statue', position: { x: 0, y: 0, z: -5 } });
 
@@ -664,7 +664,7 @@ class DropGame extends Game {
   }
 
   protected override onStart(): void {
-    const scene = new Scene(this, { name: 'drop' });
+    const scene = new Scene({ name: 'drop' });
     this.world.createBody(new BoxCollider(this.world, { x: 10, y: 0.5, z: 10 }), {
       motionType: MotionType.STATIC,
       position: { x: 0, y: -0.5, z: 0 },

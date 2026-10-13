@@ -192,7 +192,7 @@ class PhysicsLevel extends Scene {
   readonly world: PhysicsWorld | null;
 
   constructor(game: Game) {
-    super(game, { name: 'physics' });
+    super({ name: 'physics' });
     const world = this.own(new PhysicsWorld(game));
     this.world = world;
     if (world === null || !world.isReady) return;

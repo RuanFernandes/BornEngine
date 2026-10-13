@@ -59,7 +59,7 @@ class PierScene extends Scene {
     sound: Sound,
     preloadGroup: { dispose(): void },
   ) {
-    super(game, { name: 'Moonlit Pier' });
+    super({ name: 'Moonlit Pier' });
     this.viewport2D = new Viewport2D({ width: ROOM_SIZE.x, height: ROOM_SIZE.y, mode: 'fit' });
     this.own(preloadGroup);
 

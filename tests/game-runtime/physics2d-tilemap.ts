@@ -290,7 +290,7 @@ expect(invalidBody.error !== null && world.bodyCount === bodyCountBeforeInvalid,
 
 mapScene.destroy();
 ownerScene.destroy();
-const lifecycleScene = new Scene(game);
+const lifecycleScene = new Scene();
 const sceneOwnedWorld = new PhysicsWorld2D(game);
 expect(lifecycleScene.own(sceneOwnedWorld) === sceneOwnedWorld,
   'a physics world can be owned by a Scene for cleanup');

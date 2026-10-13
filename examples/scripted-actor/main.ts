@@ -27,7 +27,7 @@ const RESTRICTED_PROBE_SOURCE = `export default {
 
 class ScriptedActorScene extends Scene {
   constructor(game: Game, actorFrame: SpriteFrame, particleFrame: SpriteFrame) {
-    super(game, { name: 'Scripted actor' });
+    super({ name: 'Scripted actor' });
 
     const actor = new GameObject({
       name: 'Player',
