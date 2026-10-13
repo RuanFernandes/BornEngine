@@ -1,11 +1,5 @@
-import {
-  GameContext,
-  CONTEXT_ALREADY_ACTIVE_ERROR,
-  bindActiveGame,
-  bindGameContext,
-  getActiveGame,
-  getGameContext,
-} from './context';
+import { GameContext, CONTEXT_ALREADY_ACTIVE_ERROR, bindGameContext, getGameContext } from './context';
+import { bindActiveGame, getActiveGame } from './context';
 import { Window } from './window';
 import type { WindowOptions } from './window';
 import { Renderer } from './renderer';
