@@ -18,12 +18,19 @@ function makeUri(uriPath) {
   };
 }
 
-function loadAssetsModule() {
-  const source = readFileSync(modulePath, 'utf8');
+function transpileModule(filePath, mocks = {}) {
+  const source = readFileSync(filePath, 'utf8');
   const { code } = transformSync(source, { loader: 'ts', format: 'cjs', target: 'node18' });
   const module = { exports: {} };
-  const localRequire = createRequire(modulePath);
+  const localRequire = createRequire(filePath);
+  const sourceRequire = (specifier) => mocks[specifier] ?? localRequire(specifier);
+  new Function('require', 'module', 'exports', code)(sourceRequire, module, module.exports);
+  return module.exports;
+}
+
+function loadAssetsModule() {
   const mocks = {
+    '../shared/gitignore': transpileModule(path.join(extensionRoot, 'src/shared/gitignore.ts')),
     '../animations/spriteAnimationSchema': { validateSpriteSheetCharacterMetadata: () => ({ ok: false }) },
     '../shared/workspaceAssets': {
       resolveDocumentRelativeWorkspaceAsset: () => null,
@@ -31,21 +38,23 @@ function loadAssetsModule() {
       workspaceFolderForDocument: (uri, folders) => folders.find((folder) => uri.path.startsWith(folder.uri.path)) ?? null,
     },
   };
-  const sourceRequire = (specifier) => mocks[specifier] ?? localRequire(specifier);
-  new Function('require', 'module', 'exports', code)(sourceRequire, module, module.exports);
-  return module.exports;
+  return transpileModule(modulePath, mocks);
 }
 
-function makeApi(filesByPattern) {
+function makeApi(filesByPattern, gitignoreText = '') {
   class RelativePattern {
     constructor(base, pattern) { this.base = base; this.pattern = pattern; }
   }
   return {
     RelativePattern,
+    Uri: { joinPath: (base, ...parts) => makeUri(path.posix.join(base.path, ...parts)) },
     workspace: {
       findFiles: async (relativePattern) => filesByPattern[relativePattern.pattern] ?? [],
       fs: {
-        readFile: async () => { throw new Error('not readable in this test'); },
+        readFile: async (uri) => {
+          if (uri.path.endsWith('/.gitignore')) return new TextEncoder().encode(gitignoreText);
+          throw new Error('not readable in this test');
+        },
         stat: async () => ({}),
       },
     },
@@ -68,4 +77,22 @@ test('discovers sprite animation templates regardless of the folder they live in
     [{ name: 'idle', uri: '/game/assets/anis/idle.spriteanim-template.json' }],
   );
   assert.equal(assets.some((asset) => asset.kind === 'spriteMetadata' || asset.kind === 'animation'), false);
+});
+
+test('hides assets under folders matched by the workspace .gitignore', async () => {
+  const { discoverBornEngineAssets } = loadAssetsModule();
+  const folder = { uri: makeUri('/game'), name: 'game', index: 0 };
+  const built = makeUri('/game/.bornengine/builds/linux/idle.spriteanim-template.json');
+  const source = makeUri('/game/assets/anis/idle.spriteanim-template.json');
+  const api = makeApi(
+    { '**/*.spriteanim-template.json': [built, source] },
+    '.bornengine/\n',
+  );
+
+  const assets = await discoverBornEngineAssets(folder, api, [folder]);
+
+  assert.deepEqual(
+    assets.filter((asset) => asset.kind === 'animationTemplate').map((asset) => asset.uri.path),
+    ['/game/assets/anis/idle.spriteanim-template.json'],
+  );
 });
