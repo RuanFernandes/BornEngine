@@ -106,7 +106,7 @@ class ArenaGame extends Game {
       positive: [{ kind: 'key', key: Key.DOWN }, { kind: 'key', key: Key.S }],
     });
 
-    const scene = new Scene(this, { name: 'arena' });
+    const scene = new Scene({ name: 'arena' });
     scene.addNode(new Hero(controls, idle));
     this.scenes.changeTo(scene);
   }
@@ -471,7 +471,7 @@ class FollowCamera extends GameObject {
 
 class Arena extends Scene {
   constructor(game: Game, controls: InputActionMap, frames: HeroFrames) {
-    super(game, { name: 'arena' });
+    super({ name: 'arena' });
 
     const floor = new GameObject({ name: 'Floor' });
     floor.addComponent(new ArenaFloor());

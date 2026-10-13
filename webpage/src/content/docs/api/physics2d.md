@@ -85,7 +85,7 @@ class Level extends Scene {
   private readonly physics: PhysicsWorld2D | null;
 
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     const world = new PhysicsWorld2D(game, {
       gravity: new Vector2D(0, 900),
       fixedTimeStep: 1 / 60,

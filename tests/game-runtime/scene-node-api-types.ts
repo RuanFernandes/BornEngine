@@ -4,7 +4,7 @@ import { GameObject, Scene, SceneNodeComponent } from '@bornengine/engine/game';
 declare const game: Game;
 declare const model: Model;
 
-const scene = new Scene(game, { name: 'type-check' });
+const scene = new Scene({ name: 'type-check' });
 const manager = game.scenes;
 const player = scene.addNode(new GameObject({ name: 'player' }));
 const node = game.sceneGraph.createNode();

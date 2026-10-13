@@ -164,7 +164,7 @@ class MapScene extends Scene {
   private focusY = 225;
 
   constructor(game: Game, floor: SpriteFrame, wall: SpriteFrame) {
-    super(game, { name: 'map' });
+    super({ name: 'map' });
 
     const data: number[] = [];
     for (let row = 0; row < ROWS; row++) {

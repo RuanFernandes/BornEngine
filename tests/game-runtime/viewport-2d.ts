@@ -104,7 +104,7 @@ const context = GameContext.create();
 if (context === null) process.exit(1);
 context.markReady();
 bindGameContext(game, context);
-const scene = new Scene(game);
+const scene = new Scene();
 scene.viewport2D = fit;
 let startedCamera: Camera2D | null = null;
 let startedViewport: Viewport2D | null = null;

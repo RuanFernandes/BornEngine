@@ -128,7 +128,7 @@ class PreviewScene extends Scene {
   private readonly playerObjects: { [sessionId: string]: GameObject } = {};
 
   constructor(game: Game, particleFrame: SpriteFrame | null) {
-    super(game, { name: 'Sandbox preview' });
+    super({ name: 'Sandbox preview' });
     this.scriptTarget = new GameObject({ name: 'Sandbox player', position: { x: 480, y: 270, z: 0 } });
     this.scriptTarget.addComponent(new PreviewCircle());
     if (particleFrame !== null) {

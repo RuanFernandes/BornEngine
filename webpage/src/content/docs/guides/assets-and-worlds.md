@@ -203,7 +203,7 @@ class Level extends Scene {
   readonly instance: WorldInstance;
 
   constructor(game: Game, worldPath: string, prefabs: PrefabLibrary) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
 
     const data = new WorldData(worldPath);
     if (!data.load() || data.document === null) throw new Error(data.error ?? 'Could not load ' + worldPath);
@@ -335,7 +335,7 @@ class Level extends Scene {
   readonly instance: WorldInstance;
 
   constructor(game: Game, worldPath: string, prefabs: PrefabLibrary) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
 
     const data = new WorldData(worldPath);
     if (!data.load() || data.document === null) throw new Error(data.error ?? 'Could not load ' + worldPath);

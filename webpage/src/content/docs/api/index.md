@@ -34,7 +34,7 @@ The class overrides two hooks. `loop(deltaTime)` runs every frame and reads `thi
 
 - **One `Game` per process.** The `Game` owns the window and every service. A second `Game` created while the first is active fails with the error `Only one BornEngine Game may be active at a time.`
 - **Resources have an owner.** You create textures, fonts, sounds, music, and models through `game.assets` or `scene.assets`, not with `new`. `game.assets` keeps them until the game shuts down. `scene.assets` releases them when the scene unloads. See [Assets](../api/assets/).
-- **Some systems take the `Game` directly.** A `Scene` is created with `new Scene(game, options)`. Context-bound systems such as `PhysicsWorld` and `ColyseusClient` also receive the `Game` in their constructors.
+- **Some systems take the `Game` directly.** A `Scene` is created with `new Scene(options)`. Context-bound systems such as `PhysicsWorld` and `ColyseusClient` also receive the `Game` in their constructors.
 - **Value types stand alone.** `Vector2D`, `Vec3`, `Matrix4`, `Quat`, and `Colors` only store numbers. They need no `Game` and have nothing to release. See [Math](../api/math/).
 - **Internal members are not public API.** Names that start with an underscore, such as `_create`, are internal and can change without notice.
 

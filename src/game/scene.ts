@@ -1,6 +1,6 @@
 import { GameObject } from './game-object';
 import { GameScene } from './game-scene';
-import type { Game } from '../core/game';
+import { getActiveGame } from '../core/context';
 import type { PhysicsWorld } from '../physics';
 import type { Camera2D } from '../core/types';
 import type { CameraRig2D } from '../camera2d/camera-rig-2d';
@@ -60,12 +60,12 @@ export class Scene extends GameScene {
   private hasEntered = false;
   private hasExited = false;
 
-  /** Creates a scene in the 'ready' state; hand it to SceneManager.changeTo() to run it. */
-  constructor(owner: Game, options: SceneOptions = {}) {
-    super(owner);
+  /** Creates a scene in the 'ready' state for the active Game; hand it to SceneManager.changeTo() to run it. */
+  constructor(options: SceneOptions = {}) {
+    super(getActiveGame());
     this.name = options.name === undefined ? '' : options.name;
-    this.assets = new SceneAssetManager(owner);
-    this.vfx = new SceneVfx(owner, this);
+    this.assets = new SceneAssetManager(getActiveGame());
+    this.vfx = new SceneVfx(getActiveGame(), this);
   }
 
   override _loadTexture(path: string): Texture | null {

@@ -37,7 +37,7 @@ class MultiplayerChatGame extends Game {
   }
 
   protected override onStart(): void {
-    this.scenes.changeTo(new Scene(this, { name: "Room Chat" }));
+    this.scenes.changeTo(new Scene({ name: "Room Chat" }));
     const network = new ColyseusClient(this, SERVER_URL);
     this.network = network;
     if (network.error !== null) {

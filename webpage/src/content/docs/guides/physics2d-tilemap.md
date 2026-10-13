@@ -54,7 +54,7 @@ class Level extends Scene {
   private readonly physics: PhysicsWorld2D;
 
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     const physics = this.own(
       new PhysicsWorld2D(game, {
         gravity: new Vector2D(0, 900),
@@ -229,7 +229,7 @@ class Level extends Scene {
   private readonly ball: PhysicsBody2D;
 
   constructor(game: Game, controls: InputActionMap, frames: LevelFrames) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
 
     const physics = this.own(new PhysicsWorld2D(game, { gravity: new Vector2D(0, GRAVITY) }));
     if (physics === null || !physics.isReady) {

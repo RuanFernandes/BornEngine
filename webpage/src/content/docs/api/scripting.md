@@ -42,7 +42,7 @@ class Square extends GameComponent {
 
 class Level extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
 
     const actor = new GameObject({ name: 'Actor', position: new Vec3(40, 200, 0) });
     actor.addComponent(new Square());

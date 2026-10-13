@@ -9,7 +9,7 @@ class PhysicsTilemapScene extends Scene {
   readonly physics: PhysicsWorld2D | null;
 
   constructor(game: Game, frame: SpriteFrame) {
-    super(game, { name: 'Physics2D and tilemap' });
+    super({ name: 'Physics2D and tilemap' });
     this.camera2D = {
       offset: new Vector2D(400, 250),
       target: new Vector2D(256, 160),

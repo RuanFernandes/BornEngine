@@ -18,7 +18,7 @@ import { Game, Scene } from '@bornengine/engine';
 
 class Level extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
   }
 }
 ```
@@ -126,7 +126,7 @@ class Orbit extends GameComponent {
 
 class Solar extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'solar' });
+    super({ name: 'solar' });
 
     const sun = new GameObject({ name: 'Sun', position: new Vec3(400, 225, 0) });
     sun.addComponent(new Marker(24));

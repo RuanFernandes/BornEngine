@@ -57,7 +57,7 @@ import { Game, Scene } from '@bornengine/engine';
 const game = new Game();
 
 class MenuScene extends Scene {
-  constructor(game: Game) { super(game, { name: 'Menu' }); }
+  constructor(game: Game) { super({ name: 'Menu' }); }
   onEnter(): void { console.log('menu entered'); }
 }
 

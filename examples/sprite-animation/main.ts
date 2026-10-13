@@ -33,7 +33,7 @@ class SpriteDemoScene extends Scene {
     templateBodyA: SpriteAnimationTemplateBoundAnimation,
     templateBodyB: SpriteAnimationTemplateBoundAnimation,
   ) {
-    super(game, { name: 'Sprite animation' });
+    super({ name: 'Sprite animation' });
     this.camera2D = {
       offset: new Vector2D(400, 225),
       target: new Vector2D(400, 225),

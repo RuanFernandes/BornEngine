@@ -64,11 +64,13 @@ class Window extends Service {
   close() { this.open = false; events.push('window.close'); this.owner._onWindowClosed?.(); }
 }
 
+let activeGame = null;
 const sandbox = {
   GameContext: Context,
   CONTEXT_ALREADY_ACTIVE_ERROR: 'active',
   bindGameContext: (game, context) => contexts.set(game, context),
   getGameContext: (game) => contexts.get(game),
+  bindActiveGame: (game) => { activeGame = game; }, getActiveGame: () => activeGame,
   Window, Renderer: Service, InputSystem: Service, AudioSystem: Service,
   SceneManager: class SceneManager extends Service { constructor() { super(); this.currentScene = null; } },
   SceneGraph: Service, TouchControls: Service, Ui, GUIManager,

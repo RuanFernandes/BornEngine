@@ -67,7 +67,7 @@ class FollowCamera extends GameObject {
 
 class Level extends Scene {
   constructor(game: Game) {
-    super(game, { name: 'level' });
+    super({ name: 'level' });
     this.viewport2D = new Viewport2D({ width: VIEW_WIDTH, height: VIEW_HEIGHT, mode: 'fit' });
 
     const player = new GameObject({ name: 'Player', position: new Vec3(200, 150, 0) });

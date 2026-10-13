@@ -1,4 +1,11 @@
-import { GameContext, CONTEXT_ALREADY_ACTIVE_ERROR, bindGameContext, getGameContext } from './context';
+import {
+  GameContext,
+  CONTEXT_ALREADY_ACTIVE_ERROR,
+  bindActiveGame,
+  bindGameContext,
+  getActiveGame,
+  getGameContext,
+} from './context';
 import { Window } from './window';
 import type { WindowOptions } from './window';
 import { Renderer } from './renderer';
@@ -156,11 +163,17 @@ export class Game {
   private completion: Promise<void> | null = null;
   private resolveCompletion: (() => void) | null = null;
 
+  /** The Game whose runtime is currently active. Throws when no Game is running. */
+  static get current(): Game {
+    return getActiveGame();
+  }
+
   /** Creates a Game and its services. If another Game is already active or an option is invalid, the Game is left failed and `error` explains why. */
   constructor(options: GameOptions = {}) {
     const runtime = GameContext.create();
     const context = runtime === null ? GameContext.createFailed(CONTEXT_ALREADY_ACTIVE_ERROR) : runtime;
     bindGameContext(this, context);
+    if (runtime !== null) bindActiveGame(this);
 
     if (options.targetFps !== undefined && !validTargetFps(options.targetFps)) {
       const configurationError = 'targetFps must be a positive finite number.';

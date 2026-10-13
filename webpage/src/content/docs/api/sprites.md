@@ -145,7 +145,7 @@ import type { SpriteFrame } from '@bornengine/engine';
 
 class HeroScene extends Scene {
   constructor(game: Game, idle: SpriteFrame) {
-    super(game, { name: 'hero' });
+    super({ name: 'hero' });
     this.camera2D = {
       offset: new Vector2D(400, 225),
       target: new Vector2D(160, 120),
