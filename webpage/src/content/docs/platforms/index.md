@@ -87,7 +87,7 @@ native_features = ["sqlite"]
 | `2.5d` | `mp3`, `models3d`, `image-extras` | glTF models and JPEG, BMP, TGA, and HDR images. |
 | `3d` | `mp3`, `jolt`, `models3d`, `image-extras` | Jolt physics. |
 
-`native_features` adds more features. Two are common: `sqlite` (the native `GameDatabase` backend) and `scripting` (the QuickJS script sandbox, which only Linux compiles among the native targets). The CLI also turns on `multiplayer` when your source imports the Colyseus client, and `dialogs` when it calls `openFileDialog` or `saveFileDialog`. Set `auto_native_features = false` under `[bornengine]` to stop that detection.
+`native_features` adds more features. The most common is `sqlite`, the native `GameDatabase` backend. The CLI also turns on `multiplayer` when your source imports the Colyseus client, and `dialogs` when it calls `openFileDialog` or `saveFileDialog`. Set `auto_native_features = false` under `[bornengine]` to stop that detection.
 
 The profile applies to Linux, Windows, macOS, Android, iOS, tvOS, visionOS, and watchOS builds started by `bornengine build`, `run`, or `dev`. It does not apply to Web, and it does not apply when you call `perry compile` yourself. A direct Perry call builds the crate with the crate's default features, which include Jolt on every native target except watchOS.
 
@@ -100,7 +100,6 @@ The TypeScript API is the same everywhere. These behaviors are not:
 - **Clipboard and file dialogs.** `game.input.setClipboardText()`, `getClipboardText()`, `openFileDialog()`, and `saveFileDialog()` work on Linux, macOS, and Windows. On every other target they do nothing and return an empty string.
 - **Physical gamepads.** Linux, macOS, Windows, iOS, tvOS, and visionOS can report a connected controller. No code in the repository reports one on Android, watchOS, or Web, so `game.input.isGamepadAvailable()` stays `false` there.
 - **Debug UI.** The Dear ImGui inspector exists only in Linux, macOS, and Windows builds that enable the `debug-ui` feature.
-- **Scripting.** The QuickJS script sandbox is compiled on Linux and Web. Elsewhere `game.scripting.isSupported` is `false`.
 - **3D physics.** Jolt is built when the platform crate has the `jolt` feature, which the `3d` profile enables. Web loads JoltPhysics.js instead. watchOS has no 3D physics.
 - **MP3.** Web cannot decode MP3 files. Use WAV or OGG for sounds that must play in a browser.
 - **Embedded host surface.** `game.window.attachNativeSurface()` is implemented on Windows, macOS, iOS, tvOS, visionOS, and Android. It does not attach on Linux, Web, or watchOS.

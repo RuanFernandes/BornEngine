@@ -151,7 +151,6 @@ Note that retained `game.gui` controls do not work on watchOS in the current rel
 - The simulator is arm64 and cannot run an `arm64_32` build. That build runs only on a real watch.
 - Complications, widgets, and background refresh are out of scope.
 - Clipboard, file dialogs, physical gamepads, and the window controls do nothing.
-- Scripting is not available. Check `game.scripting.isSupported` first.
 - `GameDatabase` works only when you enable the `sqlite` feature.
 
 ## GameDatabase files

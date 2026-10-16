@@ -1,9 +1,9 @@
 {
   "name": "@bornengine/engine",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "BornEngine: native TypeScript game engine compiled by Perry",
   "scripts": {
-    "test": "npm run typecheck && npm run lint && npm run check:side-effects && npm run check:jsdoc && npm run test:unit && npm run test:harnesses && npm run test:tools && npm run test:runtime && npm run test:scripting && npm run examples:check:static",
+    "test": "npm run typecheck && npm run lint && npm run check:side-effects && npm run check:jsdoc && npm run test:unit && npm run test:harnesses && npm run test:tools && npm run test:runtime && npm run examples:check:static",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
     "lint": "biome lint src types",
@@ -13,8 +13,7 @@
     "native:build": "cargo build --release --manifest-path native/linux/Cargo.toml",
     "format:check": "biome format src types",
     "test:unit": "node --import ./tests/world2d/register-ts-resolution.mjs --test \"tests/*.test.mjs\"",
-    "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
-    "test:scripting": "node --disable-warning=ExperimentalWarning tests/game-runtime/script-component-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/game-inspector-scripts-harness.cjs && node --experimental-vm-modules --disable-warning=ExperimentalWarning tests/game-runtime/scripted-actor-package-harness.cjs",
+    "test:runtime": "node --disable-warning=ExperimentalWarning tests/game-runtime/game-lifecycle-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/gui-frame-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/asset-manager-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/audio-system-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/colyseus-timeout-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/pathfinding2d-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/procedural-generation-harness.cjs && node --disable-warning=ExperimentalWarning tests/game-runtime/sprite-animation-template-fixture-harness.cjs && perry run --local tests/game-runtime/sprite-animation-template.ts",
     "test:harnesses": "node tools/run-ts-harnesses.mjs",
     "test:tools": "node --test tools/run-ts-harnesses.test.mjs tools/perry.test.mjs tools/check-side-effects.test.mjs",
     "examples:check": "node --test tools/validate-examples.test.mjs && node tools/validate-examples.mjs",
@@ -50,7 +49,6 @@
     "./vfx": "./src/vfx/index.ts",
     "./game": "./src/game/index.ts",
     "./annotations": "./src/game/annotations.ts",
-    "./scripting": "./src/scripting/index.ts",
     "./input": "./src/input/index.ts",
     "./storage": "./src/storage/index.ts",
     "./ui": "./src/ui/index.ts",
@@ -4719,130 +4717,6 @@
             "f64"
           ],
           "returns": "string"
-        },
-        {
-          "name": "bloom_script_supported",
-          "params": [],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_create",
-          "params": [
-            "f64",
-            "f64",
-            "f64",
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_load",
-          "params": [
-            "f64",
-            "string"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_start",
-          "params": [
-            "f64",
-            "string",
-            "f64",
-            "f64",
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_update",
-          "params": [
-            "f64",
-            "string",
-            "f64",
-            "f64",
-            "f64",
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_dispose",
-          "params": [
-            "f64",
-            "string",
-            "f64",
-            "f64",
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_command_count",
-          "params": [
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_command_kind",
-          "params": [
-            "f64",
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_command_number",
-          "params": [
-            "f64",
-            "f64",
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_command_text",
-          "params": [
-            "f64",
-            "f64"
-          ],
-          "returns": "string"
-        },
-        {
-          "name": "bloom_script_clear_commands",
-          "params": [
-            "f64"
-          ],
-          "returns": "void"
-        },
-        {
-          "name": "bloom_script_status",
-          "params": [
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_error",
-          "params": [
-            "f64"
-          ],
-          "returns": "string"
-        },
-        {
-          "name": "bloom_script_memory_used",
-          "params": [
-            "f64"
-          ],
-          "returns": "f64"
-        },
-        {
-          "name": "bloom_script_destroy",
-          "params": [
-            "f64"
-          ],
-          "returns": "void"
         }
       ],
       "targets": {

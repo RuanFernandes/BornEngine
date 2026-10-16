@@ -62,7 +62,6 @@ export const navigation: NavigationGroup[] = [
       { title: 'Physics 2D', href: '/docs/api/physics2d/' },
       { title: 'Tilemaps', href: '/docs/api/tilemap/' },
       { title: 'Debug tools', href: '/docs/api/debug-ui/' },
-      { title: 'Embedded scripting', href: '/docs/api/scripting/' },
       { title: 'Text', href: '/docs/api/text/' },
       { title: 'Audio', href: '/docs/api/audio/' },
       { title: 'Colyseus', href: '/docs/api/colyseus/' },

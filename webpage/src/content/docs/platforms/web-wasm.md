@@ -122,7 +122,7 @@ The engine's Web crate also lists a WebGL fallback, but the bootstrap fails befo
 
 The repository's check that every platform matches the native function list (`tools/validate-ffi.js`) records path tracing, the post-processing controls, and the scene node calls as known Web gaps. Perry's web runtime source replaces a missing native function with one that does nothing; this was read in the source, not run in a browser.
 
-Scripting works on Web: the QuickJS script sandbox is compiled into the Web engine module. Multiplayer works through the official Colyseus JavaScript SDK, which the build script bundles as `colyseus_bridge.bundle.js`.
+Multiplayer works through the official Colyseus JavaScript SDK, which the build script bundles as `colyseus_bridge.bundle.js`.
 
 ## SQLite persistence
 

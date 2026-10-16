@@ -49,17 +49,6 @@ pub mod ui;
 pub mod gui;
 pub mod colyseus;
 pub mod colyseus_targets;
-#[cfg(all(
-    feature = "scripting",
-    any(target_os = "linux", target_arch = "wasm32")
-))]
-pub mod scripting;
-#[cfg(not(all(
-    feature = "scripting",
-    any(target_os = "linux", target_arch = "wasm32")
-)))]
-#[path = "scripting_stub.rs"]
-pub mod scripting;
 // Host-surface attach path (PerryTS/perry#5519). Pulls in wgpu's
 // raw-surface API; web builds its surface from a canvas id instead, so
 // this is native-only.

@@ -5,7 +5,6 @@ use wasm_bindgen::prelude::*;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-mod scripting_ffi;
 
 static mut ENGINE: OnceLock<EngineState> = OnceLock::new();
 static mut LAST_PROJECT: (f64, f64) = (0.0, 0.0);

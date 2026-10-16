@@ -62,7 +62,6 @@ What to know about the Linux backend:
 - **Graphics.** wgpu chooses Vulkan or OpenGL, so you need a working driver for one of them. If it finds none, the game stops with `No adapter found`.
 - **No display.** A game started without a display, for example over SSH, stops with `Failed to open X11 display`. To run a game on a machine without a screen, start it under a virtual X server such as Xvfb with a software Vulkan driver such as Mesa's lavapipe. The repository's CI does this and sets `BLOOM_HEADLESS=1`, which creates the window but never shows it.
 - **Gamepads.** The engine reads the first joystick device, `/dev/input/js0`. It tries to open the device on every frame until it succeeds, so a controller plugged in later is picked up.
-- **Scripting.** Linux is the only native target that compiles the QuickJS script sandbox. Add `native_features = ["scripting"]` under `[bornengine]` in `perry.toml` to enable it.
 - **ARM64 hosts.** `bornengine perry install` has no Perry archive for `linux-aarch64` and stops with `no Perry archive is published for linux-aarch64`. Build Perry yourself and point the CLI at it with the `BORNENGINE_PERRY` environment variable.
 
 ## macOS and Windows

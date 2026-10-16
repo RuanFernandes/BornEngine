@@ -36,7 +36,7 @@ bornengine new MyGame --game-type 2d --package-manager npm --engine-version 0.18
 - `--game-type` is `2d` (the default), `2.5d`, or `3d`. `--kind` is an alias.
 - `--package-manager` is `pnpm`, `npm`, or `yarn`. `--pm` is an alias. Without it, the CLI uses the manager from your configuration. The manager must be on your `PATH`, or the command stops before it writes anything.
 - `--engine-version`, or `-e`, is an exact stable version such as `0.18.2`, or `latest`. Version ranges and prereleases are rejected. Without it, the CLI uses the version from your configuration, which is `latest` unless you changed it.
-- `--native-features` takes `sqlite`, `scripting`, or both, separated by a comma.
+- `--native-features` takes `sqlite`.
 - `--engine-path`, or `--engine`, points at a local engine checkout instead of a published version. See [Use a local engine checkout](#use-a-local-engine-checkout).
 
 ## Initialize the current folder
@@ -124,17 +124,16 @@ How the CLI applies the profile:
 ```toml
 [bornengine]
 native_profile = "2.5d"
-native_features = ["sqlite", "scripting"]
+native_features = ["sqlite"]
 ```
 
 Feature names may contain letters, digits, `-`, and `_`. Cargo reports an error for a name that the engine's native library does not define. Common choices:
 
 - `sqlite` compiles the native SQLite backend that `GameDatabase` uses. Without it, native database operations return `unsupported`. See [Database and migrations](../../api/storage/).
-- `scripting` compiles the QuickJS runtime for sandboxed scripts. Check `game.scripting.isSupported` before you rely on it, because not every target has a runtime. See [Embedded scripting](../../api/scripting/).
 - `image-extras` adds JPEG, BMP, TGA, HDR, and DDS image loading to a 2D project. The `2d` profile decodes PNG only.
 - `debug-ui` adds the optional debug inspector. It exists only in the Linux, macOS, and Windows native builds. See [Runtime debugging](../../guides/debugging/).
 
-The `--native-features` option of `new` and `init` accepts only `sqlite` and `scripting`. It writes them to `native_features` for you.
+The `--native-features` option of `new` and `init` accepts only `sqlite`. It writes them to `native_features` for you.
 
 The CLI also turns on two features by itself, so code you do not use is not linked:
 

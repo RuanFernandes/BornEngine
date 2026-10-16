@@ -52,7 +52,6 @@ Keep Perry's native argument-count limits in mind. Use the bounded scratch-buffe
 
 - A game's `renderMode` selects the runtime rendering path. The native Cargo profile is chosen separately through `[bornengine].native_profile` in a game project's `perry.toml`.
 - The BornEngine CLI forwards the selected `2d`, `2.5d`, or `3d` feature profile during `build`, `run`, and `dev`. Direct Perry or Cargo invocations need explicit feature selection.
-- QuickJS scripting is available on Linux and Web; other native targets currently expose the scripting FFI through stubs.
 - The optional Dear ImGui inspector requires the `debug-ui` feature on supported desktop targets.
 - The retained GUI currently has no watchOS rendering, input, or event support. This is temporary; future work is planned for that platform.
 - Web output consists of a Perry game module and a Rust engine module joined by the browser host glue. Use `native/web/build.sh` to assemble a runnable web output.
@@ -85,13 +84,12 @@ npm test
 - `test:harnesses` runs the TypeScript harnesses listed in `tests/game-runtime/harnesses.json` through `tools/run-ts-harnesses.mjs`, each with the `node` or `perry` runner named in its entry. Entries with `"ci": true` are skipped locally and run in CI with `--include-ci`. Entries with a `"disabled"` reason are reported as `SKIP` and counted as disabled. `world2d-format.ts` is disabled under Perry 0.5.1520 (runtime SIGSEGV); remove its marker when the Perry pin moves to a fixed version.
 - `test:tools` tests the harness runner itself.
 
-`npm test` is the aggregate: `typecheck`, `lint`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, `test:scripting`, then `examples:check:static`. `format:check` is not part of `npm test`; CI runs it separately.
+`npm test` is the aggregate: `typecheck`, `lint`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, then `examples:check:static`. `format:check` is not part of `npm test`; CI runs it separately.
 
 ### TypeScript runtime and examples
 
 ```sh
 npm run test:runtime
-npm run test:scripting
 npm run examples:check:static
 npm run examples:check
 ```
