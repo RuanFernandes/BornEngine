@@ -4,9 +4,9 @@ import test from 'node:test';
 import { apiCoverage, recipeCoverage } from '../src/data/docs-coverage.mjs';
 
 test('declares every public module and recipe route', () => {
-  assert.equal(apiCoverage.length, 25);
+  assert.equal(apiCoverage.length, 24);
   assert.deepEqual(apiCoverage.map((item) => item.slug), [
-    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'storage', 'sprites', 'scripting', 'text', 'audio', 'colyseus', 'models', 'math', 'pathfinding2d', 'procedural',
+    'game', 'core', 'camera2d', 'input', 'shapes', 'textures', 'assets', 'storage', 'sprites', 'text', 'audio', 'colyseus', 'models', 'math', 'pathfinding2d', 'procedural',
     'scene', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui',
   ]);
   assert.deepEqual(recipeCoverage.map((item) => item.slug), [
@@ -59,7 +59,7 @@ test('asset and scene API pages contain their required sections and examples', a
 });
 
 test('gameplay systems API pages contain their required sections and examples', async () => {
-  const coverage = new Set(['game', 'input', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui', 'sprites', 'scripting']);
+  const coverage = new Set(['game', 'input', 'physics', 'physics2d', 'tilemap', 'vfx', 'world', 'mobile', 'ui', 'sprites']);
   for (const item of apiCoverage.filter((entry) => coverage.has(entry.slug))) {
     const source = await readFile(new URL(`../src/content/docs/${item.file}`, import.meta.url), 'utf8');
     const fences = source.match(/^```(?:ts|typescript)(?:\s|$)/gm) ?? [];

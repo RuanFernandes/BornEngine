@@ -32,7 +32,7 @@ Two targets bend this picture:
 
 ## The TypeScript API
 
-The public API lives in `src/` and is exported from `@bornengine/engine` and from the subpaths listed in `package.json` under `exports`, such as `@bornengine/engine/storage`. It is built from classes. A `Game` owns the window, renderer, input, audio, scenes, assets, and scripting runtime for one run, and it frees them when the run ends. Scenes own their objects and scene-local assets. The [API shape](../../concepts/api-shape/) page explains the design from the game author's side.
+The public API lives in `src/` and is exported from `@bornengine/engine` and from the subpaths listed in `package.json` under `exports`, such as `@bornengine/engine/storage`. It is built from classes. A `Game` owns the window, renderer, input, audio, scenes, and assets for one run, and it frees them when the run ends. Scenes own their objects and scene-local assets. The [API shape](../../concepts/api-shape/) page explains the design from the game author's side.
 
 Each TypeScript module that needs the native side declares the functions it calls, one `declare function bloom_*` per function. Game code does not call those functions, and native handles, the numbers that identify a texture or a sound inside Rust, stay private inside the classes. That is why your game code never sees an identifier such as `bloom_draw_rect`.
 
@@ -79,7 +79,7 @@ Perry is the compiler that turns TypeScript into a native program or a WebAssemb
 
 All native code lives under `native/`.
 
-`native/shared` is the `bloom-shared` crate. It holds the code that does not depend on the target: the wgpu renderer, text rendering with `fontdue`, the audio mixer and decoders, textures, glTF model loading, the scene graph, particles, the Jolt-based 3D physics bindings, the egui-based GUI and the Dear ImGui inspector, the Colyseus client bridge, and the optional SQLite and QuickJS support. It also defines the macro `define_core_ffi!`, which writes the exported `bloom_*` functions once, so every platform crate gets the same ones.
+`native/shared` is the `bloom-shared` crate. It holds the code that does not depend on the target: the wgpu renderer, text rendering with `fontdue`, the audio mixer and decoders, textures, glTF model loading, the scene graph, particles, the Jolt-based 3D physics bindings, the egui-based GUI and the Dear ImGui inspector, the Colyseus client bridge, and the optional SQLite support. It also defines the macro `define_core_ffi!`, which writes the exported `bloom_*` functions once, so every platform crate gets the same ones.
 
 Each platform crate adds what only that target can do:
 
@@ -95,7 +95,7 @@ Each platform crate adds what only that target can do:
 | `native/watchos` | A SwiftUI app (Swift files in the crate) | Draw list replayed by SwiftUI and SceneKit | `AVAudioPlayer` through Swift |
 | `native/web` | A canvas element, through `bloom_glue.js` | wgpu with WebGPU | Web Audio through `bloom_glue.js` |
 
-The desktop and mobile crates build as static libraries; the Android crate also builds as a dynamic library, and the Web crate builds as a WebAssembly module. Optional features, such as `jolt` (3D physics), `models3d` (glTF models), `sqlite`, `scripting`, and `debug-ui`, are Cargo features of these crates.
+The desktop and mobile crates build as static libraries; the Android crate also builds as a dynamic library, and the Web crate builds as a WebAssembly module. Optional features, such as `jolt` (3D physics), `models3d` (glTF models), `sqlite`, and `debug-ui`, are Cargo features of these crates.
 
 ## One call, end to end
 

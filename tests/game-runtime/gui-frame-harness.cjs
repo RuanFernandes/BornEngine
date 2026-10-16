@@ -76,7 +76,7 @@ const sandbox = {
   SceneGraph: Service, TouchControls: Service, Ui, GUIManager,
   DebugUi: Service,
   GameInspector: class GameInspector extends Service { render() { events.push('inspector.render'); } },
-  AssetManager: Service, ScriptRuntime: Service,
+  AssetManager: Service,
   beginDrawing: () => events.push('begin'), endDrawing: () => events.push('end'),
   getPlatform: () => 1, Platform: { WEB: 7 }, setTargetFPS: () => {}, setDirect2DMode: () => {},
   getTime: () => 0, runGame: (frame, shouldContinue) => { if (shouldContinue()) frame(1 / 60); },

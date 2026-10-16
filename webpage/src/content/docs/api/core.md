@@ -17,7 +17,7 @@ Import these from `@bornengine/engine`, or from `@bornengine/engine/core`. A `Ga
 | `game.audio` | Sounds and music. | [Audio](../audio/) |
 | `game.scenes` | The scene manager. | [Game objects](../game/) |
 | `game.assets` | The shared asset cache. | [Assets](../assets/) |
-| `game.mobile`, `game.ui`, `game.gui`, `game.debugUi`, `game.scripting`, `game.sceneGraph` | Optional systems. | [Mobile](../mobile/), [UI](../ui/), [GUI controls](../gui/), [Debug UI](../debug-ui/), [Embedded scripting](../scripting/), [Scene](../scene/) |
+| `game.mobile`, `game.ui`, `game.gui`, `game.debugUi`, `game.sceneGraph` | Optional systems. | [Mobile](../mobile/), [UI](../ui/), [GUI controls](../gui/), [Debug UI](../debug-ui/), [Scene](../scene/) |
 
 Only one `Game` can be active in a process. Creating a second one gives you a game whose `error` is `Only one BornEngine Game may be active at a time.`
 

@@ -21,7 +21,7 @@ class DebugDemo extends Game {
     super({
       window: { title: 'Debug demo', width: 800, height: 450 },
       targetFps: 60,
-      debug: { enabled: true, assets: false, scripts: false },
+      debug: { enabled: true, assets: false },
     });
   }
 
@@ -42,14 +42,12 @@ With an options object, `enabled` must be exactly `true`. An object without it l
 | `metrics` | `true` | Performance |
 | `sceneHierarchy` | `true` | Scene |
 | `assets` | `true` | Assets |
-| `scripts` | `true` | Scripts |
 
 What each panel shows:
 
 - **Performance** (`BornEngine | Performance`): frames per second, the frame interval in milliseconds, 2D draw submissions, sprites drawn and culled, the time spent in the update and render steps, and active and total counts of objects and components.
 - **Scene** (`BornEngine | Scene`): the active scene's name and state, its object count, and a tree of game objects. Expand an object to see whether it is active, how many components it has, and its world position and scale. The tree lists the first 256 objects and stops at a depth of 64.
 - **Assets** (`BornEngine | Assets`): the number of textures cached by `game.assets`. Textures owned by a scene's `scene.assets` are not counted.
-- **Scripts** (`BornEngine | Scripts`): for each embedded script component, the owner's name and id, the script status, memory use, the cost of the last callback, and the last error. It lists the first 64 scripts. On targets without embedded JavaScript it shows `Embedded JavaScript is unavailable on this target`.
 
 The inspector draws last in each frame: after your `render()` and after the retained GUI. It draws nothing until the game is ready and the debug backend is available.
 

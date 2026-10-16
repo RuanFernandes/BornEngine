@@ -18,6 +18,7 @@ This page maps the old calls to the current ones. If you are coming from 0.5, re
 | 0.10.0 | `Vector2D` replaces `Vec2`. `GameStorage` is added. |
 | 0.11.0 | `Game.run(callbacks)` and `GameStorage` are removed. `Game.run()` returns a `Promise`. `GameDatabase` is added. |
 | 0.22.0 | `new Scene()` takes only its options. The scene binds to the active `Game` (`Game.current`). Replace `new Scene(game, options)` with `new Scene(options)` and `super(game, { name })` with `super({ name })`. `Game.current` returns the active Game. |
+| 0.23.0 | Embedded scripting is removed: `ScriptComponent`, `ScriptRuntime`, `game.scripting`, the `@bornengine/engine/scripting` subpath, the `scripting` native feature, and the inspector's `scripts` panel option. Remove `"scripting"` from `native_features` in `perry.toml` and `scripts` from `debug` options. |
 
 ## Application lifecycle
 

@@ -18,7 +18,6 @@ image-extras = ["bloom-shared/image-extras", "image/hdr", "image/jpeg", "image/b
 sqlite = ["bloom-shared/sqlite"]
 multiplayer = ["bloom-shared/multiplayer"]
 dialogs = ["dep:rfd"]
-scripting = ["bloom-shared/scripting"]
 hot-reload = ["bloom-shared/hot-reload"]
 dev = ["hot-reload"]
 debug-ui = ["bloom-shared/debug-ui"]

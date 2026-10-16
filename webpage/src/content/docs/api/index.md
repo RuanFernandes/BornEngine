@@ -89,7 +89,6 @@ The root package re-exports the classes you use most from the modules below, so 
 | [Procedural generation](../api/procedural/) | `@bornengine/engine/procedural` | `SeededRandom` and `Noise2D`. |
 | [Audio](../api/audio/) | `@bornengine/engine/audio` | `AudioSystem`, `Sound`, `Music`, `SoundManager`, `AudioListener2D`, and `AudioEmitter2D`. |
 | [Database and migrations](../api/storage/) | `@bornengine/engine/storage` | `GameDatabase`, typed SQLite schemas, queries, transactions, and migrations. |
-| [Embedded scripting](../api/scripting/) | `@bornengine/engine/scripting` | `ScriptRuntime` and `ScriptComponent`, with permissions and execution limits. |
 | [Mobile](../api/mobile/) | `@bornengine/engine/mobile` | `TouchControls`, `VirtualJoystick`, and `VirtualButton`. |
 
 ### User interface and debugging

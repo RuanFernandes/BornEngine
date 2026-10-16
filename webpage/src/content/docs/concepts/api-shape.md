@@ -42,7 +42,7 @@ Two names appear in more than one place, so check the import when you add a line
 
 ## Ownership
 
-- **Game.** One `Game` owns the window, renderer, input, audio, scene manager, assets, and scripting runtime. Only one `Game` can be active in a process. Services and resources created for another game are rejected.
+- **Game.** One `Game` owns the window, renderer, input, audio, scene manager, and assets. Only one `Game` can be active in a process. Services and resources created for another game are rejected.
 - **Scene.** A scene owns its objects, its components, and its scene assets. Unloading the scene releases them.
 - **Game object.** An object belongs to one scene, or to no scene before it is added. An object belongs to one parent, or to the scene directly.
 - **Component.** A component belongs to exactly one game object.

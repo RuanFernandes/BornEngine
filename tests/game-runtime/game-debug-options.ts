@@ -7,7 +7,6 @@ const inspectorOptions: GameDebugOptions = {
   metrics: true,
   sceneHierarchy: true,
   assets: false,
-  scripts: true,
 };
 
 /** Compile fixture for the public Game-level inspector options. */

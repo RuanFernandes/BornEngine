@@ -38,7 +38,6 @@ class InspectedGame extends Game {
         metrics: true,
         sceneHierarchy: true,
         assets: true,
-        scripts: false,
       },
     });
   }
@@ -59,7 +58,6 @@ new InspectedGame().run();
 | `metrics` | Performance | Frames per second, frame time, 2D draw submissions, sprites drawn and culled, update and render time, and active and total object and component counts. |
 | `sceneHierarchy` | Scene | The active scene's name and state, then its objects as a tree with each object's active state, component count, world position, and scale. It lists the first 256 objects and goes 64 levels deep. |
 | `assets` | Assets | The number of loaded textures. |
-| `scripts` | Scripts | For each script component, its owner, status, guest memory, last callback time, and error. It lists the first 64 components. See [Embedded JavaScript](../scripting/). |
 
 The inspector draws after your `render()` method and after the retained controls of the [GUI API](../gui/), so its panels stay on top.
 
