@@ -11,15 +11,12 @@ sqlite = ["dep:rusqlite"]
 # Links the bundled Colyseus native SDK (see build.rs). Without it the FFI
 # surface stays and reports that multiplayer is not compiled in.
 multiplayer = []
-scripting = ["dep:rquickjs"]
 # EN-008 — gate the `notify` filesystem watcher behind a compile-time
 # feature. Default-on for the dev workflow; ship game binaries with
 # --no-default-features (or --features mp3,jolt) to drop notify from
 # the dep tree entirely.
 hot-reload = ["dep:notify"]
-# Web retains its existing embedded scripting behavior; native projects opt
-# into QuickJS separately through the `scripting` feature.
-web = ["dep:web-time", "scripting"]
+web = ["dep:web-time"]
 # EN-014 — 3D model loading (glTF + DDS) and the ModelManager. BornEngine
 # CLI native profiles disable this for 2D games, dropping gltf/gltf_json and
 # image_dds from the native dependency graph. Default-on for direct Cargo builds.
@@ -70,11 +67,6 @@ rusqlite = { version = "=0.40.2", features = ["bundled", "backup", "serialize"],
 # attach a debugger. Route them to console.error instead.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
-
-# QuickJS is only shipped on Linux and Web. Other native targets retain the
-# scripting FFI surface through scripting_stub.rs without compiling rquickjs-sys.
-[target.'cfg(any(target_os = "linux", target_arch = "wasm32"))'.dependencies]
-rquickjs = { version = "0.14.0", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
 pollster = "0.4"

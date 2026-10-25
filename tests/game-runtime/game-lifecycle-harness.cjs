@@ -88,7 +88,6 @@ const sandbox = {
   SceneManager: class SceneManager extends Service { constructor(...args) { super(...args); this.currentScene = null; } },
   SceneGraph, TouchControls: Service,
   Ui: Service, GUIManager, DebugUi: Service, GameInspector: Service, AssetManager: Service,
-  ScriptRuntime: Service,
   beginDrawing: () => events.push('begin'), endDrawing: () => events.push('end'),
   getPlatform: () => platform, Platform: {WEB:7}, setTargetFPS: () => {},
   getTime: () => { clockSeconds += 0.005; return clockSeconds; },

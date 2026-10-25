@@ -5,7 +5,7 @@ BornEngine is a class-first TypeScript game engine compiled by Perry. The public
 ## Runtime and ownership
 
 - Subclass `Game` (`src/core/game.ts`) and implement `onStart`, `loop(deltaTime)`, `render`, and `onStop` as needed. `Game.run()` drives these hooks. `deltaTime` is in seconds. A standalone run disposes its resources after shutdown.
-- `Game` owns the window, renderer, input, audio, scene manager, shared assets, scripting runtime, and optional debug inspector. Check `game.isReady` and `game.error` after construction.
+- `Game` owns the window, renderer, input, audio, scene manager, shared assets, and optional debug inspector. Check `game.isReady` and `game.error` after construction.
 - Call `this.scenes.update(deltaTime)` explicitly from `loop` when using scenes. The base `Game.render()` draws the current scene; an overriding `render()` calls `super.render()` where scene drawing should occur.
 - `Scene` (`src/game/scene.ts`) owns its objects and components. `SceneManager.changeTo()` unloads the previous scene. `GameComponent.render(renderer)` is called automatically for active, enabled components in ascending `renderOrder`, with insertion order preserved on ties. `scene.camera2D` and `scene.viewport2D` configure the scene's 2D pass.
 - Field annotations (`src/game/annotations.ts`) bind in `GameScene.add` before `onAwake`, through the scene hooks `_loadTexture` and `_reloadTexture`. An async `errCallback` defers attachment until its promise resolves; on native Linux the continuation does not run during `Game.run()` yet.
@@ -19,7 +19,7 @@ BornEngine is a class-first TypeScript game engine compiled by Perry. The public
 | `src/core/`, `src/game/`, `src/assets/` | Game lifecycle, renderer, scene and component ownership, assets |
 | `src/sprites/`, `src/physics2d/`, `src/tilemap/`, `src/camera2d/`, `src/world2d/` | 2D gameplay, animation, particles, maps, and cameras |
 | `src/models/`, `src/physics/`, `src/scene/` | 3D resources, physics, and scene graph |
-| `src/colyseus/`, `src/scripting/`, `src/storage/` | Networking, sandbox scripts, and persistence |
+| `src/colyseus/`, `src/storage/` | Networking and persistence |
 | `native/shared/` | Rust engine implementation and shared FFI |
 | `native/{linux,windows,macos,ios,tvos,visionos,android,watchos,web}/` | Platform crates and adapters |
 | `native/web/bloom_glue.js`, `native/web/splice_game.py` | Bridge the Perry game WASM module to the engine WASM module and browser APIs |
@@ -35,7 +35,7 @@ In a CLI game project, choose `native_profile = "2d"`, `"2.5d"`, or `"3d"` under
 
 Web builds use two WASM modules: Perry game code and the Rust web engine, joined by `native/web/bloom_glue.js`. The browser supplies frame scheduling, input, asset fetching, and audio. `native/web/build.sh` assembles the site; `--dev` skips optimization and `--release` is the optimized default. Serve the result over HTTP. See `docs/web-target.md` for build and browser details.
 
-Platform support varies by subsystem. QuickJS scripting is compiled on Linux and Web; other native targets expose the scripting FFI through stubs (`native/shared/Cargo.toml`). The optional Dear ImGui inspector requires the `debug-ui` feature on supported desktop targets. watchOS uses its own rendering adapters rather than the shared wgpu renderer. Check the relevant platform and API guides before describing a capability as universally available.
+Platform support varies by subsystem. The optional Dear ImGui inspector requires the `debug-ui` feature on supported desktop targets. watchOS uses its own rendering adapters rather than the shared wgpu renderer. Check the relevant platform and API guides before describing a capability as universally available.
 
 ## Perry and FFI rules
 
@@ -60,7 +60,6 @@ npm run test:unit
 npm run test:harnesses
 npm run test:tools
 npm run test:runtime
-npm run test:scripting
 npm run examples:check:static
 npm test
 npm run examples:check
@@ -74,7 +73,7 @@ npm run build --prefix webpage
 npm run validate:dist --prefix webpage
 ```
 
-Node `>=22.18` is required (`engines` in `package.json`). Perry is built from the commit pinned in `perry.source.json` (not npm): run `npm run perry:setup` after `npm install`. It needs LLVM 22 with `LLVM_SYS_221_PREFIX` set (steps in `.github/actions/setup-llvm22/action.yml`). `PERRY_BIN` overrides the binary. `npm test` is the aggregate: `typecheck`, `lint`, `check:side-effects`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, `test:scripting`, then `examples:check:static`. `format:check` (Biome, configured in `biome.jsonc`) is not part of `npm test`; CI runs it separately. `typecheck` covers `src/` and `types/` only.
+Node `>=22.18` is required (`engines` in `package.json`). Perry is built from the commit pinned in `perry.source.json` (not npm): run `npm run perry:setup` after `npm install`. It needs LLVM 22 with `LLVM_SYS_221_PREFIX` set (steps in `.github/actions/setup-llvm22/action.yml`). `PERRY_BIN` overrides the binary. `npm test` is the aggregate: `typecheck`, `lint`, `check:side-effects`, `test:unit`, `test:harnesses`, `test:tools`, `test:runtime`, then `examples:check:static`. `format:check` (Biome, configured in `biome.jsonc`) is not part of `npm test`; CI runs it separately. `typecheck` covers `src/` and `types/` only.
 
 `test:harnesses` runs `tests/game-runtime/harnesses.json` through `tools/run-ts-harnesses.mjs`. Entries marked `"ci": true` are skipped locally and run in CI with `--include-ci`. Entries with a `"disabled"` reason are reported as `SKIP` and counted as disabled. Perry releases before the commit that fixed #10479 (4a8aeb30e) segfault when `instanceof` receives an inline short string (1-5 characters), so test `null`/`typeof` primitives before any `instanceof` check on `any`/`unknown` values.
 

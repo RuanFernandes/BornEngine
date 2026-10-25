@@ -26,7 +26,6 @@ const EXTENSIONS = new Set(['.rs', '.ts', '.js', '.swift', '.wgsl']);
 const EXCLUDE = [
   /node_modules\//,
   /\/target\//,
-  /examples\/scripting-sandbox\/workbench\/public\/preview\/native\//, // generated browser preview bundles
   /native\/third_party\//,        // vendored (JoltPhysics, shims)
   /native\/web\/pkg\//,           // wasm-pack output, generated
   /native\/tvos\/metal-patched\//,// vendored patched fork of metal-rs

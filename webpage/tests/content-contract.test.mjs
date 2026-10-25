@@ -56,15 +56,3 @@ test('navigation entries use documentation routes or approved HTTPS links', asyn
   assert.ok(hrefs.every((href) => href.startsWith('/docs/') || href.startsWith('https://')));
 });
 
-test('scripting docs do not advertise CLI commands that are not shipped', async () => {
-  const [apiDocs, cliDocs, commandSource] = await Promise.all([
-    readFile(new URL('../src/content/docs/api/scripting.md', import.meta.url), 'utf8'),
-    readFile(new URL('../src/content/docs/cli/index.md', import.meta.url), 'utf8'),
-    readFile(new URL('../src/data/cli-commands.json', import.meta.url), 'utf8'),
-  ]);
-  const commands = JSON.parse(commandSource);
-  assert.match(apiDocs, /The BornEngine CLI currently has no `script check` or `script pack` commands/);
-  assert.doesNotMatch(cliDocs, /Script packages/);
-  assert.ok(commands.every(({ id }) => !id.startsWith('script/')));
-  assert.ok(commands.some(({ id }) => id === 'import/tiled'));
-});

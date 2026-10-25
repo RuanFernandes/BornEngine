@@ -267,11 +267,6 @@ export class ParticleEmitter2D extends GameComponent {
     return true;
   }
 
-  /** @internal Receives the restricted particle command from ScriptComponent. */
-  _receiveScriptParticleBurst(count: number, directionX: number, directionY: number): void {
-    this.emitBurst(count, { direction: { x: directionX, y: directionY } });
-  }
-
   /** Removes all live particles. */
   clear(): boolean {
     if (!this.isLoaded) return false;

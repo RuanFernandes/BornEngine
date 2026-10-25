@@ -171,7 +171,6 @@ When a texture, sound, or model does not load, the load call returns `null` or a
 - `GameDatabase` calls return `unsupported` on a native target. Add `"sqlite"` to `native_features` and rebuild. On Web the database needs no build option. See [Database and migrations](../api/storage/).
 - `GameDatabase` returns `busy` on Web. Another tab has the same database open. Close it there first.
 - `GameDatabase` returns `quota_exceeded` or `storage_error` on Web. The browser refused the write. Offer players `export()` for a backup, and do not rely on browser storage alone.
-- `game.scripting.isSupported` is `false`. The script sandbox is compiled only on Linux and Web, and on Linux only when `"scripting"` is in `native_features`. See [Scripting](../api/scripting/).
 
 ## Next steps
 

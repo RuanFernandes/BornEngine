@@ -20,7 +20,6 @@ If you are new to BornEngine, build the player in [Your first player](../getting
 - [Runtime debugging](debugging/) turns on the inspector and adds your own developer windows.
 - [Build a retained GUI](gui-controls/) organizes reusable controls, handles events, and styles them with profiles.
 - [Build a multiplayer game with Colyseus](multiplayer/) connects a client to an authoritative server.
-- [Embedded JavaScript](../api/scripting/) attaches capability-limited scripts to game objects.
 
 ## 2D guides
 

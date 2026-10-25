@@ -19,7 +19,6 @@ image-extras = []
 sqlite = ["dep:rusqlite"]
 multiplayer = []
 dialogs = []
-scripting = []
 hot-reload = []
 dev = ["hot-reload"]
 
